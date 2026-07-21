@@ -4,12 +4,15 @@ import LogoLight from '@/assets/logo-light.svg';
 import LogoDark from '@/assets/logo-dark.svg';
 import Container from '@/components/Container.astro';
 import { Sun, Moon } from '@lucide/astro';
+import { env } from 'cloudflare:workers';
+import { getSessionUser } from '@/lib/session';
 
 interface Props {
   title: string;
 }
 
 const { title } = Astro.props;
+const user = await getSessionUser(Astro.cookies, env.SESSION_SECRET);
 ---
 
 <!doctype html>
@@ -73,22 +76,57 @@ const { title } = Astro.props;
           >
           <span class="ml-2 badge-secondary">beta</span>
         </div>
-        <button
-          type="button"
-          aria-label="Toggle Dark Mode"
-          data-tooltip="Toggle Dark Mode"
-          data-side="bottom"
-          data-align="end"
-          onclick="document.dispatchEvent(new CustomEvent('basecoat:theme'))"
-          class="btn-icon-outline size-8"
-        >
-          <Sun class="w-5 h-5 hidden dark:block" aria-hidden="true" />
-          <Moon class="w-5 h-5 block dark:hidden" aria-hidden="true" />
-        </button>
+        <div class="flex items-center gap-3">
+          {
+            user ? (
+              <div class="flex items-center gap-2">
+                {user.picture && (
+                  <img
+                    src={user.picture}
+                    alt=""
+                    referrerpolicy="no-referrer"
+                    class="size-6 rounded-full"
+                  />
+                )}
+                <span class="text-sm text-muted-foreground hidden sm:inline">
+                  {user.name}
+                </span>
+                <form method="POST" action="/auth/logout">
+                  <button type="submit" class="btn-sm-outline">
+                    Sign out
+                  </button>
+                </form>
+              </div>
+            ) : (
+              <a href="/auth/login" class="btn-sm-outline">
+                Sign in with GitHub
+              </a>
+            )
+          }
+          <button
+            type="button"
+            aria-label="Toggle Dark Mode"
+            data-tooltip="Toggle Dark Mode"
+            data-side="bottom"
+            data-align="end"
+            onclick="document.dispatchEvent(new CustomEvent('basecoat:theme'))"
+            class="btn-icon-outline size-8"
+          >
+            <Sun class="w-5 h-5 hidden dark:block" aria-hidden="true" />
+            <Moon class="w-5 h-5 block dark:hidden" aria-hidden="true" />
+          </button>
+        </div>
       </Container>
     </header>
     <main>
       <Container class="py-6 sm:py-10">
+        {
+          Astro.url.searchParams.get('auth_error') && (
+            <div class="mb-6 rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              Sign-in with GitHub failed. Please try again.
+            </div>
+          )
+        }
         <slot />
       </Container>
     </main>
