@@ -36,8 +36,6 @@ export function buildAuthorizeUrl(opts: {
 
 type TokenResponse = {
   access_token: string;
-  token_type: string;
-  expires_in: number;
 };
 
 export async function exchangeCodeForToken(opts: {

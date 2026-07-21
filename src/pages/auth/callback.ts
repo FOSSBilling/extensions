@@ -38,7 +38,6 @@ export const GET: APIRoute = async ({ cookies, redirect, url }) => {
 
   const redirectUri = `${url.origin}/auth/callback`;
 
-  let accessToken: string;
   let userInfo;
   try {
     const token = await exchangeCodeForToken({
@@ -48,20 +47,16 @@ export const GET: APIRoute = async ({ cookies, redirect, url }) => {
       clientId: env.AUTH_CLIENT_ID,
       clientSecret: env.AUTH_CLIENT_SECRET,
     });
-    accessToken = token.access_token;
-    userInfo = await fetchUserInfo(accessToken);
+    userInfo = await fetchUserInfo(token.access_token);
   } catch {
     return redirect('/?auth_error=1');
   }
 
-  // The users table mirrors profile data for future ownership features; a
-  // write failure here shouldn't block signing in, since the session itself
-  // doesn't depend on it.
+  // A write failure here shouldn't block signing in — the session below
+  // doesn't depend on it, only future ownership features will.
   try {
     await upsertUser(env.DB_EXTENSIONS, userInfo);
-  } catch {
-    // Ignored — see comment above.
-  }
+  } catch {}
 
   const secure = url.protocol === 'https:';
   const sessionValue = await createSessionCookieValue(

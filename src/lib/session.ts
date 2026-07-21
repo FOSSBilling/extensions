@@ -71,15 +71,16 @@ async function verifySessionCookieValue(
     return null;
   }
 
-  if (
-    typeof payload.exp !== 'number' ||
-    payload.exp < Math.floor(Date.now() / 1000)
-  ) {
+  if (payload.exp < Math.floor(Date.now() / 1000)) {
     return null;
   }
 
-  const { exp: _exp, ...user } = payload;
-  return user;
+  return {
+    sub: payload.sub,
+    name: payload.name,
+    email: payload.email,
+    picture: payload.picture,
+  };
 }
 
 export async function getSessionUser(
