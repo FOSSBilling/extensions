@@ -3,7 +3,7 @@ import '@/styles/global.css';
 import LogoLight from '@/assets/logo-light.svg';
 import LogoDark from '@/assets/logo-dark.svg';
 import Container from '@/components/Container.astro';
-import { Sun, Moon } from '@lucide/astro';
+import { Sun, Moon, LogIn, LogOut, CircleUser } from '@lucide/astro';
 import { env } from 'cloudflare:workers';
 import { getSessionUser } from '@/lib/session';
 
@@ -79,27 +79,46 @@ const user = await getSessionUser(Astro.cookies, env.SESSION_SECRET);
         <div class="flex items-center gap-3">
           {
             user ? (
-              <div class="flex items-center gap-2">
-                {user.picture && (
-                  <img
-                    src={user.picture}
-                    alt=""
-                    referrerpolicy="no-referrer"
-                    class="size-6 rounded-full"
-                  />
-                )}
-                <span class="text-sm text-muted-foreground hidden sm:inline">
-                  {user.name}
-                </span>
+              <>
+                <a
+                  href="/account"
+                  aria-label={`Account — ${user.name}`}
+                  data-tooltip={`Account — ${user.name}`}
+                  data-side="bottom"
+                  data-align="end"
+                  class="btn"
+                  data-size="icon-sm"
+                  data-variant="outline"
+                >
+                  <CircleUser class="w-5 h-5" aria-hidden="true" />
+                </a>
                 <form method="POST" action="/auth/logout">
-                  <button type="submit" class="btn-sm-outline">
-                    Sign out
+                  <button
+                    type="submit"
+                    aria-label="Sign Out"
+                    data-tooltip="Sign Out"
+                    data-side="bottom"
+                    data-align="end"
+                    class="btn"
+                    data-size="icon-sm"
+                    data-variant="outline"
+                  >
+                    <LogOut class="w-5 h-5" aria-hidden="true" />
                   </button>
                 </form>
-              </div>
+              </>
             ) : (
-              <a href="/auth/login" class="btn-sm-outline">
-                Sign in with GitHub
+              <a
+                href="/auth/login"
+                aria-label="Developer sign-in"
+                data-tooltip="Developer sign-in"
+                data-side="bottom"
+                data-align="end"
+                class="btn"
+                data-size="icon-sm"
+                data-variant="outline"
+              >
+                <LogIn class="w-5 h-5" aria-hidden="true" />
               </a>
             )
           }
@@ -110,7 +129,9 @@ const user = await getSessionUser(Astro.cookies, env.SESSION_SECRET);
             data-side="bottom"
             data-align="end"
             onclick="document.dispatchEvent(new CustomEvent('basecoat:theme'))"
-            class="btn-icon-outline size-8"
+            class="btn"
+            data-size="icon-sm"
+            data-variant="outline"
           >
             <Sun class="w-5 h-5 hidden dark:block" aria-hidden="true" />
             <Moon class="w-5 h-5 block dark:hidden" aria-hidden="true" />
