@@ -22,7 +22,7 @@ if (Astro.request.method === 'POST') {
 
   const api = createApiClient(env, user.sub);
   try {
-    await api.upsertAuthorProfile(payload);
+    author = await api.upsertAuthorProfile(payload);
     return Astro.redirect('/account?profile_saved=1');
   } catch (e) {
     error =
@@ -37,22 +37,44 @@ if (Astro.request.method === 'POST') {
   <div class="max-w-2xl mx-auto space-y-6">
     <h1 class="text-2xl font-semibold tracking-tight">Developer profile</h1>
     <p class="text-muted-foreground text-sm">
-      This is the publisher identity shown on your extensions in the directory.
-      Changes take effect immediately — you can submit extensions under this
-      profile right away. A moderator will review it separately and mark it
-      approved, shown as a badge below.
+      This is the publisher identity shown on your extensions in the directory,
+      and on your public developer page. Changes take effect immediately — you
+      can submit extensions under this profile right away. A moderator will
+      review it separately and mark it approved, shown as a badge below.
     </p>
 
     {
       isEdit && (
-        <p class="text-sm">
-          Status:{' '}
-          {author!.approved ? (
-            <span class="badge">Approved</span>
-          ) : (
-            <span class="badge-secondary">Not yet reviewed</span>
+        <div class="card flex items-center gap-4">
+          {author!.avatar_url && (
+            <img
+              src={author!.avatar_url}
+              alt=""
+              class="w-14 h-14 rounded-full object-cover"
+            />
           )}
-        </p>
+          <div class="flex-1">
+            <p class="font-medium flex items-center gap-2">
+              {author!.name}
+              {author!.approved ? (
+                <span class="badge">Approved</span>
+              ) : (
+                <span class="badge-secondary">Not yet reviewed</span>
+              )}
+            </p>
+            {author!.bio && (
+              <p class="text-sm text-muted-foreground mt-1">{author!.bio}</p>
+            )}
+          </div>
+          <a
+            href={`/developer/${author!.id}`}
+            class="btn"
+            data-size="sm"
+            data-variant="outline"
+          >
+            View public profile
+          </a>
+        </div>
       )
     }
 
@@ -66,6 +88,7 @@ if (Astro.request.method === 'POST') {
 
     <form method="POST" class="space-y-8">
       <fieldset class="fieldset space-y-4">
+        <legend class="font-semibold mb-2">Publisher identity</legend>
         <div class="field">
           <label for="id">Publisher ID</label>
           <input
@@ -119,6 +142,54 @@ if (Astro.request.method === 'POST') {
             name="url"
             value={author?.URL}
           />
+        </div>
+      </fieldset>
+
+      <fieldset class="fieldset space-y-4">
+        <legend class="font-semibold mb-2">Public profile</legend>
+        <p class="text-sm text-muted-foreground -mt-2">
+          Shown on your public developer page at
+          {author ? ` /developer/${author.id}` : ' /developer/<your-id>'}.
+        </p>
+        <div class="field">
+          <label for="avatar_url">Avatar/logo URL (optional)</label>
+          <input
+            class="input"
+            type="url"
+            id="avatar_url"
+            name="avatar_url"
+            value={author?.avatar_url}
+          />
+        </div>
+        <div class="field">
+          <label for="bio">Bio (optional)</label>
+          <textarea
+            class="textarea"
+            id="bio"
+            name="bio"
+            rows="4"
+            maxlength="500"
+            set:text={author?.bio ?? ''}
+          />
+          <p class="text-sm text-muted-foreground">Up to 500 characters.</p>
+        </div>
+      </fieldset>
+
+      <fieldset class="fieldset space-y-4">
+        <legend class="font-semibold mb-2">Private contact</legend>
+        <div class="field">
+          <label for="contact_email">Contact email (optional)</label>
+          <input
+            class="input"
+            type="email"
+            id="contact_email"
+            name="contact_email"
+            value={author?.contact_email}
+          />
+          <p class="text-sm text-muted-foreground">
+            Never shown publicly — only visible to FOSSBilling moderators, in
+            case they need to reach you about this profile or its extensions.
+          </p>
         </div>
       </fieldset>
 

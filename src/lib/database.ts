@@ -24,6 +24,43 @@ const SELECT_EXTENSIONS_BY_OWNER = `
   ORDER BY e.name
 `;
 
+const SELECT_EXTENSIONS_BY_AUTHOR = `
+  ${SELECT_EXTENSIONS_LIST}
+  WHERE LOWER(a.id) = LOWER(?)
+  ORDER BY e.name
+`;
+
+// contact_email is deliberately never selected here — this repo has no
+// public-facing query that should return it. Only getAuthorByOwner (below)
+// selects it, for prefilling the owner's own self-management form.
+const SELECT_AUTHOR_PUBLIC = `
+  SELECT id, type, name, url, bio, avatar_url, approved_at FROM authors
+`;
+
+type AuthorProfileRow = {
+  id: string;
+  type: string;
+  name: string;
+  url: string | null;
+  bio?: string | null;
+  avatar_url: string | null;
+  contact_email?: string | null;
+  approved_at: string | null;
+};
+
+function parseAuthorProfileRow(row: AuthorProfileRow): AuthorProfile {
+  return {
+    type: row.type as 'organization' | 'user',
+    name: row.name,
+    id: row.id.toLowerCase() as Lowercase<string>,
+    URL: row.url ?? undefined,
+    bio: row.bio ?? undefined,
+    avatar_url: row.avatar_url ?? undefined,
+    contact_email: row.contact_email ?? undefined,
+    approved: row.approved_at !== null,
+  } as AuthorProfile;
+}
+
 // Includes readme — used for detail pages.
 const SELECT_EXTENSION_DETAIL = `
   SELECT e.id, e.type, e.author_id,
@@ -83,6 +120,8 @@ export async function getExtensionsByOwner(
   return result.results.map(parseExtensionRow);
 }
 
+// Includes contact_email — this is the owner viewing/editing their own
+// profile, not a public read.
 export async function getAuthorByOwner(
   db: D1Database,
   userId: string,
@@ -91,27 +130,49 @@ export async function getAuthorByOwner(
   try {
     row = await db
       .prepare(
-        'SELECT id, type, name, url, approved_at FROM authors WHERE owner_user_id = ?',
+        'SELECT id, type, name, url, bio, avatar_url, contact_email, approved_at FROM authors WHERE owner_user_id = ?',
       )
       .bind(userId)
-      .first<{
-        id: string;
-        type: string;
-        name: string;
-        url: string | null;
-        approved_at: string | null;
-      }>();
+      .first<AuthorProfileRow>();
   } catch {
     return null;
   }
-  if (!row) return null;
-  return {
-    type: row.type as 'organization' | 'user',
-    name: row.name,
-    id: row.id.toLowerCase() as Lowercase<string>,
-    URL: row.url ?? undefined,
-    approved: row.approved_at !== null,
-  } as AuthorProfile;
+  return row ? parseAuthorProfileRow(row) : null;
+}
+
+// Public read for the /developer/[id] page — never selects contact_email.
+export async function getAuthorById(
+  db: D1Database,
+  id: string,
+): Promise<AuthorProfile | null> {
+  let row;
+  try {
+    row = await db
+      .prepare(`${SELECT_AUTHOR_PUBLIC} WHERE LOWER(id) = LOWER(?)`)
+      .bind(id)
+      .first<AuthorProfileRow>();
+  } catch {
+    return null;
+  }
+  return row ? parseAuthorProfileRow(row) : null;
+}
+
+// Public listing for the /developer/[id] page.
+export async function getExtensionsByAuthorId(
+  db: D1Database,
+  authorId: string,
+): Promise<Extension[]> {
+  let result;
+  try {
+    result = await db
+      .prepare(SELECT_EXTENSIONS_BY_AUTHOR)
+      .bind(authorId)
+      .all<Record<string, unknown>>();
+  } catch {
+    return [];
+  }
+  if (!result.success) return [];
+  return result.results.map(parseExtensionRow);
 }
 
 function parseJSON<T>(value: unknown, fallback: T): T {

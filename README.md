@@ -121,11 +121,14 @@ Signed-in users manage two separate profiles from `/account`:
   this app's own `users` table. Written directly to D1 here, not moderated (not yet shown
   publicly).
 - **Developer profile** (`/account/developer`) — the publisher identity (`authors` row:
-  name, type, URL) shown on your extensions in the directory. Writes take effect
+  name, type, URL, bio, avatar, and a private contact email) shown on your extensions in the
+  directory and on your public developer page at `/developer/[id]`. Writes take effect
   immediately (`PUT /extensions/v2/authors/me`) — there's no moderation gate on creating or
   editing one. A moderator can mark a profile **approved** as a trust badge
   (`/account/moderate/developers`); it's cosmetic, not a publish gate, and any edit clears
-  the badge again until it's re-reviewed.
+  the badge again until it's re-reviewed. `contact_email` is never read by any public-facing
+  query (`getAuthorById` in `src/lib/database.ts` deliberately omits it) — only
+  `getAuthorByOwner`, used for the owner's own self-management form, selects it.
 
 An extension submission always targets an existing, owned developer profile — the two are
 deliberately kept separate (rather than letting extension submission implicitly create/edit
@@ -139,8 +142,9 @@ higher bar than developer profiles since they carry download URLs and arbitrary 
 content. All writes to the shared `authors`/`extensions` tables — moderated or not — happen in
 the [`FOSSBilling/api`](https://github.com/FOSSBilling/api) repo's `/extensions/v2` service,
 not here; this app never writes to those tables directly. This app's own
-`getExtensionsByOwner`/`getExtensionById`/`getAuthorByOwner` (in `src/lib/database.ts`) read
-the live tables directly, same as the public listings.
+`getExtensionsByOwner`/`getExtensionById`/`getAuthorByOwner`/`getAuthorById`/
+`getExtensionsByAuthorId` (in `src/lib/database.ts`) read the live tables directly, same as
+the public listings — including the public developer page at `/developer/[id]`.
 
 Each request to `/extensions/v2` is authenticated with a short-lived (60s) HMAC-signed
 bearer assertion this app mints per-request (`src/lib/assertion.ts`), proving the

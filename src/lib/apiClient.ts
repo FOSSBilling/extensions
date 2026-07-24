@@ -3,8 +3,8 @@
 // minting a bearer assertion requires ASSERTION_SIGNING_SECRET.
 import { mintBearerAssertion } from './assertion';
 import type {
-  Author,
   AuthorProfile,
+  AuthorProfileInput,
   Submission,
   SubmissionPayload,
   SubmissionStatus,
@@ -73,7 +73,7 @@ export function createApiClient(env: Cloudflare.Env, sub: string) {
 
     // Direct write, not moderated — takes effect immediately. `approved` in
     // the response is a moderator-set trust badge, not a publish gate.
-    upsertAuthorProfile: (author: Author) =>
+    upsertAuthorProfile: (author: AuthorProfileInput) =>
       call<AuthorProfile>('/authors/me', {
         method: 'PUT',
         body: JSON.stringify(author),

@@ -105,7 +105,19 @@ export type SubmissionPayload = {
 // src/services/extensions/v2/interfaces.ts (AuthorProfileSchema). Developer
 // profiles are written directly (PUT /extensions/v2/authors/me), not through
 // the submission/moderation queue; `approved` is purely a badge, not a gate.
-export type AuthorProfile = Author & { approved: boolean };
+// bio/avatar_url are shown on the public /developer/[id] page; contact_email
+// is never read by any public-facing query — it's for moderator/maintainer
+// contact only, same trust level as a user's own email.
+export type AuthorProfile = Author & {
+  approved: boolean;
+  bio?: string;
+  avatar_url?: string;
+  contact_email?: string;
+};
+
+// Body for PUT /extensions/v2/authors/me — everything but the server-set
+// `approved` flag.
+export type AuthorProfileInput = Omit<AuthorProfile, 'approved'>;
 
 export type SubmissionStatus = 'pending' | 'approved' | 'rejected';
 

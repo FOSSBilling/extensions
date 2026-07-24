@@ -1,0 +1,75 @@
+---
+import Base from '../../layouts/Base.astro';
+import ExtensionCard from '@/components/ExtensionCard.astro';
+import { getAuthorById, getExtensionsByAuthorId } from '@/lib/database';
+import { env } from 'cloudflare:workers';
+
+const { id } = Astro.params;
+
+if (!id) {
+  return Astro.redirect('/404');
+}
+
+const author = await getAuthorById(env.DB_EXTENSIONS, id);
+
+if (!author) {
+  return Astro.redirect('/404');
+}
+
+const extensions = await getExtensionsByAuthorId(env.DB_EXTENSIONS, author.id);
+---
+
+<Base title={`${author.name} — FOSSBilling Extensions`}>
+  <div class="flex items-start gap-4 mb-8">
+    {
+      author.avatar_url && (
+        <img
+          src={author.avatar_url}
+          alt=""
+          class="w-16 h-16 rounded-full object-cover"
+        />
+      )
+    }
+    <div class="flex-1">
+      <div class="flex items-center gap-2 flex-wrap">
+        <h1 class="text-2xl font-semibold tracking-tight">{author.name}</h1>
+        <span class="badge-secondary">{author.type}</span>
+        {author.approved && <span class="badge">Approved</span>}
+      </div>
+      {
+        author.bio && (
+          <p class="text-muted-foreground mt-2 max-w-2xl">{author.bio}</p>
+        )
+      }
+      {
+        author.URL && (
+          <a
+            href={author.URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="btn mt-2"
+            data-size="sm"
+            data-variant="outline"
+          >
+            {author.URL}
+          </a>
+        )
+      }
+    </div>
+  </div>
+
+  <h2 class="font-semibold mb-4">
+    Extensions by {author.name} ({extensions.length})
+  </h2>
+  {
+    extensions.length === 0 ? (
+      <p class="text-muted-foreground text-sm">No published extensions yet.</p>
+    ) : (
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        {extensions.map((ext) => (
+          <ExtensionCard ext={ext} />
+        ))}
+      </div>
+    )
+  }
+</Base>

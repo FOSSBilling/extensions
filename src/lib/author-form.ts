@@ -1,12 +1,12 @@
-import type { Author } from '@/types';
+import type { Author, AuthorProfileInput } from '@/types';
 
-// Builds an Author from the developer-profile form, for PUT /authors/me. The
-// id is immutable once an author exists — see the readonly id field in
-// /account/developer.
+// Builds an AuthorProfileInput from the developer-profile form, for
+// PUT /authors/me. The id is immutable once an author exists — see the
+// readonly id field in /account/developer.
 export function buildAuthorProfile(
   form: FormData,
   existingAuthor: Author | null,
-): Author {
+): AuthorProfileInput {
   const str = (name: string) =>
     ((form.get(name) as string | null) ?? '').trim();
 
@@ -15,5 +15,8 @@ export function buildAuthorProfile(
     type: (str('type') || 'user') as Author['type'],
     name: str('name'),
     URL: str('url') || undefined,
-  } as Author;
+    bio: str('bio') || undefined,
+    avatar_url: str('avatar_url') || undefined,
+    contact_email: str('contact_email') || undefined,
+  } as AuthorProfileInput;
 }
