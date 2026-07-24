@@ -1,0 +1,133 @@
+---
+import Base from '../../../layouts/Base.astro';
+import { env } from 'cloudflare:workers';
+import { requireUser } from '@/lib/auth-guard';
+import { createApiClient, ApiRequestError } from '@/lib/apiClient';
+import { getAuthorByOwner } from '@/lib/database';
+import { buildAuthorProfile } from '@/lib/author-form';
+import { AUTHOR_TYPES } from '@/types';
+
+const guard = await requireUser(Astro, env);
+if (guard instanceof Response) return guard;
+const user = guard;
+
+let author = await getAuthorByOwner(env.DB_EXTENSIONS, user.sub);
+const isEdit = Boolean(author);
+
+let error: string | null = null;
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  const payload = buildAuthorProfile(form, author);
+
+  const api = createApiClient(env, user.sub);
+  try {
+    await api.upsertAuthorProfile(payload);
+    return Astro.redirect('/account?profile_saved=1');
+  } catch (e) {
+    error =
+      e instanceof ApiRequestError
+        ? e.message
+        : 'Something went wrong saving your developer profile. Please try again.';
+  }
+}
+---
+
+<Base title="Developer profile — FOSSBilling Extensions">
+  <div class="max-w-2xl mx-auto space-y-6">
+    <h1 class="text-2xl font-semibold tracking-tight">Developer profile</h1>
+    <p class="text-muted-foreground text-sm">
+      This is the publisher identity shown on your extensions in the directory.
+      Changes take effect immediately — you can submit extensions under this
+      profile right away. A moderator will review it separately and mark it
+      approved, shown as a badge below.
+    </p>
+
+    {
+      isEdit && (
+        <p class="text-sm">
+          Status:{' '}
+          {author!.approved ? (
+            <span class="badge">Approved</span>
+          ) : (
+            <span class="badge-secondary">Not yet reviewed</span>
+          )}
+        </p>
+      )
+    }
+
+    {
+      error && (
+        <div class="rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          {error}
+        </div>
+      )
+    }
+
+    <form method="POST" class="space-y-8">
+      <fieldset class="fieldset space-y-4">
+        <div class="field">
+          <label for="id">Publisher ID</label>
+          <input
+            class="input"
+            type="text"
+            id="id"
+            name="id"
+            required
+            pattern="[a-z0-9]+(-[a-z0-9]+)*"
+            placeholder="my-org"
+            value={author?.id}
+            readonly={isEdit}
+          />
+          {
+            isEdit && (
+              <p class="text-sm text-muted-foreground">
+                The ID can't be changed after it's created.
+              </p>
+            )
+          }
+        </div>
+        <div class="field">
+          <label for="name">Publisher name</label>
+          <input
+            class="input"
+            type="text"
+            id="name"
+            name="name"
+            required
+            value={author?.name}
+          />
+        </div>
+        <div class="field">
+          <label for="type">Publisher type</label>
+          <select class="select" id="type" name="type">
+            {
+              AUTHOR_TYPES.map((t) => (
+                <option value={t} selected={author?.type === t}>
+                  {t}
+                </option>
+              ))
+            }
+          </select>
+        </div>
+        <div class="field">
+          <label for="url">Publisher URL (optional)</label>
+          <input
+            class="input"
+            type="url"
+            id="url"
+            name="url"
+            value={author?.URL}
+          />
+        </div>
+      </fieldset>
+
+      <div class="flex justify-end gap-3">
+        <a href="/account" class="btn" data-variant="ghost">Cancel</a>
+        <button type="submit" class="btn">
+          {isEdit ? 'Save changes' : 'Create developer profile'}
+        </button>
+      </div>
+    </form>
+  </div>
+</Base>

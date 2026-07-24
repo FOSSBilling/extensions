@@ -12,6 +12,9 @@ if (guard instanceof Response) return guard;
 const user = guard;
 
 const author = await getAuthorByOwner(env.DB_EXTENSIONS, user.sub);
+if (!author) {
+  return Astro.redirect('/account/developer?required_for=extension');
+}
 
 let error: string | null = null;
 

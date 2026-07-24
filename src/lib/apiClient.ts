@@ -2,7 +2,13 @@
 // (src/services/extensions/v2/). Never import this from client-side code —
 // minting a bearer assertion requires ASSERTION_SIGNING_SECRET.
 import { mintBearerAssertion } from './assertion';
-import type { Submission, SubmissionPayload, SubmissionStatus } from '@/types';
+import type {
+  Author,
+  AuthorProfile,
+  Submission,
+  SubmissionPayload,
+  SubmissionStatus,
+} from '@/types';
 
 export class ApiRequestError extends Error {
   code: string;
@@ -63,6 +69,21 @@ export function createApiClient(env: Cloudflare.Env, sub: string) {
       call<{ id: string; status: 'rejected' }>(`/submissions/${id}/reject`, {
         method: 'POST',
         body: JSON.stringify({ review_note: reviewNote }),
+      }),
+
+    // Direct write, not moderated — takes effect immediately. `approved` in
+    // the response is a moderator-set trust badge, not a publish gate.
+    upsertAuthorProfile: (author: Author) =>
+      call<AuthorProfile>('/authors/me', {
+        method: 'PUT',
+        body: JSON.stringify(author),
+      }),
+
+    listUnapprovedAuthors: () => call<AuthorProfile[]>('/authors/unapproved'),
+
+    approveAuthor: (id: string) =>
+      call<{ id: string; approved: true }>(`/authors/${id}/approve`, {
+        method: 'POST',
       }),
   };
 }

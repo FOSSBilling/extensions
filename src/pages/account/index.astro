@@ -3,7 +3,7 @@ import Base from '../../layouts/Base.astro';
 import { env } from 'cloudflare:workers';
 import { requireUser } from '@/lib/auth-guard';
 import { createApiClient } from '@/lib/apiClient';
-import { getExtensionsByOwner } from '@/lib/database';
+import { getAuthorByOwner, getExtensionsByOwner } from '@/lib/database';
 import { isModerator } from '@/lib/users';
 import { getLatestRelease } from '@/types';
 import type { Submission } from '@/types';
@@ -12,10 +12,20 @@ const guard = await requireUser(Astro, env);
 if (guard instanceof Response) return guard;
 const user = guard;
 
-const [ownedExtensions, moderator] = await Promise.all([
+const [ownedExtensions, moderator, author] = await Promise.all([
   getExtensionsByOwner(env.DB_EXTENSIONS, user.sub),
   isModerator(env.DB_EXTENSIONS, user.sub),
+  getAuthorByOwner(env.DB_EXTENSIONS, user.sub),
 ]);
+
+const banner: Record<string, string> = {
+  submitted: 'Submitted for review.',
+  profile_saved: 'Developer profile saved.',
+  profile_updated: 'Profile updated.',
+};
+const bannerKey = ['submitted', 'profile_saved', 'profile_updated'].find(
+  (key) => Astro.url.searchParams.has(key),
+);
 
 const api = createApiClient(env, user.sub);
 let submissions: Submission[] = [];
@@ -47,14 +57,60 @@ const statusBadgeClass: Record<Submission['status'], string> = {
           <p class="text-muted-foreground text-sm">{user.email}</p>
         </div>
       </div>
-      {
-        moderator && (
-          <a href="/account/moderate" class="btn" data-variant="outline">
-            Moderation queue
-          </a>
-        )
-      }
+      <div class="flex items-center gap-2">
+        <a href="/account/profile" class="btn" data-variant="outline">
+          Your profile
+        </a>
+        {
+          moderator && (
+            <a href="/account/moderate" class="btn" data-variant="outline">
+              Moderation queue
+            </a>
+          )
+        }
+      </div>
     </header>
+
+    {
+      bannerKey && (
+        <div class="rounded-md border border-border bg-muted px-4 py-3 text-sm">
+          {banner[bannerKey]}
+        </div>
+      )
+    }
+
+    <section class="card">
+      <header class="flex items-center justify-between">
+        <h2 class="font-semibold">Developer profile</h2>
+        <a
+          href="/account/developer"
+          class="btn"
+          data-size="sm"
+          data-variant="outline"
+        >
+          {author ? 'Edit' : 'Create'}
+        </a>
+      </header>
+      <section>
+        {
+          author ? (
+            <p class="text-sm flex items-center gap-2">
+              Publishing as <strong>{author.name}</strong> ({author.id})
+              {author.approved ? (
+                <span class="badge">Approved</span>
+              ) : (
+                <span class="badge-secondary">Not yet reviewed</span>
+              )}
+            </p>
+          ) : (
+            <p class="text-muted-foreground text-sm">
+              You don't have a developer profile yet — create one before
+              submitting an extension.
+            </p>
+          )
+        }
+      </section>
+    </section>
 
     <section class="card">
       <header class="flex items-center justify-between">

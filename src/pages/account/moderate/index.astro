@@ -27,7 +27,12 @@ try {
 
 <Base title="Moderation queue — FOSSBilling Extensions">
   <div class="max-w-3xl mx-auto space-y-6">
-    <h1 class="text-2xl font-semibold tracking-tight">Moderation queue</h1>
+    <div class="flex items-center justify-between gap-4">
+      <h1 class="text-2xl font-semibold tracking-tight">Moderation queue</h1>
+      <a href="/account/moderate/developers" class="btn" data-variant="outline">
+        Developer profiles
+      </a>
+    </div>
 
     {
       Astro.url.searchParams.get('error') && (

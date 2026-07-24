@@ -23,7 +23,9 @@ Extensions can also be installed manually by downloading an archive, extracting 
 
 ## Submitting Extensions
 
-Sign in (top-right of the site) and visit [/account](https://extensions.fossbilling.org/account) to submit a new extension or edit one you already publish. Submissions and edits are reviewed by a moderator before they appear in (or change) the public directory — see [Authentication](#authentication) below for how ownership and moderation work.
+Sign in (top-right of the site) and visit [/account](https://extensions.fossbilling.org/account). First-time publishers create a [developer profile](https://extensions.fossbilling.org/account/developer) (publisher name, type, URL) — this takes effect immediately, no approval needed, so you can submit new extensions or edit ones you already publish right away. A moderator can separately mark a profile as approved, shown as a badge; extension submissions themselves still go through moderator review before they appear in (or change) the public directory — see [Authentication](#authentication) below for how ownership and moderation work.
+
+Your personal [account profile](https://extensions.fossbilling.org/account/profile) (display name, bio) is separate from your developer profile — it's not shown publicly yet, but is there ahead of future features like comments and ratings.
 
 ## Badges
 
@@ -80,11 +82,13 @@ Apply the `users` table to your local D1 database:
 npm run db:migrate:local
 ```
 
-If you already had a `users` table from before the `is_moderator` column existed, also
-run the one-time migration (a fresh table created just above already has it):
+If you already had a `users` table from before the `is_moderator` or `display_name`/`bio`
+columns existed, also run the one-time migrations (a fresh table created just above already
+has them):
 
 ```bash
 npx wrangler d1 execute DB_EXTENSIONS --local --file=./src/lib/db/migrations/0001_add_is_moderator.sql
+npx wrangler d1 execute DB_EXTENSIONS --local --file=./src/lib/db/migrations/0002_add_profile_fields.sql
 ```
 
 Start the development server:
@@ -111,14 +115,32 @@ that exchange.
 
 ### Extension submission, ownership, and moderation
 
-Signed-in users can submit and manage extensions from `/account`. All writes to the
-shared `authors`/`extensions` tables happen in the
-[`FOSSBilling/api`](https://github.com/FOSSBilling/api) repo's `/extensions/v2`
-service, not here — this app never writes to those tables directly. New submissions
-and edits go into a moderation queue there and only take effect once a moderator
-approves them; this app's own `getExtensionsByOwner`/`getExtensionById` (in
-`src/lib/database.ts`) still read the live tables directly, same as the public
-listings.
+Signed-in users manage two separate profiles from `/account`:
+
+- **Account profile** (`/account/profile`) — personal `display_name`/`bio`, stored only in
+  this app's own `users` table. Written directly to D1 here, not moderated (not yet shown
+  publicly).
+- **Developer profile** (`/account/developer`) — the publisher identity (`authors` row:
+  name, type, URL) shown on your extensions in the directory. Writes take effect
+  immediately (`PUT /extensions/v2/authors/me`) — there's no moderation gate on creating or
+  editing one. A moderator can mark a profile **approved** as a trust badge
+  (`/account/moderate/developers`); it's cosmetic, not a publish gate, and any edit clears
+  the badge again until it's re-reviewed.
+
+An extension submission always targets an existing, owned developer profile — the two are
+deliberately kept separate (rather than letting extension submission implicitly create/edit
+an author) so that things like reassigning an extension to a different author, or transferring
+a developer profile to another account, stay simple additions later instead of needing to be
+untangled from the submission form.
+
+Extension submissions (new extensions and edits) are the one thing still moderated: they go
+into a queue at `/account/moderate` and only take effect once a moderator approves them — a
+higher bar than developer profiles since they carry download URLs and arbitrary readme/website
+content. All writes to the shared `authors`/`extensions` tables — moderated or not — happen in
+the [`FOSSBilling/api`](https://github.com/FOSSBilling/api) repo's `/extensions/v2` service,
+not here; this app never writes to those tables directly. This app's own
+`getExtensionsByOwner`/`getExtensionById`/`getAuthorByOwner` (in `src/lib/database.ts`) read
+the live tables directly, same as the public listings.
 
 Each request to `/extensions/v2` is authenticated with a short-lived (60s) HMAC-signed
 bearer assertion this app mints per-request (`src/lib/assertion.ts`), proving the
@@ -144,6 +166,7 @@ npx wrangler secret put ASSERTION_SIGNING_SECRET
 ```bash
 npm run db:migrate:remote
 npx wrangler d1 execute DB_EXTENSIONS --remote --file=./src/lib/db/migrations/0001_add_is_moderator.sql
+npx wrangler d1 execute DB_EXTENSIONS --remote --file=./src/lib/db/migrations/0002_add_profile_fields.sql
 ```
 
 ## License

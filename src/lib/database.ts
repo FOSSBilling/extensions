@@ -3,6 +3,7 @@
 import {
   type Extension,
   type Author,
+  type AuthorProfile,
   type Release,
   type Repository,
 } from '@/types';
@@ -85,15 +86,21 @@ export async function getExtensionsByOwner(
 export async function getAuthorByOwner(
   db: D1Database,
   userId: string,
-): Promise<Author | null> {
+): Promise<AuthorProfile | null> {
   let row;
   try {
     row = await db
       .prepare(
-        'SELECT id, type, name, url FROM authors WHERE owner_user_id = ?',
+        'SELECT id, type, name, url, approved_at FROM authors WHERE owner_user_id = ?',
       )
       .bind(userId)
-      .first<{ id: string; type: string; name: string; url: string | null }>();
+      .first<{
+        id: string;
+        type: string;
+        name: string;
+        url: string | null;
+        approved_at: string | null;
+      }>();
   } catch {
     return null;
   }
@@ -103,7 +110,8 @@ export async function getAuthorByOwner(
     name: row.name,
     id: row.id.toLowerCase() as Lowercase<string>,
     URL: row.url ?? undefined,
-  } as Author;
+    approved: row.approved_at !== null,
+  } as AuthorProfile;
 }
 
 function parseJSON<T>(value: unknown, fallback: T): T {

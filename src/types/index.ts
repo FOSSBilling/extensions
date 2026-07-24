@@ -101,6 +101,12 @@ export type SubmissionPayload = {
   extension: ExtensionPayload;
 };
 
+// The `authors` row plus a moderator-set trust flag — see the api repo's
+// src/services/extensions/v2/interfaces.ts (AuthorProfileSchema). Developer
+// profiles are written directly (PUT /extensions/v2/authors/me), not through
+// the submission/moderation queue; `approved` is purely a badge, not a gate.
+export type AuthorProfile = Author & { approved: boolean };
+
 export type SubmissionStatus = 'pending' | 'approved' | 'rejected';
 
 export type Submission = {

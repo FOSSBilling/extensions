@@ -1,4 +1,10 @@
-import type { Author, Extension, Release, SubmissionPayload } from '@/types';
+import type {
+  Author,
+  Extension,
+  ExtensionPayload,
+  Release,
+  SubmissionPayload,
+} from '@/types';
 
 // Builds a SubmissionPayload from the ExtensionSubmissionForm component's
 // fields. A new release is only appended when version_tag is filled — for
@@ -7,20 +13,11 @@ import type { Author, Extension, Release, SubmissionPayload } from '@/types';
 // always carried through unchanged.
 export function buildSubmissionPayload(
   form: FormData,
-  existingAuthor: Author | null,
+  author: Author,
   existingExtension?: Extension,
 ): SubmissionPayload {
   const str = (name: string) =>
     ((form.get(name) as string | null) ?? '').trim();
-
-  const author: Author =
-    existingAuthor ??
-    ({
-      id: str('author_id').toLowerCase(),
-      type: (str('author_type') || 'user') as Author['type'],
-      name: str('author_name'),
-      URL: str('author_url') || undefined,
-    } as Author);
 
   const releases = existingExtension ? [...existingExtension.releases] : [];
   let version = existingExtension?.version ?? '';
@@ -44,7 +41,7 @@ export function buildSubmissionPayload(
     author,
     extension: {
       id: str('extension_id').toLowerCase(),
-      type: str('type') as SubmissionPayload['extension']['type'],
+      type: str('type') as ExtensionPayload['type'],
       name: str('name'),
       description: str('description'),
       releases,
@@ -56,9 +53,7 @@ export function buildSubmissionPayload(
       icon_url: str('icon_url') || undefined,
       readme: str('readme'),
       source: {
-        type: str(
-          'source_type',
-        ) as SubmissionPayload['extension']['source']['type'],
+        type: str('source_type') as ExtensionPayload['source']['type'],
         repo: str('source_repo'),
       },
       version,

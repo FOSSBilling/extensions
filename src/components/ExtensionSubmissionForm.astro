@@ -1,9 +1,9 @@
 ---
-import { EXTENSION_TYPES, SOURCE_TYPES, AUTHOR_TYPES } from '@/types';
+import { EXTENSION_TYPES, SOURCE_TYPES } from '@/types';
 import type { Author, Extension } from '@/types';
 
 interface Props {
-  author: Author | null;
+  author: Author;
   extension?: Extension;
   error?: string | null;
 }
@@ -23,50 +23,10 @@ const isEdit = Boolean(extension);
 
   <fieldset class="fieldset space-y-4">
     <legend class="font-semibold mb-2">Publisher</legend>
-    {
-      author ? (
-        <p class="text-sm text-muted-foreground">
-          Publishing as <strong>{author.name}</strong> ({author.id}).
-        </p>
-      ) : (
-        <>
-          <div class="field">
-            <label for="author_id">Publisher ID</label>
-            <input
-              class="input"
-              type="text"
-              id="author_id"
-              name="author_id"
-              required
-              pattern="[a-z0-9]+(-[a-z0-9]+)*"
-              placeholder="my-org"
-            />
-          </div>
-          <div class="field">
-            <label for="author_name">Publisher name</label>
-            <input
-              class="input"
-              type="text"
-              id="author_name"
-              name="author_name"
-              required
-            />
-          </div>
-          <div class="field">
-            <label for="author_type">Publisher type</label>
-            <select class="select" id="author_type" name="author_type">
-              {AUTHOR_TYPES.map((t) => (
-                <option value={t}>{t}</option>
-              ))}
-            </select>
-          </div>
-          <div class="field">
-            <label for="author_url">Publisher URL (optional)</label>
-            <input class="input" type="url" id="author_url" name="author_url" />
-          </div>
-        </>
-      )
-    }
+    <p class="text-sm text-muted-foreground">
+      Publishing as <strong>{author.name}</strong> ({author.id}).
+      <a href="/account/developer">Edit developer profile</a>
+    </p>
   </fieldset>
 
   <fieldset class="fieldset space-y-4">
