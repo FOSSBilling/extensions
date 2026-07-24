@@ -1,0 +1,62 @@
+---
+import Base from '../../../../layouts/Base.astro';
+import ExtensionSubmissionForm from '@/components/ExtensionSubmissionForm.astro';
+import { env } from 'cloudflare:workers';
+import { requireUser } from '@/lib/auth-guard';
+import { createApiClient, ApiRequestError } from '@/lib/apiClient';
+import { getAuthorByOwner, getExtensionById } from '@/lib/database';
+import { buildSubmissionPayload } from '@/lib/submission-form';
+
+const guard = await requireUser(Astro, env);
+if (guard instanceof Response) return guard;
+const user = guard;
+
+const { id } = Astro.params;
+if (!id) {
+  return Astro.redirect('/404');
+}
+
+const extension = await getExtensionById(env.DB_EXTENSIONS, id);
+if (!extension) {
+  return Astro.redirect('/404');
+}
+
+const author = await getAuthorByOwner(env.DB_EXTENSIONS, user.sub);
+if (!author || author.id !== extension.author.id) {
+  return Astro.redirect('/404');
+}
+
+let error: string | null = null;
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  const payload = buildSubmissionPayload(form, author, extension);
+
+  const api = createApiClient(env, user.sub);
+  try {
+    await api.submitExtension(payload);
+    return Astro.redirect('/account?submitted=1');
+  } catch (e) {
+    error =
+      e instanceof ApiRequestError
+        ? e.message
+        : 'Something went wrong submitting your edit. Please try again.';
+  }
+}
+---
+
+<Base title={`Edit ${extension.name} — FOSSBilling Extensions`}>
+  <div class="max-w-2xl mx-auto space-y-6">
+    <h1 class="text-2xl font-semibold tracking-tight">
+      Edit {extension.name}
+    </h1>
+    <p class="text-muted-foreground text-sm">
+      Edits are reviewed by a moderator before replacing the published listing.
+    </p>
+    <ExtensionSubmissionForm
+      author={author}
+      extension={extension}
+      error={error}
+    />
+  </div>
+</Base>

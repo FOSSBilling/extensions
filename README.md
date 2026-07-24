@@ -23,9 +23,7 @@ Extensions can also be installed manually by downloading an archive, extracting 
 
 ## Submitting Extensions
 
-Extension submission is currently paused while self-service submission and management are being prepared.
-
-If you maintain an extension and would like it to be listed, please open an issue in this repository with a link to the extension and any relevant installation details.
+Sign in (top-right of the site) and visit [/account](https://extensions.fossbilling.org/account) to submit a new extension or edit one you already publish. Submissions and edits are reviewed by a moderator before they appear in (or change) the public directory — see [Authentication](#authentication) below for how ownership and moderation work.
 
 ## Badges
 
@@ -68,10 +66,25 @@ registration is disabled there) — request a client with both
 `http://localhost:4321/auth/callback` as redirect URIs. `SESSION_SECRET` can be any
 random string, e.g. `openssl rand -base64 32`.
 
+`ASSERTION_SIGNING_SECRET` must match the
+[`FOSSBilling/api`](https://github.com/FOSSBilling/api) repo's own
+`ASSERTION_SIGNING_SECRET` exactly — it's a shared secret this app uses to prove a
+signed-in user's identity to that repo's `/extensions/v2` submission endpoints (see
+[Authentication](#authentication)). By default `/account` calls the production api at
+`https://api.fossbilling.net`; set `EXTENSIONS_API_BASE_URL` in `.dev.vars` to point at
+a local `api` dev server instead if you're working on that side too.
+
 Apply the `users` table to your local D1 database:
 
 ```bash
 npm run db:migrate:local
+```
+
+If you already had a `users` table from before the `is_moderator` column existed, also
+run the one-time migration (a fresh table created just above already has it):
+
+```bash
+npx wrangler d1 execute DB_EXTENSIONS --local --file=./src/lib/db/migrations/0001_add_is_moderator.sql
 ```
 
 Start the development server:
@@ -96,16 +109,41 @@ Sessions are a self-contained, HMAC-signed cookie minted after the initial token
 exchange — this app does not depend on the auth service's own token lifetimes beyond
 that exchange.
 
+### Extension submission, ownership, and moderation
+
+Signed-in users can submit and manage extensions from `/account`. All writes to the
+shared `authors`/`extensions` tables happen in the
+[`FOSSBilling/api`](https://github.com/FOSSBilling/api) repo's `/extensions/v2`
+service, not here — this app never writes to those tables directly. New submissions
+and edits go into a moderation queue there and only take effect once a moderator
+approves them; this app's own `getExtensionsByOwner`/`getExtensionById` (in
+`src/lib/database.ts`) still read the live tables directly, same as the public
+listings.
+
+Each request to `/extensions/v2` is authenticated with a short-lived (60s) HMAC-signed
+bearer assertion this app mints per-request (`src/lib/assertion.ts`), proving the
+signed-in user's identity to the api repo without that repo needing to know anything
+about auth.fossbilling.net. See that repo's `src/lib/auth/` for the verification side.
+
+Moderators are flagged via the `is_moderator` column on this repo's `users` table —
+there's no UI to grant it; run directly against D1:
+
+```bash
+npx wrangler d1 execute DB_EXTENSIONS --remote --command "UPDATE users SET is_moderator = 1 WHERE id = '<sub>'"
+```
+
 Production secrets:
 
 ```bash
 npx wrangler secret put AUTH_CLIENT_ID
 npx wrangler secret put AUTH_CLIENT_SECRET
 npx wrangler secret put SESSION_SECRET
+npx wrangler secret put ASSERTION_SIGNING_SECRET
 ```
 
 ```bash
 npm run db:migrate:remote
+npx wrangler d1 execute DB_EXTENSIONS --remote --file=./src/lib/db/migrations/0001_add_is_moderator.sql
 ```
 
 ## License

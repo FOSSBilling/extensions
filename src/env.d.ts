@@ -9,6 +9,8 @@ declare global {
       AUTH_CLIENT_ID: string;
       AUTH_CLIENT_SECRET: string;
       SESSION_SECRET: string;
+      ASSERTION_SIGNING_SECRET: string;
+      EXTENSIONS_API_BASE_URL: string;
     }
   }
 }

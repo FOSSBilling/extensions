@@ -7,8 +7,10 @@ import {
 } from '@/lib/pkce';
 import {
   buildAuthorizeUrl,
+  isSafeRedirectPath,
   OAUTH_VERIFIER_COOKIE,
   OAUTH_STATE_COOKIE,
+  OAUTH_REDIRECT_COOKIE,
   OAUTH_COOKIE_MAX_AGE,
 } from '@/lib/oauth';
 
@@ -32,6 +34,17 @@ export const GET: APIRoute = async ({ cookies, redirect, url }) => {
     path: '/',
     maxAge: OAUTH_COOKIE_MAX_AGE,
   });
+
+  const redirectTo = url.searchParams.get('redirect');
+  if (redirectTo && isSafeRedirectPath(redirectTo)) {
+    cookies.set(OAUTH_REDIRECT_COOKIE, redirectTo, {
+      httpOnly: true,
+      secure,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: OAUTH_COOKIE_MAX_AGE,
+    });
+  }
 
   const redirectUri = `${url.origin}/auth/callback`;
   const authorizeUrl = buildAuthorizeUrl({

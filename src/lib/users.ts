@@ -27,3 +27,14 @@ export async function upsertUser(
     )
     .run();
 }
+
+export async function isModerator(
+  db: D1Database,
+  userId: string,
+): Promise<boolean> {
+  const row = await db
+    .prepare('SELECT is_moderator FROM users WHERE id = ?')
+    .bind(userId)
+    .first<{ is_moderator: number }>();
+  return row?.is_moderator === 1;
+}

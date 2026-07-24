@@ -3,8 +3,10 @@ import { env } from 'cloudflare:workers';
 import {
   exchangeCodeForToken,
   fetchUserInfo,
+  isSafeRedirectPath,
   OAUTH_VERIFIER_COOKIE,
   OAUTH_STATE_COOKIE,
+  OAUTH_REDIRECT_COOKIE,
 } from '@/lib/oauth';
 import {
   createSessionCookieValue,
@@ -16,8 +18,10 @@ import { upsertUser } from '@/lib/users';
 export const GET: APIRoute = async ({ cookies, redirect, url }) => {
   const verifier = cookies.get(OAUTH_VERIFIER_COOKIE)?.value;
   const expectedState = cookies.get(OAUTH_STATE_COOKIE)?.value;
+  const redirectTo = cookies.get(OAUTH_REDIRECT_COOKIE)?.value;
   cookies.delete(OAUTH_VERIFIER_COOKIE, { path: '/' });
   cookies.delete(OAUTH_STATE_COOKIE, { path: '/' });
+  cookies.delete(OAUTH_REDIRECT_COOKIE, { path: '/' });
 
   if (url.searchParams.get('error')) {
     return redirect('/?auth_error=1');
@@ -77,5 +81,7 @@ export const GET: APIRoute = async ({ cookies, redirect, url }) => {
     maxAge: SESSION_MAX_AGE,
   });
 
-  return redirect('/');
+  return redirect(
+    redirectTo && isSafeRedirectPath(redirectTo) ? redirectTo : '/',
+  );
 };

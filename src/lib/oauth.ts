@@ -15,7 +15,17 @@ const SCOPE = 'openid profile email offline_access';
 // consumes them.
 export const OAUTH_VERIFIER_COOKIE = 'fb_oauth_verifier';
 export const OAUTH_STATE_COOKIE = 'fb_oauth_state';
+export const OAUTH_REDIRECT_COOKIE = 'fb_oauth_redirect';
 export const OAUTH_COOKIE_MAX_AGE = 60 * 10; // 10 minutes
+
+// Only a same-origin relative path is a valid post-login redirect target —
+// rejects absolute/protocol-relative URLs (open-redirect) and backslashes
+// (browsers treat `\` as `/` in some contexts, defeating the leading-slash check).
+export function isSafeRedirectPath(value: string): boolean {
+  return (
+    value.startsWith('/') && !value.startsWith('//') && !value.includes('\\')
+  );
+}
 
 export function buildAuthorizeUrl(opts: {
   clientId: string;

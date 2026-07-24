@@ -16,6 +16,9 @@
 	"workers_dev": false,
 	"preview_urls": true,
 	"keep_vars": true,
+	"vars": {
+		"EXTENSIONS_API_BASE_URL": "https://api.fossbilling.net"
+	},
 	"routes": [
 		{
 			"pattern": "extensions.fossbilling.org",

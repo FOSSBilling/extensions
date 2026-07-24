@@ -1,0 +1,44 @@
+---
+import Base from '../../../layouts/Base.astro';
+import ExtensionSubmissionForm from '@/components/ExtensionSubmissionForm.astro';
+import { env } from 'cloudflare:workers';
+import { requireUser } from '@/lib/auth-guard';
+import { createApiClient, ApiRequestError } from '@/lib/apiClient';
+import { getAuthorByOwner } from '@/lib/database';
+import { buildSubmissionPayload } from '@/lib/submission-form';
+
+const guard = await requireUser(Astro, env);
+if (guard instanceof Response) return guard;
+const user = guard;
+
+const author = await getAuthorByOwner(env.DB_EXTENSIONS, user.sub);
+
+let error: string | null = null;
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  const payload = buildSubmissionPayload(form, author);
+
+  const api = createApiClient(env, user.sub);
+  try {
+    await api.submitExtension(payload);
+    return Astro.redirect('/account?submitted=1');
+  } catch (e) {
+    error =
+      e instanceof ApiRequestError
+        ? e.message
+        : 'Something went wrong submitting your extension. Please try again.';
+  }
+}
+---
+
+<Base title="Submit an extension — FOSSBilling Extensions">
+  <div class="max-w-2xl mx-auto space-y-6">
+    <h1 class="text-2xl font-semibold tracking-tight">Submit an extension</h1>
+    <p class="text-muted-foreground text-sm">
+      Submissions are reviewed by a moderator before appearing in the public
+      directory.
+    </p>
+    <ExtensionSubmissionForm author={author} error={error} />
+  </div>
+</Base>

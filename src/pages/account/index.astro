@@ -1,0 +1,148 @@
+---
+import Base from '../../layouts/Base.astro';
+import { env } from 'cloudflare:workers';
+import { requireUser } from '@/lib/auth-guard';
+import { createApiClient } from '@/lib/apiClient';
+import { getExtensionsByOwner } from '@/lib/database';
+import { isModerator } from '@/lib/users';
+import { getLatestRelease } from '@/types';
+import type { Submission } from '@/types';
+
+const guard = await requireUser(Astro, env);
+if (guard instanceof Response) return guard;
+const user = guard;
+
+const [ownedExtensions, moderator] = await Promise.all([
+  getExtensionsByOwner(env.DB_EXTENSIONS, user.sub),
+  isModerator(env.DB_EXTENSIONS, user.sub),
+]);
+
+const api = createApiClient(env, user.sub);
+let submissions: Submission[] = [];
+let submissionsError = false;
+try {
+  submissions = await api.listMySubmissions();
+} catch {
+  submissionsError = true;
+}
+
+const statusBadgeClass: Record<Submission['status'], string> = {
+  pending: 'badge-secondary',
+  approved: 'badge',
+  rejected: 'badge-outline text-destructive',
+};
+---
+
+<Base title="Your account — FOSSBilling Extensions">
+  <div class="max-w-3xl mx-auto space-y-8">
+    <header class="flex items-center justify-between gap-4">
+      <div class="flex items-center gap-4">
+        {
+          user.picture && (
+            <img src={user.picture} alt="" class="w-12 h-12 rounded-full" />
+          )
+        }
+        <div>
+          <h1 class="text-2xl font-semibold tracking-tight">{user.name}</h1>
+          <p class="text-muted-foreground text-sm">{user.email}</p>
+        </div>
+      </div>
+      {
+        moderator && (
+          <a href="/account/moderate" class="btn" data-variant="outline">
+            Moderation queue
+          </a>
+        )
+      }
+    </header>
+
+    <section class="card">
+      <header class="flex items-center justify-between">
+        <h2 class="font-semibold">Your extensions</h2>
+        <a href="/account/extensions/new" class="btn" data-size="sm">
+          Submit new extension
+        </a>
+      </header>
+      <section>
+        {
+          ownedExtensions.length === 0 ? (
+            <p class="text-muted-foreground text-sm">
+              You don't have any published extensions yet.
+            </p>
+          ) : (
+            <ul class="divide-y divide-border">
+              {ownedExtensions.map((ext) => {
+                const latest = getLatestRelease(ext);
+                return (
+                  <li class="py-3 flex items-center justify-between gap-3">
+                    <div>
+                      <p class="font-medium">{ext.name}</p>
+                      <p class="text-sm text-muted-foreground">
+                        v{latest?.tag ?? 'unknown'}
+                      </p>
+                    </div>
+                    <div class="flex gap-2">
+                      <a
+                        href={`/extension/${ext.id}`}
+                        class="btn"
+                        data-size="sm"
+                        data-variant="ghost"
+                      >
+                        View
+                      </a>
+                      <a
+                        href={`/account/extensions/${ext.id}/edit`}
+                        class="btn"
+                        data-size="sm"
+                        data-variant="outline"
+                      >
+                        Edit
+                      </a>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )
+        }
+      </section>
+    </section>
+
+    <section class="card">
+      <header>
+        <h2 class="font-semibold">Your submissions</h2>
+      </header>
+      <section>
+        {
+          submissionsError ? (
+            <p class="text-sm text-destructive">
+              Unable to load your submissions right now.
+            </p>
+          ) : submissions.length === 0 ? (
+            <p class="text-muted-foreground text-sm">No submissions yet.</p>
+          ) : (
+            <ul class="divide-y divide-border">
+              {submissions.map((s) => (
+                <li class="py-3 flex items-center justify-between gap-3">
+                  <div>
+                    <p class="font-medium">{s.payload.extension.name}</p>
+                    <p class="text-sm text-muted-foreground">
+                      {s.extension_id ? 'Edit' : 'New extension'} &middot;
+                      submitted {new Date(s.created_at).toLocaleDateString()}
+                    </p>
+                    {s.status === 'rejected' && s.review_note && (
+                      <p class="text-sm text-destructive mt-1">
+                        {s.review_note}
+                      </p>
+                    )}
+                  </div>
+                  <span class={statusBadgeClass[s.status]}>{s.status}</span>
+                </li>
+              ))}
+            </ul>
+          )
+        }
+      </section>
+    </section>
+  </div>
+</Base>

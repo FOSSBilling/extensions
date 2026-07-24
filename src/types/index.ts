@@ -1,15 +1,22 @@
 import { gt, lt } from 'semver';
 
+export const EXTENSION_TYPES = [
+  'mod',
+  'theme',
+  'payment-gateway',
+  'server-manager',
+  'domain-registrar',
+  'hook',
+  'translation',
+] as const;
+
+export const SOURCE_TYPES = ['github', 'gitlab', 'custom'] as const;
+
+export const AUTHOR_TYPES = ['user', 'organization'] as const;
+
 export type Extension = {
   id: string;
-  type:
-    | 'mod'
-    | 'theme'
-    | 'payment-gateway'
-    | 'server-manager'
-    | 'domain-registrar'
-    | 'hook'
-    | 'translation';
+  type: (typeof EXTENSION_TYPES)[number];
   name: string;
   description: string;
   author: Author;
@@ -27,7 +34,7 @@ export type Extension = {
 };
 
 export type Repository = {
-  type: 'github' | 'gitlab' | 'custom';
+  type: (typeof SOURCE_TYPES)[number];
   repo: string;
 };
 
@@ -83,6 +90,31 @@ export function sortReleasesDescending(releases: Release[]): Release[] {
     }
   });
 }
+
+// Shape sent to/from the api repo's v2 submissions endpoints
+// (src/services/extensions/v2/interfaces.ts there). ExtensionPayload omits the
+// joined `author` field of Extension — the author is submitted separately.
+export type ExtensionPayload = Omit<Extension, 'author'>;
+
+export type SubmissionPayload = {
+  author: Author;
+  extension: ExtensionPayload;
+};
+
+export type SubmissionStatus = 'pending' | 'approved' | 'rejected';
+
+export type Submission = {
+  id: string;
+  extension_id: string | null;
+  author_id: string;
+  submitted_by: string;
+  status: SubmissionStatus;
+  payload: SubmissionPayload;
+  reviewer_id: string | null;
+  review_note: string | null;
+  created_at: string;
+  reviewed_at: string | null;
+};
 
 export function repositoryURL(repository: Repository): string {
   switch (repository.type) {
