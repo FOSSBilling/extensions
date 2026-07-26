@@ -16,6 +16,9 @@
 	"workers_dev": false,
 	"preview_urls": true,
 	"keep_vars": true,
+	"vars": {
+		"EXTENSIONS_API_BASE_URL": "https://api.fossbilling.net"
+	},
 	"routes": [
 		{
 			"pattern": "extensions.fossbilling.org",
@@ -30,7 +33,8 @@
 	"d1_databases": [
 		{
 			"binding": "DB_EXTENSIONS",
-			"database_id": "b99e8d34-4856-4f92-837d-5413869d3d83"
+			"database_id": "b99e8d34-4856-4f92-837d-5413869d3d83",
+			"migrations_dir": "./src/lib/db/migrations"
 		}
 	]
 }

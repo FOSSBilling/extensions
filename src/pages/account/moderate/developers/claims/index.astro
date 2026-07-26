@@ -1,0 +1,108 @@
+---
+import Base from '../../../../../layouts/Base.astro';
+import { env } from 'cloudflare:workers';
+import { requireModerator } from '@/lib/auth-guard';
+import { createApiClient } from '@/lib/apiClient';
+import type { PendingDeveloperClaim } from '@/types';
+
+const guard = await requireModerator(Astro, env);
+if (guard instanceof Response) return guard;
+const user = guard;
+
+const api = createApiClient(env, user.sub);
+let claims: PendingDeveloperClaim[] = [];
+let loadError = false;
+try {
+  claims = await api.listPendingClaims();
+} catch {
+  loadError = true;
+}
+---
+
+<Base title="Developer profile claims — FOSSBilling Extensions">
+  <div class="max-w-3xl mx-auto space-y-6">
+    <div class="flex items-center justify-between gap-4">
+      <h1 class="text-2xl font-semibold tracking-tight">
+        Profile claims awaiting review
+      </h1>
+      <a href="/account/moderate/developers" class="btn" data-variant="outline">
+        Developer profiles
+      </a>
+    </div>
+
+    {
+      Astro.url.searchParams.get('error') && (
+        <div class="rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          {Astro.url.searchParams.get('error')}
+        </div>
+      )
+    }
+
+    <p class="text-sm text-muted-foreground">
+      These profiles have no linked account. Approving gives the claimant
+      ownership immediately — there's no automated verification, so use the note
+      below (and the profile's public page) to judge legitimacy.
+    </p>
+
+    {
+      loadError ? (
+        <p class="text-sm text-destructive">
+          Unable to load pending claims right now.
+        </p>
+      ) : claims.length === 0 ? (
+        <p class="text-muted-foreground text-sm">
+          No profile claims awaiting review.
+        </p>
+      ) : (
+        <ul class="space-y-4">
+          {claims.map((c) => (
+            <li class="card space-y-3">
+              <header>
+                <h2 class="font-semibold">
+                  {c.developer_name} ({c.developer_id})
+                </h2>
+                <p class="text-sm text-muted-foreground">
+                  {c.developer_type} &middot; claimed by{' '}
+                  <code>{c.claimant_id}</code> on{' '}
+                  {new Date(c.created_at).toLocaleDateString()}
+                </p>
+                {c.note && <p class="text-sm mt-1">&ldquo;{c.note}&rdquo;</p>}
+              </header>
+              <div class="flex items-center gap-3 flex-wrap">
+                <form
+                  method="POST"
+                  action={`/account/moderate/developers/claims/${c.id}/approve`}
+                >
+                  <button type="submit" class="btn" data-size="sm">
+                    Approve
+                  </button>
+                </form>
+                <form
+                  method="POST"
+                  action={`/account/moderate/developers/claims/${c.id}/reject`}
+                  class="flex items-center gap-2"
+                >
+                  <input
+                    class="input"
+                    type="text"
+                    name="review_note"
+                    placeholder="Reason for rejecting (required)"
+                    required
+                  />
+                  <button
+                    type="submit"
+                    class="btn"
+                    data-size="sm"
+                    data-variant="destructive"
+                  >
+                    Reject
+                  </button>
+                </form>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )
+    }
+  </div>
+</Base>

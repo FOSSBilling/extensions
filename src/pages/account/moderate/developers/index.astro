@@ -1,0 +1,145 @@
+---
+import Base from '../../../../layouts/Base.astro';
+import { env } from 'cloudflare:workers';
+import { requireModerator } from '@/lib/auth-guard';
+import { createApiClient } from '@/lib/apiClient';
+import { isSafeHttpUrl } from '@/lib/safe-url';
+import type { DeveloperProfile } from '@/types';
+
+const guard = await requireModerator(Astro, env);
+if (guard instanceof Response) return guard;
+const user = guard;
+
+const view =
+  Astro.url.searchParams.get('view') === 'all' ? 'all' : 'unapproved';
+
+const api = createApiClient(env, user.sub);
+let developers: DeveloperProfile[] = [];
+let loadError = false;
+try {
+  developers =
+    view === 'all'
+      ? await api.listAllDevelopers()
+      : await api.listUnapprovedDevelopers();
+} catch {
+  loadError = true;
+}
+---
+
+<Base title="Developer profiles — FOSSBilling Extensions">
+  <div class="max-w-3xl mx-auto space-y-6">
+    <div class="flex items-center justify-between gap-4">
+      <h1 class="text-2xl font-semibold tracking-tight">Developer profiles</h1>
+      <div class="flex items-center gap-2">
+        <a
+          href="/account/moderate/developers/claims"
+          class="btn"
+          data-size="sm"
+          data-variant="outline"
+        >
+          Claims queue
+        </a>
+        <a
+          href="/account/moderate"
+          class="btn"
+          data-size="sm"
+          data-variant="outline"
+        >
+          Extension queue
+        </a>
+      </div>
+    </div>
+
+    <nav class="flex gap-2">
+      {
+        (['unapproved', 'all'] as const).map((v) => (
+          <a
+            href={`/account/moderate/developers?view=${v}`}
+            class="btn"
+            data-size="sm"
+            data-variant={v === view ? 'primary' : 'outline'}
+          >
+            {v === 'unapproved' ? 'Awaiting review' : 'All profiles'}
+          </a>
+        ))
+      }
+    </nav>
+
+    {
+      Astro.url.searchParams.get('error') && (
+        <div class="rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          {Astro.url.searchParams.get('error')}
+        </div>
+      )
+    }
+
+    <p class="text-sm text-muted-foreground">
+      These profiles are already live — approval is a trust badge, not a publish
+      gate. An edit to an approved profile clears its badge again until it's
+      reviewed here.
+    </p>
+
+    {
+      loadError ? (
+        <p class="text-sm text-destructive">
+          Unable to load developer profiles right now.
+        </p>
+      ) : developers.length === 0 ? (
+        <p class="text-muted-foreground text-sm">
+          {view === 'unapproved'
+            ? 'No developer profiles awaiting review.'
+            : 'No developer profiles yet.'}
+        </p>
+      ) : (
+        <ul class="space-y-4">
+          {developers.map((d) => (
+            <li class="card">
+              <header class="flex items-start justify-between gap-4">
+                <div>
+                  <h2 class="font-semibold flex items-center gap-2">
+                    {d.name} ({d.id})
+                    {d.approved && <span class="badge">Approved</span>}
+                  </h2>
+                  <p class="text-sm text-muted-foreground">
+                    {d.type}
+                    {d.URL && (
+                      <>
+                        {' '}
+                        &middot;{' '}
+                        {isSafeHttpUrl(d.URL) ? (
+                          <a href={d.URL}>{d.URL}</a>
+                        ) : (
+                          d.URL
+                        )}
+                      </>
+                    )}
+                  </p>
+                </div>
+                <div class="flex items-center gap-2">
+                  <a
+                    href={`/account/moderate/developers/${d.id}/history`}
+                    class="btn"
+                    data-size="sm"
+                    data-variant="outline"
+                  >
+                    History
+                  </a>
+                  {!d.approved && (
+                    <form
+                      method="POST"
+                      action={`/account/moderate/developers/${d.id}/approve`}
+                    >
+                      <button type="submit" class="btn" data-size="sm">
+                        Approve
+                      </button>
+                    </form>
+                  )}
+                </div>
+              </header>
+            </li>
+          ))}
+        </ul>
+      )
+    }
+  </div>
+</Base>

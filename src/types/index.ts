@@ -1,18 +1,25 @@
 import { gt, lt } from 'semver';
 
+export const EXTENSION_TYPES = [
+  'mod',
+  'theme',
+  'payment-gateway',
+  'server-manager',
+  'domain-registrar',
+  'hook',
+  'translation',
+] as const;
+
+export const SOURCE_TYPES = ['github', 'gitlab', 'custom'] as const;
+
+export const DEVELOPER_TYPES = ['user', 'organization'] as const;
+
 export type Extension = {
   id: string;
-  type:
-    | 'mod'
-    | 'theme'
-    | 'payment-gateway'
-    | 'server-manager'
-    | 'domain-registrar'
-    | 'hook'
-    | 'translation';
+  type: (typeof EXTENSION_TYPES)[number];
   name: string;
   description: string;
-  author: Author;
+  developer: Developer;
   releases: Release[];
   website: string;
   license: {
@@ -27,11 +34,11 @@ export type Extension = {
 };
 
 export type Repository = {
-  type: 'github' | 'gitlab' | 'custom';
+  type: (typeof SOURCE_TYPES)[number];
   repo: string;
 };
 
-export type Author = Organization | User;
+export type Developer = Organization | User;
 
 export type Organization = {
   type: 'organization';
@@ -83,6 +90,108 @@ export function sortReleasesDescending(releases: Release[]): Release[] {
     }
   });
 }
+
+// Shape sent to/from the api repo's v2 submissions endpoints
+// (src/services/extensions/v2/interfaces.ts there). ExtensionPayload omits
+// the joined `developer` field of Extension — the developer is submitted
+// separately.
+export type ExtensionPayload = Omit<Extension, 'developer'>;
+
+export type SubmissionPayload = {
+  developer: Developer;
+  extension: ExtensionPayload;
+};
+
+// The `developers` row plus a moderator-set trust flag — see the api repo's
+// src/services/extensions/v2/interfaces.ts (DeveloperProfileSchema).
+// Developer profiles are written directly (PUT /extensions/v2/developers/me),
+// not through the submission/moderation queue; `approved` is purely a badge,
+// not a gate. bio/avatar_url are shown on the public /developer/[id] page;
+// contact_email is never read by any public-facing query — it's for
+// moderator/maintainer contact only, same trust level as a user's own email.
+export type DeveloperProfile = Developer & {
+  approved: boolean;
+  bio?: string;
+  avatar_url?: string;
+  contact_email?: string;
+  // Local-only: derived from `owner_user_id IS NULL` by getDeveloperById's
+  // own query, not part of the api repo's DeveloperProfile response. Never
+  // set on profiles read via the api client (upsertDeveloperProfile,
+  // listUnapprovedDevelopers, listAllDevelopers) — only on the public
+  // /developer/[id] read.
+  unclaimed?: boolean;
+};
+
+// Body for PUT /extensions/v2/developers/me — everything but the server-set
+// `approved` flag.
+export type DeveloperProfileInput = Omit<
+  DeveloperProfile,
+  'approved' | 'unclaimed'
+>;
+
+// What getDeveloperById (the public /developer/[id] read) returns —
+// contact_email is owner/moderator-only, so it's excluded at the type level
+// rather than relying solely on the query not selecting it.
+export type PublicDeveloperProfile = Omit<DeveloperProfile, 'contact_email'>;
+
+// A snapshot of a developers row as it existed right after one
+// PUT /developers/me write — see the api repo's DeveloperHistoryEntrySchema.
+// Newest first from GET /extensions/v2/developers/{id}/history
+// (moderator-only).
+export type DeveloperHistoryEntry = {
+  developer_id: string;
+  type: (typeof DEVELOPER_TYPES)[number];
+  name: string;
+  URL?: string;
+  changed_by: string;
+  changed_at: string;
+};
+
+// A request to own an unowned ("legacy") developer profile — see the api
+// repo's DeveloperClaimSchema. Created via POST /developers/{id}/claim,
+// resolved by a moderator via approve/reject.
+export type DeveloperClaim = {
+  id: string;
+  developer_id: string;
+  claimant_id: string;
+  status: 'pending' | 'approved' | 'rejected';
+  note?: string;
+  review_note?: string;
+  reviewer_id?: string;
+  created_at: string;
+  reviewed_at?: string;
+};
+
+// DeveloperClaim plus the claimed profile's own name/type, for the moderator
+// queue (GET /developers/claims) so it doesn't need a separate lookup per
+// row.
+export type PendingDeveloperClaim = DeveloperClaim & {
+  developer_name: string;
+  developer_type: (typeof DEVELOPER_TYPES)[number];
+};
+
+// Result of POST /developers/{id}/transfer — the raw token is only ever
+// returned here, once. Never persisted or put in a URL; shown once to the
+// initiating owner to share out-of-band.
+export type DeveloperTransfer = {
+  token: string;
+  expires_at: string;
+};
+
+export type SubmissionStatus = 'pending' | 'approved' | 'rejected';
+
+export type Submission = {
+  id: string;
+  extension_id: string | null;
+  developer_id: string;
+  submitted_by: string;
+  status: SubmissionStatus;
+  payload: SubmissionPayload;
+  reviewer_id: string | null;
+  review_note: string | null;
+  created_at: string;
+  reviewed_at: string | null;
+};
 
 export function repositoryURL(repository: Repository): string {
   switch (repository.type) {

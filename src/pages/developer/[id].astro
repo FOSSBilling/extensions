@@ -1,0 +1,171 @@
+---
+import Base from '../../layouts/Base.astro';
+import ExtensionCard from '@/components/ExtensionCard.astro';
+import { getDeveloperById, getExtensionsByDeveloperId } from '@/lib/database';
+import { getSessionUser } from '@/lib/session';
+import { requireUser } from '@/lib/auth-guard';
+import { createApiClient, ApiRequestError } from '@/lib/apiClient';
+import { formString } from '@/lib/form';
+import { isSafeHttpUrl } from '@/lib/safe-url';
+import { env } from 'cloudflare:workers';
+
+const { id } = Astro.params;
+
+if (!id) {
+  return Astro.redirect('/404');
+}
+
+const developer = await getDeveloperById(env.DB_EXTENSIONS, id);
+
+if (!developer) {
+  return Astro.redirect('/404');
+}
+
+const currentUser = await getSessionUser(Astro.cookies, env.SESSION_SECRET);
+
+let claimError: string | null = null;
+let claimSubmitted = false;
+
+if (Astro.request.method === 'POST' && developer.unclaimed) {
+  const guard = await requireUser(Astro, env);
+  if (guard instanceof Response) return guard;
+  const user = guard;
+
+  const form = await Astro.request.formData();
+  const note = formString(form, 'note');
+
+  const api = createApiClient(env, user.sub);
+  try {
+    await api.claimDeveloper(developer.id, note || undefined);
+    claimSubmitted = true;
+  } catch (e) {
+    claimError =
+      e instanceof ApiRequestError
+        ? e.message
+        : 'Unable to submit your claim. Please try again.';
+  }
+}
+
+const extensions = await getExtensionsByDeveloperId(
+  env.DB_EXTENSIONS,
+  developer.id,
+);
+---
+
+<Base title={`${developer.name} — FOSSBilling Extensions`}>
+  <div class="flex items-start gap-4 mb-8">
+    {
+      developer.avatar_url && (
+        <img
+          src={developer.avatar_url}
+          alt=""
+          class="w-16 h-16 rounded-full object-cover"
+        />
+      )
+    }
+    <div class="flex-1">
+      <div class="flex items-center gap-2 flex-wrap">
+        <h1 class="text-2xl font-semibold tracking-tight">{developer.name}</h1>
+        <span class="badge-secondary">{developer.type}</span>
+        {developer.approved && <span class="badge">Approved</span>}
+        {developer.unclaimed && <span class="badge-secondary">Unclaimed</span>}
+      </div>
+      {
+        developer.bio && (
+          <p class="text-muted-foreground mt-2 max-w-2xl">{developer.bio}</p>
+        )
+      }
+      {
+        developer.URL && isSafeHttpUrl(developer.URL) ? (
+          <a
+            href={developer.URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="btn mt-2"
+            data-size="sm"
+            data-variant="outline"
+          >
+            {developer.URL}
+          </a>
+        ) : (
+          developer.URL && (
+            <p class="text-sm text-muted-foreground mt-2">{developer.URL}</p>
+          )
+        )
+      }
+    </div>
+  </div>
+
+  {
+    developer.unclaimed && (
+      <div class="card space-y-3 mb-8">
+        <h2 class="font-semibold">
+          This profile hasn't been linked to an account
+        </h2>
+        {claimSubmitted ? (
+          <p class="text-sm text-muted-foreground">
+            Your claim has been submitted for moderator review. You can check
+            its status on your{' '}
+            <a href="/account/developer">developer profile page</a>.
+          </p>
+        ) : (
+          <>
+            <p class="text-sm text-muted-foreground">
+              If this is you, you can request to claim it. A moderator reviews
+              every claim before ownership changes.
+            </p>
+            {claimError && (
+              <div class="rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                {claimError}
+              </div>
+            )}
+            {currentUser ? (
+              <form method="POST" class="space-y-3">
+                <div class="field">
+                  <label for="note">
+                    Note for the moderator reviewing this (optional)
+                  </label>
+                  <input
+                    class="input"
+                    type="text"
+                    id="note"
+                    name="note"
+                    maxlength="500"
+                    placeholder="e.g. I'm the maintainer, see github.com/..."
+                  />
+                </div>
+                <button type="submit" class="btn" data-size="sm">
+                  Claim this profile
+                </button>
+              </form>
+            ) : (
+              <a
+                href={`/auth/login?redirect=${encodeURIComponent(Astro.url.pathname)}`}
+                class="btn"
+                data-size="sm"
+                data-variant="outline"
+              >
+                Sign in to claim this profile
+              </a>
+            )}
+          </>
+        )}
+      </div>
+    )
+  }
+
+  <h2 class="font-semibold mb-4">
+    Extensions by {developer.name} ({extensions.length})
+  </h2>
+  {
+    extensions.length === 0 ? (
+      <p class="text-muted-foreground text-sm">No published extensions yet.</p>
+    ) : (
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        {extensions.map((ext) => (
+          <ExtensionCard ext={ext} />
+        ))}
+      </div>
+    )
+  }
+</Base>

@@ -3,13 +3,16 @@ import '@/styles/global.css';
 import LogoLight from '@/assets/logo-light.svg';
 import LogoDark from '@/assets/logo-dark.svg';
 import Container from '@/components/Container.astro';
-import { Sun, Moon } from '@lucide/astro';
+import { Sun, Moon, LogIn, LogOut, CircleUser } from '@lucide/astro';
+import { env } from 'cloudflare:workers';
+import { getSessionUser } from '@/lib/session';
 
 interface Props {
   title: string;
 }
 
 const { title } = Astro.props;
+const user = await getSessionUser(Astro.cookies, env.SESSION_SECRET);
 ---
 
 <!doctype html>
@@ -73,22 +76,85 @@ const { title } = Astro.props;
           >
           <span class="ml-2 badge-secondary">beta</span>
         </div>
-        <button
-          type="button"
-          aria-label="Toggle Dark Mode"
-          data-tooltip="Toggle Dark Mode"
-          data-side="bottom"
-          data-align="end"
-          onclick="document.dispatchEvent(new CustomEvent('basecoat:theme'))"
-          class="btn-icon-outline size-8"
-        >
-          <Sun class="w-5 h-5 hidden dark:block" aria-hidden="true" />
-          <Moon class="w-5 h-5 block dark:hidden" aria-hidden="true" />
-        </button>
+        <div class="flex items-center gap-3">
+          {
+            user ? (
+              <>
+                <a
+                  href="/account"
+                  aria-label={`Account — ${user.name}`}
+                  data-tooltip={`Account — ${user.name}`}
+                  data-side="bottom"
+                  data-align="end"
+                  class="btn"
+                  data-size="icon-sm"
+                  data-variant="outline"
+                >
+                  <CircleUser class="w-5 h-5" aria-hidden="true" />
+                </a>
+                <form method="POST" action="/auth/logout">
+                  <button
+                    type="submit"
+                    aria-label="Sign Out"
+                    data-tooltip="Sign Out"
+                    data-side="bottom"
+                    data-align="end"
+                    class="btn"
+                    data-size="icon-sm"
+                    data-variant="outline"
+                  >
+                    <LogOut class="w-5 h-5" aria-hidden="true" />
+                  </button>
+                </form>
+              </>
+            ) : (
+              <a
+                href="/auth/login"
+                aria-label="Developer sign-in"
+                data-tooltip="Developer sign-in"
+                data-side="bottom"
+                data-align="end"
+                class="btn"
+                data-size="icon-sm"
+                data-variant="outline"
+              >
+                <LogIn class="w-5 h-5" aria-hidden="true" />
+              </a>
+            )
+          }
+          <button
+            type="button"
+            aria-label="Toggle Dark Mode"
+            data-tooltip="Toggle Dark Mode"
+            data-side="bottom"
+            data-align="end"
+            onclick="document.dispatchEvent(new CustomEvent('basecoat:theme'))"
+            class="btn"
+            data-size="icon-sm"
+            data-variant="outline"
+          >
+            <Sun class="w-5 h-5 hidden dark:block" aria-hidden="true" />
+            <Moon class="w-5 h-5 block dark:hidden" aria-hidden="true" />
+          </button>
+        </div>
       </Container>
     </header>
     <main>
       <Container class="py-6 sm:py-10">
+        {
+          Astro.url.searchParams.get('auth_error') && (
+            <div class="mb-6 rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              Sign-in failed. Please try again.
+            </div>
+          )
+        }
+        {
+          Astro.url.searchParams.get('account_deleted') && (
+            <div class="mb-6 rounded-md border border-border bg-muted px-4 py-3 text-sm">
+              Your account has been deleted.
+            </div>
+          )
+        }
         <slot />
       </Container>
     </main>
