@@ -1,4 +1,10 @@
 import type { Developer, DeveloperProfileInput } from '@/types';
+import { DEVELOPER_TYPES } from '@/types';
+import { formString } from './form';
+
+function isDeveloperType(value: string): value is Developer['type'] {
+  return (DEVELOPER_TYPES as readonly string[]).includes(value);
+}
 
 // Builds a DeveloperProfileInput from the developer-profile form, for
 // PUT /developers/me. The id is immutable once a developer profile exists —
@@ -7,12 +13,12 @@ export function buildDeveloperProfile(
   form: FormData,
   existingDeveloper: Developer | null,
 ): DeveloperProfileInput {
-  const str = (name: string) =>
-    ((form.get(name) as string | null) ?? '').trim();
+  const str = (name: string) => formString(form, name);
+  const typeInput = str('type');
 
   return {
     id: existingDeveloper?.id ?? (str('id').toLowerCase() as Lowercase<string>),
-    type: (str('type') || 'user') as Developer['type'],
+    type: isDeveloperType(typeInput) ? typeInput : 'user',
     name: str('name'),
     URL: str('url') || undefined,
     bio: str('bio') || undefined,

@@ -20,10 +20,17 @@ export const OAUTH_COOKIE_MAX_AGE = 60 * 10; // 10 minutes
 
 // Only a same-origin relative path is a valid post-login redirect target —
 // rejects absolute/protocol-relative URLs (open-redirect) and backslashes
-// (browsers treat `\` as `/` in some contexts, defeating the leading-slash check).
+// (browsers treat `\` as `/` in some contexts, defeating the leading-slash
+// check). Also rejects tab/CR/LF: URL parsers strip these per the WHATWG URL
+// spec, so e.g. "/\t/evil.com" passes a naive same-origin check here but is
+// parsed as "//evil.com" — protocol-relative — by the time a browser follows
+// the resulting redirect.
 export function isSafeRedirectPath(value: string): boolean {
   return (
-    value.startsWith('/') && !value.startsWith('//') && !value.includes('\\')
+    value.startsWith('/') &&
+    !value.startsWith('//') &&
+    !value.includes('\\') &&
+    !/[\t\r\n]/.test(value)
   );
 }
 

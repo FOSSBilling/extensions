@@ -44,6 +44,10 @@ export const GET: APIRoute = async ({ cookies, redirect, url }) => {
       path: '/',
       maxAge: OAUTH_COOKIE_MAX_AGE,
     });
+  } else {
+    // Otherwise a stale cookie from an earlier, abandoned login attempt
+    // would linger and redirect this attempt somewhere it didn't ask for.
+    cookies.delete(OAUTH_REDIRECT_COOKIE, { path: '/' });
   }
 
   const redirectUri = `${url.origin}/auth/callback`;

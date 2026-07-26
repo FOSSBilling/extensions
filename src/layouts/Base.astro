@@ -144,7 +144,7 @@ const user = await getSessionUser(Astro.cookies, env.SESSION_SECRET);
         {
           Astro.url.searchParams.get('auth_error') && (
             <div class="mb-6 rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-              Sign-in with GitHub failed. Please try again.
+              Sign-in failed. Please try again.
             </div>
           )
         }

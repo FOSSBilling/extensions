@@ -2,6 +2,7 @@ import type { APIRoute } from 'astro';
 import { env } from 'cloudflare:workers';
 import { requireModerator } from '@/lib/auth-guard';
 import { createApiClient, ApiRequestError } from '@/lib/apiClient';
+import { formString } from '@/lib/form';
 
 export const POST: APIRoute = async (context) => {
   const guard = await requireModerator(context, env);
@@ -19,7 +20,7 @@ export const POST: APIRoute = async (context) => {
       `/account/moderate?error=${encodeURIComponent('Malformed request.')}`,
     );
   }
-  const reviewNote = ((form.get('review_note') as string | null) ?? '').trim();
+  const reviewNote = formString(form, 'review_note');
   if (!reviewNote) {
     return context.redirect(
       `/account/moderate?error=${encodeURIComponent('A reason is required to reject a submission.')}`,

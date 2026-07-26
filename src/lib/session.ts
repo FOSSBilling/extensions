@@ -56,12 +56,17 @@ async function verifySessionCookieValue(
   if (!payloadB64 || !signatureB64) return null;
 
   const key = await importSigningKey(secret);
-  const valid = await crypto.subtle.verify(
-    'HMAC',
-    key,
-    base64urlDecode(signatureB64),
-    new TextEncoder().encode(payloadB64),
-  );
+  let valid: boolean;
+  try {
+    valid = await crypto.subtle.verify(
+      'HMAC',
+      key,
+      base64urlDecode(signatureB64),
+      new TextEncoder().encode(payloadB64),
+    );
+  } catch {
+    return null;
+  }
   if (!valid) return null;
 
   let payload: SessionPayload;

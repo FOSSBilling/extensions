@@ -58,13 +58,29 @@ export async function getUserProfile(
   return row ?? { display_name: null, bio: null };
 }
 
+// Callback.ts deliberately doesn't fail sign-in if upsertUser fails (a
+// transient write error shouldn't block signing in), which can leave a
+// signed-in user with no `users` row. Without the row, an UPDATE here
+// would silently affect zero rows — this would report success while saving
+// nothing. Ensure the row exists first so the UPDATE always lands.
 export async function updateUserProfile(
   db: D1Database,
   userId: string,
   profile: UserProfile,
 ): Promise<void> {
+  const now = new Date().toISOString();
   await db
-    .prepare('UPDATE users SET display_name = ?, bio = ? WHERE id = ?')
-    .bind(profile.display_name, profile.bio, userId)
+    .prepare(
+      `INSERT INTO users (id, created_at, updated_at) VALUES (?, ?, ?)
+       ON CONFLICT(id) DO NOTHING`,
+    )
+    .bind(userId, now, now)
+    .run();
+
+  await db
+    .prepare(
+      'UPDATE users SET display_name = ?, bio = ?, updated_at = ? WHERE id = ?',
+    )
+    .bind(profile.display_name, profile.bio, now, userId)
     .run();
 }

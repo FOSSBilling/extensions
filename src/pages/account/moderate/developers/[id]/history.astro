@@ -3,6 +3,7 @@ import Base from '../../../../../layouts/Base.astro';
 import { env } from 'cloudflare:workers';
 import { requireModerator } from '@/lib/auth-guard';
 import { createApiClient, ApiRequestError } from '@/lib/apiClient';
+import { isSafeHttpUrl } from '@/lib/safe-url';
 import type { DeveloperHistoryEntry } from '@/types';
 
 const guard = await requireModerator(Astro, env);
@@ -73,7 +74,12 @@ try {
                 {entry.URL && (
                   <>
                     {' '}
-                    &middot; <a href={entry.URL}>{entry.URL}</a>
+                    &middot;{' '}
+                    {isSafeHttpUrl(entry.URL) ? (
+                      <a href={entry.URL}>{entry.URL}</a>
+                    ) : (
+                      entry.URL
+                    )}
                   </>
                 )}
               </p>

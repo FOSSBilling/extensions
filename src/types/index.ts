@@ -124,7 +124,10 @@ export type DeveloperProfile = Developer & {
 
 // Body for PUT /extensions/v2/developers/me — everything but the server-set
 // `approved` flag.
-export type DeveloperProfileInput = Omit<DeveloperProfile, 'approved'>;
+export type DeveloperProfileInput = Omit<
+  DeveloperProfile,
+  'approved' | 'unclaimed'
+>;
 
 // A snapshot of a developers row as it existed right after one
 // PUT /developers/me write — see the api repo's DeveloperHistoryEntrySchema.

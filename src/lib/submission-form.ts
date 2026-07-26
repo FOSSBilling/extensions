@@ -5,6 +5,12 @@ import type {
   Release,
   SubmissionPayload,
 } from '@/types';
+import { formString } from './form';
+
+// Thrown for form-level validation failures that should be shown to the
+// user, distinct from ApiRequestError (the api rejecting an otherwise
+// well-formed payload) — see the try/catch in new.astro/edit.astro.
+export class SubmissionValidationError extends Error {}
 
 // Builds a SubmissionPayload from the ExtensionSubmissionForm component's
 // fields. A new release is only appended when version_tag is filled — for
@@ -16,8 +22,7 @@ export function buildSubmissionPayload(
   developer: Developer,
   existingExtension?: Extension,
 ): SubmissionPayload {
-  const str = (name: string) =>
-    ((form.get(name) as string | null) ?? '').trim();
+  const str = (name: string) => formString(form, name);
 
   const releases = existingExtension ? [...existingExtension.releases] : [];
   let version = existingExtension?.version ?? '';
@@ -25,12 +30,21 @@ export function buildSubmissionPayload(
 
   const newReleaseTag = str('version_tag');
   if (newReleaseTag) {
+    const releaseDate = str('release_date');
+    const releaseDownloadUrl = str('download_url');
+    const minVersion = str('min_fossbilling_version');
+    if (!releaseDate || !releaseDownloadUrl || !minVersion) {
+      throw new SubmissionValidationError(
+        'To add a new release, fill in the release date, download URL, and minimum FOSSBilling version.',
+      );
+    }
+
     const release: Release = {
       tag: newReleaseTag,
-      date: str('release_date'),
-      download_url: str('download_url'),
+      date: releaseDate,
+      download_url: releaseDownloadUrl,
       changelog_url: str('changelog_url') || undefined,
-      min_fossbilling_version: str('min_fossbilling_version'),
+      min_fossbilling_version: minVersion,
     };
     releases.push(release);
     version = release.tag;

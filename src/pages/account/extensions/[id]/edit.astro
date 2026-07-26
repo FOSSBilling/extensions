@@ -5,7 +5,10 @@ import { env } from 'cloudflare:workers';
 import { requireUser } from '@/lib/auth-guard';
 import { createApiClient, ApiRequestError } from '@/lib/apiClient';
 import { getDeveloperByOwner, getExtensionById } from '@/lib/database';
-import { buildSubmissionPayload } from '@/lib/submission-form';
+import {
+  buildSubmissionPayload,
+  SubmissionValidationError,
+} from '@/lib/submission-form';
 
 const guard = await requireUser(Astro, env);
 if (guard instanceof Response) return guard;
@@ -30,15 +33,14 @@ let error: string | null = null;
 
 if (Astro.request.method === 'POST') {
   const form = await Astro.request.formData();
-  const payload = buildSubmissionPayload(form, developer, extension);
-
   const api = createApiClient(env, user.sub);
   try {
+    const payload = buildSubmissionPayload(form, developer, extension);
     await api.submitExtension(payload);
     return Astro.redirect('/account?submitted=1');
   } catch (e) {
     error =
-      e instanceof ApiRequestError
+      e instanceof ApiRequestError || e instanceof SubmissionValidationError
         ? e.message
         : 'Something went wrong submitting your edit. Please try again.';
   }

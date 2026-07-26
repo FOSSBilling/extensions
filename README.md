@@ -76,19 +76,13 @@ signed-in user's identity to that repo's `/extensions/v2` submission endpoints (
 `https://api.fossbilling.net`; set `EXTENSIONS_API_BASE_URL` in `.dev.vars` to point at
 a local `api` dev server instead if you're working on that side too.
 
-Apply the `users` table to your local D1 database:
+Apply pending migrations to your local D1 database — safe to re-run any time, it only
+applies whatever hasn't already run against that database (tracked in D1's own
+`d1_migrations` table, shared with the [`FOSSBilling/api`](https://github.com/FOSSBilling/api)
+repo's migrations against this same database):
 
 ```bash
 npm run db:migrate:local
-```
-
-If you already had a `users` table from before the `is_moderator` or `display_name`/`bio`
-columns existed, also run the one-time migrations (a fresh table created just above already
-has them):
-
-```bash
-npx wrangler d1 execute DB_EXTENSIONS --local --file=./src/lib/db/migrations/0001_add_is_moderator.sql
-npx wrangler d1 execute DB_EXTENSIONS --local --file=./src/lib/db/migrations/0002_add_profile_fields.sql
 ```
 
 Start the development server:
@@ -106,7 +100,7 @@ Sign-in is delegated to FOSSBilling's central auth service at
 Code + PKCE), implemented under `src/pages/auth/` and `src/lib/`. That service is
 identity-only — it never exposes roles or permissions. Extension ownership,
 submitter/moderator status, and any other authorization concept live entirely in this
-app's own `users` table (`src/lib/db/users.sql`), keyed by the auth service's `sub`
+app's own `users` table (`src/lib/db/migrations/`), keyed by the auth service's `sub`
 claim, in the same `DB_EXTENSIONS` D1 database this app already reads from.
 
 Sessions are a self-contained, HMAC-signed cookie minted after the initial token
@@ -193,8 +187,6 @@ npx wrangler secret put ASSERTION_SIGNING_SECRET
 
 ```bash
 npm run db:migrate:remote
-npx wrangler d1 execute DB_EXTENSIONS --remote --file=./src/lib/db/migrations/0001_add_is_moderator.sql
-npx wrangler d1 execute DB_EXTENSIONS --remote --file=./src/lib/db/migrations/0002_add_profile_fields.sql
 ```
 
 ## License

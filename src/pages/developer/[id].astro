@@ -5,6 +5,8 @@ import { getDeveloperById, getExtensionsByDeveloperId } from '@/lib/database';
 import { getSessionUser } from '@/lib/session';
 import { requireUser } from '@/lib/auth-guard';
 import { createApiClient, ApiRequestError } from '@/lib/apiClient';
+import { formString } from '@/lib/form';
+import { isSafeHttpUrl } from '@/lib/safe-url';
 import { env } from 'cloudflare:workers';
 
 const { id } = Astro.params;
@@ -30,7 +32,7 @@ if (Astro.request.method === 'POST' && developer.unclaimed) {
   const user = guard;
 
   const form = await Astro.request.formData();
-  const note = ((form.get('note') as string | null) ?? '').trim();
+  const note = formString(form, 'note');
 
   const api = createApiClient(env, user.sub);
   try {
@@ -74,7 +76,7 @@ const extensions = await getExtensionsByDeveloperId(
         )
       }
       {
-        developer.URL && (
+        developer.URL && isSafeHttpUrl(developer.URL) ? (
           <a
             href={developer.URL}
             target="_blank"
@@ -85,6 +87,10 @@ const extensions = await getExtensionsByDeveloperId(
           >
             {developer.URL}
           </a>
+        ) : (
+          developer.URL && (
+            <p class="text-sm text-muted-foreground mt-2">{developer.URL}</p>
+          )
         )
       }
     </div>

@@ -6,7 +6,11 @@ import { createApiClient, ApiRequestError } from '@/lib/apiClient';
 import { getDeveloperByOwner } from '@/lib/database';
 import { buildDeveloperProfile } from '@/lib/developer-form';
 import { DEVELOPER_TYPES } from '@/types';
-import type { DeveloperClaim, DeveloperTransfer } from '@/types';
+import type {
+  DeveloperClaim,
+  DeveloperProfileInput,
+  DeveloperTransfer,
+} from '@/types';
 
 const guard = await requireUser(Astro, env);
 if (guard instanceof Response) return guard;
@@ -19,6 +23,9 @@ const api = createApiClient(env, user.sub);
 
 let error: string | null = Astro.url.searchParams.get('error');
 let transferResult: DeveloperTransfer | null = null;
+// Falls back to the just-submitted values on a failed save, so a rejected
+// submission (e.g. duplicate id) doesn't blank the form and force retyping.
+let submitted: DeveloperProfileInput | null = null;
 
 if (Astro.request.method === 'POST') {
   const form = await Astro.request.formData();
@@ -38,6 +45,7 @@ if (Astro.request.method === 'POST') {
     }
   } else {
     const payload = buildDeveloperProfile(form, developer);
+    submitted = payload;
     try {
       developer = await api.upsertDeveloperProfile(payload);
       return Astro.redirect('/account?profile_saved=1');
@@ -49,6 +57,10 @@ if (Astro.request.method === 'POST') {
     }
   }
 }
+
+// Form field values only — isEdit/preview/transfer sections below still key
+// off the real (saved) `developer`, not a failed, unsaved submission.
+const fields = submitted ?? developer;
 
 let myClaims: DeveloperClaim[] = [];
 if (!isEdit) {
@@ -150,7 +162,7 @@ if (!isEdit) {
             required
             pattern="[a-z0-9]+(-[a-z0-9]+)*"
             placeholder="my-org"
-            value={developer?.id}
+            value={fields?.id}
             readonly={isEdit}
           />
           {
@@ -169,7 +181,7 @@ if (!isEdit) {
             id="name"
             name="name"
             required
-            value={developer?.name}
+            value={fields?.name}
           />
         </div>
         <div class="field">
@@ -177,7 +189,7 @@ if (!isEdit) {
           <select class="select" id="type" name="type">
             {
               DEVELOPER_TYPES.map((t) => (
-                <option value={t} selected={developer?.type === t}>
+                <option value={t} selected={fields?.type === t}>
                   {t}
                 </option>
               ))
@@ -191,7 +203,7 @@ if (!isEdit) {
             type="url"
             id="url"
             name="url"
-            value={developer?.URL}
+            value={fields?.URL}
           />
         </div>
       </fieldset>
@@ -209,7 +221,7 @@ if (!isEdit) {
             type="url"
             id="avatar_url"
             name="avatar_url"
-            value={developer?.avatar_url}
+            value={fields?.avatar_url}
           />
         </div>
         <div class="field">
@@ -220,7 +232,7 @@ if (!isEdit) {
             name="bio"
             rows="4"
             maxlength="500"
-            set:text={developer?.bio ?? ''}
+            set:text={fields?.bio ?? ''}
           />
           <p class="text-sm text-muted-foreground">Up to 500 characters.</p>
         </div>
@@ -235,7 +247,7 @@ if (!isEdit) {
             type="email"
             id="contact_email"
             name="contact_email"
-            value={developer?.contact_email}
+            value={fields?.contact_email}
           />
           <p class="text-sm text-muted-foreground">
             Never shown publicly — only visible to FOSSBilling moderators, in

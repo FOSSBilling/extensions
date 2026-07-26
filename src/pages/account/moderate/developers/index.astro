@@ -3,6 +3,7 @@ import Base from '../../../../layouts/Base.astro';
 import { env } from 'cloudflare:workers';
 import { requireModerator } from '@/lib/auth-guard';
 import { createApiClient } from '@/lib/apiClient';
+import { isSafeHttpUrl } from '@/lib/safe-url';
 import type { DeveloperProfile } from '@/types';
 
 const guard = await requireModerator(Astro, env);
@@ -104,7 +105,12 @@ try {
                     {d.URL && (
                       <>
                         {' '}
-                        &middot; <a href={d.URL}>{d.URL}</a>
+                        &middot;{' '}
+                        {isSafeHttpUrl(d.URL) ? (
+                          <a href={d.URL}>{d.URL}</a>
+                        ) : (
+                          d.URL
+                        )}
                       </>
                     )}
                   </p>
