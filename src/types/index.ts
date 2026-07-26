@@ -113,6 +113,10 @@ export type DeveloperProfile = Developer & {
   approved: boolean;
   avatar_url?: string;
   contact_email?: string;
+  // Bumped by the api repo on every profile write; required by
+  // POST /developers/{id}/approve as `expected_revision` so an approval
+  // can't silently apply to a profile edited after it was reviewed.
+  content_revision: number;
   // Local-only: derived from `owner_user_id IS NULL` by getDeveloperById's
   // own query, not part of the api repo's DeveloperProfile response. Never
   // set on profiles read via the api client (upsertDeveloperProfile,
@@ -122,16 +126,20 @@ export type DeveloperProfile = Developer & {
 };
 
 // Body for PUT /extensions/v2/developers/me — everything but the server-set
-// `approved` flag.
+// `approved` flag and `content_revision` (bumped by the api repo itself).
 export type DeveloperProfileInput = Omit<
   DeveloperProfile,
-  'approved' | 'unclaimed'
+  'approved' | 'unclaimed' | 'content_revision'
 >;
 
 // What getDeveloperById (the public /developer/[id] read) returns —
-// contact_email is owner/moderator-only, so it's excluded at the type level
-// rather than relying solely on the query not selecting it.
-export type PublicDeveloperProfile = Omit<DeveloperProfile, 'contact_email'>;
+// contact_email is owner/moderator-only and content_revision is an internal
+// moderation concern, so both are excluded at the type level rather than
+// relying solely on the query not selecting them.
+export type PublicDeveloperProfile = Omit<
+  DeveloperProfile,
+  'contact_email' | 'content_revision'
+>;
 
 // A snapshot of a developers row as it existed right after one
 // PUT /developers/me write — see the api repo's DeveloperHistoryEntrySchema.
