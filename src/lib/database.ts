@@ -4,6 +4,7 @@ import {
   type Extension,
   type Developer,
   type DeveloperProfile,
+  type PublicDeveloperProfile,
   type Release,
   type Repository,
 } from '@/types';
@@ -153,7 +154,7 @@ export async function getDeveloperByOwner(
 export async function getDeveloperById(
   db: D1Database,
   id: string,
-): Promise<DeveloperProfile | null> {
+): Promise<PublicDeveloperProfile | null> {
   let row;
   try {
     row = await db

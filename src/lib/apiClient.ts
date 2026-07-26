@@ -40,8 +40,16 @@ export function createApiClient(env: Cloudflare.Env, sub: string) {
       },
     );
 
-    const body = (await response.json()) as
-      { result: T } | { error: { code: string; message: string } };
+    let body: { result: T } | { error: { code: string; message: string } };
+    try {
+      body = await response.json();
+    } catch {
+      throw new ApiRequestError(
+        response.status,
+        'invalid_response',
+        'The extensions API returned an unexpected response.',
+      );
+    }
 
     if (!response.ok) {
       const { error } = body as { error: { code: string; message: string } };

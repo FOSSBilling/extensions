@@ -4,7 +4,10 @@ import { env } from 'cloudflare:workers';
 import { requireUser } from '@/lib/auth-guard';
 import { createApiClient, ApiRequestError } from '@/lib/apiClient';
 import { getDeveloperByOwner, getExtensionsByOwner } from '@/lib/database';
-import { buildDeveloperProfile } from '@/lib/developer-form';
+import {
+  buildDeveloperProfile,
+  DeveloperValidationError,
+} from '@/lib/developer-form';
 import { DEVELOPER_TYPES } from '@/types';
 import type {
   DeveloperClaim,
@@ -65,14 +68,14 @@ if (Astro.request.method === 'POST') {
       }
     }
   } else {
-    const payload = buildDeveloperProfile(form, developer);
-    submitted = payload;
     try {
+      const payload = buildDeveloperProfile(form, developer);
+      submitted = payload;
       developer = await api.upsertDeveloperProfile(payload);
       return Astro.redirect('/account?profile_saved=1');
     } catch (e) {
       error =
-        e instanceof ApiRequestError
+        e instanceof ApiRequestError || e instanceof DeveloperValidationError
           ? e.message
           : 'Something went wrong saving your developer profile. Please try again.';
     }

@@ -129,6 +129,11 @@ export type DeveloperProfileInput = Omit<
   'approved' | 'unclaimed'
 >;
 
+// What getDeveloperById (the public /developer/[id] read) returns —
+// contact_email is owner/moderator-only, so it's excluded at the type level
+// rather than relying solely on the query not selecting it.
+export type PublicDeveloperProfile = Omit<DeveloperProfile, 'contact_email'>;
+
 // A snapshot of a developers row as it existed right after one
 // PUT /developers/me write — see the api repo's DeveloperHistoryEntrySchema.
 // Newest first from GET /extensions/v2/developers/{id}/history

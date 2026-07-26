@@ -28,6 +28,17 @@ export async function upsertUser(
     .run();
 }
 
+export async function userExists(
+  db: D1Database,
+  userId: string,
+): Promise<boolean> {
+  const row = await db
+    .prepare('SELECT 1 FROM users WHERE id = ?')
+    .bind(userId)
+    .first();
+  return row !== null;
+}
+
 export async function isModerator(
   db: D1Database,
   userId: string,

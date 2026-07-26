@@ -9,6 +9,8 @@ import {
   buildSubmissionPayload,
   SubmissionValidationError,
 } from '@/lib/submission-form';
+import { formString } from '@/lib/form';
+import type { Extension } from '@/types';
 
 const guard = await requireUser(Astro, env);
 if (guard instanceof Response) return guard;
@@ -30,9 +32,30 @@ if (!developer || developer.id !== extension.developer.id) {
 }
 
 let error: string | null = null;
+// Falls back to the just-submitted values on a rejected edit, so the form
+// doesn't reset to the currently-published extension and discard the edit.
+let submitted: Extension | null = null;
 
 if (Astro.request.method === 'POST') {
   const form = await Astro.request.formData();
+  submitted = {
+    ...extension,
+    type: formString(form, 'type') as Extension['type'],
+    name: formString(form, 'name'),
+    description: formString(form, 'description'),
+    website: formString(form, 'website'),
+    icon_url: formString(form, 'icon_url') || undefined,
+    readme: formString(form, 'readme'),
+    license: {
+      name: formString(form, 'license_name'),
+      URL: formString(form, 'license_url') || undefined,
+    },
+    source: {
+      type: formString(form, 'source_type') as Extension['source']['type'],
+      repo: formString(form, 'source_repo'),
+    },
+  };
+
   const api = createApiClient(env, user.sub);
   try {
     const payload = buildSubmissionPayload(form, developer, extension);
@@ -45,6 +68,8 @@ if (Astro.request.method === 'POST') {
         : 'Something went wrong submitting your edit. Please try again.';
   }
 }
+
+const fields = submitted ?? extension;
 ---
 
 <Base title={`Edit ${extension.name} — FOSSBilling Extensions`}>
@@ -57,7 +82,7 @@ if (Astro.request.method === 'POST') {
     </p>
     <ExtensionSubmissionForm
       developer={developer}
-      extension={extension}
+      extension={fields}
       error={error}
     />
   </div>

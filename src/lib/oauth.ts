@@ -8,7 +8,7 @@ const AUTHORIZE_ENDPOINT = `${ISSUER}/oauth2/authorize`;
 const TOKEN_ENDPOINT = `${ISSUER}/oauth2/token`;
 const USERINFO_ENDPOINT = `${ISSUER}/oauth2/userinfo`;
 
-const SCOPE = 'openid profile email offline_access';
+const SCOPE = 'openid profile email';
 
 // Short-lived cookies that carry the PKCE verifier and CSRF state across the
 // redirect to the auth service and back. Cleared as soon as the callback

@@ -1,6 +1,6 @@
 import type { AstroCookies } from 'astro';
-import { getSessionUser, type SessionUser } from './session';
-import { isModerator } from './users';
+import { getSessionUser, SESSION_COOKIE, type SessionUser } from './session';
+import { isModerator, userExists } from './users';
 
 // Structural subset shared by AstroGlobal (in .astro pages) and the
 // destructured APIContext (in .ts API routes), so guards work in both.
@@ -20,13 +20,26 @@ export async function requireUser(
   context: AuthContext,
   env: Cloudflare.Env,
 ): Promise<SessionUser | Response> {
-  const user = await getSessionUser(context.cookies, env.SESSION_SECRET);
-  if (user) return user;
+  const redirectToLogin = () => {
+    const redirectTo = encodeURIComponent(
+      context.url.pathname + context.url.search,
+    );
+    return context.redirect(`/auth/login?redirect=${redirectTo}`);
+  };
 
-  const redirectTo = encodeURIComponent(
-    context.url.pathname + context.url.search,
-  );
-  return context.redirect(`/auth/login?redirect=${redirectTo}`);
+  const user = await getSessionUser(context.cookies, env.SESSION_SECRET);
+  if (!user) return redirectToLogin();
+
+  // A signed cookie can outlive the account it names by up to
+  // SESSION_MAX_AGE — e.g. another device's session after /account/delete,
+  // or a failed post-login upsert — so verify the row still exists rather
+  // than trusting the cookie alone.
+  if (!(await userExists(env.DB_EXTENSIONS, user.sub))) {
+    context.cookies.delete(SESSION_COOKIE, { path: '/' });
+    return redirectToLogin();
+  }
+
+  return user;
 }
 
 export async function requireModerator(
