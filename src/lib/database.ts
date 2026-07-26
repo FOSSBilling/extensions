@@ -54,6 +54,9 @@ type DeveloperProfileRow = {
   contact_email?: string | null;
   approved_at: string | null;
   unclaimed?: number;
+  // Not selected by SELECT_DEVELOPER_PUBLIC — getDeveloperById's return type
+  // omits content_revision, so the fallback below is never exposed there.
+  content_revision?: number;
 };
 
 function parseDeveloperProfileRow(row: DeveloperProfileRow): DeveloperProfile {
@@ -65,6 +68,7 @@ function parseDeveloperProfileRow(row: DeveloperProfileRow): DeveloperProfile {
     avatar_url: row.avatar_url ?? undefined,
     contact_email: row.contact_email ?? undefined,
     approved: row.approved_at !== null,
+    content_revision: row.content_revision ?? 1,
     unclaimed: row.unclaimed === 1,
   } as DeveloperProfile;
 }
@@ -138,7 +142,7 @@ export async function getDeveloperByOwner(
   try {
     row = await db
       .prepare(
-        'SELECT id, type, name, url, avatar_url, contact_email, approved_at FROM developers WHERE owner_user_id = ?',
+        'SELECT id, type, name, url, avatar_url, contact_email, approved_at, content_revision FROM developers WHERE owner_user_id = ?',
       )
       .bind(userId)
       .first<DeveloperProfileRow>();
