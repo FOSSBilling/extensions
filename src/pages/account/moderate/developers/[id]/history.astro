@@ -3,7 +3,7 @@ import Base from '../../../../../layouts/Base.astro';
 import { env } from 'cloudflare:workers';
 import { requireModerator } from '@/lib/auth-guard';
 import { createApiClient, ApiRequestError } from '@/lib/apiClient';
-import type { AuthorHistoryEntry } from '@/types';
+import type { DeveloperHistoryEntry } from '@/types';
 
 const guard = await requireModerator(Astro, env);
 if (guard instanceof Response) return guard;
@@ -15,10 +15,10 @@ if (!id) {
 }
 
 const api = createApiClient(env, user.sub);
-let entries: AuthorHistoryEntry[] = [];
+let entries: DeveloperHistoryEntry[] = [];
 let loadError: string | null = null;
 try {
-  entries = await api.listAuthorHistory(id);
+  entries = await api.listDeveloperHistory(id);
 } catch (e) {
   loadError =
     e instanceof ApiRequestError

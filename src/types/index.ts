@@ -12,14 +12,14 @@ export const EXTENSION_TYPES = [
 
 export const SOURCE_TYPES = ['github', 'gitlab', 'custom'] as const;
 
-export const AUTHOR_TYPES = ['user', 'organization'] as const;
+export const DEVELOPER_TYPES = ['user', 'organization'] as const;
 
 export type Extension = {
   id: string;
   type: (typeof EXTENSION_TYPES)[number];
   name: string;
   description: string;
-  author: Author;
+  developer: Developer;
   releases: Release[];
   website: string;
   license: {
@@ -38,7 +38,7 @@ export type Repository = {
   repo: string;
 };
 
-export type Author = Organization | User;
+export type Developer = Organization | User;
 
 export type Organization = {
   type: 'organization';
@@ -92,44 +92,47 @@ export function sortReleasesDescending(releases: Release[]): Release[] {
 }
 
 // Shape sent to/from the api repo's v2 submissions endpoints
-// (src/services/extensions/v2/interfaces.ts there). ExtensionPayload omits the
-// joined `author` field of Extension — the author is submitted separately.
-export type ExtensionPayload = Omit<Extension, 'author'>;
+// (src/services/extensions/v2/interfaces.ts there). ExtensionPayload omits
+// the joined `developer` field of Extension — the developer is submitted
+// separately.
+export type ExtensionPayload = Omit<Extension, 'developer'>;
 
 export type SubmissionPayload = {
-  author: Author;
+  developer: Developer;
   extension: ExtensionPayload;
 };
 
-// The `authors` row plus a moderator-set trust flag — see the api repo's
-// src/services/extensions/v2/interfaces.ts (AuthorProfileSchema). Developer
-// profiles are written directly (PUT /extensions/v2/authors/me), not through
-// the submission/moderation queue; `approved` is purely a badge, not a gate.
-// bio/avatar_url are shown on the public /developer/[id] page; contact_email
-// is never read by any public-facing query — it's for moderator/maintainer
-// contact only, same trust level as a user's own email.
-export type AuthorProfile = Author & {
+// The `developers` row plus a moderator-set trust flag — see the api repo's
+// src/services/extensions/v2/interfaces.ts (DeveloperProfileSchema).
+// Developer profiles are written directly (PUT /extensions/v2/developers/me),
+// not through the submission/moderation queue; `approved` is purely a badge,
+// not a gate. bio/avatar_url are shown on the public /developer/[id] page;
+// contact_email is never read by any public-facing query — it's for
+// moderator/maintainer contact only, same trust level as a user's own email.
+export type DeveloperProfile = Developer & {
   approved: boolean;
   bio?: string;
   avatar_url?: string;
   contact_email?: string;
-  // Local-only: derived from `owner_user_id IS NULL` by getAuthorById's own
-  // query, not part of the api repo's AuthorProfile response. Never set on
-  // profiles read via the api client (upsertAuthorProfile, listUnapprovedAuthors,
-  // listAllAuthors) — only on the public /developer/[id] read.
+  // Local-only: derived from `owner_user_id IS NULL` by getDeveloperById's
+  // own query, not part of the api repo's DeveloperProfile response. Never
+  // set on profiles read via the api client (upsertDeveloperProfile,
+  // listUnapprovedDevelopers, listAllDevelopers) — only on the public
+  // /developer/[id] read.
   unclaimed?: boolean;
 };
 
-// Body for PUT /extensions/v2/authors/me — everything but the server-set
+// Body for PUT /extensions/v2/developers/me — everything but the server-set
 // `approved` flag.
-export type AuthorProfileInput = Omit<AuthorProfile, 'approved'>;
+export type DeveloperProfileInput = Omit<DeveloperProfile, 'approved'>;
 
-// A snapshot of an authors row as it existed right after one PUT /authors/me
-// write — see the api repo's AuthorHistoryEntrySchema. Newest first from
-// GET /extensions/v2/authors/{id}/history (moderator-only).
-export type AuthorHistoryEntry = {
-  author_id: string;
-  type: (typeof AUTHOR_TYPES)[number];
+// A snapshot of a developers row as it existed right after one
+// PUT /developers/me write — see the api repo's DeveloperHistoryEntrySchema.
+// Newest first from GET /extensions/v2/developers/{id}/history
+// (moderator-only).
+export type DeveloperHistoryEntry = {
+  developer_id: string;
+  type: (typeof DEVELOPER_TYPES)[number];
   name: string;
   URL?: string;
   changed_by: string;
@@ -137,11 +140,11 @@ export type AuthorHistoryEntry = {
 };
 
 // A request to own an unowned ("legacy") developer profile — see the api
-// repo's AuthorClaimSchema. Created via POST /authors/{id}/claim, resolved
-// by a moderator via approve/reject.
-export type AuthorClaim = {
+// repo's DeveloperClaimSchema. Created via POST /developers/{id}/claim,
+// resolved by a moderator via approve/reject.
+export type DeveloperClaim = {
   id: string;
-  author_id: string;
+  developer_id: string;
   claimant_id: string;
   status: 'pending' | 'approved' | 'rejected';
   note?: string;
@@ -151,17 +154,18 @@ export type AuthorClaim = {
   reviewed_at?: string;
 };
 
-// AuthorClaim plus the claimed profile's own name/type, for the moderator
-// queue (GET /authors/claims) so it doesn't need a separate lookup per row.
-export type PendingAuthorClaim = AuthorClaim & {
-  author_name: string;
-  author_type: (typeof AUTHOR_TYPES)[number];
+// DeveloperClaim plus the claimed profile's own name/type, for the moderator
+// queue (GET /developers/claims) so it doesn't need a separate lookup per
+// row.
+export type PendingDeveloperClaim = DeveloperClaim & {
+  developer_name: string;
+  developer_type: (typeof DEVELOPER_TYPES)[number];
 };
 
-// Result of POST /authors/{id}/transfer — the raw token is only ever
+// Result of POST /developers/{id}/transfer — the raw token is only ever
 // returned here, once. Never persisted or put in a URL; shown once to the
 // initiating owner to share out-of-band.
-export type AuthorTransfer = {
+export type DeveloperTransfer = {
   token: string;
   expires_at: string;
 };
@@ -171,7 +175,7 @@ export type SubmissionStatus = 'pending' | 'approved' | 'rejected';
 export type Submission = {
   id: string;
   extension_id: string | null;
-  author_id: string;
+  developer_id: string;
   submitted_by: string;
   status: SubmissionStatus;
   payload: SubmissionPayload;

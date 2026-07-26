@@ -1,5 +1,5 @@
 import type {
-  Author,
+  Developer,
   Extension,
   ExtensionPayload,
   Release,
@@ -13,7 +13,7 @@ import type {
 // always carried through unchanged.
 export function buildSubmissionPayload(
   form: FormData,
-  author: Author,
+  developer: Developer,
   existingExtension?: Extension,
 ): SubmissionPayload {
   const str = (name: string) =>
@@ -38,7 +38,7 @@ export function buildSubmissionPayload(
   }
 
   return {
-    author,
+    developer,
     extension: {
       id: str('extension_id').toLowerCase(),
       type: str('type') as ExtensionPayload['type'],

@@ -4,15 +4,15 @@ import ExtensionSubmissionForm from '@/components/ExtensionSubmissionForm.astro'
 import { env } from 'cloudflare:workers';
 import { requireUser } from '@/lib/auth-guard';
 import { createApiClient, ApiRequestError } from '@/lib/apiClient';
-import { getAuthorByOwner } from '@/lib/database';
+import { getDeveloperByOwner } from '@/lib/database';
 import { buildSubmissionPayload } from '@/lib/submission-form';
 
 const guard = await requireUser(Astro, env);
 if (guard instanceof Response) return guard;
 const user = guard;
 
-const author = await getAuthorByOwner(env.DB_EXTENSIONS, user.sub);
-if (!author) {
+const developer = await getDeveloperByOwner(env.DB_EXTENSIONS, user.sub);
+if (!developer) {
   return Astro.redirect('/account/developer?required_for=extension');
 }
 
@@ -20,7 +20,7 @@ let error: string | null = null;
 
 if (Astro.request.method === 'POST') {
   const form = await Astro.request.formData();
-  const payload = buildSubmissionPayload(form, author);
+  const payload = buildSubmissionPayload(form, developer);
 
   const api = createApiClient(env, user.sub);
   try {
@@ -42,6 +42,6 @@ if (Astro.request.method === 'POST') {
       Submissions are reviewed by a moderator before appearing in the public
       directory.
     </p>
-    <ExtensionSubmissionForm author={author} error={error} />
+    <ExtensionSubmissionForm developer={developer} error={error} />
   </div>
 </Base>

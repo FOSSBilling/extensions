@@ -3,12 +3,12 @@
 // minting a bearer assertion requires ASSERTION_SIGNING_SECRET.
 import { mintBearerAssertion } from './assertion';
 import type {
-  AuthorClaim,
-  AuthorHistoryEntry,
-  AuthorProfile,
-  AuthorProfileInput,
-  AuthorTransfer,
-  PendingAuthorClaim,
+  DeveloperClaim,
+  DeveloperHistoryEntry,
+  DeveloperProfile,
+  DeveloperProfileInput,
+  DeveloperTransfer,
+  PendingDeveloperClaim,
   Submission,
   SubmissionPayload,
   SubmissionStatus,
@@ -77,56 +77,60 @@ export function createApiClient(env: Cloudflare.Env, sub: string) {
 
     // Direct write, not moderated — takes effect immediately. `approved` in
     // the response is a moderator-set trust badge, not a publish gate.
-    upsertAuthorProfile: (author: AuthorProfileInput) =>
-      call<AuthorProfile>('/authors/me', {
+    upsertDeveloperProfile: (developer: DeveloperProfileInput) =>
+      call<DeveloperProfile>('/developers/me', {
         method: 'PUT',
-        body: JSON.stringify(author),
+        body: JSON.stringify(developer),
       }),
 
-    listUnapprovedAuthors: () => call<AuthorProfile[]>('/authors/unapproved'),
+    listUnapprovedDevelopers: () =>
+      call<DeveloperProfile[]>('/developers/unapproved'),
 
-    listAllAuthors: () => call<AuthorProfile[]>('/authors'),
+    listAllDevelopers: () => call<DeveloperProfile[]>('/developers'),
 
-    approveAuthor: (id: string) =>
-      call<{ id: string; approved: true }>(`/authors/${id}/approve`, {
+    approveDeveloper: (id: string) =>
+      call<{ id: string; approved: true }>(`/developers/${id}/approve`, {
         method: 'POST',
       }),
 
-    listAuthorHistory: (id: string) =>
-      call<AuthorHistoryEntry[]>(`/authors/${id}/history`),
+    listDeveloperHistory: (id: string) =>
+      call<DeveloperHistoryEntry[]>(`/developers/${id}/history`),
 
     // One-time link — the token is only ever returned by this call. Never
     // persisted or put in a URL by the caller.
     initiateTransfer: (id: string) =>
-      call<AuthorTransfer>(`/authors/${id}/transfer`, { method: 'POST' }),
+      call<DeveloperTransfer>(`/developers/${id}/transfer`, {
+        method: 'POST',
+      }),
 
     revokeTransfer: (id: string) =>
-      call<{ id: string; revoked: true }>(`/authors/${id}/transfer/revoke`, {
+      call<{ id: string; revoked: true }>(`/developers/${id}/transfer/revoke`, {
         method: 'POST',
       }),
 
     acceptTransfer: (token: string) =>
-      call<AuthorProfile>(`/authors/transfers/${token}/accept`, {
+      call<DeveloperProfile>(`/developers/transfers/${token}/accept`, {
         method: 'POST',
       }),
 
-    claimAuthor: (id: string, note?: string) =>
-      call<AuthorClaim>(`/authors/${id}/claim`, {
+    claimDeveloper: (id: string, note?: string) =>
+      call<DeveloperClaim>(`/developers/${id}/claim`, {
         method: 'POST',
         body: JSON.stringify(note ? { note } : {}),
       }),
 
-    listMyClaims: () => call<AuthorClaim[]>('/authors/claims/mine'),
+    listMyClaims: () => call<DeveloperClaim[]>('/developers/claims/mine'),
 
-    listPendingClaims: () => call<PendingAuthorClaim[]>('/authors/claims'),
+    listPendingClaims: () =>
+      call<PendingDeveloperClaim[]>('/developers/claims'),
 
     approveClaim: (id: string) =>
-      call<AuthorProfile>(`/authors/claims/${id}/approve`, {
+      call<DeveloperProfile>(`/developers/claims/${id}/approve`, {
         method: 'POST',
       }),
 
     rejectClaim: (id: string, reviewNote: string) =>
-      call<AuthorClaim>(`/authors/claims/${id}/reject`, {
+      call<DeveloperClaim>(`/developers/claims/${id}/reject`, {
         method: 'POST',
         body: JSON.stringify({ review_note: reviewNote }),
       }),

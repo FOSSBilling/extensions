@@ -73,8 +73,8 @@ try {
                   <h2 class="font-semibold">{s.payload.extension.name}</h2>
                   <p class="text-sm text-muted-foreground">
                     {s.extension_id ? 'Edit' : 'New extension'} by{' '}
-                    {s.payload.author.name} ({s.author_id}) &middot; submitted{' '}
-                    {new Date(s.created_at).toLocaleString()}
+                    {s.payload.developer.name} ({s.developer_id}) &middot;
+                    submitted {new Date(s.created_at).toLocaleString()}
                   </p>
                 </div>
                 <span class="badge-secondary">{s.payload.extension.type}</span>

@@ -3,22 +3,22 @@ import Base from '../../../layouts/Base.astro';
 import { env } from 'cloudflare:workers';
 import { requireUser } from '@/lib/auth-guard';
 import { createApiClient, ApiRequestError } from '@/lib/apiClient';
-import { getAuthorByOwner } from '@/lib/database';
-import { buildAuthorProfile } from '@/lib/author-form';
-import { AUTHOR_TYPES } from '@/types';
-import type { AuthorClaim, AuthorTransfer } from '@/types';
+import { getDeveloperByOwner } from '@/lib/database';
+import { buildDeveloperProfile } from '@/lib/developer-form';
+import { DEVELOPER_TYPES } from '@/types';
+import type { DeveloperClaim, DeveloperTransfer } from '@/types';
 
 const guard = await requireUser(Astro, env);
 if (guard instanceof Response) return guard;
 const user = guard;
 
-let author = await getAuthorByOwner(env.DB_EXTENSIONS, user.sub);
-const isEdit = Boolean(author);
+let developer = await getDeveloperByOwner(env.DB_EXTENSIONS, user.sub);
+const isEdit = Boolean(developer);
 
 const api = createApiClient(env, user.sub);
 
 let error: string | null = Astro.url.searchParams.get('error');
-let transferResult: AuthorTransfer | null = null;
+let transferResult: DeveloperTransfer | null = null;
 
 if (Astro.request.method === 'POST') {
   const form = await Astro.request.formData();
@@ -27,9 +27,9 @@ if (Astro.request.method === 'POST') {
   // does — the token must never appear in a URL, so it's rendered inline
   // instead. transfer-revoke has no such constraint and lives in its own
   // route (transfer/revoke.ts), matching the rest of the app.
-  if (form.get('intent') === 'transfer-initiate' && author) {
+  if (form.get('intent') === 'transfer-initiate' && developer) {
     try {
-      transferResult = await api.initiateTransfer(author.id);
+      transferResult = await api.initiateTransfer(developer.id);
     } catch (e) {
       error =
         e instanceof ApiRequestError
@@ -37,9 +37,9 @@ if (Astro.request.method === 'POST') {
           : 'Unable to create a transfer link. Please try again.';
     }
   } else {
-    const payload = buildAuthorProfile(form, author);
+    const payload = buildDeveloperProfile(form, developer);
     try {
-      author = await api.upsertAuthorProfile(payload);
+      developer = await api.upsertDeveloperProfile(payload);
       return Astro.redirect('/account?profile_saved=1');
     } catch (e) {
       error =
@@ -50,7 +50,7 @@ if (Astro.request.method === 'POST') {
   }
 }
 
-let myClaims: AuthorClaim[] = [];
+let myClaims: DeveloperClaim[] = [];
 if (!isEdit) {
   try {
     myClaims = await api.listMyClaims();
@@ -77,7 +77,7 @@ if (!isEdit) {
           <ul class="space-y-2">
             {myClaims.map((c) => (
               <li class="text-sm flex items-center justify-between gap-3">
-                <code>{c.author_id}</code>
+                <code>{c.developer_id}</code>
                 {c.status === 'pending' && (
                   <span class="badge-secondary">Pending review</span>
                 )}
@@ -97,28 +97,28 @@ if (!isEdit) {
     {
       isEdit && (
         <div class="card flex items-center gap-4">
-          {author!.avatar_url && (
+          {developer!.avatar_url && (
             <img
-              src={author!.avatar_url}
+              src={developer!.avatar_url}
               alt=""
               class="w-14 h-14 rounded-full object-cover"
             />
           )}
           <div class="flex-1">
             <p class="font-medium flex items-center gap-2">
-              {author!.name}
-              {author!.approved ? (
+              {developer!.name}
+              {developer!.approved ? (
                 <span class="badge">Approved</span>
               ) : (
                 <span class="badge-secondary">Not yet reviewed</span>
               )}
             </p>
-            {author!.bio && (
-              <p class="text-sm text-muted-foreground mt-1">{author!.bio}</p>
+            {developer!.bio && (
+              <p class="text-sm text-muted-foreground mt-1">{developer!.bio}</p>
             )}
           </div>
           <a
-            href={`/developer/${author!.id}`}
+            href={`/developer/${developer!.id}`}
             class="btn"
             data-size="sm"
             data-variant="outline"
@@ -150,7 +150,7 @@ if (!isEdit) {
             required
             pattern="[a-z0-9]+(-[a-z0-9]+)*"
             placeholder="my-org"
-            value={author?.id}
+            value={developer?.id}
             readonly={isEdit}
           />
           {
@@ -169,15 +169,15 @@ if (!isEdit) {
             id="name"
             name="name"
             required
-            value={author?.name}
+            value={developer?.name}
           />
         </div>
         <div class="field">
           <label for="type">Publisher type</label>
           <select class="select" id="type" name="type">
             {
-              AUTHOR_TYPES.map((t) => (
-                <option value={t} selected={author?.type === t}>
+              DEVELOPER_TYPES.map((t) => (
+                <option value={t} selected={developer?.type === t}>
                   {t}
                 </option>
               ))
@@ -191,7 +191,7 @@ if (!isEdit) {
             type="url"
             id="url"
             name="url"
-            value={author?.URL}
+            value={developer?.URL}
           />
         </div>
       </fieldset>
@@ -200,7 +200,7 @@ if (!isEdit) {
         <legend class="font-semibold mb-2">Public profile</legend>
         <p class="text-sm text-muted-foreground -mt-2">
           Shown on your public developer page at
-          {author ? ` /developer/${author.id}` : ' /developer/<your-id>'}.
+          {developer ? ` /developer/${developer.id}` : ' /developer/<your-id>'}.
         </p>
         <div class="field">
           <label for="avatar_url">Avatar/logo URL (optional)</label>
@@ -209,7 +209,7 @@ if (!isEdit) {
             type="url"
             id="avatar_url"
             name="avatar_url"
-            value={author?.avatar_url}
+            value={developer?.avatar_url}
           />
         </div>
         <div class="field">
@@ -220,7 +220,7 @@ if (!isEdit) {
             name="bio"
             rows="4"
             maxlength="500"
-            set:text={author?.bio ?? ''}
+            set:text={developer?.bio ?? ''}
           />
           <p class="text-sm text-muted-foreground">Up to 500 characters.</p>
         </div>
@@ -235,7 +235,7 @@ if (!isEdit) {
             type="email"
             id="contact_email"
             name="contact_email"
-            value={author?.contact_email}
+            value={developer?.contact_email}
           />
           <p class="text-sm text-muted-foreground">
             Never shown publicly — only visible to FOSSBilling moderators, in

@@ -1,14 +1,14 @@
 ---
 import { EXTENSION_TYPES, SOURCE_TYPES } from '@/types';
-import type { Author, Extension } from '@/types';
+import type { Developer, Extension } from '@/types';
 
 interface Props {
-  author: Author;
+  developer: Developer;
   extension?: Extension;
   error?: string | null;
 }
 
-const { author, extension, error } = Astro.props;
+const { developer, extension, error } = Astro.props;
 const isEdit = Boolean(extension);
 ---
 
@@ -24,7 +24,7 @@ const isEdit = Boolean(extension);
   <fieldset class="fieldset space-y-4">
     <legend class="font-semibold mb-2">Publisher</legend>
     <p class="text-sm text-muted-foreground">
-      Publishing as <strong>{author.name}</strong> ({author.id}).
+      Publishing as <strong>{developer.name}</strong> ({developer.id}).
       <a href="/account/developer">Edit developer profile</a>
     </p>
   </fieldset>

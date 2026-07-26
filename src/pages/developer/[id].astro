@@ -1,7 +1,7 @@
 ---
 import Base from '../../layouts/Base.astro';
 import ExtensionCard from '@/components/ExtensionCard.astro';
-import { getAuthorById, getExtensionsByAuthorId } from '@/lib/database';
+import { getDeveloperById, getExtensionsByDeveloperId } from '@/lib/database';
 import { getSessionUser } from '@/lib/session';
 import { requireUser } from '@/lib/auth-guard';
 import { createApiClient, ApiRequestError } from '@/lib/apiClient';
@@ -13,9 +13,9 @@ if (!id) {
   return Astro.redirect('/404');
 }
 
-const author = await getAuthorById(env.DB_EXTENSIONS, id);
+const developer = await getDeveloperById(env.DB_EXTENSIONS, id);
 
-if (!author) {
+if (!developer) {
   return Astro.redirect('/404');
 }
 
@@ -24,7 +24,7 @@ const currentUser = await getSessionUser(Astro.cookies, env.SESSION_SECRET);
 let claimError: string | null = null;
 let claimSubmitted = false;
 
-if (Astro.request.method === 'POST' && author.unclaimed) {
+if (Astro.request.method === 'POST' && developer.unclaimed) {
   const guard = await requireUser(Astro, env);
   if (guard instanceof Response) return guard;
   const user = guard;
@@ -34,7 +34,7 @@ if (Astro.request.method === 'POST' && author.unclaimed) {
 
   const api = createApiClient(env, user.sub);
   try {
-    await api.claimAuthor(author.id, note || undefined);
+    await api.claimDeveloper(developer.id, note || undefined);
     claimSubmitted = true;
   } catch (e) {
     claimError =
@@ -44,15 +44,18 @@ if (Astro.request.method === 'POST' && author.unclaimed) {
   }
 }
 
-const extensions = await getExtensionsByAuthorId(env.DB_EXTENSIONS, author.id);
+const extensions = await getExtensionsByDeveloperId(
+  env.DB_EXTENSIONS,
+  developer.id,
+);
 ---
 
-<Base title={`${author.name} — FOSSBilling Extensions`}>
+<Base title={`${developer.name} — FOSSBilling Extensions`}>
   <div class="flex items-start gap-4 mb-8">
     {
-      author.avatar_url && (
+      developer.avatar_url && (
         <img
-          src={author.avatar_url}
+          src={developer.avatar_url}
           alt=""
           class="w-16 h-16 rounded-full object-cover"
         />
@@ -60,27 +63,27 @@ const extensions = await getExtensionsByAuthorId(env.DB_EXTENSIONS, author.id);
     }
     <div class="flex-1">
       <div class="flex items-center gap-2 flex-wrap">
-        <h1 class="text-2xl font-semibold tracking-tight">{author.name}</h1>
-        <span class="badge-secondary">{author.type}</span>
-        {author.approved && <span class="badge">Approved</span>}
-        {author.unclaimed && <span class="badge-secondary">Unclaimed</span>}
+        <h1 class="text-2xl font-semibold tracking-tight">{developer.name}</h1>
+        <span class="badge-secondary">{developer.type}</span>
+        {developer.approved && <span class="badge">Approved</span>}
+        {developer.unclaimed && <span class="badge-secondary">Unclaimed</span>}
       </div>
       {
-        author.bio && (
-          <p class="text-muted-foreground mt-2 max-w-2xl">{author.bio}</p>
+        developer.bio && (
+          <p class="text-muted-foreground mt-2 max-w-2xl">{developer.bio}</p>
         )
       }
       {
-        author.URL && (
+        developer.URL && (
           <a
-            href={author.URL}
+            href={developer.URL}
             target="_blank"
             rel="noopener noreferrer"
             class="btn mt-2"
             data-size="sm"
             data-variant="outline"
           >
-            {author.URL}
+            {developer.URL}
           </a>
         )
       }
@@ -88,7 +91,7 @@ const extensions = await getExtensionsByAuthorId(env.DB_EXTENSIONS, author.id);
   </div>
 
   {
-    author.unclaimed && (
+    developer.unclaimed && (
       <div class="card space-y-3 mb-8">
         <h2 class="font-semibold">
           This profile hasn't been linked to an account
@@ -146,7 +149,7 @@ const extensions = await getExtensionsByAuthorId(env.DB_EXTENSIONS, author.id);
   }
 
   <h2 class="font-semibold mb-4">
-    Extensions by {author.name} ({extensions.length})
+    Extensions by {developer.name} ({extensions.length})
   </h2>
   {
     extensions.length === 0 ? (

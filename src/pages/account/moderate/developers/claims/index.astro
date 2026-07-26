@@ -3,14 +3,14 @@ import Base from '../../../../../layouts/Base.astro';
 import { env } from 'cloudflare:workers';
 import { requireModerator } from '@/lib/auth-guard';
 import { createApiClient } from '@/lib/apiClient';
-import type { PendingAuthorClaim } from '@/types';
+import type { PendingDeveloperClaim } from '@/types';
 
 const guard = await requireModerator(Astro, env);
 if (guard instanceof Response) return guard;
 const user = guard;
 
 const api = createApiClient(env, user.sub);
-let claims: PendingAuthorClaim[] = [];
+let claims: PendingDeveloperClaim[] = [];
 let loadError = false;
 try {
   claims = await api.listPendingClaims();
@@ -59,10 +59,10 @@ try {
             <li class="card space-y-3">
               <header>
                 <h2 class="font-semibold">
-                  {c.author_name} ({c.author_id})
+                  {c.developer_name} ({c.developer_id})
                 </h2>
                 <p class="text-sm text-muted-foreground">
-                  {c.author_type} &middot; claimed by{' '}
+                  {c.developer_type} &middot; claimed by{' '}
                   <code>{c.claimant_id}</code> on{' '}
                   {new Date(c.created_at).toLocaleDateString()}
                 </p>

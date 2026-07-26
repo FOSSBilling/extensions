@@ -13,7 +13,7 @@ export const POST: APIRoute = async (context) => {
 
   const api = createApiClient(env, user.sub);
   try {
-    await api.approveAuthor(id);
+    await api.approveDeveloper(id);
   } catch (e) {
     const message =
       e instanceof ApiRequestError ? e.message : 'Unable to approve profile.';

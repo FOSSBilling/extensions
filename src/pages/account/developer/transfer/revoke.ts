@@ -1,7 +1,7 @@
 import type { APIRoute } from 'astro';
 import { env } from 'cloudflare:workers';
 import { requireUser } from '@/lib/auth-guard';
-import { getAuthorByOwner } from '@/lib/database';
+import { getDeveloperByOwner } from '@/lib/database';
 import { createApiClient, ApiRequestError } from '@/lib/apiClient';
 
 export const POST: APIRoute = async (context) => {
@@ -9,12 +9,12 @@ export const POST: APIRoute = async (context) => {
   if (guard instanceof Response) return guard;
   const user = guard;
 
-  const author = await getAuthorByOwner(env.DB_EXTENSIONS, user.sub);
-  if (!author) return context.redirect('/account/developer');
+  const developer = await getDeveloperByOwner(env.DB_EXTENSIONS, user.sub);
+  if (!developer) return context.redirect('/account/developer');
 
   const api = createApiClient(env, user.sub);
   try {
-    await api.revokeTransfer(author.id);
+    await api.revokeTransfer(developer.id);
   } catch (e) {
     const message =
       e instanceof ApiRequestError

@@ -120,29 +120,29 @@ Signed-in users manage two separate profiles from `/account`:
 - **Account profile** (`/account/profile`) — personal `display_name`/`bio`, stored only in
   this app's own `users` table. Written directly to D1 here, not moderated (not yet shown
   publicly).
-- **Developer profile** (`/account/developer`) — the publisher identity (`authors` row:
+- **Developer profile** (`/account/developer`) — the publisher identity (`developers` row:
   name, type, URL, bio, avatar, and a private contact email) shown on your extensions in the
   directory and on your public developer page at `/developer/[id]`. Writes take effect
-  immediately (`PUT /extensions/v2/authors/me`) — there's no moderation gate on creating or
+  immediately (`PUT /extensions/v2/developers/me`) — there's no moderation gate on creating or
   editing one. A moderator can mark a profile **approved** as a trust badge
   (`/account/moderate/developers`); it's cosmetic, not a publish gate, and any edit clears
   the badge again until it's re-reviewed. `contact_email` is never read by any public-facing
-  query (`getAuthorById` in `src/lib/database.ts` deliberately omits it) — only
-  `getAuthorByOwner`, used for the owner's own self-management form, selects it.
+  query (`getDeveloperById` in `src/lib/database.ts` deliberately omits it) — only
+  `getDeveloperByOwner`, used for the owner's own self-management form, selects it.
 
 An extension submission always targets an existing, owned developer profile — the two are
 deliberately kept separate (rather than letting extension submission implicitly create/edit
-an author).
+a developer profile).
 
 A profile's owner can hand it to a different account via a **single-use transfer link**
 (`/account/developer`, "Transfer ownership") — the link is only ever shown once, expires
 after 24 hours, and the recipient must explicitly accept it at `/account/developer/transfer/[token]`
-while signed in (`POST /extensions/v2/authors/transfers/{token}/accept`). An account can own at
+while signed in (`POST /extensions/v2/developers/transfers/{token}/accept`). An account can own at
 most one developer profile, so accepting fails with a 409 if the recipient already has one.
 
 Profiles with no owner at all (`owner_user_id IS NULL` — pre-v2 rows, or ones detached by the
 api repo's owner-uniqueness migration) show an **Unclaimed** badge on their public page and can
-be **claimed**: a signed-in user requests ownership (`POST /extensions/v2/authors/{id}/claim`,
+be **claimed**: a signed-in user requests ownership (`POST /extensions/v2/developers/{id}/claim`,
 with an optional note), and a moderator approves or rejects the request at
 `/account/moderate/developers/claims` — there's no automated verification, so approval is a
 judgment call based on the note and the profile itself. This is how legacy, pre-ownership-tracking
@@ -151,14 +151,21 @@ profiles get linked to an actual account.
 Both flows keep the badge/moderation trust model consistent: accepting a transfer or having a
 claim approved clears the `approved` badge, same as any other change to who controls a profile.
 
+The api repo renamed its v2-owned `authors` table (and related schemas/routes) to `developers`
+— "author" implied solo/literary authorship, which never fit an entity that can be an
+organization, gets moderated, and can be transferred or claimed. `extensions.author_id`, the
+FK column on the (v1-owned) `extensions` table itself, was deliberately left unrenamed — only
+the table it points to changed — so `src/lib/database.ts`'s queries still select `e.author_id`
+but alias it to `developer_id` before it reaches any app code.
+
 Extension submissions (new extensions and edits) are the one thing still moderated: they go
 into a queue at `/account/moderate` and only take effect once a moderator approves them — a
 higher bar than developer profiles since they carry download URLs and arbitrary readme/website
-content. All writes to the shared `authors`/`extensions` tables — moderated or not — happen in
+content. All writes to the shared `developers`/`extensions` tables — moderated or not — happen in
 the [`FOSSBilling/api`](https://github.com/FOSSBilling/api) repo's `/extensions/v2` service,
 not here; this app never writes to those tables directly. This app's own
-`getExtensionsByOwner`/`getExtensionById`/`getAuthorByOwner`/`getAuthorById`/
-`getExtensionsByAuthorId` (in `src/lib/database.ts`) read the live tables directly, same as
+`getExtensionsByOwner`/`getExtensionById`/`getDeveloperByOwner`/`getDeveloperById`/
+`getExtensionsByDeveloperId` (in `src/lib/database.ts`) read the live tables directly, same as
 the public listings — including the public developer page at `/developer/[id]`, which also
 derives an `unclaimed` flag from `owner_user_id IS NULL` (never exposing the raw owner id
 itself, which would leak another user's identifier publicly).
