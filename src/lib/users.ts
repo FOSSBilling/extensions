@@ -39,6 +39,13 @@ export async function isModerator(
   return row?.is_moderator === 1;
 }
 
+export async function deleteUser(
+  db: D1Database,
+  userId: string,
+): Promise<void> {
+  await db.prepare('DELETE FROM users WHERE id = ?').bind(userId).run();
+}
+
 export type UserProfile = {
   display_name: string | null;
   bio: string | null;

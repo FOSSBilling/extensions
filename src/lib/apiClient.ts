@@ -83,6 +83,13 @@ export function createApiClient(env: Cloudflare.Env, sub: string) {
         body: JSON.stringify(developer),
       }),
 
+    // 409s (developer_has_extensions / developer_has_pending_submissions) if
+    // the profile can't be deleted yet — callers should surface the message.
+    deleteDeveloperProfile: () =>
+      call<{ id: string; deleted: true }>('/developers/me', {
+        method: 'DELETE',
+      }),
+
     listUnapprovedDevelopers: () =>
       call<DeveloperProfile[]>('/developers/unapproved'),
 

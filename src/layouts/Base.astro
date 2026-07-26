@@ -148,6 +148,13 @@ const user = await getSessionUser(Astro.cookies, env.SESSION_SECRET);
             </div>
           )
         }
+        {
+          Astro.url.searchParams.get('account_deleted') && (
+            <div class="mb-6 rounded-md border border-border bg-muted px-4 py-3 text-sm">
+              Your account has been deleted.
+            </div>
+          )
+        }
         <slot />
       </Container>
     </main>

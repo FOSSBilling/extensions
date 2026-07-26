@@ -22,10 +22,14 @@ const banner: Record<string, string> = {
   submitted: 'Submitted for review.',
   profile_saved: 'Developer profile saved.',
   profile_updated: 'Profile updated.',
+  profile_deleted: 'Developer profile deleted.',
 };
-const bannerKey = ['submitted', 'profile_saved', 'profile_updated'].find(
-  (key) => Astro.url.searchParams.has(key),
-);
+const bannerKey = [
+  'submitted',
+  'profile_saved',
+  'profile_updated',
+  'profile_deleted',
+].find((key) => Astro.url.searchParams.has(key));
 
 const api = createApiClient(env, user.sub);
 let submissions: Submission[] = [];
@@ -200,5 +204,11 @@ const statusBadgeClass: Record<Submission['status'], string> = {
         }
       </section>
     </section>
+
+    <div class="text-center">
+      <a href="/account/delete" class="text-sm text-destructive">
+        Delete account
+      </a>
+    </div>
   </div>
 </Base>

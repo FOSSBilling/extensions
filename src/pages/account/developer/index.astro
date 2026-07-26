@@ -3,7 +3,7 @@ import Base from '../../../layouts/Base.astro';
 import { env } from 'cloudflare:workers';
 import { requireUser } from '@/lib/auth-guard';
 import { createApiClient, ApiRequestError } from '@/lib/apiClient';
-import { getDeveloperByOwner } from '@/lib/database';
+import { getDeveloperByOwner, getExtensionsByOwner } from '@/lib/database';
 import { buildDeveloperProfile } from '@/lib/developer-form';
 import { DEVELOPER_TYPES } from '@/types';
 import type {
@@ -18,6 +18,13 @@ const user = guard;
 
 let developer = await getDeveloperByOwner(env.DB_EXTENSIONS, user.sub);
 const isEdit = Boolean(developer);
+
+// Gates both the delete-profile action below and full account deletion
+// (/account/delete) — a developer profile with published extensions can't
+// be removed without orphaning them first.
+const extensions = isEdit
+  ? await getExtensionsByOwner(env.DB_EXTENSIONS, user.sub)
+  : [];
 
 const api = createApiClient(env, user.sub);
 
@@ -42,6 +49,20 @@ if (Astro.request.method === 'POST') {
         e instanceof ApiRequestError
           ? e.message
           : 'Unable to create a transfer link. Please try again.';
+    }
+  } else if (form.get('intent') === 'delete' && developer) {
+    // extensions.length > 0 falls through here as a no-op — the danger-zone
+    // card below already explains why, so no separate error is needed.
+    if (extensions.length === 0) {
+      try {
+        await api.deleteDeveloperProfile();
+        return Astro.redirect('/account?profile_deleted=1');
+      } catch (e) {
+        error =
+          e instanceof ApiRequestError
+            ? e.message
+            : 'Unable to delete your developer profile. Please try again.';
+      }
     }
   } else {
     const payload = buildDeveloperProfile(form, developer);
@@ -322,6 +343,42 @@ if (!isEdit) {
               </button>
             </form>
           </div>
+        </div>
+      )
+    }
+
+    {
+      isEdit && (
+        <div class="card space-y-3">
+          <h2 class="font-semibold text-destructive">
+            Delete developer profile
+          </h2>
+          {extensions.length > 0 ? (
+            <p class="text-sm text-muted-foreground">
+              You have {extensions.length} published extension
+              {extensions.length === 1 ? '' : 's'} under this profile. Transfer
+              ownership or remove them before deleting it.
+            </p>
+          ) : (
+            <>
+              <p class="text-sm text-muted-foreground">
+                Permanently deletes your publisher identity (name, bio, contact
+                info) and its public page. This can't be undone, and the ID may
+                be used by someone else afterward.
+              </p>
+              <form method="POST">
+                <input type="hidden" name="intent" value="delete" />
+                <button
+                  type="submit"
+                  class="btn"
+                  data-size="sm"
+                  data-variant="outline"
+                >
+                  Delete developer profile
+                </button>
+              </form>
+            </>
+          )}
         </div>
       )
     }

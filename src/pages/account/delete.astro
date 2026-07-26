@@ -1,0 +1,96 @@
+---
+import Base from '../../layouts/Base.astro';
+import { env } from 'cloudflare:workers';
+import { requireUser } from '@/lib/auth-guard';
+import { createApiClient, ApiRequestError } from '@/lib/apiClient';
+import { getDeveloperByOwner, getExtensionsByOwner } from '@/lib/database';
+import { deleteUser } from '@/lib/users';
+import { SESSION_COOKIE } from '@/lib/session';
+
+const guard = await requireUser(Astro, env);
+if (guard instanceof Response) return guard;
+const user = guard;
+
+const developer = await getDeveloperByOwner(env.DB_EXTENSIONS, user.sub);
+const extensions = developer
+  ? await getExtensionsByOwner(env.DB_EXTENSIONS, user.sub)
+  : [];
+
+let error: string | null = null;
+
+// extensions.length > 0 falls through here as a no-op — the message below
+// already explains why, so no separate error banner is needed.
+if (Astro.request.method === 'POST' && extensions.length === 0) {
+  if (developer) {
+    const api = createApiClient(env, user.sub);
+    try {
+      await api.deleteDeveloperProfile();
+    } catch (e) {
+      error =
+        e instanceof ApiRequestError
+          ? e.message
+          : 'Unable to delete your developer profile. Please try again.';
+    }
+  }
+
+  if (!error) {
+    await deleteUser(env.DB_EXTENSIONS, user.sub);
+    Astro.cookies.delete(SESSION_COOKIE, { path: '/' });
+    return Astro.redirect('/?account_deleted=1');
+  }
+}
+---
+
+<Base title="Delete account — FOSSBilling Extensions">
+  <div class="max-w-2xl mx-auto space-y-6">
+    <h1 class="text-2xl font-semibold tracking-tight text-destructive">
+      Delete account
+    </h1>
+
+    {
+      error && (
+        <div class="rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          {error}
+        </div>
+      )
+    }
+
+    {
+      extensions.length > 0 ? (
+        <p class="text-sm text-muted-foreground">
+          You have {extensions.length} published extension
+          {extensions.length === 1 ? '' : 's'} under your developer profile.
+          Transfer ownership or remove them from{' '}
+          <a href="/account/developer">your developer profile</a> before
+          deleting your account.
+        </p>
+      ) : (
+        <div class="card space-y-4">
+          <p class="text-sm text-muted-foreground">
+            This permanently deletes your account
+            {developer && ' and your developer profile'}. This can't be undone.
+          </p>
+          <ul class="text-sm text-muted-foreground list-disc pl-5 space-y-1">
+            <li>Your personal profile (display name, bio) is removed.</li>
+            {developer && (
+              <li>
+                Your developer profile ({developer.name}) and its public page
+                are removed; the ID may be used by someone else afterward.
+              </li>
+            )}
+          </ul>
+          <div class="flex justify-end gap-3">
+            <a href="/account" class="btn" data-variant="ghost">
+              Cancel
+            </a>
+            <form method="POST">
+              <button type="submit" class="btn" data-variant="destructive">
+                Permanently delete my account
+              </button>
+            </form>
+          </div>
+        </div>
+      )
+    }
+  </div>
+</Base>
