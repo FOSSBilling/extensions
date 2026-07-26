@@ -96,9 +96,9 @@ if (!isEdit) {
 }
 ---
 
-<Base title="Developer profile — FOSSBilling Extensions">
+<Base title="Developer Profile — FOSSBilling Extensions">
   <div class="max-w-2xl mx-auto space-y-6">
-    <h1 class="text-2xl font-semibold tracking-tight">Developer profile</h1>
+    <h1 class="text-2xl font-semibold tracking-tight">Developer Profile</h1>
     <p class="text-muted-foreground text-sm">
       This is the publisher identity shown on your extensions in the directory,
       and on your public developer page. Changes take effect immediately — you
@@ -109,13 +109,13 @@ if (!isEdit) {
     {
       !isEdit && myClaims.length > 0 && (
         <div class="card space-y-2">
-          <h2 class="font-semibold">Your profile claims</h2>
+          <h2 class="font-semibold">Your Profile Claims</h2>
           <ul class="space-y-2">
             {myClaims.map((c) => (
               <li class="text-sm flex items-center justify-between gap-3">
                 <code>{c.developer_id}</code>
                 {c.status === 'pending' && (
-                  <span class="badge-secondary">Pending review</span>
+                  <span class="badge-secondary">Pending Review</span>
                 )}
                 {c.status === 'approved' && <span class="badge">Approved</span>}
                 {c.status === 'rejected' && (
@@ -146,7 +146,7 @@ if (!isEdit) {
               {developer!.approved ? (
                 <span class="badge">Approved</span>
               ) : (
-                <span class="badge-secondary">Not yet reviewed</span>
+                <span class="badge-secondary">Not Yet Reviewed</span>
               )}
             </p>
             {developer!.bio && (
@@ -159,7 +159,7 @@ if (!isEdit) {
             data-size="sm"
             data-variant="outline"
           >
-            View public profile
+            View Public Profile
           </a>
         </div>
       )
@@ -175,7 +175,7 @@ if (!isEdit) {
 
     <form method="POST" class="space-y-8">
       <fieldset class="fieldset space-y-4">
-        <legend class="font-semibold mb-2">Publisher identity</legend>
+        <legend class="font-semibold mb-2">Publisher Identity</legend>
         <div class="field">
           <label for="id">Publisher ID</label>
           <input
@@ -198,7 +198,7 @@ if (!isEdit) {
           }
         </div>
         <div class="field">
-          <label for="name">Publisher name</label>
+          <label for="name">Publisher Name</label>
           <input
             class="input"
             type="text"
@@ -209,7 +209,7 @@ if (!isEdit) {
           />
         </div>
         <div class="field">
-          <label for="type">Publisher type</label>
+          <label for="type">Publisher Type</label>
           <select class="select" id="type" name="type">
             {
               DEVELOPER_TYPES.map((t) => (
@@ -221,7 +221,7 @@ if (!isEdit) {
           </select>
         </div>
         <div class="field">
-          <label for="url">Publisher URL (optional)</label>
+          <label for="url">Publisher URL (Optional)</label>
           <input
             class="input"
             type="url"
@@ -233,13 +233,13 @@ if (!isEdit) {
       </fieldset>
 
       <fieldset class="fieldset space-y-4">
-        <legend class="font-semibold mb-2">Public profile</legend>
+        <legend class="font-semibold mb-2">Public Profile</legend>
         <p class="text-sm text-muted-foreground -mt-2">
           Shown on your public developer page at
           {developer ? ` /developer/${developer.id}` : ' /developer/<your-id>'}.
         </p>
         <div class="field">
-          <label for="avatar_url">Avatar/logo URL (optional)</label>
+          <label for="avatar_url">Avatar/Logo URL (Optional)</label>
           <input
             class="input"
             type="url"
@@ -249,7 +249,7 @@ if (!isEdit) {
           />
         </div>
         <div class="field">
-          <label for="bio">Bio (optional)</label>
+          <label for="bio">Bio (Optional)</label>
           <textarea
             class="textarea"
             id="bio"
@@ -265,7 +265,7 @@ if (!isEdit) {
       <fieldset class="fieldset space-y-4">
         <legend class="font-semibold mb-2">Private contact</legend>
         <div class="field">
-          <label for="contact_email">Contact email (optional)</label>
+          <label for="contact_email">Contact Email (Optional)</label>
           <input
             class="input"
             type="email"
@@ -291,7 +291,7 @@ if (!isEdit) {
     {
       isEdit && (
         <div class="card space-y-3">
-          <h2 class="font-semibold">Transfer ownership</h2>
+          <h2 class="font-semibold">Transfer Ownership</h2>
           <p class="text-sm text-muted-foreground">
             Generate a one-time link to hand this profile to a different
             account. It works once and expires after 24 hours — generating a new
@@ -332,7 +332,7 @@ if (!isEdit) {
                 data-size="sm"
                 data-variant="outline"
               >
-                Generate transfer link
+                Generate Transfer Link
               </button>
             </form>
             <form method="POST" action="/account/developer/transfer/revoke">
@@ -342,7 +342,7 @@ if (!isEdit) {
                 data-size="sm"
                 data-variant="ghost"
               >
-                Revoke pending link
+                Revoke Pending Link
               </button>
             </form>
           </div>
@@ -354,7 +354,7 @@ if (!isEdit) {
       isEdit && (
         <div class="card space-y-3">
           <h2 class="font-semibold text-destructive">
-            Delete developer profile
+            Delete Developer Profile
           </h2>
           {extensions.length > 0 ? (
             <p class="text-sm text-muted-foreground">
@@ -377,7 +377,7 @@ if (!isEdit) {
                   data-size="sm"
                   data-variant="outline"
                 >
-                  Delete developer profile
+                  Delete Developer Profile
                 </button>
               </form>
             </>

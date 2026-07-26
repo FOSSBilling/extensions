@@ -24,9 +24,9 @@ if (Astro.request.method === 'POST') {
 const profile = await getUserProfile(env.DB_EXTENSIONS, user.sub);
 ---
 
-<Base title="Your profile — FOSSBilling Extensions">
+<Base title="Your Profile — FOSSBilling Extensions">
   <div class="max-w-2xl mx-auto space-y-6">
-    <h1 class="text-2xl font-semibold tracking-tight">Your profile</h1>
+    <h1 class="text-2xl font-semibold tracking-tight">Your Profile</h1>
     <p class="text-muted-foreground text-sm">
       Your personal profile, separate from any developer/publisher identity. Not
       shown publicly yet — it's here for things like comments and ratings down
@@ -35,7 +35,7 @@ const profile = await getUserProfile(env.DB_EXTENSIONS, user.sub);
 
     <form method="POST" class="space-y-6">
       <div class="field">
-        <label for="display_name">Display name</label>
+        <label for="display_name">Display Name</label>
         <input
           class="input"
           type="text"

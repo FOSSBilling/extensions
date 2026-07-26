@@ -25,7 +25,7 @@ const isEdit = Boolean(extension);
     <legend class="font-semibold mb-2">Publisher</legend>
     <p class="text-sm text-muted-foreground">
       Publishing as <strong>{developer.name}</strong> ({developer.id}).
-      <a href="/account/developer">Edit developer profile</a>
+      <a href="/account/developer">Edit Developer Profile</a>
     </p>
   </fieldset>
 
@@ -75,7 +75,7 @@ const isEdit = Boolean(extension);
       />
     </div>
     <div class="field">
-      <label for="description">Short description</label>
+      <label for="description">Short Description</label>
       <input
         class="input"
         type="text"
@@ -97,7 +97,7 @@ const isEdit = Boolean(extension);
       />
     </div>
     <div class="field">
-      <label for="icon_url">Icon URL (optional)</label>
+      <label for="icon_url">Icon URL (Optional)</label>
       <input
         class="input"
         type="url"
@@ -122,7 +122,7 @@ const isEdit = Boolean(extension);
   <fieldset class="fieldset space-y-4">
     <legend class="font-semibold mb-2">License</legend>
     <div class="field">
-      <label for="license_name">License name</label>
+      <label for="license_name">License Name</label>
       <input
         class="input"
         type="text"
@@ -133,7 +133,7 @@ const isEdit = Boolean(extension);
       />
     </div>
     <div class="field">
-      <label for="license_url">License URL (optional)</label>
+      <label for="license_url">License URL (Optional)</label>
       <input
         class="input"
         type="url"
@@ -147,7 +147,7 @@ const isEdit = Boolean(extension);
   <fieldset class="fieldset space-y-4">
     <legend class="font-semibold mb-2">Source</legend>
     <div class="field">
-      <label for="source_type">Repository host</label>
+      <label for="source_type">Repository Host</label>
       <select class="select" id="source_type" name="source_type">
         {
           SOURCE_TYPES.map((t) => (
@@ -175,7 +175,7 @@ const isEdit = Boolean(extension);
   {
     isEdit && extension && extension.releases.length > 0 && (
       <fieldset class="fieldset space-y-2">
-        <legend class="font-semibold mb-2">Existing releases</legend>
+        <legend class="font-semibold mb-2">Existing Releases</legend>
         <ul class="text-sm text-muted-foreground space-y-1">
           {extension.releases.map((r) => (
             <li>
@@ -193,7 +193,7 @@ const isEdit = Boolean(extension);
       {isEdit ? 'Add a new release (optional)' : 'Initial release'}
     </legend>
     <div class="field">
-      <label for="version_tag">Version tag</label>
+      <label for="version_tag">Version Tag</label>
       <input
         class="input"
         type="text"
@@ -204,7 +204,7 @@ const isEdit = Boolean(extension);
       />
     </div>
     <div class="field">
-      <label for="release_date">Release date</label>
+      <label for="release_date">Release Date</label>
       <input
         class="input"
         type="date"
@@ -224,11 +224,11 @@ const isEdit = Boolean(extension);
       />
     </div>
     <div class="field">
-      <label for="changelog_url">Changelog URL (optional)</label>
+      <label for="changelog_url">Changelog URL (Optional)</label>
       <input class="input" type="url" id="changelog_url" name="changelog_url" />
     </div>
     <div class="field">
-      <label for="min_fossbilling_version">Minimum FOSSBilling version</label>
+      <label for="min_fossbilling_version">Minimum FOSSBilling Version</label>
       <input
         class="input"
         type="text"
@@ -243,7 +243,7 @@ const isEdit = Boolean(extension);
   <div class="flex justify-end gap-3">
     <a href="/account" class="btn" data-variant="ghost"> Cancel </a>
     <button type="submit" class="btn">
-      {isEdit ? 'Submit edit for review' : 'Submit for review'}
+      {isEdit ? 'Submit Edit for Review' : 'Submit for Review'}
     </button>
   </div>
 </form>
