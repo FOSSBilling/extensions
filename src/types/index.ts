@@ -106,12 +106,11 @@ export type SubmissionPayload = {
 // src/services/extensions/v2/interfaces.ts (DeveloperProfileSchema).
 // Developer profiles are written directly (PUT /extensions/v2/developers/me),
 // not through the submission/moderation queue; `approved` is purely a badge,
-// not a gate. bio/avatar_url are shown on the public /developer/[id] page;
+// not a gate. avatar_url is shown on the public /developer/[id] page;
 // contact_email is never read by any public-facing query — it's for
 // moderator/maintainer contact only, same trust level as a user's own email.
 export type DeveloperProfile = Developer & {
   approved: boolean;
-  bio?: string;
   avatar_url?: string;
   contact_email?: string;
   // Local-only: derived from `owner_user_id IS NULL` by getDeveloperById's
