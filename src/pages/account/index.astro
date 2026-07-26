@@ -19,10 +19,10 @@ const [ownedExtensions, moderator, developer] = await Promise.all([
 ]);
 
 const banner: Record<string, string> = {
-  submitted: 'Submitted for review.',
-  profile_saved: 'Developer profile saved.',
-  profile_updated: 'Profile updated.',
-  profile_deleted: 'Developer profile deleted.',
+  submitted: 'Submitted for Review.',
+  profile_saved: 'Developer Profile Saved.',
+  profile_updated: 'Profile Updated.',
+  profile_deleted: 'Developer Profile Deleted.',
 };
 const bannerKey = [
   'submitted',
@@ -47,7 +47,7 @@ const statusBadgeClass: Record<Submission['status'], string> = {
 };
 ---
 
-<Base title="Your account — FOSSBilling Extensions">
+<Base title="Your Account — FOSSBilling Extensions">
   <div class="max-w-3xl mx-auto space-y-8">
     <header class="flex items-center justify-between gap-4">
       <div class="flex items-center gap-4">
@@ -63,12 +63,12 @@ const statusBadgeClass: Record<Submission['status'], string> = {
       </div>
       <div class="flex items-center gap-2">
         <a href="/account/profile" class="btn" data-variant="outline">
-          Your profile
+          Your Profile
         </a>
         {
           moderator && (
             <a href="/account/moderate" class="btn" data-variant="outline">
-              Moderation queue
+              Moderation Queue
             </a>
           )
         }
@@ -85,7 +85,7 @@ const statusBadgeClass: Record<Submission['status'], string> = {
 
     <section class="card">
       <header class="flex items-center justify-between">
-        <h2 class="font-semibold">Developer profile</h2>
+        <h2 class="font-semibold">Developer Profile</h2>
         <a
           href="/account/developer"
           class="btn"
@@ -103,7 +103,7 @@ const statusBadgeClass: Record<Submission['status'], string> = {
               {developer.approved ? (
                 <span class="badge">Approved</span>
               ) : (
-                <span class="badge-secondary">Not yet reviewed</span>
+                <span class="badge-secondary">Not Yet Reviewed</span>
               )}
             </p>
           ) : (
@@ -118,9 +118,9 @@ const statusBadgeClass: Record<Submission['status'], string> = {
 
     <section class="card">
       <header class="flex items-center justify-between">
-        <h2 class="font-semibold">Your extensions</h2>
+        <h2 class="font-semibold">Your Extensions</h2>
         <a href="/account/extensions/new" class="btn" data-size="sm">
-          Submit new extension
+          Submit New Extension
         </a>
       </header>
       <section>
@@ -170,7 +170,7 @@ const statusBadgeClass: Record<Submission['status'], string> = {
 
     <section class="card">
       <header>
-        <h2 class="font-semibold">Your submissions</h2>
+        <h2 class="font-semibold">Your Submissions</h2>
       </header>
       <section>
         {
@@ -207,7 +207,7 @@ const statusBadgeClass: Record<Submission['status'], string> = {
 
     <div class="text-center">
       <a href="/account/delete" class="text-sm text-destructive">
-        Delete account
+        Delete Account
       </a>
     </div>
   </div>
