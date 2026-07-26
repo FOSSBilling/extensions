@@ -103,9 +103,13 @@ export function createApiClient(env: Cloudflare.Env, sub: string) {
 
     listAllDevelopers: () => call<DeveloperProfile[]>('/developers'),
 
-    approveDeveloper: (id: string) =>
+    // expectedRevision must match the profile's current content_revision —
+    // the api rejects the approval with 409 if the profile changed since it
+    // was reviewed.
+    approveDeveloper: (id: string, expectedRevision: number) =>
       call<{ id: string; approved: true }>(`/developers/${id}/approve`, {
         method: 'POST',
+        body: JSON.stringify({ expected_revision: expectedRevision }),
       }),
 
     listDeveloperHistory: (id: string) =>
@@ -124,8 +128,9 @@ export function createApiClient(env: Cloudflare.Env, sub: string) {
       }),
 
     acceptTransfer: (token: string) =>
-      call<DeveloperProfile>(`/developers/transfers/${token}/accept`, {
+      call<DeveloperProfile>('/developers/transfers/accept', {
         method: 'POST',
+        body: JSON.stringify({ token }),
       }),
 
     claimDeveloper: (id: string, note?: string) =>

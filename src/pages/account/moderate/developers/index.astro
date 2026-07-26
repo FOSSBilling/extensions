@@ -129,6 +129,11 @@ try {
                       method="POST"
                       action={`/account/moderate/developers/${d.id}/approve`}
                     >
+                      <input
+                        type="hidden"
+                        name="expected_revision"
+                        value={d.content_revision}
+                      />
                       <button type="submit" class="btn" data-size="sm">
                         Approve
                       </button>
