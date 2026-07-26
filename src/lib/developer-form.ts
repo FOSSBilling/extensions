@@ -30,7 +30,6 @@ export function buildDeveloperProfile(
     type: isDeveloperType(typeInput) ? typeInput : 'user',
     name: str('name'),
     URL: str('url') || undefined,
-    bio: str('bio') || undefined,
     avatar_url: str('avatar_url') || undefined,
     contact_email: str('contact_email') || undefined,
   } as DeveloperProfileInput;

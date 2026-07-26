@@ -40,7 +40,7 @@ const SELECT_EXTENSIONS_BY_DEVELOPER = `
 // unclaimed is derived, never the raw owner_user_id — exposing the actual
 // owner's sub would leak another user's identifier publicly.
 const SELECT_DEVELOPER_PUBLIC = `
-  SELECT id, type, name, url, bio, avatar_url, approved_at,
+  SELECT id, type, name, url, avatar_url, approved_at,
          (owner_user_id IS NULL) AS unclaimed
   FROM developers
 `;
@@ -50,7 +50,6 @@ type DeveloperProfileRow = {
   type: string;
   name: string;
   url: string | null;
-  bio?: string | null;
   avatar_url: string | null;
   contact_email?: string | null;
   approved_at: string | null;
@@ -63,7 +62,6 @@ function parseDeveloperProfileRow(row: DeveloperProfileRow): DeveloperProfile {
     name: row.name,
     id: row.id.toLowerCase() as Lowercase<string>,
     URL: row.url ?? undefined,
-    bio: row.bio ?? undefined,
     avatar_url: row.avatar_url ?? undefined,
     contact_email: row.contact_email ?? undefined,
     approved: row.approved_at !== null,
@@ -140,7 +138,7 @@ export async function getDeveloperByOwner(
   try {
     row = await db
       .prepare(
-        'SELECT id, type, name, url, bio, avatar_url, contact_email, approved_at FROM developers WHERE owner_user_id = ?',
+        'SELECT id, type, name, url, avatar_url, contact_email, approved_at FROM developers WHERE owner_user_id = ?',
       )
       .bind(userId)
       .first<DeveloperProfileRow>();

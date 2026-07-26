@@ -12,11 +12,9 @@ const user = guard;
 if (Astro.request.method === 'POST') {
   const form = await Astro.request.formData();
   const displayName = formString(form, 'display_name');
-  const bio = formString(form, 'bio');
 
   await updateUserProfile(env.DB_EXTENSIONS, user.sub, {
     display_name: displayName || null,
-    bio: bio || null,
   });
   return Astro.redirect('/account?profile_updated=1');
 }
@@ -28,9 +26,7 @@ const profile = await getUserProfile(env.DB_EXTENSIONS, user.sub);
   <div class="max-w-2xl mx-auto space-y-6">
     <h1 class="text-2xl font-semibold tracking-tight">Your Profile</h1>
     <p class="text-muted-foreground text-sm">
-      Your personal profile, separate from any developer/publisher identity. Not
-      shown publicly yet — it's here for things like comments and ratings down
-      the line.
+      Your personal profile, separate from any developer/publisher identity.
     </p>
 
     <form method="POST" class="space-y-6">
@@ -47,16 +43,6 @@ const profile = await getUserProfile(env.DB_EXTENSIONS, user.sub);
         <p class="text-sm text-muted-foreground">
           Defaults to "{user.name}" from your sign-in provider if left blank.
         </p>
-      </div>
-      <div class="field">
-        <label for="bio">Bio</label>
-        <textarea
-          class="textarea"
-          id="bio"
-          name="bio"
-          rows="4"
-          set:text={profile.bio ?? ''}
-        />
       </div>
 
       <div class="flex justify-end gap-3">

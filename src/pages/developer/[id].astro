@@ -71,11 +71,6 @@ const extensions = await getExtensionsByDeveloperId(
         {developer.unclaimed && <span class="badge-secondary">Unclaimed</span>}
       </div>
       {
-        developer.bio && (
-          <p class="text-muted-foreground mt-2 max-w-2xl">{developer.bio}</p>
-        )
-      }
-      {
         developer.URL && isSafeHttpUrl(developer.URL) ? (
           <a
             href={developer.URL}

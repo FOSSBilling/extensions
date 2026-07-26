@@ -59,21 +59,20 @@ export async function deleteUser(
 
 export type UserProfile = {
   display_name: string | null;
-  bio: string | null;
 };
 
-// display_name/bio are a personal profile, separate from the name/email/
+// display_name is a personal profile, separate from the name/email/
 // picture synced from the auth provider on every login (upsertUser above
-// never touches them) and separate from any developer/publisher identity.
+// never touches it) and separate from any developer/publisher identity.
 export async function getUserProfile(
   db: D1Database,
   userId: string,
 ): Promise<UserProfile> {
   const row = await db
-    .prepare('SELECT display_name, bio FROM users WHERE id = ?')
+    .prepare('SELECT display_name FROM users WHERE id = ?')
     .bind(userId)
     .first<UserProfile>();
-  return row ?? { display_name: null, bio: null };
+  return row ?? { display_name: null };
 }
 
 // Callback.ts deliberately doesn't fail sign-in if upsertUser fails (a
@@ -96,9 +95,7 @@ export async function updateUserProfile(
     .run();
 
   await db
-    .prepare(
-      'UPDATE users SET display_name = ?, bio = ?, updated_at = ? WHERE id = ?',
-    )
-    .bind(profile.display_name, profile.bio, now, userId)
+    .prepare('UPDATE users SET display_name = ?, updated_at = ? WHERE id = ?')
+    .bind(profile.display_name, now, userId)
     .run();
 }

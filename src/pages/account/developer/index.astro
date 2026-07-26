@@ -149,9 +149,6 @@ if (!isEdit) {
                 <span class="badge-secondary">Not Yet Reviewed</span>
               )}
             </p>
-            {developer!.bio && (
-              <p class="text-sm text-muted-foreground mt-1">{developer!.bio}</p>
-            )}
           </div>
           <a
             href={`/developer/${developer!.id}`}
@@ -248,18 +245,6 @@ if (!isEdit) {
             value={fields?.avatar_url}
           />
         </div>
-        <div class="field">
-          <label for="bio">Bio (Optional)</label>
-          <textarea
-            class="textarea"
-            id="bio"
-            name="bio"
-            rows="4"
-            maxlength="500"
-            set:text={fields?.bio ?? ''}
-          />
-          <p class="text-sm text-muted-foreground">Up to 500 characters.</p>
-        </div>
       </fieldset>
 
       <fieldset class="fieldset space-y-4">
@@ -283,7 +268,7 @@ if (!isEdit) {
       <div class="flex justify-end gap-3">
         <a href="/account" class="btn" data-variant="ghost">Cancel</a>
         <button type="submit" class="btn">
-          {isEdit ? 'Save changes' : 'Create developer profile'}
+          {isEdit ? 'Save Changes' : 'Create Developer Profile'}
         </button>
       </div>
     </form>
@@ -365,9 +350,9 @@ if (!isEdit) {
           ) : (
             <>
               <p class="text-sm text-muted-foreground">
-                Permanently deletes your publisher identity (name, bio, contact
-                info) and its public page. This can't be undone, and the ID may
-                be used by someone else afterward.
+                Permanently deletes your publisher identity (name, contact info)
+                and its public page. This can't be undone, and the ID may be
+                used by someone else afterward.
               </p>
               <form method="POST">
                 <input type="hidden" name="intent" value="delete" />
