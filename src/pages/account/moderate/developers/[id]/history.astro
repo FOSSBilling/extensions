@@ -1,0 +1,89 @@
+---
+import Base from '../../../../../layouts/Base.astro';
+import { env } from 'cloudflare:workers';
+import { requireModerator } from '@/lib/auth-guard';
+import { createApiClient, ApiRequestError } from '@/lib/apiClient';
+import type { AuthorHistoryEntry } from '@/types';
+
+const guard = await requireModerator(Astro, env);
+if (guard instanceof Response) return guard;
+const user = guard;
+
+const { id } = Astro.params;
+if (!id) {
+  return Astro.redirect('/404');
+}
+
+const api = createApiClient(env, user.sub);
+let entries: AuthorHistoryEntry[] = [];
+let loadError: string | null = null;
+try {
+  entries = await api.listAuthorHistory(id);
+} catch (e) {
+  loadError =
+    e instanceof ApiRequestError
+      ? e.message
+      : 'Unable to load history for this developer profile.';
+}
+---
+
+<Base title={`Profile history: ${id} — FOSSBilling Extensions`}>
+  <div class="max-w-2xl mx-auto space-y-6">
+    <div class="flex items-center justify-between gap-4">
+      <h1 class="text-2xl font-semibold tracking-tight">
+        History for <code>{id}</code>
+      </h1>
+      <a href="/account/moderate/developers" class="btn" data-variant="outline">
+        Back to profiles
+      </a>
+    </div>
+
+    {
+      loadError && (
+        <div class="rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          {loadError}
+        </div>
+      )
+    }
+
+    {
+      !loadError && entries.length === 0 && (
+        <p class="text-muted-foreground text-sm">
+          No recorded writes for this profile yet.
+        </p>
+      )
+    }
+
+    {
+      !loadError && entries.length > 0 && (
+        <ol class="space-y-4">
+          {entries.map((entry, i) => (
+            <li class="card">
+              <div class="flex items-center justify-between gap-4">
+                <p class="font-medium">
+                  {entry.name}
+                  {i === 0 && <span class="badge-secondary ml-2">Current</span>}
+                </p>
+                <time class="text-sm text-muted-foreground">
+                  {new Date(entry.changed_at).toLocaleString()}
+                </time>
+              </div>
+              <p class="text-sm text-muted-foreground mt-1">
+                {entry.type}
+                {entry.URL && (
+                  <>
+                    {' '}
+                    &middot; <a href={entry.URL}>{entry.URL}</a>
+                  </>
+                )}
+              </p>
+              <p class="text-sm text-muted-foreground mt-1">
+                Changed by <code>{entry.changed_by}</code>
+              </p>
+            </li>
+          ))}
+        </ol>
+      )
+    }
+  </div>
+</Base>

@@ -33,8 +33,12 @@ const SELECT_EXTENSIONS_BY_AUTHOR = `
 // contact_email is deliberately never selected here — this repo has no
 // public-facing query that should return it. Only getAuthorByOwner (below)
 // selects it, for prefilling the owner's own self-management form.
+// unclaimed is derived, never the raw owner_user_id — exposing the actual
+// owner's sub would leak another user's identifier publicly.
 const SELECT_AUTHOR_PUBLIC = `
-  SELECT id, type, name, url, bio, avatar_url, approved_at FROM authors
+  SELECT id, type, name, url, bio, avatar_url, approved_at,
+         (owner_user_id IS NULL) AS unclaimed
+  FROM authors
 `;
 
 type AuthorProfileRow = {
@@ -46,6 +50,7 @@ type AuthorProfileRow = {
   avatar_url: string | null;
   contact_email?: string | null;
   approved_at: string | null;
+  unclaimed?: number;
 };
 
 function parseAuthorProfileRow(row: AuthorProfileRow): AuthorProfile {
@@ -58,6 +63,7 @@ function parseAuthorProfileRow(row: AuthorProfileRow): AuthorProfile {
     avatar_url: row.avatar_url ?? undefined,
     contact_email: row.contact_email ?? undefined,
     approved: row.approved_at !== null,
+    unclaimed: row.unclaimed === 1,
   } as AuthorProfile;
 }
 

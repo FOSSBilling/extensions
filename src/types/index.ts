@@ -113,11 +113,58 @@ export type AuthorProfile = Author & {
   bio?: string;
   avatar_url?: string;
   contact_email?: string;
+  // Local-only: derived from `owner_user_id IS NULL` by getAuthorById's own
+  // query, not part of the api repo's AuthorProfile response. Never set on
+  // profiles read via the api client (upsertAuthorProfile, listUnapprovedAuthors,
+  // listAllAuthors) — only on the public /developer/[id] read.
+  unclaimed?: boolean;
 };
 
 // Body for PUT /extensions/v2/authors/me — everything but the server-set
 // `approved` flag.
 export type AuthorProfileInput = Omit<AuthorProfile, 'approved'>;
+
+// A snapshot of an authors row as it existed right after one PUT /authors/me
+// write — see the api repo's AuthorHistoryEntrySchema. Newest first from
+// GET /extensions/v2/authors/{id}/history (moderator-only).
+export type AuthorHistoryEntry = {
+  author_id: string;
+  type: (typeof AUTHOR_TYPES)[number];
+  name: string;
+  URL?: string;
+  changed_by: string;
+  changed_at: string;
+};
+
+// A request to own an unowned ("legacy") developer profile — see the api
+// repo's AuthorClaimSchema. Created via POST /authors/{id}/claim, resolved
+// by a moderator via approve/reject.
+export type AuthorClaim = {
+  id: string;
+  author_id: string;
+  claimant_id: string;
+  status: 'pending' | 'approved' | 'rejected';
+  note?: string;
+  review_note?: string;
+  reviewer_id?: string;
+  created_at: string;
+  reviewed_at?: string;
+};
+
+// AuthorClaim plus the claimed profile's own name/type, for the moderator
+// queue (GET /authors/claims) so it doesn't need a separate lookup per row.
+export type PendingAuthorClaim = AuthorClaim & {
+  author_name: string;
+  author_type: (typeof AUTHOR_TYPES)[number];
+};
+
+// Result of POST /authors/{id}/transfer — the raw token is only ever
+// returned here, once. Never persisted or put in a URL; shown once to the
+// initiating owner to share out-of-band.
+export type AuthorTransfer = {
+  token: string;
+  expires_at: string;
+};
 
 export type SubmissionStatus = 'pending' | 'approved' | 'rejected';
 

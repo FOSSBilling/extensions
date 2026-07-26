@@ -3,8 +3,12 @@
 // minting a bearer assertion requires ASSERTION_SIGNING_SECRET.
 import { mintBearerAssertion } from './assertion';
 import type {
+  AuthorClaim,
+  AuthorHistoryEntry,
   AuthorProfile,
   AuthorProfileInput,
+  AuthorTransfer,
+  PendingAuthorClaim,
   Submission,
   SubmissionPayload,
   SubmissionStatus,
@@ -81,9 +85,50 @@ export function createApiClient(env: Cloudflare.Env, sub: string) {
 
     listUnapprovedAuthors: () => call<AuthorProfile[]>('/authors/unapproved'),
 
+    listAllAuthors: () => call<AuthorProfile[]>('/authors'),
+
     approveAuthor: (id: string) =>
       call<{ id: string; approved: true }>(`/authors/${id}/approve`, {
         method: 'POST',
+      }),
+
+    listAuthorHistory: (id: string) =>
+      call<AuthorHistoryEntry[]>(`/authors/${id}/history`),
+
+    // One-time link — the token is only ever returned by this call. Never
+    // persisted or put in a URL by the caller.
+    initiateTransfer: (id: string) =>
+      call<AuthorTransfer>(`/authors/${id}/transfer`, { method: 'POST' }),
+
+    revokeTransfer: (id: string) =>
+      call<{ id: string; revoked: true }>(`/authors/${id}/transfer/revoke`, {
+        method: 'POST',
+      }),
+
+    acceptTransfer: (token: string) =>
+      call<AuthorProfile>(`/authors/transfers/${token}/accept`, {
+        method: 'POST',
+      }),
+
+    claimAuthor: (id: string, note?: string) =>
+      call<AuthorClaim>(`/authors/${id}/claim`, {
+        method: 'POST',
+        body: JSON.stringify(note ? { note } : {}),
+      }),
+
+    listMyClaims: () => call<AuthorClaim[]>('/authors/claims/mine'),
+
+    listPendingClaims: () => call<PendingAuthorClaim[]>('/authors/claims'),
+
+    approveClaim: (id: string) =>
+      call<AuthorProfile>(`/authors/claims/${id}/approve`, {
+        method: 'POST',
+      }),
+
+    rejectClaim: (id: string, reviewNote: string) =>
+      call<AuthorClaim>(`/authors/claims/${id}/reject`, {
+        method: 'POST',
+        body: JSON.stringify({ review_note: reviewNote }),
       }),
   };
 }

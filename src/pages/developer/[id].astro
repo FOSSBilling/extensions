@@ -2,6 +2,9 @@
 import Base from '../../layouts/Base.astro';
 import ExtensionCard from '@/components/ExtensionCard.astro';
 import { getAuthorById, getExtensionsByAuthorId } from '@/lib/database';
+import { getSessionUser } from '@/lib/session';
+import { requireUser } from '@/lib/auth-guard';
+import { createApiClient, ApiRequestError } from '@/lib/apiClient';
 import { env } from 'cloudflare:workers';
 
 const { id } = Astro.params;
@@ -14,6 +17,31 @@ const author = await getAuthorById(env.DB_EXTENSIONS, id);
 
 if (!author) {
   return Astro.redirect('/404');
+}
+
+const currentUser = await getSessionUser(Astro.cookies, env.SESSION_SECRET);
+
+let claimError: string | null = null;
+let claimSubmitted = false;
+
+if (Astro.request.method === 'POST' && author.unclaimed) {
+  const guard = await requireUser(Astro, env);
+  if (guard instanceof Response) return guard;
+  const user = guard;
+
+  const form = await Astro.request.formData();
+  const note = ((form.get('note') as string | null) ?? '').trim();
+
+  const api = createApiClient(env, user.sub);
+  try {
+    await api.claimAuthor(author.id, note || undefined);
+    claimSubmitted = true;
+  } catch (e) {
+    claimError =
+      e instanceof ApiRequestError
+        ? e.message
+        : 'Unable to submit your claim. Please try again.';
+  }
 }
 
 const extensions = await getExtensionsByAuthorId(env.DB_EXTENSIONS, author.id);
@@ -35,6 +63,7 @@ const extensions = await getExtensionsByAuthorId(env.DB_EXTENSIONS, author.id);
         <h1 class="text-2xl font-semibold tracking-tight">{author.name}</h1>
         <span class="badge-secondary">{author.type}</span>
         {author.approved && <span class="badge">Approved</span>}
+        {author.unclaimed && <span class="badge-secondary">Unclaimed</span>}
       </div>
       {
         author.bio && (
@@ -57,6 +86,64 @@ const extensions = await getExtensionsByAuthorId(env.DB_EXTENSIONS, author.id);
       }
     </div>
   </div>
+
+  {
+    author.unclaimed && (
+      <div class="card space-y-3 mb-8">
+        <h2 class="font-semibold">
+          This profile hasn't been linked to an account
+        </h2>
+        {claimSubmitted ? (
+          <p class="text-sm text-muted-foreground">
+            Your claim has been submitted for moderator review. You can check
+            its status on your{' '}
+            <a href="/account/developer">developer profile page</a>.
+          </p>
+        ) : (
+          <>
+            <p class="text-sm text-muted-foreground">
+              If this is you, you can request to claim it. A moderator reviews
+              every claim before ownership changes.
+            </p>
+            {claimError && (
+              <div class="rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                {claimError}
+              </div>
+            )}
+            {currentUser ? (
+              <form method="POST" class="space-y-3">
+                <div class="field">
+                  <label for="note">
+                    Note for the moderator reviewing this (optional)
+                  </label>
+                  <input
+                    class="input"
+                    type="text"
+                    id="note"
+                    name="note"
+                    maxlength="500"
+                    placeholder="e.g. I'm the maintainer, see github.com/..."
+                  />
+                </div>
+                <button type="submit" class="btn" data-size="sm">
+                  Claim this profile
+                </button>
+              </form>
+            ) : (
+              <a
+                href={`/auth/login?redirect=${encodeURIComponent(Astro.url.pathname)}`}
+                class="btn"
+                data-size="sm"
+                data-variant="outline"
+              >
+                Sign in to claim this profile
+              </a>
+            )}
+          </>
+        )}
+      </div>
+    )
+  }
 
   <h2 class="font-semibold mb-4">
     Extensions by {author.name} ({extensions.length})

@@ -1,0 +1,56 @@
+---
+import Base from '../../../../layouts/Base.astro';
+import { env } from 'cloudflare:workers';
+import { requireUser } from '@/lib/auth-guard';
+import { createApiClient, ApiRequestError } from '@/lib/apiClient';
+
+const guard = await requireUser(Astro, env);
+if (guard instanceof Response) return guard;
+const user = guard;
+
+const { token } = Astro.params;
+if (!token) {
+  return Astro.redirect('/404');
+}
+
+let error: string | null = null;
+
+if (Astro.request.method === 'POST') {
+  const api = createApiClient(env, user.sub);
+  try {
+    await api.acceptTransfer(token);
+    return Astro.redirect('/account/developer?transfer_accepted=1');
+  } catch (e) {
+    error =
+      e instanceof ApiRequestError
+        ? e.message
+        : 'Unable to accept this transfer. Please try again.';
+  }
+}
+---
+
+<Base title="Accept developer profile transfer — FOSSBilling Extensions">
+  <div class="max-w-lg mx-auto space-y-6">
+    <h1 class="text-2xl font-semibold tracking-tight">
+      Accept profile transfer
+    </h1>
+    <p class="text-muted-foreground text-sm">
+      Someone has sent you a link to take ownership of a developer profile.
+      Accepting replaces any developer profile you currently own with this one,
+      and clears its approved badge until a moderator reviews it again.
+    </p>
+
+    {
+      error && (
+        <div class="rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          {error}
+        </div>
+      )
+    }
+
+    <form method="POST" class="flex gap-3">
+      <button type="submit" class="btn">Accept transfer</button>
+      <a href="/account" class="btn" data-variant="ghost">Cancel</a>
+    </form>
+  </div>
+</Base>

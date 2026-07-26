@@ -9,11 +9,17 @@ const guard = await requireModerator(Astro, env);
 if (guard instanceof Response) return guard;
 const user = guard;
 
+const view =
+  Astro.url.searchParams.get('view') === 'all' ? 'all' : 'unapproved';
+
 const api = createApiClient(env, user.sub);
 let authors: AuthorProfile[] = [];
 let loadError = false;
 try {
-  authors = await api.listUnapprovedAuthors();
+  authors =
+    view === 'all'
+      ? await api.listAllAuthors()
+      : await api.listUnapprovedAuthors();
 } catch {
   loadError = true;
 }
@@ -22,13 +28,41 @@ try {
 <Base title="Developer profiles — FOSSBilling Extensions">
   <div class="max-w-3xl mx-auto space-y-6">
     <div class="flex items-center justify-between gap-4">
-      <h1 class="text-2xl font-semibold tracking-tight">
-        Developer profiles awaiting review
-      </h1>
-      <a href="/account/moderate" class="btn" data-variant="outline">
-        Extension queue
-      </a>
+      <h1 class="text-2xl font-semibold tracking-tight">Developer profiles</h1>
+      <div class="flex items-center gap-2">
+        <a
+          href="/account/moderate/developers/claims"
+          class="btn"
+          data-size="sm"
+          data-variant="outline"
+        >
+          Claims queue
+        </a>
+        <a
+          href="/account/moderate"
+          class="btn"
+          data-size="sm"
+          data-variant="outline"
+        >
+          Extension queue
+        </a>
+      </div>
     </div>
+
+    <nav class="flex gap-2">
+      {
+        (['unapproved', 'all'] as const).map((v) => (
+          <a
+            href={`/account/moderate/developers?view=${v}`}
+            class="btn"
+            data-size="sm"
+            data-variant={v === view ? 'primary' : 'outline'}
+          >
+            {v === 'unapproved' ? 'Awaiting review' : 'All profiles'}
+          </a>
+        ))
+      }
+    </nav>
 
     {
       Astro.url.searchParams.get('error') && (
@@ -51,7 +85,9 @@ try {
         </p>
       ) : authors.length === 0 ? (
         <p class="text-muted-foreground text-sm">
-          No developer profiles awaiting review.
+          {view === 'unapproved'
+            ? 'No developer profiles awaiting review.'
+            : 'No developer profiles yet.'}
         </p>
       ) : (
         <ul class="space-y-4">
@@ -59,8 +95,9 @@ try {
             <li class="card">
               <header class="flex items-start justify-between gap-4">
                 <div>
-                  <h2 class="font-semibold">
+                  <h2 class="font-semibold flex items-center gap-2">
                     {a.name} ({a.id})
+                    {a.approved && <span class="badge">Approved</span>}
                   </h2>
                   <p class="text-sm text-muted-foreground">
                     {a.type}
@@ -72,14 +109,26 @@ try {
                     )}
                   </p>
                 </div>
-                <form
-                  method="POST"
-                  action={`/account/moderate/developers/${a.id}/approve`}
-                >
-                  <button type="submit" class="btn" data-size="sm">
-                    Approve
-                  </button>
-                </form>
+                <div class="flex items-center gap-2">
+                  <a
+                    href={`/account/moderate/developers/${a.id}/history`}
+                    class="btn"
+                    data-size="sm"
+                    data-variant="outline"
+                  >
+                    History
+                  </a>
+                  {!a.approved && (
+                    <form
+                      method="POST"
+                      action={`/account/moderate/developers/${a.id}/approve`}
+                    >
+                      <button type="submit" class="btn" data-size="sm">
+                        Approve
+                      </button>
+                    </form>
+                  )}
+                </div>
               </header>
             </li>
           ))}

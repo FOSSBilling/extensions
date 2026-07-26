@@ -6,6 +6,7 @@ import { createApiClient, ApiRequestError } from '@/lib/apiClient';
 import { getAuthorByOwner } from '@/lib/database';
 import { buildAuthorProfile } from '@/lib/author-form';
 import { AUTHOR_TYPES } from '@/types';
+import type { AuthorClaim, AuthorTransfer } from '@/types';
 
 const guard = await requireUser(Astro, env);
 if (guard instanceof Response) return guard;
@@ -14,21 +15,47 @@ const user = guard;
 let author = await getAuthorByOwner(env.DB_EXTENSIONS, user.sub);
 const isEdit = Boolean(author);
 
-let error: string | null = null;
+const api = createApiClient(env, user.sub);
+
+let error: string | null = Astro.url.searchParams.get('error');
+let transferResult: AuthorTransfer | null = null;
 
 if (Astro.request.method === 'POST') {
   const form = await Astro.request.formData();
-  const payload = buildAuthorProfile(form, author);
 
-  const api = createApiClient(env, user.sub);
+  // transfer-initiate can't redirect like every other action in this app
+  // does — the token must never appear in a URL, so it's rendered inline
+  // instead. transfer-revoke has no such constraint and lives in its own
+  // route (transfer/revoke.ts), matching the rest of the app.
+  if (form.get('intent') === 'transfer-initiate' && author) {
+    try {
+      transferResult = await api.initiateTransfer(author.id);
+    } catch (e) {
+      error =
+        e instanceof ApiRequestError
+          ? e.message
+          : 'Unable to create a transfer link. Please try again.';
+    }
+  } else {
+    const payload = buildAuthorProfile(form, author);
+    try {
+      author = await api.upsertAuthorProfile(payload);
+      return Astro.redirect('/account?profile_saved=1');
+    } catch (e) {
+      error =
+        e instanceof ApiRequestError
+          ? e.message
+          : 'Something went wrong saving your developer profile. Please try again.';
+    }
+  }
+}
+
+let myClaims: AuthorClaim[] = [];
+if (!isEdit) {
   try {
-    author = await api.upsertAuthorProfile(payload);
-    return Astro.redirect('/account?profile_saved=1');
-  } catch (e) {
-    error =
-      e instanceof ApiRequestError
-        ? e.message
-        : 'Something went wrong saving your developer profile. Please try again.';
+    myClaims = await api.listMyClaims();
+  } catch {
+    // non-fatal — just don't show claim status
   }
 }
 ---
@@ -42,6 +69,30 @@ if (Astro.request.method === 'POST') {
       can submit extensions under this profile right away. A moderator will
       review it separately and mark it approved, shown as a badge below.
     </p>
+
+    {
+      !isEdit && myClaims.length > 0 && (
+        <div class="card space-y-2">
+          <h2 class="font-semibold">Your profile claims</h2>
+          <ul class="space-y-2">
+            {myClaims.map((c) => (
+              <li class="text-sm flex items-center justify-between gap-3">
+                <code>{c.author_id}</code>
+                {c.status === 'pending' && (
+                  <span class="badge-secondary">Pending review</span>
+                )}
+                {c.status === 'approved' && <span class="badge">Approved</span>}
+                {c.status === 'rejected' && (
+                  <span class="badge-secondary">
+                    Rejected{c.review_note ? `: ${c.review_note}` : ''}
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )
+    }
 
     {
       isEdit && (
@@ -200,5 +251,67 @@ if (Astro.request.method === 'POST') {
         </button>
       </div>
     </form>
+
+    {
+      isEdit && (
+        <div class="card space-y-3">
+          <h2 class="font-semibold">Transfer ownership</h2>
+          <p class="text-sm text-muted-foreground">
+            Generate a one-time link to hand this profile to a different
+            account. It works once and expires after 24 hours — generating a new
+            link invalidates any earlier one for this profile.
+          </p>
+
+          {Astro.url.searchParams.get('transfer_revoked') && (
+            <p class="text-sm text-muted-foreground">
+              Pending transfer link revoked.
+            </p>
+          )}
+          {Astro.url.searchParams.get('transfer_accepted') && (
+            <p class="text-sm text-muted-foreground">
+              You've accepted a transfer — this profile is now yours.
+            </p>
+          )}
+
+          {transferResult && (
+            <div class="rounded-md border px-4 py-3 text-sm space-y-2">
+              <p class="font-medium">
+                Share this link with the new owner — it won't be shown again:
+              </p>
+              <code class="block break-all bg-muted p-2 rounded">
+                {`${Astro.url.origin}/account/developer/transfer/${transferResult.token}`}
+              </code>
+              <p class="text-muted-foreground">
+                Expires {new Date(transferResult.expires_at).toLocaleString()}.
+              </p>
+            </div>
+          )}
+
+          <div class="flex gap-3">
+            <form method="POST">
+              <input type="hidden" name="intent" value="transfer-initiate" />
+              <button
+                type="submit"
+                class="btn"
+                data-size="sm"
+                data-variant="outline"
+              >
+                Generate transfer link
+              </button>
+            </form>
+            <form method="POST" action="/account/developer/transfer/revoke">
+              <button
+                type="submit"
+                class="btn"
+                data-size="sm"
+                data-variant="ghost"
+              >
+                Revoke pending link
+              </button>
+            </form>
+          </div>
+        </div>
+      )
+    }
   </div>
 </Base>
