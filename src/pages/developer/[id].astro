@@ -100,59 +100,63 @@ const extensions = await getExtensionsByDeveloperId(
 
   {
     developer.unclaimed && (
-      <div class="card space-y-3 mb-8">
-        <h2 class="font-semibold">
-          This profile hasn't been linked to an account
-        </h2>
-        {claimSubmitted ? (
-          <p class="text-sm text-muted-foreground">
-            Your claim has been submitted for moderator review. You can check
-            its status on your{' '}
-            <a href="/account/developer">developer profile page</a>.
-          </p>
-        ) : (
-          <>
+      <div class="card mb-8">
+        <header>
+          <h2 class="font-semibold">
+            This profile hasn't been linked to an account
+          </h2>
+        </header>
+        <section class="space-y-3">
+          {claimSubmitted ? (
             <p class="text-sm text-muted-foreground">
-              If this is you, you can request to claim it. A moderator reviews
-              every claim before ownership changes.
+              Your claim has been submitted for moderator review. You can check
+              its status on your{' '}
+              <a href="/account/developer">developer profile page</a>.
             </p>
-            {claimError && (
-              <div class="alert" data-variant="destructive">
-                <CircleAlert class="size-4" />
-                <section>{claimError}</section>
-              </div>
-            )}
-            {currentUser ? (
-              <form method="POST" class="space-y-3">
-                <div class="field">
-                  <label for="note">
-                    Note for the moderator reviewing this (optional)
-                  </label>
-                  <input
-                    class="input"
-                    type="text"
-                    id="note"
-                    name="note"
-                    maxlength="500"
-                    placeholder="e.g. I'm the maintainer, see github.com/..."
-                  />
+          ) : (
+            <>
+              <p class="text-sm text-muted-foreground">
+                If this is you, you can request to claim it. A moderator reviews
+                every claim before ownership changes.
+              </p>
+              {claimError && (
+                <div class="alert" data-variant="destructive">
+                  <CircleAlert class="size-4" />
+                  <section>{claimError}</section>
                 </div>
-                <button type="submit" class="btn" data-size="sm">
-                  Claim this profile
-                </button>
-              </form>
-            ) : (
-              <a
-                href={`/auth/login?redirect=${encodeURIComponent(Astro.url.pathname)}`}
-                class="btn"
-                data-size="sm"
-                data-variant="outline"
-              >
-                Sign In to Claim This Profile
-              </a>
-            )}
-          </>
-        )}
+              )}
+              {currentUser ? (
+                <form method="POST" class="space-y-3">
+                  <div class="field">
+                    <label for="note">
+                      Note for the moderator reviewing this (optional)
+                    </label>
+                    <input
+                      class="input"
+                      type="text"
+                      id="note"
+                      name="note"
+                      maxlength="500"
+                      placeholder="e.g. I'm the maintainer, see github.com/..."
+                    />
+                  </div>
+                  <button type="submit" class="btn" data-size="sm">
+                    Claim this profile
+                  </button>
+                </form>
+              ) : (
+                <a
+                  href={`/auth/login?redirect=${encodeURIComponent(Astro.url.pathname)}`}
+                  class="btn"
+                  data-size="sm"
+                  data-variant="outline"
+                >
+                  Sign In to Claim This Profile
+                </a>
+              )}
+            </>
+          )}
+        </section>
       </div>
     )
   }

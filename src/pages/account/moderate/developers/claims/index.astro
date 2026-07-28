@@ -4,7 +4,7 @@ import { env } from 'cloudflare:workers';
 import { requireModerator } from '@/lib/auth-guard';
 import { createApiClient } from '@/lib/apiClient';
 import type { PendingDeveloperClaim } from '@/types';
-import { CircleAlert } from '@lucide/astro';
+import { CircleAlert, X } from '@lucide/astro';
 
 const guard = await requireModerator(Astro, env);
 if (guard instanceof Response) return guard;
@@ -75,7 +75,7 @@ try {
                 </p>
                 {c.note && <p class="text-sm mt-1">&ldquo;{c.note}&rdquo;</p>}
               </header>
-              <div class="flex items-center gap-3 flex-wrap">
+              <footer class="flex items-center gap-3 flex-wrap">
                 <form
                   method="POST"
                   action={`/account/moderate/developers/claims/${c.id}/approve`}
@@ -84,28 +84,78 @@ try {
                     Approve
                   </button>
                 </form>
+                <button
+                  type="button"
+                  class="btn"
+                  data-size="sm"
+                  data-variant="destructive"
+                  onclick={`document.getElementById('reject-claim-${c.id}').showModal()`}
+                >
+                  Reject
+                </button>
+              </footer>
+
+              <dialog
+                id={`reject-claim-${c.id}`}
+                class="dialog"
+                aria-labelledby={`reject-claim-${c.id}-title`}
+                aria-describedby={`reject-claim-${c.id}-description`}
+                onclick="if (event.target === this) this.close()"
+              >
                 <form
                   method="POST"
                   action={`/account/moderate/developers/claims/${c.id}/reject`}
-                  class="flex items-center gap-2"
                 >
-                  <input
-                    class="input"
-                    type="text"
-                    name="review_note"
-                    placeholder="Reason for rejecting (required)"
-                    required
-                  />
+                  <header>
+                    <h2 id={`reject-claim-${c.id}-title`}>
+                      Reject claim on "{c.developer_id}"?
+                    </h2>
+                    <p id={`reject-claim-${c.id}-description`}>
+                      The claimant will see this reason.
+                    </p>
+                  </header>
+                  <section>
+                    <div class="field">
+                      <label for={`reject-claim-${c.id}-note`}>Reason</label>
+                      <input
+                        class="input"
+                        type="text"
+                        id={`reject-claim-${c.id}-note`}
+                        name="review_note"
+                        placeholder="Reason for rejecting"
+                        required
+                      />
+                    </div>
+                  </section>
+                  <footer>
+                    <button
+                      type="button"
+                      class="btn"
+                      data-variant="outline"
+                      onclick="this.closest('dialog').close()"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      class="btn"
+                      data-variant="destructive"
+                    >
+                      Reject
+                    </button>
+                  </footer>
                   <button
-                    type="submit"
+                    type="button"
                     class="btn"
-                    data-size="sm"
-                    data-variant="destructive"
+                    data-variant="ghost"
+                    data-size="icon-sm"
+                    aria-label="Close dialog"
+                    onclick="this.closest('dialog').close()"
                   >
-                    Reject
+                    <X class="size-4" />
                   </button>
                 </form>
-              </div>
+              </dialog>
             </li>
           ))}
         </ul>

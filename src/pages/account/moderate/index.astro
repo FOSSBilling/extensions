@@ -4,7 +4,7 @@ import { env } from 'cloudflare:workers';
 import { requireModerator } from '@/lib/auth-guard';
 import { createApiClient } from '@/lib/apiClient';
 import type { Submission, SubmissionStatus } from '@/types';
-import { CircleAlert } from '@lucide/astro';
+import { CircleAlert, X } from '@lucide/astro';
 
 const guard = await requireModerator(Astro, env);
 if (guard instanceof Response) return guard;
@@ -103,28 +103,82 @@ try {
                         Approve
                       </button>
                     </form>
+                    <button
+                      type="button"
+                      class="btn"
+                      data-size="sm"
+                      data-variant="destructive"
+                      onclick={`document.getElementById('reject-submission-${s.id}').showModal()`}
+                    >
+                      Reject
+                    </button>
+                  </div>
+                )}
+
+                {s.status === 'pending' && (
+                  <dialog
+                    id={`reject-submission-${s.id}`}
+                    class="dialog"
+                    aria-labelledby={`reject-submission-${s.id}-title`}
+                    aria-describedby={`reject-submission-${s.id}-description`}
+                    onclick="if (event.target === this) this.close()"
+                  >
                     <form
                       method="POST"
                       action={`/account/moderate/${s.id}/reject`}
-                      class="flex items-center gap-2 flex-1"
                     >
-                      <input
-                        class="input"
-                        type="text"
-                        name="review_note"
-                        placeholder="Reason for rejection (required)"
-                        required
-                      />
+                      <header>
+                        <h2 id={`reject-submission-${s.id}-title`}>
+                          Reject "{s.payload.extension.name}"?
+                        </h2>
+                        <p id={`reject-submission-${s.id}-description`}>
+                          The submitter will see this reason.
+                        </p>
+                      </header>
+                      <section>
+                        <div class="field">
+                          <label for={`reject-submission-${s.id}-note`}>
+                            Reason
+                          </label>
+                          <input
+                            class="input"
+                            type="text"
+                            id={`reject-submission-${s.id}-note`}
+                            name="review_note"
+                            placeholder="Reason for rejection"
+                            required
+                          />
+                        </div>
+                      </section>
+                      <footer>
+                        <button
+                          type="button"
+                          class="btn"
+                          data-variant="outline"
+                          onclick="this.closest('dialog').close()"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          class="btn"
+                          data-variant="destructive"
+                        >
+                          Reject
+                        </button>
+                      </footer>
                       <button
-                        type="submit"
+                        type="button"
                         class="btn"
-                        data-size="sm"
-                        data-variant="destructive"
+                        data-variant="ghost"
+                        data-size="icon-sm"
+                        aria-label="Close dialog"
+                        onclick="this.closest('dialog').close()"
                       >
-                        Reject
+                        <X class="size-4" />
                       </button>
                     </form>
-                  </div>
+                  </dialog>
                 )}
                 {s.status !== 'pending' && s.review_note && (
                   <p class="text-sm text-muted-foreground mt-2">

@@ -62,7 +62,7 @@ try {
         <ol class="space-y-4">
           {entries.map((entry, i) => (
             <li class="card">
-              <div class="flex items-center justify-between gap-4">
+              <header class="flex items-center justify-between gap-4">
                 <p class="font-medium">
                   {entry.name}
                   {i === 0 && (
@@ -74,24 +74,26 @@ try {
                 <time class="text-sm text-muted-foreground">
                   {new Date(entry.changed_at).toLocaleString()}
                 </time>
-              </div>
-              <p class="text-sm text-muted-foreground mt-1">
-                {entry.type}
-                {entry.URL && (
-                  <>
-                    {' '}
-                    &middot;{' '}
-                    {isSafeHttpUrl(entry.URL) ? (
-                      <a href={entry.URL}>{entry.URL}</a>
-                    ) : (
-                      entry.URL
-                    )}
-                  </>
-                )}
-              </p>
-              <p class="text-sm text-muted-foreground mt-1">
-                Changed by <code>{entry.changed_by}</code>
-              </p>
+              </header>
+              <section>
+                <p class="text-sm text-muted-foreground">
+                  {entry.type}
+                  {entry.URL && (
+                    <>
+                      {' '}
+                      &middot;{' '}
+                      {isSafeHttpUrl(entry.URL) ? (
+                        <a href={entry.URL}>{entry.URL}</a>
+                      ) : (
+                        entry.URL
+                      )}
+                    </>
+                  )}
+                </p>
+                <p class="text-sm text-muted-foreground mt-1">
+                  Changed by <code>{entry.changed_by}</code>
+                </p>
+              </section>
             </li>
           ))}
         </ol>
