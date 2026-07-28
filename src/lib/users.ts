@@ -57,6 +57,22 @@ export async function isModerator(
   return row?.is_moderator === 1;
 }
 
+// True once a user has signed in via GitHub since the auth service started
+// requesting read:org (see oauth.ts's UserInfo type) — used to prompt
+// existing accounts that signed in before that change to reconnect, since
+// their developer-profile claims otherwise fall back to unverified/manual
+// review indefinitely.
+export async function hasLinkedGithub(
+  db: D1Database,
+  userId: string,
+): Promise<boolean> {
+  const row = await db
+    .prepare('SELECT github_login FROM users WHERE id = ?')
+    .bind(userId)
+    .first<{ github_login: string | null }>();
+  return Boolean(row?.github_login);
+}
+
 export async function deleteUser(
   db: D1Database,
   userId: string,

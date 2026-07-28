@@ -4,19 +4,23 @@ import { env } from 'cloudflare:workers';
 import { requireUser } from '@/lib/auth-guard';
 import { createApiClient } from '@/lib/apiClient';
 import { getDeveloperByOwner, getExtensionsByOwner } from '@/lib/database';
-import { isModerator } from '@/lib/users';
+import { isModerator, hasLinkedGithub } from '@/lib/users';
+import { ISSUER } from '@/lib/oauth';
 import { getLatestRelease } from '@/types';
-import type { Submission } from '@/types';
+import type { DeveloperClaim, Submission } from '@/types';
 
 const guard = await requireUser(Astro, env);
 if (guard instanceof Response) return guard;
 const user = guard;
 
-const [ownedExtensions, moderator, developer] = await Promise.all([
-  getExtensionsByOwner(env.DB_EXTENSIONS, user.sub),
-  isModerator(env.DB_EXTENSIONS, user.sub),
-  getDeveloperByOwner(env.DB_EXTENSIONS, user.sub),
-]);
+const [ownedExtensions, moderator, developer, githubLinked] = await Promise.all(
+  [
+    getExtensionsByOwner(env.DB_EXTENSIONS, user.sub),
+    isModerator(env.DB_EXTENSIONS, user.sub),
+    getDeveloperByOwner(env.DB_EXTENSIONS, user.sub),
+    hasLinkedGithub(env.DB_EXTENSIONS, user.sub),
+  ],
+);
 
 const banner: Record<string, string> = {
   submitted: 'Submitted for Review.',
@@ -39,6 +43,19 @@ try {
 } catch {
   submissionsError = true;
 }
+
+let myClaims: DeveloperClaim[] = [];
+if (!developer) {
+  try {
+    myClaims = await api.listMyClaims();
+  } catch {
+    // non-fatal — just don't show claim status
+  }
+}
+// listMyClaims returns newest first; approved claims transfer ownership
+// immediately (developer becomes truthy), so only pending/rejected ever
+// surface here.
+const latestClaim = myClaims[0];
 
 const statusBadgeClass: Record<Submission['status'], string> = {
   pending: 'badge-secondary',
@@ -83,6 +100,25 @@ const statusBadgeClass: Record<Submission['status'], string> = {
       )
     }
 
+    {
+      !githubLinked && (
+        <div class="rounded-md border border-border bg-muted px-4 py-3 text-sm flex items-center justify-between gap-3">
+          <p>
+            Grant GitHub organisation access so profile claims can be verified
+            automatically.
+          </p>
+          <a
+            href={`${ISSUER}/account`}
+            class="btn"
+            data-size="sm"
+            data-variant="outline"
+          >
+            Reconnect GitHub
+          </a>
+        </div>
+      )
+    }
+
     <section class="card">
       <header class="flex items-center justify-between">
         <h2 class="font-semibold">Developer Profile</h2>
@@ -104,6 +140,21 @@ const statusBadgeClass: Record<Submission['status'], string> = {
                 <span class="badge">Approved</span>
               ) : (
                 <span class="badge-secondary">Not Yet Reviewed</span>
+              )}
+            </p>
+          ) : latestClaim ? (
+            <p class="text-sm flex items-center gap-2">
+              Claim on <strong>{latestClaim.developer_id}</strong>
+              {latestClaim.status === 'pending' && (
+                <span class="badge-secondary">Pending Review</span>
+              )}
+              {latestClaim.status === 'rejected' && (
+                <span class="badge-secondary">
+                  Rejected
+                  {latestClaim.review_note
+                    ? `: ${latestClaim.review_note}`
+                    : ''}
+                </span>
               )}
             </p>
           ) : (
