@@ -167,6 +167,15 @@ export type DeveloperClaim = {
   reviewer_id?: string;
   created_at: string;
   reviewed_at?: string;
+  // Server-computed at claim time (api repo's claim()) — true when the
+  // claimant's own linked GitHub identity was confirmed to match this
+  // developer's GitHub org/username. Undefined when there was no verifiable
+  // GitHub entity for this id, or the claimant had no linked GitHub identity
+  // yet; both cases still require the moderator's own judgment call, same as
+  // before this existed. A positive mismatch is rejected before a claim can
+  // even be created, so this is never `false` in practice.
+  github_org_verified?: boolean;
+  github_verification_note?: string;
 };
 
 // DeveloperClaim plus the claimed profile's own name/type, for the moderator
