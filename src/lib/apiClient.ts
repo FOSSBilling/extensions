@@ -156,3 +156,16 @@ export function createApiClient(env: Cloudflare.Env, sub: string) {
       }),
   };
 }
+
+// Claim status is a nice-to-have on the account pages, not essential — a
+// failure here shouldn't break the page, so callers get an empty list back
+// instead of having to duplicate this fallback themselves.
+export async function listMyClaimsSafely(
+  api: ReturnType<typeof createApiClient>,
+): Promise<DeveloperClaim[]> {
+  try {
+    return await api.listMyClaims();
+  } catch {
+    return [];
+  }
+}

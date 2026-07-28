@@ -2,7 +2,7 @@
 import Base from '../../layouts/Base.astro';
 import { env } from 'cloudflare:workers';
 import { requireUser } from '@/lib/auth-guard';
-import { createApiClient } from '@/lib/apiClient';
+import { createApiClient, listMyClaimsSafely } from '@/lib/apiClient';
 import { getDeveloperByOwner, getExtensionsByOwner } from '@/lib/database';
 import { isModerator, hasLinkedGithub } from '@/lib/users';
 import { ISSUER } from '@/lib/oauth';
@@ -45,14 +45,9 @@ try {
   submissionsError = true;
 }
 
-let myClaims: DeveloperClaim[] = [];
-if (!developer) {
-  try {
-    myClaims = await api.listMyClaims();
-  } catch {
-    // non-fatal — just don't show claim status
-  }
-}
+const myClaims: DeveloperClaim[] = developer
+  ? []
+  : await listMyClaimsSafely(api);
 // listMyClaims returns newest first; approved claims transfer ownership
 // immediately (developer becomes truthy), so only pending/rejected ever
 // surface here.

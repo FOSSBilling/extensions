@@ -2,7 +2,11 @@
 import Base from '../../../layouts/Base.astro';
 import { env } from 'cloudflare:workers';
 import { requireUser } from '@/lib/auth-guard';
-import { createApiClient, ApiRequestError } from '@/lib/apiClient';
+import {
+  createApiClient,
+  ApiRequestError,
+  listMyClaimsSafely,
+} from '@/lib/apiClient';
 import {
   getDeveloperByOwner,
   getDeveloperById,
@@ -112,14 +116,7 @@ if (Astro.request.method === 'POST') {
 // off the real (saved) `developer`, not a failed, unsaved submission.
 const fields = submitted ?? developer;
 
-let myClaims: DeveloperClaim[] = [];
-if (!isEdit) {
-  try {
-    myClaims = await api.listMyClaims();
-  } catch {
-    // non-fatal — just don't show claim status
-  }
-}
+const myClaims: DeveloperClaim[] = isEdit ? [] : await listMyClaimsSafely(api);
 ---
 
 <Base title="Developer Profile — FOSSBilling Extensions">
