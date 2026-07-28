@@ -99,6 +99,9 @@ try {
                   <h2 class="font-semibold flex items-center gap-2">
                     {d.name} ({d.id})
                     {d.approved && <span class="badge">Approved</span>}
+                    {d.github_org_verified && (
+                      <span class="badge">GitHub verified</span>
+                    )}
                   </h2>
                   <p class="text-sm text-muted-foreground">
                     {d.type}

@@ -123,13 +123,24 @@ export type DeveloperProfile = Developer & {
   // listUnapprovedDevelopers, listAllDevelopers) — only on the public
   // /developer/[id] read.
   unclaimed?: boolean;
+  // Server-computed at creation time only (api repo's
+  // DevelopersDatabase.verifyGithubOwnership()) — whether this id was
+  // confirmed to match the creator's own linked GitHub org/username.
+  // Moderator-review signal, not selected by the public /developer/[id]
+  // query (SELECT_DEVELOPER_PUBLIC in database.ts).
+  github_org_verified?: boolean;
+  github_verification_note?: string;
 };
 
 // Body for PUT /extensions/v2/developers/me — everything but the server-set
-// `approved` flag and `content_revision` (bumped by the api repo itself).
+// `approved` flag, `content_revision`, and GitHub verification fields.
 export type DeveloperProfileInput = Omit<
   DeveloperProfile,
-  'approved' | 'unclaimed' | 'content_revision'
+  | 'approved'
+  | 'unclaimed'
+  | 'content_revision'
+  | 'github_org_verified'
+  | 'github_verification_note'
 >;
 
 // What getDeveloperById (the public /developer/[id] read) returns —
