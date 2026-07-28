@@ -139,6 +139,11 @@ export function createApiClient(env: Cloudflare.Env, sub: string) {
         body: JSON.stringify(note ? { note } : {}),
       }),
 
+    cancelClaim: (id: string) =>
+      call<{ id: string; cancelled: true }>(`/developers/claims/${id}/cancel`, {
+        method: 'POST',
+      }),
+
     listMyClaims: () => call<DeveloperClaim[]>('/developers/claims/mine'),
 
     listPendingClaims: () =>
