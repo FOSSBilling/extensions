@@ -205,9 +205,15 @@ if (!isEdit) {
             readonly={isEdit}
           />
           {
-            isEdit && (
+            isEdit ? (
               <p class="text-sm text-muted-foreground">
                 The ID can't be changed after it's created.
+              </p>
+            ) : (
+              <p class="text-sm text-muted-foreground">
+                Typically your GitHub organization or username — this is used
+                to verify ownership if you (or someone else) later try to
+                claim this profile.
               </p>
             )
           }
