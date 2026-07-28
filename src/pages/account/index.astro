@@ -8,7 +8,7 @@ import { isModerator, hasLinkedGithub } from '@/lib/users';
 import { ISSUER } from '@/lib/oauth';
 import { getLatestRelease } from '@/types';
 import type { DeveloperClaim, Submission } from '@/types';
-import { CircleCheck } from '@lucide/astro';
+import { CircleAlert, CircleCheck } from '@lucide/astro';
 
 const guard = await requireUser(Astro, env);
 if (guard instanceof Response) return guard;
@@ -28,13 +28,17 @@ const banner: Record<string, string> = {
   profile_saved: 'Developer Profile Saved.',
   profile_updated: 'Profile Updated.',
   profile_deleted: 'Developer Profile Deleted.',
+  claim_cancelled: 'Claim Cancelled.',
 };
 const bannerKey = [
   'submitted',
   'profile_saved',
   'profile_updated',
   'profile_deleted',
+  'claim_cancelled',
 ].find((key) => Astro.url.searchParams.has(key));
+
+const error = Astro.url.searchParams.get('error');
 
 const api = createApiClient(env, user.sub);
 let submissions: Submission[] = [];
@@ -52,6 +56,16 @@ const myClaims: DeveloperClaim[] = developer
 // immediately (developer becomes truthy), so only pending/rejected ever
 // surface here.
 const latestClaim = myClaims[0];
+// A user can only ever own one developer profile, so a pending claim (which
+// may still be approved and transfer ownership at any time) blocks starting
+// a separate one from scratch — checked across all claims, not just
+// latestClaim, since claim() doesn't prevent pending claims on multiple ids.
+const pendingClaim = myClaims.find((c) => c.status === 'pending');
+// Prefer showing the pending claim over a newer non-pending one — otherwise
+// an older pending claim (Create hidden because of it) could have no
+// visible cancel action if a newer claim on a different id was rejected
+// since, leaving the page with no way to proceed.
+const displayClaim = pendingClaim ?? latestClaim;
 
 const statusBadgeVariant: Record<Submission['status'], string | undefined> = {
   pending: 'secondary',
@@ -107,6 +121,15 @@ const reconnectUrl = `${ISSUER}/account?callbackURL=${encodeURIComponent(
     }
 
     {
+      error && (
+        <div class="alert" data-variant="destructive">
+          <CircleAlert class="size-4" />
+          <section>{error}</section>
+        </div>
+      )
+    }
+
+    {
       !githubLinked && (
         <div class="alert">
           <h2>Reconnect GitHub</h2>
@@ -131,14 +154,29 @@ const reconnectUrl = `${ISSUER}/account?callbackURL=${encodeURIComponent(
     <section class="card">
       <header class="flex items-center justify-between">
         <h2 class="font-semibold">Developer Profile</h2>
-        <a
-          href="/account/developer"
-          class="btn"
-          data-size="sm"
-          data-variant="outline"
-        >
-          {developer ? 'Edit' : 'Create'}
-        </a>
+        {
+          developer ? (
+            <a
+              href="/account/developer"
+              class="btn"
+              data-size="sm"
+              data-variant="outline"
+            >
+              Edit
+            </a>
+          ) : (
+            !pendingClaim && (
+              <a
+                href="/account/developer"
+                class="btn"
+                data-size="sm"
+                data-variant="outline"
+              >
+                Create
+              </a>
+            )
+          )
+        }
       </header>
       <section>
         {
@@ -153,23 +191,46 @@ const reconnectUrl = `${ISSUER}/account?callbackURL=${encodeURIComponent(
                 </span>
               )}
             </p>
-          ) : latestClaim ? (
-            <p class="text-sm flex items-center gap-2">
-              Claim on <strong>{latestClaim.developer_id}</strong>
-              {latestClaim.status === 'pending' && (
-                <span class="badge" data-variant="secondary">
-                  Pending Review
-                </span>
+          ) : displayClaim ? (
+            <div class="space-y-2">
+              <p class="text-sm flex items-center gap-2">
+                Claim on <strong>{displayClaim.developer_id}</strong>
+                {displayClaim.status === 'pending' && (
+                  <span class="badge" data-variant="secondary">
+                    Pending Review
+                  </span>
+                )}
+                {displayClaim.status === 'rejected' && (
+                  <span class="badge" data-variant="destructive">
+                    Rejected
+                    {displayClaim.review_note
+                      ? `: ${displayClaim.review_note}`
+                      : ''}
+                  </span>
+                )}
+              </p>
+              {displayClaim.status === 'pending' && (
+                <div class="flex items-center gap-2">
+                  <p class="text-muted-foreground text-sm">
+                    You can't create a separate profile while this claim is
+                    pending.
+                  </p>
+                  <form
+                    method="POST"
+                    action={`/account/claims/${displayClaim.id}/cancel`}
+                  >
+                    <button
+                      type="submit"
+                      class="btn"
+                      data-size="sm"
+                      data-variant="ghost"
+                    >
+                      Cancel Claim
+                    </button>
+                  </form>
+                </div>
               )}
-              {latestClaim.status === 'rejected' && (
-                <span class="badge" data-variant="destructive">
-                  Rejected
-                  {latestClaim.review_note
-                    ? `: ${latestClaim.review_note}`
-                    : ''}
-                </span>
-              )}
-            </p>
+            </div>
           ) : (
             <p class="text-muted-foreground text-sm">
               You don't have a developer profile yet — create one before

@@ -2,11 +2,7 @@
 import Base from '../../../layouts/Base.astro';
 import { env } from 'cloudflare:workers';
 import { requireUser } from '@/lib/auth-guard';
-import {
-  createApiClient,
-  ApiRequestError,
-  listMyClaimsSafely,
-} from '@/lib/apiClient';
+import { createApiClient, ApiRequestError } from '@/lib/apiClient';
 import {
   getDeveloperByOwner,
   getDeveloperById,
@@ -39,6 +35,24 @@ const extensions = isEdit
   : [];
 
 const api = createApiClient(env, user.sub);
+
+let myClaims: DeveloperClaim[] = [];
+// Unlike the informational display on /account, a failure here must not
+// fail open: this page's own gate below is the actual enforcement point for
+// "only one profile per user", so an unknown claim state has to block
+// creation the same as a known-pending one, not silently allow it.
+let claimsLoadFailed = false;
+if (!isEdit) {
+  try {
+    myClaims = await api.listMyClaims();
+  } catch {
+    claimsLoadFailed = true;
+  }
+}
+// A user can only ever own one developer profile, so a pending claim (which
+// may still be approved and transfer ownership at any time) blocks starting
+// a separate one from scratch — same guard as the "Create" link on /account.
+const pendingClaim = myClaims.find((c) => c.status === 'pending');
 
 let error: string | null = Astro.url.searchParams.get('error');
 // Set only when creation failed because the id belongs to an existing,
@@ -80,6 +94,11 @@ if (Astro.request.method === 'POST') {
             : 'Unable to delete your developer profile. Please try again.';
       }
     }
+  } else if (!isEdit && claimsLoadFailed) {
+    error = 'Unable to verify your claim status right now. Please try again.';
+  } else if (!isEdit && pendingClaim) {
+    error =
+      'You have a pending claim on another profile — cancel it before creating a new one.';
   } else {
     try {
       const payload = buildDeveloperProfile(form, developer);
@@ -115,8 +134,6 @@ if (Astro.request.method === 'POST') {
 // Form field values only — isEdit/preview/transfer sections below still key
 // off the real (saved) `developer`, not a failed, unsaved submission.
 const fields = submitted ?? developer;
-
-const myClaims: DeveloperClaim[] = isEdit ? [] : await listMyClaimsSafely(api);
 ---
 
 <Base title="Developer Profile — FOSSBilling Extensions">
@@ -130,6 +147,14 @@ const myClaims: DeveloperClaim[] = isEdit ? [] : await listMyClaimsSafely(api);
     </p>
 
     {
+      !isEdit && claimsLoadFailed && (
+        <p class="text-sm text-destructive">
+          Unable to load your profile claims right now.
+        </p>
+      )
+    }
+
+    {
       !isEdit && myClaims.length > 0 && (
         <div class="card">
           <header>
@@ -140,19 +165,36 @@ const myClaims: DeveloperClaim[] = isEdit ? [] : await listMyClaimsSafely(api);
               {myClaims.map((c) => (
                 <li class="text-sm flex items-center justify-between gap-3">
                   <code>{c.developer_id}</code>
-                  {c.status === 'pending' && (
-                    <span class="badge" data-variant="secondary">
-                      Pending Review
-                    </span>
-                  )}
-                  {c.status === 'approved' && (
-                    <span class="badge">Approved</span>
-                  )}
-                  {c.status === 'rejected' && (
-                    <span class="badge" data-variant="destructive">
-                      Rejected{c.review_note ? `: ${c.review_note}` : ''}
-                    </span>
-                  )}
+                  <div class="flex items-center gap-2">
+                    {c.status === 'pending' && (
+                      <span class="badge" data-variant="secondary">
+                        Pending Review
+                      </span>
+                    )}
+                    {c.status === 'approved' && (
+                      <span class="badge">Approved</span>
+                    )}
+                    {c.status === 'rejected' && (
+                      <span class="badge" data-variant="destructive">
+                        Rejected{c.review_note ? `: ${c.review_note}` : ''}
+                      </span>
+                    )}
+                    {c.status === 'pending' && (
+                      <form
+                        method="POST"
+                        action={`/account/claims/${c.id}/cancel`}
+                      >
+                        <button
+                          type="submit"
+                          class="btn"
+                          data-size="sm"
+                          data-variant="ghost"
+                        >
+                          Cancel
+                        </button>
+                      </form>
+                    )}
+                  </div>
                 </li>
               ))}
             </ul>
@@ -218,112 +260,130 @@ const myClaims: DeveloperClaim[] = isEdit ? [] : await listMyClaimsSafely(api);
       )
     }
 
-    <form method="POST" class="space-y-8">
-      <fieldset class="fieldset space-y-4">
-        <legend>Publisher Identity</legend>
-        <div class="field">
-          <label for="id">Publisher ID</label>
-          <input
-            class="input"
-            type="text"
-            id="id"
-            name="id"
-            required
-            pattern="[a-z0-9]+(-[a-z0-9]+)*"
-            placeholder="my-org"
-            value={fields?.id}
-            readonly={isEdit}
-          />
-          {
-            isEdit ? (
-              <p>The ID can't be changed after it's created.</p>
-            ) : (
-              <p>
-                Typically your GitHub organization or username — this is used to
-                verify ownership if you (or someone else) later try to claim
-                this profile.
-              </p>
-            )
-          }
-        </div>
-        <div class="field">
-          <label for="name">Publisher Name</label>
-          <input
-            class="input"
-            type="text"
-            id="name"
-            name="name"
-            required
-            value={fields?.name}
-          />
-        </div>
-        <div class="field">
-          <label for="type">Publisher Type</label>
-          <select class="select" id="type" name="type">
-            {
-              DEVELOPER_TYPES.map((t) => (
-                <option value={t} selected={fields?.type === t}>
-                  {t}
-                </option>
-              ))
-            }
-          </select>
-        </div>
-        <div class="field">
-          <label for="url">Publisher URL (Optional)</label>
-          <input
-            class="input"
-            type="url"
-            id="url"
-            name="url"
-            value={fields?.URL}
-          />
-        </div>
-      </fieldset>
-
-      <fieldset class="fieldset space-y-4">
-        <legend>Public Profile</legend>
-        <p>
-          Shown on your public developer page at
-          {developer ? ` /developer/${developer.id}` : ' /developer/<your-id>'}.
+    {
+      !isEdit && claimsLoadFailed ? (
+        <p class="text-muted-foreground text-sm">
+          Unable to verify your claim status right now, so profile creation is
+          paused — please try again.
         </p>
-        <div class="field">
-          <label for="avatar_url">Avatar/Logo URL (Optional)</label>
-          <input
-            class="input"
-            type="url"
-            id="avatar_url"
-            name="avatar_url"
-            value={fields?.avatar_url}
-          />
-        </div>
-      </fieldset>
+      ) : !isEdit && pendingClaim ? (
+        <p class="text-muted-foreground text-sm">
+          You have a pending claim on{' '}
+          <strong>{pendingClaim.developer_id}</strong>. Cancel it above before
+          creating a separate profile — a claim can be approved at any time, and
+          you can only ever own one.
+        </p>
+      ) : (
+        <form method="POST" class="space-y-8">
+          <fieldset class="fieldset space-y-4">
+            <legend>Publisher Identity</legend>
+            <div class="field">
+              <label for="id">Publisher ID</label>
+              <input
+                class="input"
+                type="text"
+                id="id"
+                name="id"
+                required
+                pattern="[a-z0-9]+(-[a-z0-9]+)*"
+                placeholder="my-org"
+                value={fields?.id}
+                readonly={isEdit}
+              />
+              {isEdit ? (
+                <p>The ID can't be changed after it's created.</p>
+              ) : (
+                <p>
+                  Typically your GitHub organization or username — this is used
+                  to verify ownership if you (or someone else) later try to
+                  claim this profile.
+                </p>
+              )}
+            </div>
+            <div class="field">
+              <label for="name">Publisher Name</label>
+              <input
+                class="input"
+                type="text"
+                id="name"
+                name="name"
+                required
+                value={fields?.name}
+              />
+            </div>
+            <div class="field">
+              <label for="type">Publisher Type</label>
+              <select class="select" id="type" name="type">
+                {DEVELOPER_TYPES.map((t) => (
+                  <option value={t} selected={fields?.type === t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div class="field">
+              <label for="url">Publisher URL (Optional)</label>
+              <input
+                class="input"
+                type="url"
+                id="url"
+                name="url"
+                value={fields?.URL}
+              />
+            </div>
+          </fieldset>
 
-      <fieldset class="fieldset space-y-4">
-        <legend>Private contact</legend>
-        <div class="field">
-          <label for="contact_email">Contact Email (Optional)</label>
-          <input
-            class="input"
-            type="email"
-            id="contact_email"
-            name="contact_email"
-            value={fields?.contact_email}
-          />
-          <p>
-            Never shown publicly — only visible to FOSSBilling moderators, in
-            case they need to reach you about this profile or its extensions.
-          </p>
-        </div>
-      </fieldset>
+          <fieldset class="fieldset space-y-4">
+            <legend>Public Profile</legend>
+            <p>
+              Shown on your public developer page at
+              {developer
+                ? ` /developer/${developer.id}`
+                : ' /developer/<your-id>'}
+              .
+            </p>
+            <div class="field">
+              <label for="avatar_url">Avatar/Logo URL (Optional)</label>
+              <input
+                class="input"
+                type="url"
+                id="avatar_url"
+                name="avatar_url"
+                value={fields?.avatar_url}
+              />
+            </div>
+          </fieldset>
 
-      <div class="flex justify-end gap-3">
-        <a href="/account" class="btn" data-variant="ghost">Cancel</a>
-        <button type="submit" class="btn">
-          {isEdit ? 'Save Changes' : 'Create Developer Profile'}
-        </button>
-      </div>
-    </form>
+          <fieldset class="fieldset space-y-4">
+            <legend>Private contact</legend>
+            <div class="field">
+              <label for="contact_email">Contact Email (Optional)</label>
+              <input
+                class="input"
+                type="email"
+                id="contact_email"
+                name="contact_email"
+                value={fields?.contact_email}
+              />
+              <p>
+                Never shown publicly — only visible to FOSSBilling moderators,
+                in case they need to reach you about this profile or its
+                extensions.
+              </p>
+            </div>
+          </fieldset>
+
+          <div class="flex justify-end gap-3">
+            <a href="/account" class="btn" data-variant="ghost">
+              Cancel
+            </a>
+            <button type="submit" class="btn">
+              {isEdit ? 'Save Changes' : 'Create Developer Profile'}
+            </button>
+          </div>
+        </form>
+      )
+    }
 
     {
       isEdit && (

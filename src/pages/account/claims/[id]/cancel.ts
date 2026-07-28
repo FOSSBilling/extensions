@@ -1,0 +1,24 @@
+import type { APIRoute } from 'astro';
+import { env } from 'cloudflare:workers';
+import { requireUser } from '@/lib/auth-guard';
+import { createApiClient, ApiRequestError } from '@/lib/apiClient';
+
+export const POST: APIRoute = async (context) => {
+  const guard = await requireUser(context, env);
+  if (guard instanceof Response) return guard;
+  const user = guard;
+
+  const { id } = context.params;
+  if (!id) return context.redirect('/account');
+
+  const api = createApiClient(env, user.sub);
+  try {
+    await api.cancelClaim(id);
+  } catch (e) {
+    const message =
+      e instanceof ApiRequestError ? e.message : 'Unable to cancel claim.';
+    return context.redirect(`/account?error=${encodeURIComponent(message)}`);
+  }
+
+  return context.redirect('/account?claim_cancelled=1');
+};
