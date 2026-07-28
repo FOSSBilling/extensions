@@ -4,7 +4,8 @@ import { env } from 'cloudflare:workers';
 import { requireModerator } from '@/lib/auth-guard';
 import { createApiClient } from '@/lib/apiClient';
 import type { Submission, SubmissionStatus } from '@/types';
-import { CircleAlert, X } from '@lucide/astro';
+import { CircleAlert } from '@lucide/astro';
+import RejectDialog from '@/components/RejectDialog.astro';
 
 const guard = await requireModerator(Astro, env);
 if (guard instanceof Response) return guard;
@@ -116,69 +117,13 @@ try {
                 )}
 
                 {s.status === 'pending' && (
-                  <dialog
+                  <RejectDialog
                     id={`reject-submission-${s.id}`}
-                    class="dialog"
-                    aria-labelledby={`reject-submission-${s.id}-title`}
-                    aria-describedby={`reject-submission-${s.id}-description`}
-                    onclick="if (event.target === this) this.close()"
-                  >
-                    <form
-                      method="POST"
-                      action={`/account/moderate/${s.id}/reject`}
-                    >
-                      <header>
-                        <h2 id={`reject-submission-${s.id}-title`}>
-                          Reject "{s.payload.extension.name}"?
-                        </h2>
-                        <p id={`reject-submission-${s.id}-description`}>
-                          The submitter will see this reason.
-                        </p>
-                      </header>
-                      <section>
-                        <div class="field">
-                          <label for={`reject-submission-${s.id}-note`}>
-                            Reason
-                          </label>
-                          <input
-                            class="input"
-                            type="text"
-                            id={`reject-submission-${s.id}-note`}
-                            name="review_note"
-                            placeholder="Reason for rejection"
-                            required
-                          />
-                        </div>
-                      </section>
-                      <footer>
-                        <button
-                          type="button"
-                          class="btn"
-                          data-variant="outline"
-                          onclick="this.closest('dialog').close()"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="submit"
-                          class="btn"
-                          data-variant="destructive"
-                        >
-                          Reject
-                        </button>
-                      </footer>
-                      <button
-                        type="button"
-                        class="btn"
-                        data-variant="ghost"
-                        data-size="icon-sm"
-                        aria-label="Close dialog"
-                        onclick="this.closest('dialog').close()"
-                      >
-                        <X class="size-4" />
-                      </button>
-                    </form>
-                  </dialog>
+                    title={`Reject "${s.payload.extension.name}"?`}
+                    description="The submitter will see this reason."
+                    formAction={`/account/moderate/${s.id}/reject`}
+                    reasonPlaceholder="Reason for rejection"
+                  />
                 )}
                 {s.status !== 'pending' && s.review_note && (
                   <p class="text-sm text-muted-foreground mt-2">
