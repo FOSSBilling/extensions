@@ -1,6 +1,7 @@
 ---
 import { EXTENSION_TYPES, SOURCE_TYPES } from '@/types';
 import type { Developer, Extension } from '@/types';
+import { CircleAlert } from '@lucide/astro';
 
 interface Props {
   developer: Developer;
@@ -15,22 +16,23 @@ const isEdit = Boolean(extension);
 <form method="POST" class="space-y-8">
   {
     error && (
-      <div class="rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-        {error}
+      <div class="alert" data-variant="destructive">
+        <CircleAlert class="size-4" />
+        <section>{error}</section>
       </div>
     )
   }
 
   <fieldset class="fieldset space-y-4">
-    <legend class="font-semibold mb-2">Publisher</legend>
-    <p class="text-sm text-muted-foreground">
+    <legend>Publisher</legend>
+    <p>
       Publishing as <strong>{developer.name}</strong> ({developer.id}).
       <a href="/account/developer">Edit Developer Profile</a>
     </p>
   </fieldset>
 
   <fieldset class="fieldset space-y-4">
-    <legend class="font-semibold mb-2">Extension</legend>
+    <legend>Extension</legend>
     <div class="field">
       <label for="extension_id">Extension ID</label>
       <input
@@ -43,13 +45,7 @@ const isEdit = Boolean(extension);
         value={extension?.id}
         readonly={isEdit}
       />
-      {
-        isEdit && (
-          <p class="text-sm text-muted-foreground">
-            The ID can't be changed after submission.
-          </p>
-        )
-      }
+      {isEdit && <p>The ID can't be changed after submission.</p>}
     </div>
     <div class="field">
       <label for="type">Type</label>
@@ -120,7 +116,7 @@ const isEdit = Boolean(extension);
   </fieldset>
 
   <fieldset class="fieldset space-y-4">
-    <legend class="font-semibold mb-2">License</legend>
+    <legend>License</legend>
     <div class="field">
       <label for="license_name">License Name</label>
       <input
@@ -145,7 +141,7 @@ const isEdit = Boolean(extension);
   </fieldset>
 
   <fieldset class="fieldset space-y-4">
-    <legend class="font-semibold mb-2">Source</legend>
+    <legend>Source</legend>
     <div class="field">
       <label for="source_type">Repository Host</label>
       <select class="select" id="source_type" name="source_type">
@@ -175,7 +171,7 @@ const isEdit = Boolean(extension);
   {
     isEdit && extension && extension.releases.length > 0 && (
       <fieldset class="fieldset space-y-2">
-        <legend class="font-semibold mb-2">Existing Releases</legend>
+        <legend>Existing Releases</legend>
         <ul class="text-sm text-muted-foreground space-y-1">
           {extension.releases.map((r) => (
             <li>
@@ -189,7 +185,7 @@ const isEdit = Boolean(extension);
   }
 
   <fieldset class="fieldset space-y-4">
-    <legend class="font-semibold mb-2">
+    <legend>
       {isEdit ? 'Add a new release (optional)' : 'Initial release'}
     </legend>
     <div class="field">

@@ -5,6 +5,7 @@ import { requireModerator } from '@/lib/auth-guard';
 import { createApiClient, ApiRequestError } from '@/lib/apiClient';
 import { isSafeHttpUrl } from '@/lib/safe-url';
 import type { DeveloperHistoryEntry } from '@/types';
+import { CircleAlert } from '@lucide/astro';
 
 const guard = await requireModerator(Astro, env);
 if (guard instanceof Response) return guard;
@@ -41,8 +42,9 @@ try {
 
     {
       loadError && (
-        <div class="rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          {loadError}
+        <div class="alert" data-variant="destructive">
+          <CircleAlert class="size-4" />
+          <section>{loadError}</section>
         </div>
       )
     }
@@ -63,7 +65,11 @@ try {
               <div class="flex items-center justify-between gap-4">
                 <p class="font-medium">
                   {entry.name}
-                  {i === 0 && <span class="badge-secondary ml-2">Current</span>}
+                  {i === 0 && (
+                    <span class="badge ml-2" data-variant="secondary">
+                      Current
+                    </span>
+                  )}
                 </p>
                 <time class="text-sm text-muted-foreground">
                   {new Date(entry.changed_at).toLocaleString()}

@@ -3,7 +3,15 @@ import '@/styles/global.css';
 import LogoLight from '@/assets/logo-light.svg';
 import LogoDark from '@/assets/logo-dark.svg';
 import Container from '@/components/Container.astro';
-import { Sun, Moon, LogIn, LogOut, CircleUser } from '@lucide/astro';
+import {
+  Sun,
+  Moon,
+  LogIn,
+  LogOut,
+  CircleUser,
+  CircleAlert,
+  CircleCheck,
+} from '@lucide/astro';
 import { env } from 'cloudflare:workers';
 import { getSessionUser } from '@/lib/session';
 
@@ -74,7 +82,7 @@ const user = await getSessionUser(Astro.cookies, env.SESSION_SECRET);
             class="ml-3 pl-3 border-s text-sm font-semibold uppercase tracking-wider"
             >Extensions</span
           >
-          <span class="ml-2 badge-secondary">beta</span>
+          <span class="ml-2 badge" data-variant="secondary">beta</span>
         </div>
         <div class="flex items-center gap-3">
           {
@@ -143,15 +151,17 @@ const user = await getSessionUser(Astro.cookies, env.SESSION_SECRET);
       <Container class="py-6 sm:py-10">
         {
           Astro.url.searchParams.get('auth_error') && (
-            <div class="mb-6 rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-              Sign-in failed. Please try again.
+            <div class="alert mb-6" data-variant="destructive">
+              <CircleAlert class="size-4" />
+              <section>Sign-in failed. Please try again.</section>
             </div>
           )
         }
         {
           Astro.url.searchParams.get('account_deleted') && (
-            <div class="mb-6 rounded-md border border-border bg-muted px-4 py-3 text-sm">
-              Your account has been deleted.
+            <div class="alert mb-6">
+              <CircleCheck class="size-4" />
+              <section>Your account has been deleted.</section>
             </div>
           )
         }

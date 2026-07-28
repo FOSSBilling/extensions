@@ -3,6 +3,7 @@ import Base from '../../../../layouts/Base.astro';
 import { env } from 'cloudflare:workers';
 import { requireUser } from '@/lib/auth-guard';
 import { createApiClient, ApiRequestError } from '@/lib/apiClient';
+import { CircleAlert } from '@lucide/astro';
 
 const guard = await requireUser(Astro, env);
 if (guard instanceof Response) return guard;
@@ -42,8 +43,9 @@ if (Astro.request.method === 'POST') {
 
     {
       error && (
-        <div class="rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          {error}
+        <div class="alert" data-variant="destructive">
+          <CircleAlert class="size-4" />
+          <section>{error}</section>
         </div>
       )
     }

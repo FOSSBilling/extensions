@@ -13,6 +13,7 @@ import {
   DeveloperValidationError,
 } from '@/lib/developer-form';
 import { DEVELOPER_TYPES } from '@/types';
+import { CircleAlert } from '@lucide/astro';
 import type {
   DeveloperClaim,
   DeveloperProfileInput,
@@ -140,11 +141,13 @@ if (!isEdit) {
               <li class="text-sm flex items-center justify-between gap-3">
                 <code>{c.developer_id}</code>
                 {c.status === 'pending' && (
-                  <span class="badge-secondary">Pending Review</span>
+                  <span class="badge" data-variant="secondary">
+                    Pending Review
+                  </span>
                 )}
                 {c.status === 'approved' && <span class="badge">Approved</span>}
                 {c.status === 'rejected' && (
-                  <span class="badge-secondary">
+                  <span class="badge" data-variant="destructive">
                     Rejected{c.review_note ? `: ${c.review_note}` : ''}
                   </span>
                 )}
@@ -171,7 +174,9 @@ if (!isEdit) {
               {developer!.approved ? (
                 <span class="badge">Approved</span>
               ) : (
-                <span class="badge-secondary">Not Yet Reviewed</span>
+                <span class="badge" data-variant="secondary">
+                  Not Yet Reviewed
+                </span>
               )}
             </p>
           </div>
@@ -189,25 +194,28 @@ if (!isEdit) {
 
     {
       error && (
-        <div class="rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          <p>{error}</p>
-          {idTaken && submitted?.id && (
-            <p class="mt-2">
-              If this is your existing extension author profile, you can request
-              to claim it instead of creating a new one — visit{' '}
-              <a href={`/developer/${submitted.id}`} class="underline">
-                the public profile page for "{submitted.id}"
-              </a>{' '}
-              and use the "Claim this profile" option.
-            </p>
-          )}
+        <div class="alert" data-variant="destructive">
+          <CircleAlert class="size-4" />
+          <section>
+            <p>{error}</p>
+            {idTaken && submitted?.id && (
+              <p>
+                If this is your existing extension author profile, you can
+                request to claim it instead of creating a new one — visit{' '}
+                <a href={`/developer/${submitted.id}`} class="underline">
+                  the public profile page for "{submitted.id}"
+                </a>{' '}
+                and use the "Claim this profile" option.
+              </p>
+            )}
+          </section>
         </div>
       )
     }
 
     <form method="POST" class="space-y-8">
       <fieldset class="fieldset space-y-4">
-        <legend class="font-semibold mb-2">Publisher Identity</legend>
+        <legend>Publisher Identity</legend>
         <div class="field">
           <label for="id">Publisher ID</label>
           <input
@@ -223,11 +231,9 @@ if (!isEdit) {
           />
           {
             isEdit ? (
-              <p class="text-sm text-muted-foreground">
-                The ID can't be changed after it's created.
-              </p>
+              <p>The ID can't be changed after it's created.</p>
             ) : (
-              <p class="text-sm text-muted-foreground">
+              <p>
                 Typically your GitHub organization or username — this is used to
                 verify ownership if you (or someone else) later try to claim
                 this profile.
@@ -271,8 +277,8 @@ if (!isEdit) {
       </fieldset>
 
       <fieldset class="fieldset space-y-4">
-        <legend class="font-semibold mb-2">Public Profile</legend>
-        <p class="text-sm text-muted-foreground -mt-2">
+        <legend>Public Profile</legend>
+        <p>
           Shown on your public developer page at
           {developer ? ` /developer/${developer.id}` : ' /developer/<your-id>'}.
         </p>
@@ -289,7 +295,7 @@ if (!isEdit) {
       </fieldset>
 
       <fieldset class="fieldset space-y-4">
-        <legend class="font-semibold mb-2">Private contact</legend>
+        <legend>Private contact</legend>
         <div class="field">
           <label for="contact_email">Contact Email (Optional)</label>
           <input
@@ -299,7 +305,7 @@ if (!isEdit) {
             name="contact_email"
             value={fields?.contact_email}
           />
-          <p class="text-sm text-muted-foreground">
+          <p>
             Never shown publicly — only visible to FOSSBilling moderators, in
             case they need to reach you about this profile or its extensions.
           </p>

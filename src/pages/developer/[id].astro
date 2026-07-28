@@ -8,6 +8,7 @@ import { createApiClient, ApiRequestError } from '@/lib/apiClient';
 import { formString } from '@/lib/form';
 import { isSafeHttpUrl } from '@/lib/safe-url';
 import { env } from 'cloudflare:workers';
+import { CircleAlert } from '@lucide/astro';
 
 const { id } = Astro.params;
 
@@ -66,9 +67,15 @@ const extensions = await getExtensionsByDeveloperId(
     <div class="flex-1">
       <div class="flex items-center gap-2 flex-wrap">
         <h1 class="text-2xl font-semibold tracking-tight">{developer.name}</h1>
-        <span class="badge-secondary">{developer.type}</span>
+        <span class="badge" data-variant="secondary">{developer.type}</span>
         {developer.approved && <span class="badge">Approved</span>}
-        {developer.unclaimed && <span class="badge-secondary">Unclaimed</span>}
+        {
+          developer.unclaimed && (
+            <span class="badge" data-variant="secondary">
+              Unclaimed
+            </span>
+          )
+        }
       </div>
       {
         developer.URL && isSafeHttpUrl(developer.URL) ? (
@@ -110,8 +117,9 @@ const extensions = await getExtensionsByDeveloperId(
               every claim before ownership changes.
             </p>
             {claimError && (
-              <div class="rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-                {claimError}
+              <div class="alert" data-variant="destructive">
+                <CircleAlert class="size-4" />
+                <section>{claimError}</section>
               </div>
             )}
             {currentUser ? (

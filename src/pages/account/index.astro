@@ -8,6 +8,7 @@ import { isModerator, hasLinkedGithub } from '@/lib/users';
 import { ISSUER } from '@/lib/oauth';
 import { getLatestRelease } from '@/types';
 import type { DeveloperClaim, Submission } from '@/types';
+import { CircleCheck } from '@lucide/astro';
 
 const guard = await requireUser(Astro, env);
 if (guard instanceof Response) return guard;
@@ -57,10 +58,10 @@ if (!developer) {
 // surface here.
 const latestClaim = myClaims[0];
 
-const statusBadgeClass: Record<Submission['status'], string> = {
-  pending: 'badge-secondary',
-  approved: 'badge',
-  rejected: 'badge-outline text-destructive',
+const statusBadgeVariant: Record<Submission['status'], string | undefined> = {
+  pending: 'secondary',
+  approved: undefined,
+  rejected: 'destructive',
 };
 ---
 
@@ -94,27 +95,31 @@ const statusBadgeClass: Record<Submission['status'], string> = {
 
     {
       bannerKey && (
-        <div class="rounded-md border border-border bg-muted px-4 py-3 text-sm">
-          {banner[bannerKey]}
+        <div class="alert">
+          <CircleCheck class="size-4" />
+          <section>{banner[bannerKey]}</section>
         </div>
       )
     }
 
     {
       !githubLinked && (
-        <div class="rounded-md border border-border bg-muted px-4 py-3 text-sm flex items-center justify-between gap-3">
-          <p>
-            Grant GitHub organisation access so profile claims can be verified
+        <div class="alert">
+          <h2>Reconnect GitHub</h2>
+          <section>
+            Grant GitHub organization access so profile claims can be verified
             automatically.
-          </p>
-          <a
-            href={`${ISSUER}/account`}
-            class="btn"
-            data-size="sm"
-            data-variant="outline"
-          >
-            Reconnect GitHub
-          </a>
+          </section>
+          <footer>
+            <a
+              href={`${ISSUER}/account`}
+              class="btn"
+              data-size="sm"
+              data-variant="outline"
+            >
+              Reconnect GitHub
+            </a>
+          </footer>
         </div>
       )
     }
@@ -139,17 +144,21 @@ const statusBadgeClass: Record<Submission['status'], string> = {
               {developer.approved ? (
                 <span class="badge">Approved</span>
               ) : (
-                <span class="badge-secondary">Not Yet Reviewed</span>
+                <span class="badge" data-variant="secondary">
+                  Not Yet Reviewed
+                </span>
               )}
             </p>
           ) : latestClaim ? (
             <p class="text-sm flex items-center gap-2">
               Claim on <strong>{latestClaim.developer_id}</strong>
               {latestClaim.status === 'pending' && (
-                <span class="badge-secondary">Pending Review</span>
+                <span class="badge" data-variant="secondary">
+                  Pending Review
+                </span>
               )}
               {latestClaim.status === 'rejected' && (
-                <span class="badge-secondary">
+                <span class="badge" data-variant="destructive">
                   Rejected
                   {latestClaim.review_note
                     ? `: ${latestClaim.review_note}`
@@ -247,7 +256,12 @@ const statusBadgeClass: Record<Submission['status'], string> = {
                       </p>
                     )}
                   </div>
-                  <span class={statusBadgeClass[s.status]}>{s.status}</span>
+                  <span
+                    class="badge"
+                    data-variant={statusBadgeVariant[s.status]}
+                  >
+                    {s.status}
+                  </span>
                 </li>
               ))}
             </ul>

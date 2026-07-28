@@ -4,6 +4,7 @@ import { env } from 'cloudflare:workers';
 import { requireModerator } from '@/lib/auth-guard';
 import { createApiClient } from '@/lib/apiClient';
 import type { PendingDeveloperClaim } from '@/types';
+import { CircleAlert } from '@lucide/astro';
 
 const guard = await requireModerator(Astro, env);
 if (guard instanceof Response) return guard;
@@ -32,8 +33,9 @@ try {
 
     {
       Astro.url.searchParams.get('error') && (
-        <div class="rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          {Astro.url.searchParams.get('error')}
+        <div class="alert" data-variant="destructive">
+          <CircleAlert class="size-4" />
+          <section>{Astro.url.searchParams.get('error')}</section>
         </div>
       )
     }
