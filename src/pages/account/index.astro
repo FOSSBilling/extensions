@@ -58,6 +58,15 @@ const statusBadgeVariant: Record<Submission['status'], string | undefined> = {
   approved: undefined,
   rejected: 'destructive',
 };
+
+// After linking GitHub, send the user back through our own OIDC login
+// (rather than stranding them on auth's own /account page) so the ID token
+// is re-issued with the freshly linked github_login/github_orgs claims and
+// upsertUser refreshes our local copy — otherwise the reconnect banner keeps
+// showing until the next unrelated login.
+const reconnectUrl = `${ISSUER}/account?callbackURL=${encodeURIComponent(
+  `${Astro.url.origin}/auth/login?redirect=${encodeURIComponent('/account')}`,
+)}`;
 ---
 
 <Base title="Your Account — FOSSBilling Extensions">
@@ -107,7 +116,7 @@ const statusBadgeVariant: Record<Submission['status'], string | undefined> = {
           </section>
           <footer>
             <a
-              href={`${ISSUER}/account`}
+              href={reconnectUrl}
               class="btn"
               data-size="sm"
               data-variant="outline"
