@@ -3,7 +3,11 @@ import Base from '../../../layouts/Base.astro';
 import { env } from 'cloudflare:workers';
 import { requireUser } from '@/lib/auth-guard';
 import { createApiClient, ApiRequestError } from '@/lib/apiClient';
-import { getDeveloperByOwner, getExtensionsByOwner } from '@/lib/database';
+import {
+  getDeveloperByOwner,
+  getDeveloperById,
+  getExtensionsByOwner,
+} from '@/lib/database';
 import {
   buildDeveloperProfile,
   DeveloperValidationError,
@@ -82,10 +86,23 @@ if (Astro.request.method === 'POST') {
         e instanceof ApiRequestError || e instanceof DeveloperValidationError
           ? e.message
           : 'Something went wrong saving your developer profile. Please try again.';
-      idTaken =
+      // Matched on the api repo's dedicated DEVELOPER_ID_TAKEN code, not the
+      // message text, so a reworded message can't silently break this. Only
+      // points at the claim flow when the conflicting profile is actually
+      // unclaimed — a profile someone else already owns has no claim option,
+      // so showing this guidance there would be a dead end.
+      if (
         !isEdit &&
         e instanceof ApiRequestError &&
-        e.message === 'Developer id already exists';
+        e.code === 'DEVELOPER_ID_TAKEN' &&
+        submitted?.id
+      ) {
+        const conflicting = await getDeveloperById(
+          env.DB_EXTENSIONS,
+          submitted.id,
+        );
+        idTaken = conflicting?.unclaimed === true;
+      }
     }
   }
 }

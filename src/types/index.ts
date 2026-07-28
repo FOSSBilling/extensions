@@ -144,12 +144,16 @@ export type DeveloperProfileInput = Omit<
 >;
 
 // What getDeveloperById (the public /developer/[id] read) returns —
-// contact_email is owner/moderator-only and content_revision is an internal
-// moderation concern, so both are excluded at the type level rather than
+// contact_email is owner/moderator-only, content_revision is an internal
+// moderation concern, and github_org_verified/github_verification_note are
+// a moderator-review signal — all excluded at the type level rather than
 // relying solely on the query not selecting them.
 export type PublicDeveloperProfile = Omit<
   DeveloperProfile,
-  'contact_email' | 'content_revision'
+  | 'contact_email'
+  | 'content_revision'
+  | 'github_org_verified'
+  | 'github_verification_note'
 >;
 
 // A snapshot of a developers row as it existed right after one
