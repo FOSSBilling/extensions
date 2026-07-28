@@ -61,6 +61,11 @@ const latestClaim = myClaims[0];
 // a separate one from scratch — checked across all claims, not just
 // latestClaim, since claim() doesn't prevent pending claims on multiple ids.
 const pendingClaim = myClaims.find((c) => c.status === 'pending');
+// Prefer showing the pending claim over a newer non-pending one — otherwise
+// an older pending claim (Create hidden because of it) could have no
+// visible cancel action if a newer claim on a different id was rejected
+// since, leaving the page with no way to proceed.
+const displayClaim = pendingClaim ?? latestClaim;
 
 const statusBadgeVariant: Record<Submission['status'], string | undefined> = {
   pending: 'secondary',
@@ -186,25 +191,25 @@ const reconnectUrl = `${ISSUER}/account?callbackURL=${encodeURIComponent(
                 </span>
               )}
             </p>
-          ) : latestClaim ? (
+          ) : displayClaim ? (
             <div class="space-y-2">
               <p class="text-sm flex items-center gap-2">
-                Claim on <strong>{latestClaim.developer_id}</strong>
-                {latestClaim.status === 'pending' && (
+                Claim on <strong>{displayClaim.developer_id}</strong>
+                {displayClaim.status === 'pending' && (
                   <span class="badge" data-variant="secondary">
                     Pending Review
                   </span>
                 )}
-                {latestClaim.status === 'rejected' && (
+                {displayClaim.status === 'rejected' && (
                   <span class="badge" data-variant="destructive">
                     Rejected
-                    {latestClaim.review_note
-                      ? `: ${latestClaim.review_note}`
+                    {displayClaim.review_note
+                      ? `: ${displayClaim.review_note}`
                       : ''}
                   </span>
                 )}
               </p>
-              {latestClaim.status === 'pending' && (
+              {displayClaim.status === 'pending' && (
                 <div class="flex items-center gap-2">
                   <p class="text-muted-foreground text-sm">
                     You can't create a separate profile while this claim is
@@ -212,7 +217,7 @@ const reconnectUrl = `${ISSUER}/account?callbackURL=${encodeURIComponent(
                   </p>
                   <form
                     method="POST"
-                    action={`/account/claims/${latestClaim.id}/cancel`}
+                    action={`/account/claims/${displayClaim.id}/cancel`}
                   >
                     <button
                       type="submit"

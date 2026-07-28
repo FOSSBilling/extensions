@@ -2,11 +2,7 @@
 import Base from '../../../layouts/Base.astro';
 import { env } from 'cloudflare:workers';
 import { requireUser } from '@/lib/auth-guard';
-import {
-  createApiClient,
-  ApiRequestError,
-  listMyClaimsSafely,
-} from '@/lib/apiClient';
+import { createApiClient, ApiRequestError } from '@/lib/apiClient';
 import {
   getDeveloperByOwner,
   getDeveloperById,
@@ -40,7 +36,19 @@ const extensions = isEdit
 
 const api = createApiClient(env, user.sub);
 
-const myClaims: DeveloperClaim[] = isEdit ? [] : await listMyClaimsSafely(api);
+let myClaims: DeveloperClaim[] = [];
+// Unlike the informational display on /account, a failure here must not
+// fail open: this page's own gate below is the actual enforcement point for
+// "only one profile per user", so an unknown claim state has to block
+// creation the same as a known-pending one, not silently allow it.
+let claimsLoadFailed = false;
+if (!isEdit) {
+  try {
+    myClaims = await api.listMyClaims();
+  } catch {
+    claimsLoadFailed = true;
+  }
+}
 // A user can only ever own one developer profile, so a pending claim (which
 // may still be approved and transfer ownership at any time) blocks starting
 // a separate one from scratch — same guard as the "Create" link on /account.
@@ -86,6 +94,8 @@ if (Astro.request.method === 'POST') {
             : 'Unable to delete your developer profile. Please try again.';
       }
     }
+  } else if (!isEdit && claimsLoadFailed) {
+    error = 'Unable to verify your claim status right now. Please try again.';
   } else if (!isEdit && pendingClaim) {
     error =
       'You have a pending claim on another profile — cancel it before creating a new one.';
@@ -135,6 +145,14 @@ const fields = submitted ?? developer;
       can submit extensions under this profile right away. A moderator will
       review it separately and mark it approved, shown as a badge below.
     </p>
+
+    {
+      !isEdit && claimsLoadFailed && (
+        <p class="text-sm text-destructive">
+          Unable to load your profile claims right now.
+        </p>
+      )
+    }
 
     {
       !isEdit && myClaims.length > 0 && (
@@ -243,7 +261,12 @@ const fields = submitted ?? developer;
     }
 
     {
-      !isEdit && pendingClaim ? (
+      !isEdit && claimsLoadFailed ? (
+        <p class="text-muted-foreground text-sm">
+          Unable to verify your claim status right now, so profile creation is
+          paused — please try again.
+        </p>
+      ) : !isEdit && pendingClaim ? (
         <p class="text-muted-foreground text-sm">
           You have a pending claim on{' '}
           <strong>{pendingClaim.developer_id}</strong>. Cancel it above before
