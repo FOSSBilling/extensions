@@ -32,6 +32,10 @@ const extensions = isEdit
 const api = createApiClient(env, user.sub);
 
 let error: string | null = Astro.url.searchParams.get('error');
+// Set only when creation failed because the id belongs to an existing,
+// unowned profile (e.g. a legacy extension author) — points the user at
+// the claim flow on that profile's public page instead of a dead end.
+let idTaken = false;
 let transferResult: DeveloperTransfer | null = null;
 // Falls back to the just-submitted values on a failed save, so a rejected
 // submission (e.g. duplicate id) doesn't blank the form and force retyping.
@@ -78,6 +82,10 @@ if (Astro.request.method === 'POST') {
         e instanceof ApiRequestError || e instanceof DeveloperValidationError
           ? e.message
           : 'Something went wrong saving your developer profile. Please try again.';
+      idTaken =
+        !isEdit &&
+        e instanceof ApiRequestError &&
+        e.message === 'Developer id already exists';
     }
   }
 }
@@ -165,7 +173,17 @@ if (!isEdit) {
     {
       error && (
         <div class="rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          {error}
+          <p>{error}</p>
+          {idTaken && submitted?.id && (
+            <p class="mt-2">
+              If this is your existing extension author profile, you can
+              request to claim it instead of creating a new one — visit{' '}
+              <a href={`/developer/${submitted.id}`} class="underline">
+                the public profile page for "{submitted.id}"
+              </a>{' '}
+              and use the "Claim this profile" option.
+            </p>
+          )}
         </div>
       )
     }
