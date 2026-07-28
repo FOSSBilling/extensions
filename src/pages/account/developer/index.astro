@@ -176,8 +176,8 @@ if (!isEdit) {
           <p>{error}</p>
           {idTaken && submitted?.id && (
             <p class="mt-2">
-              If this is your existing extension author profile, you can
-              request to claim it instead of creating a new one — visit{' '}
+              If this is your existing extension author profile, you can request
+              to claim it instead of creating a new one — visit{' '}
               <a href={`/developer/${submitted.id}`} class="underline">
                 the public profile page for "{submitted.id}"
               </a>{' '}
@@ -211,9 +211,9 @@ if (!isEdit) {
               </p>
             ) : (
               <p class="text-sm text-muted-foreground">
-                Typically your GitHub organization or username — this is used
-                to verify ownership if you (or someone else) later try to
-                claim this profile.
+                Typically your GitHub organization or username — this is used to
+                verify ownership if you (or someone else) later try to claim
+                this profile.
               </p>
             )
           }
