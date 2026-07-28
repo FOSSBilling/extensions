@@ -5,15 +5,20 @@ export async function upsertUser(
   info: UserInfo,
 ): Promise<void> {
   const now = new Date().toISOString();
+  const githubLogin =
+    info['https://fossbilling.org/claims/github_login'] ?? null;
+  const githubOrgs = info['https://fossbilling.org/claims/github_orgs'];
   await db
     .prepare(
-      `INSERT INTO users (id, name, email, email_verified, picture, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)
+      `INSERT INTO users (id, name, email, email_verified, picture, github_login, github_orgs, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(id) DO UPDATE SET
          name = excluded.name,
          email = excluded.email,
          email_verified = excluded.email_verified,
          picture = excluded.picture,
+         github_login = excluded.github_login,
+         github_orgs = excluded.github_orgs,
          updated_at = excluded.updated_at`,
     )
     .bind(
@@ -22,6 +27,8 @@ export async function upsertUser(
       info.email ?? null,
       info.email_verified ? 1 : 0,
       info.picture ?? null,
+      githubLogin,
+      githubOrgs ? JSON.stringify(githubOrgs) : null,
       now,
       now,
     )

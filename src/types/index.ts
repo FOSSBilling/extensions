@@ -123,22 +123,37 @@ export type DeveloperProfile = Developer & {
   // listUnapprovedDevelopers, listAllDevelopers) — only on the public
   // /developer/[id] read.
   unclaimed?: boolean;
+  // Server-computed at creation time only (api repo's
+  // DevelopersDatabase.verifyGithubOwnership()) — whether this id was
+  // confirmed to match the creator's own linked GitHub org/username.
+  // Moderator-review signal, not selected by the public /developer/[id]
+  // query (SELECT_DEVELOPER_PUBLIC in database.ts).
+  github_org_verified?: boolean;
+  github_verification_note?: string;
 };
 
 // Body for PUT /extensions/v2/developers/me — everything but the server-set
-// `approved` flag and `content_revision` (bumped by the api repo itself).
+// `approved` flag, `content_revision`, and GitHub verification fields.
 export type DeveloperProfileInput = Omit<
   DeveloperProfile,
-  'approved' | 'unclaimed' | 'content_revision'
+  | 'approved'
+  | 'unclaimed'
+  | 'content_revision'
+  | 'github_org_verified'
+  | 'github_verification_note'
 >;
 
 // What getDeveloperById (the public /developer/[id] read) returns —
-// contact_email is owner/moderator-only and content_revision is an internal
-// moderation concern, so both are excluded at the type level rather than
+// contact_email is owner/moderator-only, content_revision is an internal
+// moderation concern, and github_org_verified/github_verification_note are
+// a moderator-review signal — all excluded at the type level rather than
 // relying solely on the query not selecting them.
 export type PublicDeveloperProfile = Omit<
   DeveloperProfile,
-  'contact_email' | 'content_revision'
+  | 'contact_email'
+  | 'content_revision'
+  | 'github_org_verified'
+  | 'github_verification_note'
 >;
 
 // A snapshot of a developers row as it existed right after one
@@ -167,6 +182,15 @@ export type DeveloperClaim = {
   reviewer_id?: string;
   created_at: string;
   reviewed_at?: string;
+  // Server-computed at claim time (api repo's claim()) — true when the
+  // claimant's own linked GitHub identity was confirmed to match this
+  // developer's GitHub org/username. Undefined when there was no verifiable
+  // GitHub entity for this id, or the claimant had no linked GitHub identity
+  // yet; both cases still require the moderator's own judgment call, same as
+  // before this existed. A positive mismatch is rejected before a claim can
+  // even be created, so this is never `false` in practice.
+  github_org_verified?: boolean;
+  github_verification_note?: string;
 };
 
 // DeveloperClaim plus the claimed profile's own name/type, for the moderator

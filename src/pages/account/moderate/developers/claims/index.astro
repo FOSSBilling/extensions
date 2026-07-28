@@ -40,8 +40,10 @@ try {
 
     <p class="text-sm text-muted-foreground">
       These profiles have no linked account. Approving gives the claimant
-      ownership immediately — there's no automated verification, so use the note
-      below (and the profile's public page) to judge legitimacy.
+      ownership immediately. A "GitHub verified" badge means the claimant's own
+      linked GitHub account was automatically confirmed to match this
+      developer's GitHub org/username — otherwise, use the note below (and the
+      profile's public page) to judge legitimacy yourself.
     </p>
 
     {
@@ -58,8 +60,11 @@ try {
           {claims.map((c) => (
             <li class="card space-y-3">
               <header>
-                <h2 class="font-semibold">
+                <h2 class="font-semibold flex items-center gap-2">
                   {c.developer_name} ({c.developer_id})
+                  {c.github_org_verified && (
+                    <span class="badge">GitHub verified</span>
+                  )}
                 </h2>
                 <p class="text-sm text-muted-foreground">
                   {c.developer_type} &middot; claimed by{' '}

@@ -3,7 +3,11 @@ import Base from '../../../layouts/Base.astro';
 import { env } from 'cloudflare:workers';
 import { requireUser } from '@/lib/auth-guard';
 import { createApiClient, ApiRequestError } from '@/lib/apiClient';
-import { getDeveloperByOwner, getExtensionsByOwner } from '@/lib/database';
+import {
+  getDeveloperByOwner,
+  getDeveloperById,
+  getExtensionsByOwner,
+} from '@/lib/database';
 import {
   buildDeveloperProfile,
   DeveloperValidationError,
@@ -32,6 +36,10 @@ const extensions = isEdit
 const api = createApiClient(env, user.sub);
 
 let error: string | null = Astro.url.searchParams.get('error');
+// Set only when creation failed because the id belongs to an existing,
+// unowned profile (e.g. a legacy extension author) — points the user at
+// the claim flow on that profile's public page instead of a dead end.
+let idTaken = false;
 let transferResult: DeveloperTransfer | null = null;
 // Falls back to the just-submitted values on a failed save, so a rejected
 // submission (e.g. duplicate id) doesn't blank the form and force retyping.
@@ -78,6 +86,23 @@ if (Astro.request.method === 'POST') {
         e instanceof ApiRequestError || e instanceof DeveloperValidationError
           ? e.message
           : 'Something went wrong saving your developer profile. Please try again.';
+      // Matched on the api repo's dedicated DEVELOPER_ID_TAKEN code, not the
+      // message text, so a reworded message can't silently break this. Only
+      // points at the claim flow when the conflicting profile is actually
+      // unclaimed — a profile someone else already owns has no claim option,
+      // so showing this guidance there would be a dead end.
+      if (
+        !isEdit &&
+        e instanceof ApiRequestError &&
+        e.code === 'DEVELOPER_ID_TAKEN' &&
+        submitted?.id
+      ) {
+        const conflicting = await getDeveloperById(
+          env.DB_EXTENSIONS,
+          submitted.id,
+        );
+        idTaken = conflicting?.unclaimed === true;
+      }
     }
   }
 }
@@ -165,7 +190,17 @@ if (!isEdit) {
     {
       error && (
         <div class="rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          {error}
+          <p>{error}</p>
+          {idTaken && submitted?.id && (
+            <p class="mt-2">
+              If this is your existing extension author profile, you can request
+              to claim it instead of creating a new one — visit{' '}
+              <a href={`/developer/${submitted.id}`} class="underline">
+                the public profile page for "{submitted.id}"
+              </a>{' '}
+              and use the "Claim this profile" option.
+            </p>
+          )}
         </div>
       )
     }
@@ -187,9 +222,15 @@ if (!isEdit) {
             readonly={isEdit}
           />
           {
-            isEdit && (
+            isEdit ? (
               <p class="text-sm text-muted-foreground">
                 The ID can't be changed after it's created.
+              </p>
+            ) : (
+              <p class="text-sm text-muted-foreground">
+                Typically your GitHub organization or username — this is used to
+                verify ownership if you (or someone else) later try to claim
+                this profile.
               </p>
             )
           }
