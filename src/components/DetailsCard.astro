@@ -102,7 +102,8 @@ const details: DetailsItem[] = [
                 </a>
               ) : (
                 <span
-                  class={`badge-outline text-xs ${badgeColorClasses[detail.color]}`}
+                  class={`badge text-xs ${badgeColorClasses[detail.color]}`}
+                  data-variant="outline"
                 >
                   {detail.text}
                 </span>

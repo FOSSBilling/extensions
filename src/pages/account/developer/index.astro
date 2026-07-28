@@ -2,7 +2,11 @@
 import Base from '../../../layouts/Base.astro';
 import { env } from 'cloudflare:workers';
 import { requireUser } from '@/lib/auth-guard';
-import { createApiClient, ApiRequestError } from '@/lib/apiClient';
+import {
+  createApiClient,
+  ApiRequestError,
+  listMyClaimsSafely,
+} from '@/lib/apiClient';
 import {
   getDeveloperByOwner,
   getDeveloperById,
@@ -13,6 +17,7 @@ import {
   DeveloperValidationError,
 } from '@/lib/developer-form';
 import { DEVELOPER_TYPES } from '@/types';
+import { CircleAlert } from '@lucide/astro';
 import type {
   DeveloperClaim,
   DeveloperProfileInput,
@@ -111,14 +116,7 @@ if (Astro.request.method === 'POST') {
 // off the real (saved) `developer`, not a failed, unsaved submission.
 const fields = submitted ?? developer;
 
-let myClaims: DeveloperClaim[] = [];
-if (!isEdit) {
-  try {
-    myClaims = await api.listMyClaims();
-  } catch {
-    // non-fatal — just don't show claim status
-  }
-}
+const myClaims: DeveloperClaim[] = isEdit ? [] : await listMyClaimsSafely(api);
 ---
 
 <Base title="Developer Profile — FOSSBilling Extensions">
@@ -133,81 +131,96 @@ if (!isEdit) {
 
     {
       !isEdit && myClaims.length > 0 && (
-        <div class="card space-y-2">
-          <h2 class="font-semibold">Your Profile Claims</h2>
-          <ul class="space-y-2">
-            {myClaims.map((c) => (
-              <li class="text-sm flex items-center justify-between gap-3">
-                <code>{c.developer_id}</code>
-                {c.status === 'pending' && (
-                  <span class="badge-secondary">Pending Review</span>
-                )}
-                {c.status === 'approved' && <span class="badge">Approved</span>}
-                {c.status === 'rejected' && (
-                  <span class="badge-secondary">
-                    Rejected{c.review_note ? `: ${c.review_note}` : ''}
-                  </span>
-                )}
-              </li>
-            ))}
-          </ul>
+        <div class="card">
+          <header>
+            <h2 class="font-semibold">Your Profile Claims</h2>
+          </header>
+          <section>
+            <ul class="space-y-2">
+              {myClaims.map((c) => (
+                <li class="text-sm flex items-center justify-between gap-3">
+                  <code>{c.developer_id}</code>
+                  {c.status === 'pending' && (
+                    <span class="badge" data-variant="secondary">
+                      Pending Review
+                    </span>
+                  )}
+                  {c.status === 'approved' && (
+                    <span class="badge">Approved</span>
+                  )}
+                  {c.status === 'rejected' && (
+                    <span class="badge" data-variant="destructive">
+                      Rejected{c.review_note ? `: ${c.review_note}` : ''}
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </section>
         </div>
       )
     }
 
     {
       isEdit && (
-        <div class="card flex items-center gap-4">
-          {developer!.avatar_url && (
-            <img
-              src={developer!.avatar_url}
-              alt=""
-              class="w-14 h-14 rounded-full object-cover"
-            />
-          )}
-          <div class="flex-1">
-            <p class="font-medium flex items-center gap-2">
-              {developer!.name}
-              {developer!.approved ? (
-                <span class="badge">Approved</span>
-              ) : (
-                <span class="badge-secondary">Not Yet Reviewed</span>
-              )}
-            </p>
-          </div>
-          <a
-            href={`/developer/${developer!.id}`}
-            class="btn"
-            data-size="sm"
-            data-variant="outline"
-          >
-            View Public Profile
-          </a>
+        <div class="card">
+          <section class="flex items-center gap-4">
+            {developer!.avatar_url && (
+              <img
+                src={developer!.avatar_url}
+                alt=""
+                class="w-14 h-14 rounded-full object-cover"
+              />
+            )}
+            <div class="flex-1">
+              <p class="font-medium flex items-center gap-2">
+                {developer!.name}
+                {developer!.approved ? (
+                  <span class="badge">Approved</span>
+                ) : (
+                  <span class="badge" data-variant="secondary">
+                    Not Yet Reviewed
+                  </span>
+                )}
+              </p>
+            </div>
+            <a
+              href={`/developer/${developer!.id}`}
+              class="btn"
+              data-size="sm"
+              data-variant="outline"
+            >
+              View Public Profile
+            </a>
+          </section>
         </div>
       )
     }
 
     {
       error && (
-        <div class="rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          <p>{error}</p>
-          {idTaken && submitted?.id && (
-            <p class="mt-2">
-              If this is your existing extension author profile, you can request
-              to claim it instead of creating a new one — visit{' '}
-              <a href={`/developer/${submitted.id}`} class="underline">
-                the public profile page for "{submitted.id}"
-              </a>{' '}
-              and use the "Claim this profile" option.
-            </p>
-          )}
+        <div class="alert" data-variant="destructive">
+          <CircleAlert class="size-4" />
+          <section>
+            <p>{error}</p>
+            {idTaken && submitted?.id && (
+              <p>
+                If this is your existing extension author profile, you can
+                request to claim it instead of creating a new one — visit{' '}
+                <a href={`/developer/${submitted.id}`} class="underline">
+                  the public profile page for "{submitted.id}"
+                </a>{' '}
+                and use the "Claim this profile" option.
+              </p>
+            )}
+          </section>
         </div>
       )
     }
 
     <form method="POST" class="space-y-8">
       <fieldset class="fieldset space-y-4">
-        <legend class="font-semibold mb-2">Publisher Identity</legend>
+        <legend>Publisher Identity</legend>
         <div class="field">
           <label for="id">Publisher ID</label>
           <input
@@ -223,11 +236,9 @@ if (!isEdit) {
           />
           {
             isEdit ? (
-              <p class="text-sm text-muted-foreground">
-                The ID can't be changed after it's created.
-              </p>
+              <p>The ID can't be changed after it's created.</p>
             ) : (
-              <p class="text-sm text-muted-foreground">
+              <p>
                 Typically your GitHub organization or username — this is used to
                 verify ownership if you (or someone else) later try to claim
                 this profile.
@@ -271,8 +282,8 @@ if (!isEdit) {
       </fieldset>
 
       <fieldset class="fieldset space-y-4">
-        <legend class="font-semibold mb-2">Public Profile</legend>
-        <p class="text-sm text-muted-foreground -mt-2">
+        <legend>Public Profile</legend>
+        <p>
           Shown on your public developer page at
           {developer ? ` /developer/${developer.id}` : ' /developer/<your-id>'}.
         </p>
@@ -289,7 +300,7 @@ if (!isEdit) {
       </fieldset>
 
       <fieldset class="fieldset space-y-4">
-        <legend class="font-semibold mb-2">Private contact</legend>
+        <legend>Private contact</legend>
         <div class="field">
           <label for="contact_email">Contact Email (Optional)</label>
           <input
@@ -299,7 +310,7 @@ if (!isEdit) {
             name="contact_email"
             value={fields?.contact_email}
           />
-          <p class="text-sm text-muted-foreground">
+          <p>
             Never shown publicly — only visible to FOSSBilling moderators, in
             case they need to reach you about this profile or its extensions.
           </p>
@@ -316,98 +327,107 @@ if (!isEdit) {
 
     {
       isEdit && (
-        <div class="card space-y-3">
-          <h2 class="font-semibold">Transfer Ownership</h2>
-          <p class="text-sm text-muted-foreground">
-            Generate a one-time link to hand this profile to a different
-            account. It works once and expires after 24 hours — generating a new
-            link invalidates any earlier one for this profile.
-          </p>
-
-          {Astro.url.searchParams.get('transfer_revoked') && (
+        <div class="card">
+          <header>
+            <h2 class="font-semibold">Transfer Ownership</h2>
+          </header>
+          <section class="space-y-3">
             <p class="text-sm text-muted-foreground">
-              Pending transfer link revoked.
+              Generate a one-time link to hand this profile to a different
+              account. It works once and expires after 24 hours — generating a
+              new link invalidates any earlier one for this profile.
             </p>
-          )}
-          {Astro.url.searchParams.get('transfer_accepted') && (
-            <p class="text-sm text-muted-foreground">
-              You've accepted a transfer — this profile is now yours.
-            </p>
-          )}
 
-          {transferResult && (
-            <div class="rounded-md border px-4 py-3 text-sm space-y-2">
-              <p class="font-medium">
-                Share this link with the new owner — it won't be shown again:
-              </p>
-              <code class="block break-all bg-muted p-2 rounded">
-                {`${Astro.url.origin}/account/developer/transfer/${transferResult.token}`}
-              </code>
-              <p class="text-muted-foreground">
-                Expires {new Date(transferResult.expires_at).toLocaleString()}.
-              </p>
-            </div>
-          )}
-
-          <div class="flex gap-3">
-            <form method="POST">
-              <input type="hidden" name="intent" value="transfer-initiate" />
-              <button
-                type="submit"
-                class="btn"
-                data-size="sm"
-                data-variant="outline"
-              >
-                Generate Transfer Link
-              </button>
-            </form>
-            <form method="POST" action="/account/developer/transfer/revoke">
-              <button
-                type="submit"
-                class="btn"
-                data-size="sm"
-                data-variant="ghost"
-              >
-                Revoke Pending Link
-              </button>
-            </form>
-          </div>
-        </div>
-      )
-    }
-
-    {
-      isEdit && (
-        <div class="card space-y-3">
-          <h2 class="font-semibold text-destructive">
-            Delete Developer Profile
-          </h2>
-          {extensions.length > 0 ? (
-            <p class="text-sm text-muted-foreground">
-              You have {extensions.length} published extension
-              {extensions.length === 1 ? '' : 's'} under this profile. Transfer
-              ownership or remove them before deleting it.
-            </p>
-          ) : (
-            <>
+            {Astro.url.searchParams.get('transfer_revoked') && (
               <p class="text-sm text-muted-foreground">
-                Permanently deletes your publisher identity (name, contact info)
-                and its public page. This can't be undone, and the ID may be
-                used by someone else afterward.
+                Pending transfer link revoked.
               </p>
+            )}
+            {Astro.url.searchParams.get('transfer_accepted') && (
+              <p class="text-sm text-muted-foreground">
+                You've accepted a transfer — this profile is now yours.
+              </p>
+            )}
+
+            {transferResult && (
+              <div class="rounded-md border px-4 py-3 text-sm space-y-2">
+                <p class="font-medium">
+                  Share this link with the new owner — it won't be shown again:
+                </p>
+                <code class="block break-all bg-muted p-2 rounded">
+                  {`${Astro.url.origin}/account/developer/transfer/${transferResult.token}`}
+                </code>
+                <p class="text-muted-foreground">
+                  Expires {new Date(transferResult.expires_at).toLocaleString()}
+                  .
+                </p>
+              </div>
+            )}
+
+            <div class="flex gap-3">
               <form method="POST">
-                <input type="hidden" name="intent" value="delete" />
+                <input type="hidden" name="intent" value="transfer-initiate" />
                 <button
                   type="submit"
                   class="btn"
                   data-size="sm"
                   data-variant="outline"
                 >
-                  Delete Developer Profile
+                  Generate Transfer Link
                 </button>
               </form>
-            </>
-          )}
+              <form method="POST" action="/account/developer/transfer/revoke">
+                <button
+                  type="submit"
+                  class="btn"
+                  data-size="sm"
+                  data-variant="ghost"
+                >
+                  Revoke Pending Link
+                </button>
+              </form>
+            </div>
+          </section>
+        </div>
+      )
+    }
+
+    {
+      isEdit && (
+        <div class="card">
+          <header>
+            <h2 class="font-semibold text-destructive">
+              Delete Developer Profile
+            </h2>
+          </header>
+          <section class="space-y-3">
+            {extensions.length > 0 ? (
+              <p class="text-sm text-muted-foreground">
+                You have {extensions.length} published extension
+                {extensions.length === 1 ? '' : 's'} under this profile.
+                Transfer ownership or remove them before deleting it.
+              </p>
+            ) : (
+              <>
+                <p class="text-sm text-muted-foreground">
+                  Permanently deletes your publisher identity (name, contact
+                  info) and its public page. This can't be undone, and the ID
+                  may be used by someone else afterward.
+                </p>
+                <form method="POST">
+                  <input type="hidden" name="intent" value="delete" />
+                  <button
+                    type="submit"
+                    class="btn"
+                    data-size="sm"
+                    data-variant="outline"
+                  >
+                    Delete Developer Profile
+                  </button>
+                </form>
+              </>
+            )}
+          </section>
         </div>
       )
     }

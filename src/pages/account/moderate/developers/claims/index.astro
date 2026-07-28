@@ -4,6 +4,8 @@ import { env } from 'cloudflare:workers';
 import { requireModerator } from '@/lib/auth-guard';
 import { createApiClient } from '@/lib/apiClient';
 import type { PendingDeveloperClaim } from '@/types';
+import { CircleAlert } from '@lucide/astro';
+import RejectDialog from '@/components/RejectDialog.astro';
 
 const guard = await requireModerator(Astro, env);
 if (guard instanceof Response) return guard;
@@ -32,8 +34,9 @@ try {
 
     {
       Astro.url.searchParams.get('error') && (
-        <div class="rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          {Astro.url.searchParams.get('error')}
+        <div class="alert" data-variant="destructive">
+          <CircleAlert class="size-4" />
+          <section>{Astro.url.searchParams.get('error')}</section>
         </div>
       )
     }
@@ -73,7 +76,7 @@ try {
                 </p>
                 {c.note && <p class="text-sm mt-1">&ldquo;{c.note}&rdquo;</p>}
               </header>
-              <div class="flex items-center gap-3 flex-wrap">
+              <footer class="flex items-center gap-3 flex-wrap">
                 <form
                   method="POST"
                   action={`/account/moderate/developers/claims/${c.id}/approve`}
@@ -82,28 +85,23 @@ try {
                     Approve
                   </button>
                 </form>
-                <form
-                  method="POST"
-                  action={`/account/moderate/developers/claims/${c.id}/reject`}
-                  class="flex items-center gap-2"
+                <button
+                  type="button"
+                  class="btn"
+                  data-size="sm"
+                  data-variant="destructive"
+                  onclick={`document.getElementById('reject-claim-${c.id}').showModal()`}
                 >
-                  <input
-                    class="input"
-                    type="text"
-                    name="review_note"
-                    placeholder="Reason for rejecting (required)"
-                    required
-                  />
-                  <button
-                    type="submit"
-                    class="btn"
-                    data-size="sm"
-                    data-variant="destructive"
-                  >
-                    Reject
-                  </button>
-                </form>
-              </div>
+                  Reject
+                </button>
+              </footer>
+
+              <RejectDialog
+                id={`reject-claim-${c.id}`}
+                title={`Reject claim on "${c.developer_id}"?`}
+                description="The claimant will see this reason."
+                formAction={`/account/moderate/developers/claims/${c.id}/reject`}
+              />
             </li>
           ))}
         </ul>

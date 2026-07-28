@@ -3,7 +3,7 @@
 // Roles, permissions, and extension ownership are modeled in this app's own
 // database (see users.ts), never requested from or trusted to the auth service.
 
-const ISSUER = 'https://auth.fossbilling.net';
+export const ISSUER = 'https://auth.fossbilling.net';
 const AUTHORIZE_ENDPOINT = `${ISSUER}/oauth2/authorize`;
 const TOKEN_ENDPOINT = `${ISSUER}/oauth2/token`;
 const USERINFO_ENDPOINT = `${ISSUER}/oauth2/userinfo`;

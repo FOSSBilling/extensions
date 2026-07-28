@@ -1,0 +1,70 @@
+---
+import { X } from '@lucide/astro';
+
+interface Props {
+  id: string;
+  title: string;
+  description: string;
+  formAction: string;
+  reasonPlaceholder?: string;
+}
+
+const {
+  id,
+  title,
+  description,
+  formAction,
+  reasonPlaceholder = 'Reason for rejecting',
+} = Astro.props;
+---
+
+<dialog
+  id={id}
+  class="dialog"
+  aria-labelledby={`${id}-title`}
+  aria-describedby={`${id}-description`}
+  onclick="if (event.target === this) this.close()"
+>
+  <form method="POST" action={formAction}>
+    <header>
+      <h2 id={`${id}-title`}>{title}</h2>
+      <p id={`${id}-description`}>{description}</p>
+    </header>
+    <section>
+      <div class="field">
+        <label for={`${id}-note`}>Reason</label>
+        <input
+          class="input"
+          type="text"
+          id={`${id}-note`}
+          name="review_note"
+          placeholder={reasonPlaceholder}
+          required
+        />
+      </div>
+    </section>
+    <footer>
+      <button
+        type="button"
+        class="btn"
+        data-variant="outline"
+        onclick="this.closest('dialog').close()"
+      >
+        Cancel
+      </button>
+      <button type="submit" class="btn" data-variant="destructive">
+        Reject
+      </button>
+    </footer>
+    <button
+      type="button"
+      class="btn"
+      data-variant="ghost"
+      data-size="icon-sm"
+      aria-label="Close dialog"
+      onclick="this.closest('dialog').close()"
+    >
+      <X class="size-4" />
+    </button>
+  </form>
+</dialog>

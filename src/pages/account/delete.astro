@@ -6,6 +6,7 @@ import { createApiClient, ApiRequestError } from '@/lib/apiClient';
 import { getDeveloperByOwner, getExtensionsByOwner } from '@/lib/database';
 import { deleteUser } from '@/lib/users';
 import { SESSION_COOKIE } from '@/lib/session';
+import { CircleAlert } from '@lucide/astro';
 
 const guard = await requireUser(Astro, env);
 if (guard instanceof Response) return guard;
@@ -49,8 +50,9 @@ if (Astro.request.method === 'POST' && extensions.length === 0) {
 
     {
       error && (
-        <div class="rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          {error}
+        <div class="alert" data-variant="destructive">
+          <CircleAlert class="size-4" />
+          <section>{error}</section>
         </div>
       )
     }
@@ -65,30 +67,33 @@ if (Astro.request.method === 'POST' && extensions.length === 0) {
           deleting your account.
         </p>
       ) : (
-        <div class="card space-y-4">
-          <p class="text-sm text-muted-foreground">
-            This permanently deletes your account
-            {developer && ' and your developer profile'}. This can't be undone.
-          </p>
-          <ul class="text-sm text-muted-foreground list-disc pl-5 space-y-1">
-            <li>Your personal profile (display name) is removed.</li>
-            {developer && (
-              <li>
-                Your developer profile ({developer.name}) and its public page
-                are removed; the ID may be used by someone else afterward.
-              </li>
-            )}
-          </ul>
-          <div class="flex justify-end gap-3">
-            <a href="/account" class="btn" data-variant="ghost">
-              Cancel
-            </a>
-            <form method="POST">
-              <button type="submit" class="btn" data-variant="destructive">
-                Permanently Delete My Account
-              </button>
-            </form>
-          </div>
+        <div class="card">
+          <section class="space-y-4">
+            <p class="text-sm text-muted-foreground">
+              This permanently deletes your account
+              {developer && ' and your developer profile'}. This can't be
+              undone.
+            </p>
+            <ul class="text-sm text-muted-foreground list-disc pl-5 space-y-1">
+              <li>Your personal profile (display name) is removed.</li>
+              {developer && (
+                <li>
+                  Your developer profile ({developer.name}) and its public page
+                  are removed; the ID may be used by someone else afterward.
+                </li>
+              )}
+            </ul>
+            <div class="flex justify-end gap-3">
+              <a href="/account" class="btn" data-variant="ghost">
+                Cancel
+              </a>
+              <form method="POST">
+                <button type="submit" class="btn" data-variant="destructive">
+                  Permanently Delete My Account
+                </button>
+              </form>
+            </div>
+          </section>
         </div>
       )
     }

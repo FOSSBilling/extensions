@@ -4,6 +4,8 @@ import { env } from 'cloudflare:workers';
 import { requireModerator } from '@/lib/auth-guard';
 import { createApiClient } from '@/lib/apiClient';
 import type { Submission, SubmissionStatus } from '@/types';
+import { CircleAlert } from '@lucide/astro';
+import RejectDialog from '@/components/RejectDialog.astro';
 
 const guard = await requireModerator(Astro, env);
 if (guard instanceof Response) return guard;
@@ -36,8 +38,9 @@ try {
 
     {
       Astro.url.searchParams.get('error') && (
-        <div class="rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          {Astro.url.searchParams.get('error')}
+        <div class="alert" data-variant="destructive">
+          <CircleAlert class="size-4" />
+          <section>{Astro.url.searchParams.get('error')}</section>
         </div>
       )
     }
@@ -77,7 +80,9 @@ try {
                     submitted {new Date(s.created_at).toLocaleString()}
                   </p>
                 </div>
-                <span class="badge-secondary">{s.payload.extension.type}</span>
+                <span class="badge" data-variant="secondary">
+                  {s.payload.extension.type}
+                </span>
               </header>
               <section>
                 <p class="text-sm">{s.payload.extension.description}</p>
@@ -99,28 +104,26 @@ try {
                         Approve
                       </button>
                     </form>
-                    <form
-                      method="POST"
-                      action={`/account/moderate/${s.id}/reject`}
-                      class="flex items-center gap-2 flex-1"
+                    <button
+                      type="button"
+                      class="btn"
+                      data-size="sm"
+                      data-variant="destructive"
+                      onclick={`document.getElementById('reject-submission-${s.id}').showModal()`}
                     >
-                      <input
-                        class="input"
-                        type="text"
-                        name="review_note"
-                        placeholder="Reason for rejection (required)"
-                        required
-                      />
-                      <button
-                        type="submit"
-                        class="btn"
-                        data-size="sm"
-                        data-variant="destructive"
-                      >
-                        Reject
-                      </button>
-                    </form>
+                      Reject
+                    </button>
                   </div>
+                )}
+
+                {s.status === 'pending' && (
+                  <RejectDialog
+                    id={`reject-submission-${s.id}`}
+                    title={`Reject "${s.payload.extension.name}"?`}
+                    description="The submitter will see this reason."
+                    formAction={`/account/moderate/${s.id}/reject`}
+                    reasonPlaceholder="Reason for rejection"
+                  />
                 )}
                 {s.status !== 'pending' && s.review_note && (
                   <p class="text-sm text-muted-foreground mt-2">

@@ -2,21 +2,26 @@
 import Base from '../../layouts/Base.astro';
 import { env } from 'cloudflare:workers';
 import { requireUser } from '@/lib/auth-guard';
-import { createApiClient } from '@/lib/apiClient';
+import { createApiClient, listMyClaimsSafely } from '@/lib/apiClient';
 import { getDeveloperByOwner, getExtensionsByOwner } from '@/lib/database';
-import { isModerator } from '@/lib/users';
+import { isModerator, hasLinkedGithub } from '@/lib/users';
+import { ISSUER } from '@/lib/oauth';
 import { getLatestRelease } from '@/types';
-import type { Submission } from '@/types';
+import type { DeveloperClaim, Submission } from '@/types';
+import { CircleCheck } from '@lucide/astro';
 
 const guard = await requireUser(Astro, env);
 if (guard instanceof Response) return guard;
 const user = guard;
 
-const [ownedExtensions, moderator, developer] = await Promise.all([
-  getExtensionsByOwner(env.DB_EXTENSIONS, user.sub),
-  isModerator(env.DB_EXTENSIONS, user.sub),
-  getDeveloperByOwner(env.DB_EXTENSIONS, user.sub),
-]);
+const [ownedExtensions, moderator, developer, githubLinked] = await Promise.all(
+  [
+    getExtensionsByOwner(env.DB_EXTENSIONS, user.sub),
+    isModerator(env.DB_EXTENSIONS, user.sub),
+    getDeveloperByOwner(env.DB_EXTENSIONS, user.sub),
+    hasLinkedGithub(env.DB_EXTENSIONS, user.sub),
+  ],
+);
 
 const banner: Record<string, string> = {
   submitted: 'Submitted for Review.',
@@ -40,10 +45,18 @@ try {
   submissionsError = true;
 }
 
-const statusBadgeClass: Record<Submission['status'], string> = {
-  pending: 'badge-secondary',
-  approved: 'badge',
-  rejected: 'badge-outline text-destructive',
+const myClaims: DeveloperClaim[] = developer
+  ? []
+  : await listMyClaimsSafely(api);
+// listMyClaims returns newest first; approved claims transfer ownership
+// immediately (developer becomes truthy), so only pending/rejected ever
+// surface here.
+const latestClaim = myClaims[0];
+
+const statusBadgeVariant: Record<Submission['status'], string | undefined> = {
+  pending: 'secondary',
+  approved: undefined,
+  rejected: 'destructive',
 };
 ---
 
@@ -77,8 +90,31 @@ const statusBadgeClass: Record<Submission['status'], string> = {
 
     {
       bannerKey && (
-        <div class="rounded-md border border-border bg-muted px-4 py-3 text-sm">
-          {banner[bannerKey]}
+        <div class="alert">
+          <CircleCheck class="size-4" />
+          <section>{banner[bannerKey]}</section>
+        </div>
+      )
+    }
+
+    {
+      !githubLinked && (
+        <div class="alert">
+          <h2>Reconnect GitHub</h2>
+          <section>
+            Grant GitHub organization access so profile claims can be verified
+            automatically.
+          </section>
+          <footer>
+            <a
+              href={`${ISSUER}/account`}
+              class="btn"
+              data-size="sm"
+              data-variant="outline"
+            >
+              Reconnect GitHub
+            </a>
+          </footer>
         </div>
       )
     }
@@ -103,7 +139,26 @@ const statusBadgeClass: Record<Submission['status'], string> = {
               {developer.approved ? (
                 <span class="badge">Approved</span>
               ) : (
-                <span class="badge-secondary">Not Yet Reviewed</span>
+                <span class="badge" data-variant="secondary">
+                  Not Yet Reviewed
+                </span>
+              )}
+            </p>
+          ) : latestClaim ? (
+            <p class="text-sm flex items-center gap-2">
+              Claim on <strong>{latestClaim.developer_id}</strong>
+              {latestClaim.status === 'pending' && (
+                <span class="badge" data-variant="secondary">
+                  Pending Review
+                </span>
+              )}
+              {latestClaim.status === 'rejected' && (
+                <span class="badge" data-variant="destructive">
+                  Rejected
+                  {latestClaim.review_note
+                    ? `: ${latestClaim.review_note}`
+                    : ''}
+                </span>
               )}
             </p>
           ) : (
@@ -196,7 +251,12 @@ const statusBadgeClass: Record<Submission['status'], string> = {
                       </p>
                     )}
                   </div>
-                  <span class={statusBadgeClass[s.status]}>{s.status}</span>
+                  <span
+                    class="badge"
+                    data-variant={statusBadgeVariant[s.status]}
+                  >
+                    {s.status}
+                  </span>
                 </li>
               ))}
             </ul>

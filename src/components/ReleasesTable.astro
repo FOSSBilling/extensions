@@ -16,10 +16,10 @@ const releases = sortReleasesDescending(ext.releases);
 <div>
   <div class="flex items-center justify-between">
     <h2 class="text-xl font-semibold">Releases</h2>
-    <span class="badge-secondary">{releases.length}</span>
+    <span class="badge" data-variant="secondary">{releases.length}</span>
   </div>
 
-  <div class="overflow-x-auto mt-6">
+  <div class="table-container mt-6">
     <table class="table">
       <caption class="sr-only">Releases for {ext.name}</caption>
       <thead>
