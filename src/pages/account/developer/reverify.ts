@@ -26,12 +26,24 @@ export const POST: APIRoute = async (context) => {
     return context.redirect('/account');
   }
 
+  // github_org_verified is `undefined` when the check was inconclusive (no
+  // linked GitHub identity — see the api repo's reverifyOwn) rather than an
+  // actual mismatch, which is `false`. Conflating the two would show "no
+  // longer matches" for a case that isn't a mismatch at all.
   setFlash(context.session, {
-    category: result.github_org_verified ? 'success' : 'warning',
+    category:
+      result.github_org_verified === true
+        ? 'success'
+        : result.github_org_verified === false
+          ? 'warning'
+          : 'info',
     title: 'GitHub verification re-checked',
-    description: result.github_org_verified
-      ? 'Your linked GitHub identity matches this profile.'
-      : "Your linked GitHub identity doesn't currently match this profile.",
+    description:
+      result.github_org_verified === true
+        ? 'Your linked GitHub identity matches this profile.'
+        : result.github_org_verified === false
+          ? "Your linked GitHub identity doesn't currently match this profile."
+          : 'No linked GitHub identity was found to check against.',
   });
   return context.redirect('/account');
 };

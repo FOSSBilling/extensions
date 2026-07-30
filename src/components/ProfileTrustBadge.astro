@@ -70,13 +70,20 @@ const tooltip =
       data-tooltip={tooltip}
       data-side="bottom"
       data-align="end"
+      aria-label={tooltip}
     >
-      {state === 'approved' && <BadgeCheck class="size-4 text-green-600" />}
-      {state === 'github-verified' && (
-        <BadgeInfo class="size-4 text-blue-600" />
+      {state === 'approved' && (
+        <BadgeCheck class="size-4 text-green-600" aria-hidden="true" />
       )}
-      {state === 'mismatch' && <BadgeAlert class="size-4 text-destructive" />}
-      {state === 'neutral' && <Badge class="size-4 text-muted-foreground" />}
+      {state === 'github-verified' && (
+        <BadgeInfo class="size-4 text-blue-600" aria-hidden="true" />
+      )}
+      {state === 'mismatch' && (
+        <BadgeAlert class="size-4 text-destructive" aria-hidden="true" />
+      )}
+      {state === 'neutral' && (
+        <Badge class="size-4 text-muted-foreground" aria-hidden="true" />
+      )}
     </span>
   )
 }

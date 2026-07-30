@@ -155,46 +155,50 @@ const reconnectUrl = `${ISSUER}/account?callbackURL=${encodeURIComponent(
         {
           developer ? (
             <div class="space-y-3">
-              <div class="flex items-center gap-4">
-                <DeveloperAvatar
-                  avatarUrl={developer.avatar_url}
-                  type={developer.type}
-                />
-                <div class="flex-1">
-                  <p class="font-medium flex items-center gap-2">
-                    {developer.name}
-                    <ProfileTrustBadge
-                      approved={developer.approved}
-                      githubOrgVerified={developer.github_org_verified}
-                      githubVerifiedAt={developer.github_verified_at}
-                    />
-                  </p>
-                  <p class="text-sm text-muted-foreground">{developer.id}</p>
+              <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div class="flex items-center gap-4">
+                  <DeveloperAvatar
+                    avatarUrl={developer.avatar_url}
+                    type={developer.type}
+                  />
+                  <div class="flex-1">
+                    <p class="font-medium flex items-center gap-2">
+                      {developer.name}
+                      <ProfileTrustBadge
+                        approved={developer.approved}
+                        githubOrgVerified={developer.github_org_verified}
+                        githubVerifiedAt={developer.github_verified_at}
+                      />
+                    </p>
+                    <p class="text-sm text-muted-foreground">{developer.id}</p>
+                  </div>
                 </div>
-                <a
-                  href={`/developer/${developer.id}`}
-                  class="btn"
-                  data-size="sm"
-                  data-variant="outline"
-                >
-                  View Public Profile
-                </a>
-                <form method="POST" action="/account/developer/reverify">
-                  <button
-                    type="submit"
+                <div class="flex items-center gap-2">
+                  <a
+                    href={`/developer/${developer.id}`}
                     class="btn"
                     data-size="sm"
-                    data-variant={
-                      developer.github_org_verified === false
-                        ? 'primary'
-                        : 'ghost'
-                    }
-                    data-tooltip="Check GitHub verification now"
-                    data-side="bottom"
+                    data-variant="outline"
                   >
-                    Re-verify
-                  </button>
-                </form>
+                    View Public Profile
+                  </a>
+                  <form method="POST" action="/account/developer/reverify">
+                    <button
+                      type="submit"
+                      class="btn"
+                      data-size="sm"
+                      data-variant={
+                        developer.github_org_verified === false
+                          ? 'primary'
+                          : 'ghost'
+                      }
+                      data-tooltip="Check GitHub verification now"
+                      data-side="bottom"
+                    >
+                      Re-verify
+                    </button>
+                  </form>
+                </div>
               </div>
               {developer.github_org_verified === false && (
                 <div class="alert" data-variant="destructive">

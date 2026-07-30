@@ -144,7 +144,13 @@ const { flash } = Astro.locals;
         </div>
       </Container>
     </header>
-    <div id="toaster" class="toaster" role="region" aria-live="polite">
+    <div
+      id="toaster"
+      class="toaster"
+      role="region"
+      aria-live="polite"
+      aria-label="Notifications"
+    >
       {
         flash && (
           <Toast
