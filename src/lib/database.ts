@@ -76,7 +76,9 @@ function parseDeveloperProfileRow(row: DeveloperProfileRow): DeveloperProfile {
     content_revision: row.content_revision ?? 1,
     unclaimed: row.unclaimed === 1,
     github_org_verified:
-      row.github_org_verified == null ? undefined : row.github_org_verified === 1,
+      row.github_org_verified == null
+        ? undefined
+        : row.github_org_verified === 1,
     github_verification_note: row.github_verification_note ?? undefined,
     github_verified_at: row.github_verified_at ?? undefined,
   } as DeveloperProfile;

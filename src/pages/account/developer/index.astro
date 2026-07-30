@@ -280,9 +280,9 @@ const fields = submitted ?? developer;
                 type="submit"
                 class="btn"
                 data-size="sm"
-                data-variant={developer!.github_org_verified === false
-                  ? 'primary'
-                  : 'ghost'}
+                data-variant={
+                  developer!.github_org_verified === false ? 'primary' : 'ghost'
+                }
                 data-tooltip="Check GitHub verification now"
                 data-side="bottom"
               >
@@ -290,20 +290,17 @@ const fields = submitted ?? developer;
               </button>
             </form>
           </section>
-          {
-            developer!.github_org_verified === false && (
-              <div class="alert mt-4" data-variant="destructive">
-                <CircleAlert class="size-4" />
-                <section>
-                  Your linked GitHub identity no longer matches this profile.
-                  This doesn't affect your submissions or ownership — it's
-                  only shown to moderators as a trust signal. Re-verify if
-                  this should still match (e.g. you rejoined the
-                  organization).
-                </section>
-              </div>
-            )
-          }
+          {developer!.github_org_verified === false && (
+            <div class="alert mt-4" data-variant="destructive">
+              <CircleAlert class="size-4" />
+              <section>
+                Your linked GitHub identity no longer matches this profile. This
+                doesn't affect your submissions or ownership — it's only shown
+                to moderators as a trust signal. Re-verify if this should still
+                match (e.g. you rejoined the organization).
+              </section>
+            </div>
+          )}
         </div>
       )
     }

@@ -75,11 +75,11 @@ try {
                   {c.claimant_github_login && (
                     <>
                       {' '}
-                      (<a
-                        href={`https://github.com/${c.claimant_github_login}`}
-                      >
+                      (
+                      <a href={`https://github.com/${c.claimant_github_login}`}>
                         @{c.claimant_github_login}
-                      </a>)
+                      </a>
+                      )
                     </>
                   )}{' '}
                   on {new Date(c.created_at).toLocaleDateString()}
