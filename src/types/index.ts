@@ -146,7 +146,8 @@ export type DeveloperProfile = Developer & {
 };
 
 // Body for PUT /extensions/v2/developers/me — everything but the server-set
-// `approved` flag, `content_revision`, and GitHub verification fields.
+// `approved` flag, `content_revision`, GitHub verification fields, and
+// owner-identity fields (only ever populated by the moderator list query).
 export type DeveloperProfileInput = Omit<
   DeveloperProfile,
   | 'approved'
@@ -155,6 +156,8 @@ export type DeveloperProfileInput = Omit<
   | 'github_org_verified'
   | 'github_verification_note'
   | 'github_verified_at'
+  | 'owner_name'
+  | 'owner_github_login'
 >;
 
 // What getDeveloperById (the public /developer/[id] read) returns —
