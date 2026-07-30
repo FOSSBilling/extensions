@@ -16,8 +16,15 @@ import {
 import { upsertUser } from '@/lib/users';
 import { getDeveloperByOwner } from '@/lib/database';
 import { createApiClient } from '@/lib/apiClient';
+import { setFlash } from '@/lib/flash';
 
-export const GET: APIRoute = async ({ cookies, redirect, url }) => {
+const AUTH_ERROR_FLASH = {
+  category: 'error',
+  title: 'Sign-in failed',
+  description: 'Please try again.',
+} as const;
+
+export const GET: APIRoute = async ({ cookies, redirect, url, session }) => {
   const verifier = cookies.get(OAUTH_VERIFIER_COOKIE)?.value;
   const expectedState = cookies.get(OAUTH_STATE_COOKIE)?.value;
   const redirectTo = cookies.get(OAUTH_REDIRECT_COOKIE)?.value;
@@ -26,7 +33,8 @@ export const GET: APIRoute = async ({ cookies, redirect, url }) => {
   cookies.delete(OAUTH_REDIRECT_COOKIE, { path: '/' });
 
   if (url.searchParams.get('error')) {
-    return redirect('/?auth_error=1');
+    setFlash(session, AUTH_ERROR_FLASH);
+    return redirect('/');
   }
 
   const code = url.searchParams.get('code');
@@ -39,7 +47,8 @@ export const GET: APIRoute = async ({ cookies, redirect, url }) => {
     !expectedState ||
     state !== expectedState
   ) {
-    return redirect('/?auth_error=1');
+    setFlash(session, AUTH_ERROR_FLASH);
+    return redirect('/');
   }
 
   const redirectUri = `${url.origin}/auth/callback`;
@@ -55,7 +64,8 @@ export const GET: APIRoute = async ({ cookies, redirect, url }) => {
     });
     userInfo = await fetchUserInfo(token.access_token);
   } catch {
-    return redirect('/?auth_error=1');
+    setFlash(session, AUTH_ERROR_FLASH);
+    return redirect('/');
   }
 
   // A write failure here shouldn't block signing in — the session below

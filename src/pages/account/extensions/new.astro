@@ -9,6 +9,7 @@ import {
   buildSubmissionPayload,
   SubmissionValidationError,
 } from '@/lib/submission-form';
+import { setFlash } from '@/lib/flash';
 
 const guard = await requireUser(Astro, env);
 if (guard instanceof Response) return guard;
@@ -27,7 +28,8 @@ if (Astro.request.method === 'POST') {
   try {
     const payload = buildSubmissionPayload(form, developer);
     await api.submitExtension(payload);
-    return Astro.redirect('/account?submitted=1');
+    setFlash(Astro.session, { title: 'Submitted for Review.' });
+    return Astro.redirect('/account');
   } catch (e) {
     error =
       e instanceof ApiRequestError || e instanceof SubmissionValidationError

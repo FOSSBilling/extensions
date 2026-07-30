@@ -6,6 +6,7 @@ import { createApiClient, ApiRequestError } from '@/lib/apiClient';
 import { isSafeHttpUrl } from '@/lib/safe-url';
 import type { DeveloperHistoryEntry } from '@/types';
 import { CircleAlert } from '@lucide/astro';
+import { formatDateTime } from '@/lib/format-date';
 
 const guard = await requireModerator(Astro, env);
 if (guard instanceof Response) return guard;
@@ -72,7 +73,7 @@ try {
                   )}
                 </p>
                 <time class="text-sm text-muted-foreground">
-                  {new Date(entry.changed_at).toLocaleString()}
+                  {formatDateTime(entry.changed_at)}
                 </time>
               </header>
               <section>

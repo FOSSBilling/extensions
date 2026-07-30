@@ -1,0 +1,89 @@
+---
+import { X } from '@lucide/astro';
+
+interface Props {
+  id: string;
+  title: string;
+  description: string;
+  confirmText: string;
+  intentField?: { name: string; value: string };
+  submitLabel?: string;
+}
+
+const {
+  id,
+  title,
+  description,
+  confirmText,
+  intentField,
+  submitLabel = 'Delete',
+} = Astro.props;
+---
+
+<dialog
+  id={id}
+  class="dialog"
+  aria-labelledby={`${id}-title`}
+  aria-describedby={`${id}-description`}
+  onclick="if (event.target === this) this.close()"
+  onclose="this.querySelector('form').reset(); this.querySelector('[data-confirm-submit]').disabled = true;"
+>
+  <form method="POST">
+    {
+      intentField && (
+        <input
+          type="hidden"
+          name={intentField.name}
+          value={intentField.value}
+        />
+      )
+    }
+    <header>
+      <h2 id={`${id}-title`}>{title}</h2>
+      <p id={`${id}-description`}>{description}</p>
+    </header>
+    <section>
+      <div class="field">
+        <label for={`${id}-confirm`}>
+          Type <strong>{confirmText}</strong> to confirm
+        </label>
+        <input
+          class="input"
+          type="text"
+          id={`${id}-confirm`}
+          autocomplete="off"
+          oninput={`this.closest('form').querySelector('[data-confirm-submit]').disabled = this.value !== ${JSON.stringify(confirmText)}`}
+        />
+      </div>
+    </section>
+    <footer>
+      <button
+        type="button"
+        class="btn"
+        data-variant="outline"
+        onclick="this.closest('dialog').close()"
+      >
+        Cancel
+      </button>
+      <button
+        type="submit"
+        class="btn"
+        data-variant="destructive"
+        data-confirm-submit
+        disabled
+      >
+        {submitLabel}
+      </button>
+    </footer>
+    <button
+      type="button"
+      class="btn"
+      data-variant="ghost"
+      data-size="icon-sm"
+      aria-label="Close dialog"
+      onclick="this.closest('dialog').close()"
+    >
+      <X class="size-4" />
+    </button>
+  </form>
+</dialog>

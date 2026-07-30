@@ -62,6 +62,7 @@ type DeveloperProfileRow = {
   github_org_verified?: number | null;
   github_verification_note?: string | null;
   github_verified_at?: string | null;
+  github_url_verified?: number | null;
 };
 
 function parseDeveloperProfileRow(row: DeveloperProfileRow): DeveloperProfile {
@@ -81,6 +82,7 @@ function parseDeveloperProfileRow(row: DeveloperProfileRow): DeveloperProfile {
         : row.github_org_verified === 1,
     github_verification_note: row.github_verification_note ?? undefined,
     github_verified_at: row.github_verified_at ?? undefined,
+    github_url_verified: row.github_url_verified === 1 ? true : undefined,
   } as DeveloperProfile;
 }
 
@@ -153,7 +155,7 @@ export async function getDeveloperByOwner(
   try {
     row = await db
       .prepare(
-        'SELECT id, type, name, url, avatar_url, contact_email, approved_at, content_revision, github_org_verified, github_verification_note, github_verified_at FROM developers WHERE owner_user_id = ?',
+        'SELECT id, type, name, url, avatar_url, contact_email, approved_at, content_revision, github_org_verified, github_verification_note, github_verified_at, github_url_verified FROM developers WHERE owner_user_id = ?',
       )
       .bind(userId)
       .first<DeveloperProfileRow>();
@@ -161,6 +163,30 @@ export async function getDeveloperByOwner(
     return null;
   }
   return row ? parseDeveloperProfileRow(row) : null;
+}
+
+// Whether a developer profile has a transfer link that's still usable —
+// mirrors the "pending" definition the api repo's acceptTransfer() checks
+// (developers-database.ts): not yet accepted, not revoked, not expired.
+export async function hasPendingTransfer(
+  db: D1Database,
+  developerId: string,
+): Promise<boolean> {
+  let row;
+  try {
+    row = await db
+      .prepare(
+        `SELECT 1 FROM developer_transfers
+         WHERE developer_id = ? AND accepted_at IS NULL AND revoked_at IS NULL
+           AND expires_at > CURRENT_TIMESTAMP
+         LIMIT 1`,
+      )
+      .bind(developerId)
+      .first();
+  } catch {
+    return false;
+  }
+  return row != null;
 }
 
 // Public read for the /developer/[id] page — never selects contact_email.

@@ -2,6 +2,7 @@ import type { APIRoute } from 'astro';
 import { env } from 'cloudflare:workers';
 import { requireModerator } from '@/lib/auth-guard';
 import { createApiClient, ApiRequestError } from '@/lib/apiClient';
+import { setFlash } from '@/lib/flash';
 
 export const POST: APIRoute = async (context) => {
   const guard = await requireModerator(context, env);
@@ -19,9 +20,7 @@ export const POST: APIRoute = async (context) => {
       e instanceof ApiRequestError
         ? e.message
         : 'Unable to approve submission.';
-    return context.redirect(
-      `/account/moderate?error=${encodeURIComponent(message)}`,
-    );
+    setFlash(context.session, { category: 'error', title: message });
   }
 
   return context.redirect('/account/moderate');

@@ -1,0 +1,36 @@
+---
+import { CircleCheck, CircleX, Info, TriangleAlert } from '@lucide/astro';
+
+interface Props {
+  category?: 'success' | 'error' | 'info' | 'warning';
+  title: string;
+  description?: string;
+}
+
+const { category = 'success', title, description } = Astro.props;
+
+const Icon = {
+  success: CircleCheck,
+  error: CircleX,
+  info: Info,
+  warning: TriangleAlert,
+}[category];
+---
+
+<div
+  class="toast"
+  role={category === 'error' ? 'alert' : 'status'}
+  aria-atomic="true"
+  data-category={category}
+>
+  <div class="toast-content">
+    <Icon aria-hidden="true" />
+    <section>
+      <h2>{title}</h2>
+      {description && <p>{description}</p>}
+    </section>
+    <footer>
+      <button type="button" class="btn" data-toast-action>Dismiss</button>
+    </footer>
+  </div>
+</div>

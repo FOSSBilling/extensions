@@ -11,20 +11,27 @@ export const POST: APIRoute = async (context) => {
   const user = guard;
 
   const developer = await getDeveloperByOwner(env.DB_EXTENSIONS, user.sub);
-  if (!developer) return context.redirect('/account/developer');
+  if (!developer) return context.redirect('/account');
 
   const api = createApiClient(env, user.sub);
+  let result;
   try {
-    await api.revokeTransfer(developer.id);
+    result = await api.reverifyDeveloper(true);
   } catch (e) {
     const message =
       e instanceof ApiRequestError
         ? e.message
-        : 'Unable to revoke the pending transfer.';
+        : 'Unable to re-verify your GitHub identity right now. Please try again.';
     setFlash(context.session, { category: 'error', title: message });
-    return context.redirect('/account/developer');
+    return context.redirect('/account');
   }
 
-  setFlash(context.session, { title: 'Pending transfer link revoked.' });
-  return context.redirect('/account/developer');
+  setFlash(context.session, {
+    category: result.github_org_verified ? 'success' : 'warning',
+    title: 'GitHub verification re-checked',
+    description: result.github_org_verified
+      ? 'Your linked GitHub identity matches this profile.'
+      : "Your linked GitHub identity doesn't currently match this profile.",
+  });
+  return context.redirect('/account');
 };

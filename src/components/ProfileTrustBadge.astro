@@ -1,0 +1,82 @@
+---
+// Single icon replacing what used to be up to two separate text badges
+// ("Approved" + "GitHub verified"/"Not GitHub verified") — approved always
+// wins the icon (it's the human-reviewed ground truth); GitHub status only
+// changes which icon is shown when there's no approval, or nuances the
+// approved tooltip when it has since drifted. See account/developer's and
+// moderate/developers' pages for where each state is used.
+import { Badge, BadgeAlert, BadgeCheck, BadgeInfo } from '@lucide/astro';
+import { formatDate } from '@/lib/format-date';
+
+interface Props {
+  approved: boolean;
+  githubOrgVerified?: boolean;
+  githubVerifiedAt?: string | null;
+  // Only ever renders badge-check or nothing — used on the public profile
+  // page, where GitHub verification status is never exposed (see
+  // PublicDeveloperProfile) and an opportunistic, infra-dependent signal
+  // shouldn't be used to publicly flag a developer.
+  publicView?: boolean;
+}
+
+const {
+  approved,
+  githubOrgVerified,
+  githubVerifiedAt,
+  publicView = false,
+} = Astro.props;
+
+const verifiedAtText = githubVerifiedAt
+  ? formatDate(githubVerifiedAt)
+  : undefined;
+
+type IconState =
+  'approved' | 'github-verified' | 'mismatch' | 'neutral' | 'none';
+
+const state: IconState = approved
+  ? 'approved'
+  : publicView
+    ? 'none'
+    : githubOrgVerified === true
+      ? 'github-verified'
+      : githubOrgVerified === false
+        ? 'mismatch'
+        : 'neutral';
+
+const tooltip =
+  state === 'approved'
+    ? githubOrgVerified === true
+      ? 'Approved and GitHub identity verified.'
+      : githubOrgVerified === false
+        ? 'Approved — GitHub verification no longer matches.'
+        : 'Approved.'
+    : state === 'github-verified'
+      ? verifiedAtText
+        ? `GitHub identity verified (last checked ${verifiedAtText}).`
+        : 'GitHub identity verified.'
+      : state === 'mismatch'
+        ? verifiedAtText
+          ? `GitHub identity doesn't match (last checked ${verifiedAtText}).`
+          : "GitHub identity doesn't match."
+        : state === 'neutral'
+          ? 'Not yet reviewed.'
+          : undefined;
+---
+
+{
+  tooltip && (
+    <span
+      class="inline-flex font-normal"
+      data-tooltip={tooltip}
+      data-side="bottom"
+      data-align="end"
+    >
+      {state === 'approved' && <BadgeCheck class="size-4 text-green-600" />}
+      {state === 'github-verified' && (
+        <BadgeInfo class="size-4 text-blue-600" />
+      )}
+      {state === 'mismatch' && <BadgeAlert class="size-4 text-destructive" />}
+      {state === 'neutral' && <Badge class="size-4 text-muted-foreground" />}
+    </span>
+  )
+}

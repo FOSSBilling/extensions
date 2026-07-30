@@ -135,6 +135,14 @@ export type DeveloperProfile = Developer & {
   // Set whenever github_org_verified was last (re-)computed to a
   // definitive true/false. Absent/stale on an inconclusive check.
   github_verified_at?: string;
+  // Whether Publisher URL (`URL`) matches GitHub's own on-file website for
+  // this org/user — see the api repo's urlMatchesGithubBlog(). Only ever
+  // true or absent, never false (an unset/differing GitHub website isn't
+  // itself meaningful — see the api repo's schema comment). Computed at
+  // creation, and re-checked only by the owner's manual "Re-verify" action
+  // (POST /developers/me/reverify?check_url=true) — never by the
+  // opportunistic per-login re-check, which stays GitHub-API-free.
+  github_url_verified?: boolean;
   // Only populated by listUnapprovedDevelopers/listAllDevelopers (the
   // moderator queue) — the api repo's listAll/listUnapproved join for it.
   // Null when the profile has no owner, or the owner has no name on file.
@@ -156,6 +164,7 @@ export type DeveloperProfileInput = Omit<
   | 'github_org_verified'
   | 'github_verification_note'
   | 'github_verified_at'
+  | 'github_url_verified'
   | 'owner_name'
   | 'owner_github_login'
 >;
@@ -172,6 +181,7 @@ export type PublicDeveloperProfile = Omit<
   | 'github_org_verified'
   | 'github_verification_note'
   | 'github_verified_at'
+  | 'github_url_verified'
   | 'owner_name'
   | 'owner_github_login'
 >;

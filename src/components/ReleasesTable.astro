@@ -1,8 +1,7 @@
 ---
 import type { Extension } from '@/types';
 import { sortReleasesDescending } from '@/types';
-import { parseISO, format } from 'date-fns';
-import { enUS } from 'date-fns/locale';
+import { formatDate } from '@/lib/format-date';
 import { Download, List } from '@lucide/astro';
 
 interface Props {
@@ -35,11 +34,7 @@ const releases = sortReleasesDescending(ext.releases);
             <tr id={`release-${release.tag}`}>
               <td class="font-mono">v{release.tag}</td>
               <td>
-                <time datetime={release.date}>
-                  {format(parseISO(release.date), 'd LLLL yyyy', {
-                    locale: enUS,
-                  })}
-                </time>
+                <time datetime={release.date}>{formatDate(release.date)}</time>
               </td>
               <td>
                 <div class="flex items-center space-x-2">
