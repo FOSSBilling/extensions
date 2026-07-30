@@ -29,7 +29,7 @@
     "tailwindcss": "^4.3.0"
   },
   "devDependencies": {
-    "@types/node": "26.1.1",
+    "@types/node": "26.1.2",
     "@types/sanitize-html": "2.16.1",
     "@types/semver": "7.7.1",
     "prettier": "3.9.6",
