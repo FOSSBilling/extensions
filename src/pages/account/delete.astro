@@ -7,6 +7,8 @@ import { getDeveloperByOwner, getExtensionsByOwner } from '@/lib/database';
 import { deleteUser } from '@/lib/users';
 import { SESSION_COOKIE } from '@/lib/session';
 import { CircleAlert } from '@lucide/astro';
+import ConfirmDeleteDialog from '@/components/ConfirmDeleteDialog.astro';
+import { setFlash } from '@/lib/flash';
 
 const guard = await requireUser(Astro, env);
 if (guard instanceof Response) return guard;
@@ -37,7 +39,11 @@ if (Astro.request.method === 'POST' && extensions.length === 0) {
   if (!error) {
     await deleteUser(env.DB_EXTENSIONS, user.sub);
     Astro.cookies.delete(SESSION_COOKIE, { path: '/' });
-    return Astro.redirect('/?account_deleted=1');
+    setFlash(Astro.session, {
+      category: 'success',
+      title: 'Your account has been deleted.',
+    });
+    return Astro.redirect('/');
   }
 }
 ---
@@ -87,12 +93,22 @@ if (Astro.request.method === 'POST' && extensions.length === 0) {
               <a href="/account" class="btn" data-variant="ghost">
                 Cancel
               </a>
-              <form method="POST">
-                <button type="submit" class="btn" data-variant="destructive">
-                  Permanently Delete My Account
-                </button>
-              </form>
+              <button
+                type="button"
+                class="btn"
+                data-variant="destructive"
+                onclick="document.getElementById('delete-account').showModal()"
+              >
+                Permanently Delete My Account
+              </button>
             </div>
+            <ConfirmDeleteDialog
+              id="delete-account"
+              title="Delete account"
+              description={`This permanently deletes your account${developer ? ' and your developer profile' : ''}. This can't be undone.`}
+              confirmText="DELETE"
+              submitLabel="Permanently Delete My Account"
+            />
           </section>
         </div>
       )

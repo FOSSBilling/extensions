@@ -3,6 +3,7 @@ import { env } from 'cloudflare:workers';
 import { requireModerator } from '@/lib/auth-guard';
 import { createApiClient, ApiRequestError } from '@/lib/apiClient';
 import { formString } from '@/lib/form';
+import { setFlash } from '@/lib/flash';
 
 export const POST: APIRoute = async (context) => {
   const guard = await requireModerator(context, env);
@@ -16,15 +17,19 @@ export const POST: APIRoute = async (context) => {
   try {
     form = await context.request.formData();
   } catch {
-    return context.redirect(
-      `/account/moderate/developers?error=${encodeURIComponent('Malformed request.')}`,
-    );
+    setFlash(context.session, {
+      category: 'error',
+      title: 'Malformed request.',
+    });
+    return context.redirect('/account/moderate/developers');
   }
   const expectedRevision = Number(formString(form, 'expected_revision'));
   if (!Number.isInteger(expectedRevision) || expectedRevision < 1) {
-    return context.redirect(
-      `/account/moderate/developers?error=${encodeURIComponent('Missing or invalid profile revision.')}`,
-    );
+    setFlash(context.session, {
+      category: 'error',
+      title: 'Missing or invalid profile revision.',
+    });
+    return context.redirect('/account/moderate/developers');
   }
 
   const api = createApiClient(env, user.sub);
@@ -33,9 +38,7 @@ export const POST: APIRoute = async (context) => {
   } catch (e) {
     const message =
       e instanceof ApiRequestError ? e.message : 'Unable to approve profile.';
-    return context.redirect(
-      `/account/moderate/developers?error=${encodeURIComponent(message)}`,
-    );
+    setFlash(context.session, { category: 'error', title: message });
   }
 
   return context.redirect('/account/moderate/developers');

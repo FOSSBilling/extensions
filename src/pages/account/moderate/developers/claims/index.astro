@@ -4,8 +4,8 @@ import { env } from 'cloudflare:workers';
 import { requireModerator } from '@/lib/auth-guard';
 import { createApiClient } from '@/lib/apiClient';
 import type { PendingDeveloperClaim } from '@/types';
-import { CircleAlert } from '@lucide/astro';
 import RejectDialog from '@/components/RejectDialog.astro';
+import { formatDate } from '@/lib/format-date';
 
 const guard = await requireModerator(Astro, env);
 if (guard instanceof Response) return guard;
@@ -31,15 +31,6 @@ try {
         Developer Profiles
       </a>
     </div>
-
-    {
-      Astro.url.searchParams.get('error') && (
-        <div class="alert" data-variant="destructive">
-          <CircleAlert class="size-4" />
-          <section>{Astro.url.searchParams.get('error')}</section>
-        </div>
-      )
-    }
 
     <p class="text-sm text-muted-foreground">
       These profiles have no linked account. Approving gives the claimant
@@ -82,7 +73,7 @@ try {
                       )
                     </>
                   )}{' '}
-                  on {new Date(c.created_at).toLocaleDateString()}
+                  on {formatDate(c.created_at)}
                 </p>
                 {c.note && <p class="text-sm mt-1">&ldquo;{c.note}&rdquo;</p>}
               </header>

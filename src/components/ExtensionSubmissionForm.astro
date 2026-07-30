@@ -2,6 +2,7 @@
 import { EXTENSION_TYPES, SOURCE_TYPES } from '@/types';
 import type { Developer, Extension } from '@/types';
 import { CircleAlert } from '@lucide/astro';
+import { stripUrlScheme } from '@/lib/url-prefix';
 
 interface Props {
   developer: Developer;
@@ -13,233 +14,324 @@ const { developer, extension, error } = Astro.props;
 const isEdit = Boolean(extension);
 ---
 
-<form method="POST" class="space-y-8">
-  {
-    error && (
-      <div class="alert" data-variant="destructive">
-        <CircleAlert class="size-4" />
-        <section>{error}</section>
+{
+  error && (
+    <div class="alert" data-variant="destructive">
+      <CircleAlert class="size-4" />
+      <section>{error}</section>
+    </div>
+  )
+}
+
+<div class="card">
+  <section>
+    <form method="POST" class="space-y-8">
+      <div role="group" aria-label="Extension fields" class="fieldset">
+        <fieldset class="fieldset space-y-4">
+          <legend>Publisher</legend>
+          <p>
+            Publishing as <strong>{developer.name}</strong> ({developer.id}).
+            <a href="/account/developer">Edit Developer Profile</a>
+          </p>
+        </fieldset>
+
+        <div class="field-separator">
+          <hr role="separator" />
+        </div>
+
+        <fieldset class="fieldset space-y-4">
+          <legend>Extension</legend>
+          <div class="field">
+            <label for="extension_id">
+              Extension ID <span class="text-destructive">*</span>
+            </label>
+            <input
+              class="input"
+              type="text"
+              id="extension_id"
+              name="extension_id"
+              required
+              pattern="[a-z0-9]+(-[a-z0-9]+)*"
+              value={extension?.id}
+              disabled={isEdit}
+            />
+            {isEdit && <p>The ID can't be changed after submission.</p>}
+          </div>
+          <div class="field">
+            <label for="type">
+              Type <span class="text-destructive">*</span>
+            </label>
+            <select class="select" id="type" name="type" required>
+              {
+                EXTENSION_TYPES.map((t) => (
+                  <option value={t} selected={extension?.type === t}>
+                    {t}
+                  </option>
+                ))
+              }
+            </select>
+          </div>
+          <div class="field">
+            <label for="name">
+              Name <span class="text-destructive">*</span>
+            </label>
+            <input
+              class="input"
+              type="text"
+              id="name"
+              name="name"
+              required
+              value={extension?.name}
+            />
+          </div>
+          <div class="field">
+            <label for="description">
+              Short Description <span class="text-destructive">*</span>
+            </label>
+            <input
+              class="input"
+              type="text"
+              id="description"
+              name="description"
+              required
+              value={extension?.description}
+            />
+          </div>
+          <div class="field">
+            <label for="website">
+              Website <span class="text-destructive">*</span>
+            </label>
+            <div class="input-group">
+              <span data-align="start" class="text-muted-foreground">
+                https://
+              </span>
+              <input
+                type="text"
+                id="website"
+                name="website"
+                required
+                value={stripUrlScheme(extension?.website)}
+              />
+            </div>
+          </div>
+          <div class="field">
+            <label for="icon_url" class="flex w-full items-center gap-1.5">
+              Icon URL
+              <span class="badge ml-auto" data-variant="secondary">
+                Optional
+              </span>
+            </label>
+            <div class="input-group">
+              <span data-align="start" class="text-muted-foreground">
+                https://
+              </span>
+              <input
+                type="text"
+                id="icon_url"
+                name="icon_url"
+                value={stripUrlScheme(extension?.icon_url)}
+              />
+            </div>
+          </div>
+          <div class="field">
+            <label for="readme">
+              Readme (Markdown) <span class="text-destructive">*</span>
+            </label>
+            <textarea
+              class="textarea"
+              id="readme"
+              name="readme"
+              required
+              rows="8"
+              set:text={extension?.readme}
+            />
+          </div>
+        </fieldset>
+
+        <div class="field-separator">
+          <hr role="separator" />
+        </div>
+
+        <fieldset class="fieldset space-y-4">
+          <legend>License</legend>
+          <div class="field">
+            <label for="license_name">
+              License Name <span class="text-destructive">*</span>
+            </label>
+            <input
+              class="input"
+              type="text"
+              id="license_name"
+              name="license_name"
+              required
+              value={extension?.license.name}
+            />
+          </div>
+          <div class="field">
+            <label for="license_url" class="flex w-full items-center gap-1.5">
+              License URL
+              <span class="badge ml-auto" data-variant="secondary">
+                Optional
+              </span>
+            </label>
+            <div class="input-group">
+              <span data-align="start" class="text-muted-foreground">
+                https://
+              </span>
+              <input
+                type="text"
+                id="license_url"
+                name="license_url"
+                value={stripUrlScheme(extension?.license.URL)}
+              />
+            </div>
+          </div>
+        </fieldset>
+
+        <div class="field-separator">
+          <hr role="separator" />
+        </div>
+
+        <fieldset class="fieldset space-y-4">
+          <legend>Source</legend>
+          <div class="field">
+            <label for="source_type">Repository Host</label>
+            <select class="select" id="source_type" name="source_type">
+              {
+                SOURCE_TYPES.map((t) => (
+                  <option value={t} selected={extension?.source.type === t}>
+                    {t}
+                  </option>
+                ))
+              }
+            </select>
+          </div>
+          <div class="field">
+            <label for="source_repo">
+              Repository <span class="text-destructive">*</span>
+            </label>
+            <input
+              class="input"
+              type="text"
+              id="source_repo"
+              name="source_repo"
+              required
+              value={extension?.source.repo}
+              placeholder="owner/repo, or a full URL for 'custom'"
+            />
+          </div>
+        </fieldset>
+
+        <div class="field-separator">
+          <hr role="separator" />
+        </div>
+
+        {
+          isEdit && extension && extension.releases.length > 0 && (
+            <Fragment>
+              <fieldset class="fieldset space-y-2">
+                <legend>Existing Releases</legend>
+                <ul class="text-sm text-muted-foreground space-y-1">
+                  {extension.releases.map((r) => (
+                    <li>
+                      v{r.tag} &middot; {r.date} &middot; FOSSBilling{' '}
+                      {r.min_fossbilling_version}+
+                    </li>
+                  ))}
+                </ul>
+              </fieldset>
+
+              <div class="field-separator">
+                <hr role="separator" />
+              </div>
+            </Fragment>
+          )
+        }
+
+        <fieldset class="fieldset space-y-4">
+          <legend>
+            {isEdit ? 'Add a new release (optional)' : 'Initial release'}
+          </legend>
+          <div class="field">
+            <label for="version_tag">
+              Version Tag {!isEdit && <span class="text-destructive">*</span>}
+            </label>
+            <input
+              class="input"
+              type="text"
+              id="version_tag"
+              name="version_tag"
+              required={!isEdit}
+              placeholder="1.0.0"
+            />
+          </div>
+          <div class="field">
+            <label for="release_date">
+              Release Date{' '}
+              {!isEdit && <span class="text-destructive">*</span>}
+            </label>
+            <input
+              class="input"
+              type="date"
+              id="release_date"
+              name="release_date"
+              required={!isEdit}
+            />
+          </div>
+          <div class="field">
+            <label for="download_url">
+              Download URL{' '}
+              {!isEdit && <span class="text-destructive">*</span>}
+            </label>
+            <div class="input-group">
+              <span data-align="start" class="text-muted-foreground">
+                https://
+              </span>
+              <input
+                type="text"
+                id="download_url"
+                name="download_url"
+                required={!isEdit}
+              />
+            </div>
+          </div>
+          <div class="field">
+            <label for="changelog_url" class="flex w-full items-center gap-1.5">
+              Changelog URL
+              <span class="badge ml-auto" data-variant="secondary">
+                Optional
+              </span>
+            </label>
+            <div class="input-group">
+              <span data-align="start" class="text-muted-foreground">
+                https://
+              </span>
+              <input type="text" id="changelog_url" name="changelog_url" />
+            </div>
+          </div>
+          <div class="field">
+            <label for="min_fossbilling_version">
+              Minimum FOSSBilling Version{' '}
+              {!isEdit && <span class="text-destructive">*</span>}
+            </label>
+            <input
+              class="input"
+              type="text"
+              id="min_fossbilling_version"
+              name="min_fossbilling_version"
+              required={!isEdit}
+              placeholder="1.0.0"
+            />
+          </div>
+        </fieldset>
       </div>
-    )
-  }
 
-  <fieldset class="fieldset space-y-4">
-    <legend>Publisher</legend>
-    <p>
-      Publishing as <strong>{developer.name}</strong> ({developer.id}).
-      <a href="/account/developer">Edit Developer Profile</a>
-    </p>
-  </fieldset>
-
-  <fieldset class="fieldset space-y-4">
-    <legend>Extension</legend>
-    <div class="field">
-      <label for="extension_id">Extension ID</label>
-      <input
-        class="input"
-        type="text"
-        id="extension_id"
-        name="extension_id"
-        required
-        pattern="[a-z0-9]+(-[a-z0-9]+)*"
-        value={extension?.id}
-        readonly={isEdit}
-      />
-      {isEdit && <p>The ID can't be changed after submission.</p>}
-    </div>
-    <div class="field">
-      <label for="type">Type</label>
-      <select class="select" id="type" name="type" required>
-        {
-          EXTENSION_TYPES.map((t) => (
-            <option value={t} selected={extension?.type === t}>
-              {t}
-            </option>
-          ))
-        }
-      </select>
-    </div>
-    <div class="field">
-      <label for="name">Name</label>
-      <input
-        class="input"
-        type="text"
-        id="name"
-        name="name"
-        required
-        value={extension?.name}
-      />
-    </div>
-    <div class="field">
-      <label for="description">Short Description</label>
-      <input
-        class="input"
-        type="text"
-        id="description"
-        name="description"
-        required
-        value={extension?.description}
-      />
-    </div>
-    <div class="field">
-      <label for="website">Website</label>
-      <input
-        class="input"
-        type="url"
-        id="website"
-        name="website"
-        required
-        value={extension?.website}
-      />
-    </div>
-    <div class="field">
-      <label for="icon_url">Icon URL (Optional)</label>
-      <input
-        class="input"
-        type="url"
-        id="icon_url"
-        name="icon_url"
-        value={extension?.icon_url}
-      />
-    </div>
-    <div class="field">
-      <label for="readme">Readme (Markdown)</label>
-      <textarea
-        class="textarea"
-        id="readme"
-        name="readme"
-        required
-        rows="8"
-        set:text={extension?.readme}
-      />
-    </div>
-  </fieldset>
-
-  <fieldset class="fieldset space-y-4">
-    <legend>License</legend>
-    <div class="field">
-      <label for="license_name">License Name</label>
-      <input
-        class="input"
-        type="text"
-        id="license_name"
-        name="license_name"
-        required
-        value={extension?.license.name}
-      />
-    </div>
-    <div class="field">
-      <label for="license_url">License URL (Optional)</label>
-      <input
-        class="input"
-        type="url"
-        id="license_url"
-        name="license_url"
-        value={extension?.license.URL}
-      />
-    </div>
-  </fieldset>
-
-  <fieldset class="fieldset space-y-4">
-    <legend>Source</legend>
-    <div class="field">
-      <label for="source_type">Repository Host</label>
-      <select class="select" id="source_type" name="source_type">
-        {
-          SOURCE_TYPES.map((t) => (
-            <option value={t} selected={extension?.source.type === t}>
-              {t}
-            </option>
-          ))
-        }
-      </select>
-    </div>
-    <div class="field">
-      <label for="source_repo">Repository</label>
-      <input
-        class="input"
-        type="text"
-        id="source_repo"
-        name="source_repo"
-        required
-        value={extension?.source.repo}
-        placeholder="owner/repo, or a full URL for 'custom'"
-      />
-    </div>
-  </fieldset>
-
-  {
-    isEdit && extension && extension.releases.length > 0 && (
-      <fieldset class="fieldset space-y-2">
-        <legend>Existing Releases</legend>
-        <ul class="text-sm text-muted-foreground space-y-1">
-          {extension.releases.map((r) => (
-            <li>
-              v{r.tag} &middot; {r.date} &middot; FOSSBilling{' '}
-              {r.min_fossbilling_version}+
-            </li>
-          ))}
-        </ul>
-      </fieldset>
-    )
-  }
-
-  <fieldset class="fieldset space-y-4">
-    <legend>
-      {isEdit ? 'Add a new release (optional)' : 'Initial release'}
-    </legend>
-    <div class="field">
-      <label for="version_tag">Version Tag</label>
-      <input
-        class="input"
-        type="text"
-        id="version_tag"
-        name="version_tag"
-        required={!isEdit}
-        placeholder="1.0.0"
-      />
-    </div>
-    <div class="field">
-      <label for="release_date">Release Date</label>
-      <input
-        class="input"
-        type="date"
-        id="release_date"
-        name="release_date"
-        required={!isEdit}
-      />
-    </div>
-    <div class="field">
-      <label for="download_url">Download URL</label>
-      <input
-        class="input"
-        type="url"
-        id="download_url"
-        name="download_url"
-        required={!isEdit}
-      />
-    </div>
-    <div class="field">
-      <label for="changelog_url">Changelog URL (Optional)</label>
-      <input class="input" type="url" id="changelog_url" name="changelog_url" />
-    </div>
-    <div class="field">
-      <label for="min_fossbilling_version">Minimum FOSSBilling Version</label>
-      <input
-        class="input"
-        type="text"
-        id="min_fossbilling_version"
-        name="min_fossbilling_version"
-        required={!isEdit}
-        placeholder="1.0.0"
-      />
-    </div>
-  </fieldset>
-
-  <div class="flex justify-end gap-3">
-    <a href="/account" class="btn" data-variant="ghost"> Cancel </a>
-    <button type="submit" class="btn">
-      {isEdit ? 'Submit Edit for Review' : 'Submit for Review'}
-    </button>
-  </div>
-</form>
+      <div class="flex gap-3">
+        <button type="submit" class="btn">
+          {isEdit ? 'Submit Edit for Review' : 'Submit for Review'}
+        </button>
+        <a href="/account" class="btn" data-variant="ghost"> Cancel </a>
+      </div>
+    </form>
+  </section>
+</div>

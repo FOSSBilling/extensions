@@ -7,14 +7,18 @@ import {
   getDeveloperByOwner,
   getDeveloperById,
   getExtensionsByOwner,
+  hasPendingTransfer,
 } from '@/lib/database';
 import {
   buildDeveloperProfile,
   DeveloperValidationError,
 } from '@/lib/developer-form';
 import { DEVELOPER_TYPES } from '@/types';
-import { CircleAlert, CircleCheck } from '@lucide/astro';
-import GithubVerifiedBadge from '@/components/GithubVerifiedBadge.astro';
+import { CircleAlert, CircleCheck, Copy } from '@lucide/astro';
+import ConfirmDeleteDialog from '@/components/ConfirmDeleteDialog.astro';
+import { setFlash } from '@/lib/flash';
+import { formatDateTimeInZone } from '@/lib/format-date';
+import { stripUrlScheme } from '@/lib/url-prefix';
 import type {
   DeveloperClaim,
   DeveloperProfileInput,
@@ -35,7 +39,27 @@ const extensions = isEdit
   ? await getExtensionsByOwner(env.DB_EXTENSIONS, user.sub)
   : [];
 
+// Drives whether "Generate"/"Re-generate" wording and the "Revoke" button
+// show — re-checked below after a successful transfer-initiate, since that
+// action makes one pending without a redirect (see the comment on that
+// branch) in between.
+let pendingTransfer =
+  isEdit && developer
+    ? await hasPendingTransfer(env.DB_EXTENSIONS, developer.id)
+    : false;
+
 const api = createApiClient(env, user.sub);
+
+// Cloudflare geolocates the request and attaches an IANA name here — good
+// enough to render the transfer link's expiry against the viewer's own
+// clock without needing client-side JS. Falls back to UTC when absent (e.g.
+// local dev without Cloudflare in front of it). Cast because `cf`'s type is
+// a union with the outgoing-fetch `RequestInitCfProperties` shape, which
+// has no `timezone` field of its own — only ever relevant for incoming
+// requests here.
+const timeZone =
+  (Astro.request.cf as IncomingRequestCfProperties | undefined)?.timezone ??
+  'UTC';
 
 let myClaims: DeveloperClaim[] = [];
 // Unlike the informational display on /account, a failure here must not
@@ -55,7 +79,7 @@ if (!isEdit) {
 // a separate one from scratch — same guard as the "Create" link on /account.
 const pendingClaim = myClaims.find((c) => c.status === 'pending');
 
-let error: string | null = Astro.url.searchParams.get('error');
+let error: string | null = null;
 // Set only when creation failed because the id belongs to an existing,
 // unowned profile (e.g. a legacy extension author) — points the user at
 // the claim flow on that profile's public page instead of a dead end.
@@ -75,21 +99,12 @@ if (Astro.request.method === 'POST') {
   if (form.get('intent') === 'transfer-initiate' && developer) {
     try {
       transferResult = await api.initiateTransfer(developer.id);
+      pendingTransfer = true;
     } catch (e) {
       error =
         e instanceof ApiRequestError
           ? e.message
           : 'Unable to create a transfer link. Please try again.';
-    }
-  } else if (form.get('intent') === 'reverify' && developer) {
-    try {
-      developer = await api.reverifyDeveloper();
-      return Astro.redirect('/account/developer?reverified=1');
-    } catch (e) {
-      error =
-        e instanceof ApiRequestError
-          ? e.message
-          : 'Unable to re-verify your GitHub identity right now. Please try again.';
     }
   } else if (form.get('intent') === 'delete' && developer) {
     // extensions.length > 0 falls through here as a no-op — the danger-zone
@@ -97,7 +112,8 @@ if (Astro.request.method === 'POST') {
     if (extensions.length === 0) {
       try {
         await api.deleteDeveloperProfile();
-        return Astro.redirect('/account?profile_deleted=1');
+        setFlash(Astro.session, { title: 'Developer Profile Deleted.' });
+        return Astro.redirect('/account');
       } catch (e) {
         error =
           e instanceof ApiRequestError
@@ -115,7 +131,8 @@ if (Astro.request.method === 'POST') {
       const payload = buildDeveloperProfile(form, developer);
       submitted = payload;
       developer = await api.upsertDeveloperProfile(payload);
-      return Astro.redirect('/account?profile_saved=1');
+      setFlash(Astro.session, { title: 'Developer Profile Saved.' });
+      return Astro.redirect('/account');
     } catch (e) {
       error =
         e instanceof ApiRequestError || e instanceof DeveloperValidationError
@@ -154,7 +171,9 @@ const fields = submitted ?? developer;
       This is the publisher identity shown on your extensions in the directory,
       and on your public developer page. Changes take effect immediately — you
       can submit extensions under this profile right away. A moderator will
-      review it separately and mark it approved, shown as a badge below.
+      review it separately and mark it approved, shown as a badge on your
+      account page. Once your profile is GitHub verified, edits no longer need
+      re-review.
     </p>
 
     {
@@ -215,90 +234,6 @@ const fields = submitted ?? developer;
     }
 
     {
-      isEdit && (
-        // overflow-visible: basecoat's .card sets overflow-hidden (to clip
-        // a first/last-child image to its rounded corners, not relevant
-        // here) which otherwise clips the Re-verify button's tooltip —
-        // Tailwind's utilities layer overrides basecoat's components layer
-        // regardless of source order, so this wins cleanly without !important.
-        <div class="card overflow-visible">
-          <section class="flex items-center gap-4">
-            {developer!.avatar_url && (
-              <img
-                src={developer!.avatar_url}
-                alt=""
-                class="w-14 h-14 rounded-full object-cover"
-              />
-            )}
-            <div class="flex-1">
-              <p class="font-medium flex items-center gap-2">
-                {developer!.name}
-                {developer!.approved ? (
-                  <span class="badge">Approved</span>
-                ) : (
-                  <span class="badge" data-variant="secondary">
-                    Not Yet Reviewed
-                  </span>
-                )}
-                <GithubVerifiedBadge
-                  verified={developer!.github_org_verified}
-                  verifiedAt={developer!.github_verified_at}
-                />
-              </p>
-            </div>
-            <a
-              href={`/developer/${developer!.id}`}
-              class="btn"
-              data-size="sm"
-              data-variant="outline"
-            >
-              View Public Profile
-            </a>
-            <form method="POST">
-              <input type="hidden" name="intent" value="reverify" />
-              <button
-                type="submit"
-                class="btn"
-                data-size="sm"
-                data-variant={
-                  developer!.github_org_verified === false ? 'primary' : 'ghost'
-                }
-                data-tooltip="Check GitHub verification now"
-                data-side="bottom"
-              >
-                Re-verify
-              </button>
-            </form>
-          </section>
-          {developer!.github_org_verified === false && (
-            <div class="alert mt-4" data-variant="destructive">
-              <CircleAlert class="size-4" />
-              <section>
-                Your linked GitHub identity no longer matches this profile. This
-                doesn't affect your submissions or ownership — it's only shown
-                to moderators as a trust signal. Re-verify if this should still
-                match (e.g. you rejoined the organization).
-              </section>
-            </div>
-          )}
-        </div>
-      )
-    }
-
-    {
-      Astro.url.searchParams.get('reverified') && (
-        <div class="alert">
-          <CircleCheck class="size-4" />
-          <section>
-            {developer?.github_org_verified
-              ? 'GitHub verification re-checked — your linked GitHub identity matches this profile.'
-              : "GitHub verification re-checked — your linked GitHub identity doesn't currently match this profile."}
-          </section>
-        </div>
-      )
-    }
-
-    {
       error && (
         <div class="alert" data-variant="destructive">
           <CircleAlert class="size-4" />
@@ -319,134 +254,250 @@ const fields = submitted ?? developer;
       )
     }
 
-    {
-      !isEdit && claimsLoadFailed ? (
-        <p class="text-muted-foreground text-sm">
-          Unable to verify your claim status right now, so profile creation is
-          paused — please try again.
-        </p>
-      ) : !isEdit && pendingClaim ? (
-        <p class="text-muted-foreground text-sm">
-          You have a pending claim on{' '}
-          <strong>{pendingClaim.developer_id}</strong>. Cancel it above before
-          creating a separate profile — a claim can be approved at any time, and
-          you can only ever own one.
-        </p>
-      ) : (
-        <form method="POST" class="space-y-8">
-          <fieldset class="fieldset space-y-4">
-            <legend>Publisher Identity</legend>
-            <div class="field">
-              <label for="id">Publisher ID</label>
-              <input
-                class="input"
-                type="text"
-                id="id"
-                name="id"
-                required
-                pattern="[a-z0-9]+(-[a-z0-9]+)*"
-                placeholder="my-org"
-                value={fields?.id}
-                readonly={isEdit}
-              />
-              {isEdit ? (
-                <p>The ID can't be changed after it's created.</p>
-              ) : (
-                <p>
-                  Typically your GitHub organization or username — this is used
-                  to verify ownership if you (or someone else) later try to
-                  claim this profile.
-                </p>
-              )}
-            </div>
-            <div class="field">
-              <label for="name">Publisher Name</label>
-              <input
-                class="input"
-                type="text"
-                id="name"
-                name="name"
-                required
-                value={fields?.name}
-              />
-            </div>
-            <div class="field">
-              <label for="type">Publisher Type</label>
-              <select class="select" id="type" name="type">
-                {DEVELOPER_TYPES.map((t) => (
-                  <option value={t} selected={fields?.type === t}>
-                    {t}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div class="field">
-              <label for="url">Publisher URL (Optional)</label>
-              <input
-                class="input"
-                type="url"
-                id="url"
-                name="url"
-                value={fields?.URL}
-              />
-            </div>
-          </fieldset>
-
-          <fieldset class="fieldset space-y-4">
-            <legend>Public Profile</legend>
-            <p>
-              Shown on your public developer page at
-              {developer
-                ? ` /developer/${developer.id}`
-                : ' /developer/<your-id>'}
-              .
+    <div class="card">
+      <section>
+        {
+          !isEdit && claimsLoadFailed ? (
+            <p class="text-muted-foreground text-sm">
+              Unable to verify your claim status right now, so profile creation
+              is paused — please try again.
             </p>
-            <div class="field">
-              <label for="avatar_url">Avatar/Logo URL (Optional)</label>
-              <input
-                class="input"
-                type="url"
-                id="avatar_url"
-                name="avatar_url"
-                value={fields?.avatar_url}
-              />
-            </div>
-          </fieldset>
+          ) : !isEdit && pendingClaim ? (
+            <p class="text-muted-foreground text-sm">
+              You have a pending claim on{' '}
+              <strong>{pendingClaim.developer_id}</strong>. Cancel it above
+              before creating a separate profile — a claim can be approved at
+              any time, and you can only ever own one.
+            </p>
+          ) : (
+            <form method="POST" class="space-y-8">
+              <div
+                role="group"
+                aria-label="Developer profile fields"
+                class="fieldset"
+              >
+                <fieldset class="fieldset space-y-4">
+                  <legend>Publisher Identity</legend>
+                  <div class="field">
+                    <label for="id">
+                      Publisher ID <span class="text-destructive">*</span>
+                    </label>
+                    <input
+                      class="input"
+                      type="text"
+                      id="id"
+                      name="id"
+                      required
+                      pattern="[a-z0-9]+(-[a-z0-9]+)*"
+                      placeholder="my-org"
+                      value={fields?.id}
+                      disabled={isEdit}
+                    />
+                    {isEdit ? (
+                      <p>The ID can't be changed after it's created.</p>
+                    ) : (
+                      <p>
+                        Typically your GitHub organization or username — this is
+                        used to verify ownership if you (or someone else) later
+                        try to claim this profile.
+                      </p>
+                    )}
+                  </div>
+                  <div class="field">
+                    <label for="name">
+                      Publisher Name <span class="text-destructive">*</span>
+                    </label>
+                    <input
+                      class="input"
+                      type="text"
+                      id="name"
+                      name="name"
+                      required
+                      value={fields?.name}
+                    />
+                  </div>
+                  <fieldset class="fieldset">
+                    <legend data-variant="label" class="mb-3">
+                      Publisher Type
+                    </legend>
+                    <div role="radiogroup" aria-label="Publisher type">
+                      <label for="type-user">
+                        <div
+                          role="group"
+                          class="field"
+                          data-orientation="horizontal"
+                        >
+                          <section>
+                            <h3>User</h3>
+                            <p>
+                              Publisher ID must match your own GitHub username.
+                            </p>
+                          </section>
+                          <input
+                            class="input"
+                            type="radio"
+                            id="type-user"
+                            name="type"
+                            value="user"
+                            checked={
+                              (fields?.type ?? DEVELOPER_TYPES[0]) === 'user'
+                            }
+                          />
+                        </div>
+                      </label>
+                      <label for="type-organization">
+                        <div
+                          role="group"
+                          class="field"
+                          data-orientation="horizontal"
+                        >
+                          <section>
+                            <h3>Organization</h3>
+                            <p>
+                              Publisher ID must match a GitHub organization you
+                              belong to.
+                            </p>
+                          </section>
+                          <input
+                            class="input"
+                            type="radio"
+                            id="type-organization"
+                            name="type"
+                            value="organization"
+                            checked={fields?.type === 'organization'}
+                          />
+                        </div>
+                      </label>
+                    </div>
+                  </fieldset>
+                  <div class="field">
+                    <label for="url" class="flex w-full items-center gap-1.5">
+                      Publisher URL
+                      {isEdit && developer!.github_url_verified && (
+                        <CircleCheck
+                          class="size-4 text-primary"
+                          title="Matches your GitHub profile's website"
+                        />
+                      )}
+                      <span class="badge ml-auto" data-variant="secondary">
+                        Optional
+                      </span>
+                    </label>
+                    <div class="input-group">
+                      <span data-align="start" class="text-muted-foreground">
+                        https://
+                      </span>
+                      <input
+                        type="text"
+                        id="url"
+                        name="url"
+                        value={stripUrlScheme(fields?.URL)}
+                      />
+                    </div>
+                  </div>
+                </fieldset>
 
-          <fieldset class="fieldset space-y-4">
-            <legend>Private contact</legend>
-            <div class="field">
-              <label for="contact_email">Contact Email (Optional)</label>
-              <input
-                class="input"
-                type="email"
-                id="contact_email"
-                name="contact_email"
-                value={fields?.contact_email}
-              />
-              <p>
-                Never shown publicly — only visible to FOSSBilling moderators,
-                in case they need to reach you about this profile or its
-                extensions.
-              </p>
-            </div>
-          </fieldset>
+                <div class="field-separator">
+                  <hr role="separator" />
+                </div>
 
-          <div class="flex justify-end gap-3">
-            <a href="/account" class="btn" data-variant="ghost">
-              Cancel
-            </a>
-            <button type="submit" class="btn">
-              {isEdit ? 'Save Changes' : 'Create Developer Profile'}
-            </button>
-          </div>
-        </form>
-      )
-    }
+                <fieldset class="fieldset space-y-4">
+                  <legend>Public Profile</legend>
+                  <p>
+                    Shown on your public developer page at
+                    {developer
+                      ? ` /developer/${developer.id}`
+                      : ' /developer/<your-id>'}
+                    .
+                  </p>
+                  <div class="field">
+                    <label
+                      for="avatar_url"
+                      class="flex w-full items-center gap-1.5"
+                    >
+                      Avatar/Logo URL
+                      <span class="badge ml-auto" data-variant="secondary">
+                        Optional
+                      </span>
+                    </label>
+                    <div class="input-group">
+                      <span data-align="start" class="text-muted-foreground">
+                        https://
+                      </span>
+                      <input
+                        type="text"
+                        id="avatar_url"
+                        name="avatar_url"
+                        value={stripUrlScheme(
+                          fields?.avatar_url ??
+                            (!isEdit ? user.picture || undefined : undefined),
+                        )}
+                      />
+                    </div>
+                    {!isEdit && user.picture && (
+                      <p>
+                        Defaults to your GitHub avatar — change or clear it if
+                        you'd rather use something else.
+                      </p>
+                    )}
+                  </div>
+                </fieldset>
+
+                <div class="field-separator">
+                  <hr role="separator" />
+                </div>
+
+                <fieldset class="fieldset space-y-4">
+                  <legend>Private Contact</legend>
+                  <div class="field">
+                    <label
+                      for="contact_email"
+                      class="flex w-full items-center gap-1.5"
+                    >
+                      Contact Email
+                      <span class="badge ml-auto" data-variant="secondary">
+                        Optional
+                      </span>
+                    </label>
+                    <input
+                      class="input"
+                      type="email"
+                      id="contact_email"
+                      name="contact_email"
+                      value={
+                        fields?.contact_email ??
+                        (!isEdit ? user.email || undefined : undefined)
+                      }
+                    />
+                    <p>
+                      Never shown publicly — only visible to FOSSBilling
+                      moderators, in case they need to reach you about this
+                      profile or its extensions.
+                      {!isEdit &&
+                        user.email &&
+                        " Defaults to your GitHub account email — change it if you'd rather use something else."}
+                    </p>
+                  </div>
+                </fieldset>
+              </div>
+
+              <div class="flex gap-3">
+                <button type="submit" class="btn">
+                  {isEdit ? 'Save Changes' : 'Create Developer Profile'}
+                </button>
+                <a href="/account" class="btn" data-variant="ghost">
+                  Cancel
+                </a>
+              </div>
+            </form>
+          )
+        }
+      </section>
+    </div>
 
     {
       isEdit && (
-        <div class="card">
+        <div class="card" id="transfer-ownership">
           <header>
             <h2 class="font-semibold">Transfer Ownership</h2>
           </header>
@@ -457,28 +508,35 @@ const fields = submitted ?? developer;
               new link invalidates any earlier one for this profile.
             </p>
 
-            {Astro.url.searchParams.get('transfer_revoked') && (
-              <p class="text-sm text-muted-foreground">
-                Pending transfer link revoked.
-              </p>
-            )}
-            {Astro.url.searchParams.get('transfer_accepted') && (
-              <p class="text-sm text-muted-foreground">
-                You've accepted a transfer — this profile is now yours.
-              </p>
-            )}
-
             {transferResult && (
               <div class="rounded-md border px-4 py-3 text-sm space-y-2">
                 <p class="font-medium">
                   Share this link with the new owner — it won't be shown again:
                 </p>
-                <code class="block break-all bg-muted p-2 rounded">
-                  {`${Astro.url.origin}/account/developer/transfer/${transferResult.token}`}
-                </code>
+                <div class="input-group">
+                  <input
+                    type="text"
+                    readonly
+                    class="font-mono text-sm"
+                    aria-label="Transfer link"
+                    value={`${Astro.url.origin}/account/developer/transfer/${transferResult.token}`}
+                  />
+                  <button
+                    type="button"
+                    class="btn"
+                    data-variant="ghost"
+                    data-size="icon-xs"
+                    data-align="end"
+                    aria-label="Copy link"
+                    title="Copy link"
+                    onclick="navigator.clipboard.writeText(this.previousElementSibling.value).then(() => document.getElementById('toaster').toast({ category: 'success', title: 'Link copied to clipboard' })).catch(() => document.getElementById('toaster').toast({ category: 'error', title: 'Unable to copy link' }))"
+                  >
+                    <Copy class="size-4" />
+                  </button>
+                </div>
                 <p class="text-muted-foreground">
-                  Expires {new Date(transferResult.expires_at).toLocaleString()}
-                  .
+                  Expires{' '}
+                  {formatDateTimeInZone(transferResult.expires_at, timeZone)}.
                 </p>
               </div>
             )}
@@ -492,19 +550,23 @@ const fields = submitted ?? developer;
                   data-size="sm"
                   data-variant="outline"
                 >
-                  Generate Transfer Link
+                  {pendingTransfer
+                    ? 'Re-generate Transfer Link'
+                    : 'Generate Transfer Link'}
                 </button>
               </form>
-              <form method="POST" action="/account/developer/transfer/revoke">
-                <button
-                  type="submit"
-                  class="btn"
-                  data-size="sm"
-                  data-variant="ghost"
-                >
-                  Revoke Pending Link
-                </button>
-              </form>
+              {pendingTransfer && (
+                <form method="POST" action="/account/developer/transfer/revoke">
+                  <button
+                    type="submit"
+                    class="btn"
+                    data-size="sm"
+                    data-variant="ghost"
+                  >
+                    Revoke Pending Link
+                  </button>
+                </form>
+              )}
             </div>
           </section>
         </div>
@@ -533,22 +595,41 @@ const fields = submitted ?? developer;
                   info) and its public page. This can't be undone, and the ID
                   may be used by someone else afterward.
                 </p>
-                <form method="POST">
-                  <input type="hidden" name="intent" value="delete" />
-                  <button
-                    type="submit"
-                    class="btn"
-                    data-size="sm"
-                    data-variant="outline"
-                  >
-                    Delete Developer Profile
-                  </button>
-                </form>
+                <button
+                  type="button"
+                  class="btn"
+                  data-size="sm"
+                  data-variant="outline"
+                  onclick="document.getElementById('delete-developer-profile').showModal()"
+                >
+                  Delete Developer Profile
+                </button>
+                <ConfirmDeleteDialog
+                  id="delete-developer-profile"
+                  title="Delete developer profile"
+                  description="Permanently deletes your publisher identity and its public page. This can't be undone, and the ID may be used by someone else afterward."
+                  confirmText={developer!.id}
+                  intentField={{ name: 'intent', value: 'delete' }}
+                  submitLabel="Delete Developer Profile"
+                />
               </>
             )}
           </section>
         </div>
       )
     }
+
+    {
+      /* transfer-initiate re-renders this page directly rather than
+    redirecting (the token must never appear in a URL), so a #transfer-ownership
+    URL fragment was the zero-JS way to scroll to the generated link — but
+    that leaves the fragment sitting in the address bar afterward.
+    scrollIntoView keeps the URL clean instead. */
+    }
+    <script is:inline define:vars={{ generated: Boolean(transferResult) }}>
+      if (generated) {
+        document.getElementById('transfer-ownership').scrollIntoView();
+      }
+    </script>
   </div>
 </Base>

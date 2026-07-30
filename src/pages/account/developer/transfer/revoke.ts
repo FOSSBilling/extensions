@@ -3,6 +3,7 @@ import { env } from 'cloudflare:workers';
 import { requireUser } from '@/lib/auth-guard';
 import { getDeveloperByOwner } from '@/lib/database';
 import { createApiClient, ApiRequestError } from '@/lib/apiClient';
+import { setFlash } from '@/lib/flash';
 
 export const POST: APIRoute = async (context) => {
   const guard = await requireUser(context, env);
@@ -20,10 +21,10 @@ export const POST: APIRoute = async (context) => {
       e instanceof ApiRequestError
         ? e.message
         : 'Unable to revoke the pending transfer.';
-    return context.redirect(
-      `/account/developer?error=${encodeURIComponent(message)}`,
-    );
+    setFlash(context.session, { category: 'error', title: message });
+    return context.redirect('/account/developer');
   }
 
-  return context.redirect('/account/developer?transfer_revoked=1');
+  setFlash(context.session, { title: 'Pending transfer link revoked.' });
+  return context.redirect('/account/developer');
 };

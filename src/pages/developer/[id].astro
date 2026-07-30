@@ -9,6 +9,8 @@ import { formString } from '@/lib/form';
 import { isSafeHttpUrl } from '@/lib/safe-url';
 import { env } from 'cloudflare:workers';
 import { CircleAlert } from '@lucide/astro';
+import ProfileTrustBadge from '@/components/ProfileTrustBadge.astro';
+import DeveloperAvatar from '@/components/DeveloperAvatar.astro';
 
 const { id } = Astro.params;
 
@@ -54,21 +56,16 @@ const extensions = await getExtensionsByDeveloperId(
 ---
 
 <Base title={`${developer.name} — FOSSBilling Extensions`}>
-  <div class="flex items-start gap-4 mb-8">
-    {
-      developer.avatar_url && (
-        <img
-          src={developer.avatar_url}
-          alt=""
-          class="w-16 h-16 rounded-full object-cover"
-        />
-      )
-    }
+  <div class="flex items-center gap-4 mb-8">
+    <DeveloperAvatar
+      avatarUrl={developer.avatar_url}
+      type={developer.type}
+      size="lg"
+    />
     <div class="flex-1">
       <div class="flex items-center gap-2 flex-wrap">
         <h1 class="text-2xl font-semibold tracking-tight">{developer.name}</h1>
-        <span class="badge" data-variant="secondary">{developer.type}</span>
-        {developer.approved && <span class="badge">Approved</span>}
+        <ProfileTrustBadge approved={developer.approved} publicView />
         {
           developer.unclaimed && (
             <span class="badge" data-variant="secondary">

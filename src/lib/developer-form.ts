@@ -1,6 +1,7 @@
 import type { Developer, DeveloperProfileInput } from '@/types';
 import { DEVELOPER_TYPES } from '@/types';
 import { formString } from './form';
+import { withHttpsScheme } from './url-prefix';
 
 function isDeveloperType(value: string): value is Developer['type'] {
   return (DEVELOPER_TYPES as readonly string[]).includes(value);
@@ -29,8 +30,8 @@ export function buildDeveloperProfile(
     id: id as Lowercase<string>,
     type: isDeveloperType(typeInput) ? typeInput : 'user',
     name: str('name'),
-    URL: str('url') || undefined,
-    avatar_url: str('avatar_url') || undefined,
+    URL: withHttpsScheme(str('url')),
+    avatar_url: withHttpsScheme(str('avatar_url')),
     contact_email: str('contact_email') || undefined,
   } as DeveloperProfileInput;
 }

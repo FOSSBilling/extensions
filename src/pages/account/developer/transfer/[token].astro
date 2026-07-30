@@ -4,6 +4,7 @@ import { env } from 'cloudflare:workers';
 import { requireUser } from '@/lib/auth-guard';
 import { createApiClient, ApiRequestError } from '@/lib/apiClient';
 import { CircleAlert } from '@lucide/astro';
+import { setFlash } from '@/lib/flash';
 
 const guard = await requireUser(Astro, env);
 if (guard instanceof Response) return guard;
@@ -20,7 +21,11 @@ if (Astro.request.method === 'POST') {
   const api = createApiClient(env, user.sub);
   try {
     await api.acceptTransfer(token);
-    return Astro.redirect('/account/developer?transfer_accepted=1');
+    setFlash(Astro.session, {
+      title: 'Transfer accepted',
+      description: 'This profile is now yours.',
+    });
+    return Astro.redirect('/account/developer');
   } catch (e) {
     error =
       e instanceof ApiRequestError
@@ -50,9 +55,13 @@ if (Astro.request.method === 'POST') {
       )
     }
 
-    <form method="POST" class="flex gap-3">
-      <button type="submit" class="btn">Accept Transfer</button>
-      <a href="/account" class="btn" data-variant="ghost">Cancel</a>
-    </form>
+    <div class="card">
+      <section>
+        <form method="POST" class="flex gap-3">
+          <button type="submit" class="btn">Accept Transfer</button>
+          <a href="/account" class="btn" data-variant="ghost">Cancel</a>
+        </form>
+      </section>
+    </div>
   </div>
 </Base>

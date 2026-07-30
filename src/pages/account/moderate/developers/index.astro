@@ -5,8 +5,8 @@ import { requireModerator } from '@/lib/auth-guard';
 import { createApiClient } from '@/lib/apiClient';
 import { isSafeHttpUrl } from '@/lib/safe-url';
 import type { DeveloperProfile } from '@/types';
-import { CircleAlert } from '@lucide/astro';
-import GithubVerifiedBadge from '@/components/GithubVerifiedBadge.astro';
+import { CircleCheck } from '@lucide/astro';
+import ProfileTrustBadge from '@/components/ProfileTrustBadge.astro';
 
 const guard = await requireModerator(Astro, env);
 if (guard instanceof Response) return guard;
@@ -67,19 +67,10 @@ try {
       }
     </nav>
 
-    {
-      Astro.url.searchParams.get('error') && (
-        <div class="alert" data-variant="destructive">
-          <CircleAlert class="size-4" />
-          <section>{Astro.url.searchParams.get('error')}</section>
-        </div>
-      )
-    }
-
     <p class="text-sm text-muted-foreground">
       These profiles are already live — approval is a trust badge, not a publish
       gate. An edit to an approved profile clears its badge again until it's
-      reviewed here.
+      reviewed here, unless the profile is currently GitHub verified.
     </p>
 
     {
@@ -96,15 +87,19 @@ try {
       ) : (
         <ul class="space-y-4">
           {developers.map((d) => (
-            <li class="card">
+            // overflow-visible: basecoat's .card sets overflow-hidden (to
+            // clip a first/last-child image to its rounded corners, not
+            // relevant here) which otherwise clips ProfileTrustBadge's
+            // tooltip — see the same fix on /account.
+            <li class="card overflow-visible">
               <header class="flex items-start justify-between gap-4">
                 <div>
                   <h2 class="font-semibold flex items-center gap-2">
                     {d.name} ({d.id})
-                    {d.approved && <span class="badge">Approved</span>}
-                    <GithubVerifiedBadge
-                      verified={d.github_org_verified}
-                      verifiedAt={d.github_verified_at}
+                    <ProfileTrustBadge
+                      approved={d.approved}
+                      githubOrgVerified={d.github_org_verified}
+                      githubVerifiedAt={d.github_verified_at}
                     />
                     {d.unclaimed && (
                       <span class="badge" data-variant="secondary">
@@ -122,6 +117,12 @@ try {
                           <a href={d.URL}>{d.URL}</a>
                         ) : (
                           d.URL
+                        )}
+                        {d.github_url_verified && (
+                          <CircleCheck
+                            class="size-3.5 inline text-primary align-text-bottom"
+                            title="Matches GitHub's on-file website"
+                          />
                         )}
                       </>
                     )}

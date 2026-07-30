@@ -3,15 +3,8 @@ import '@/styles/global.css';
 import LogoLight from '@/assets/logo-light.svg';
 import LogoDark from '@/assets/logo-dark.svg';
 import Container from '@/components/Container.astro';
-import {
-  Sun,
-  Moon,
-  LogIn,
-  LogOut,
-  CircleUser,
-  CircleAlert,
-  CircleCheck,
-} from '@lucide/astro';
+import Toast from '@/components/Toast.astro';
+import { Sun, Moon, LogIn, LogOut, CircleUser } from '@lucide/astro';
 import { env } from 'cloudflare:workers';
 import { getSessionUser } from '@/lib/session';
 
@@ -21,6 +14,9 @@ interface Props {
 
 const { title } = Astro.props;
 const user = await getSessionUser(Astro.cookies, env.SESSION_SECRET);
+// Read and cleared once per request by src/middleware.ts — see the comment
+// there for why it can't be done here in the layout.
+const { flash } = Astro.locals;
 ---
 
 <!doctype html>
@@ -65,6 +61,7 @@ const user = await getSessionUser(Astro.cookies, env.SESSION_SECRET);
     <script>
       import 'basecoat-css/basecoat';
       import 'basecoat-css/tabs';
+      import 'basecoat-css/toast';
     </script>
     <title>{title}</title>
   </head>
@@ -147,24 +144,25 @@ const user = await getSessionUser(Astro.cookies, env.SESSION_SECRET);
         </div>
       </Container>
     </header>
+    <div
+      id="toaster"
+      class="toaster"
+      role="region"
+      aria-live="polite"
+      aria-label="Notifications"
+    >
+      {
+        flash && (
+          <Toast
+            category={flash.category}
+            title={flash.title}
+            description={flash.description}
+          />
+        )
+      }
+    </div>
     <main>
       <Container class="py-6 sm:py-10">
-        {
-          Astro.url.searchParams.get('auth_error') && (
-            <div class="alert mb-6" data-variant="destructive">
-              <CircleAlert class="size-4" />
-              <section>Sign-in failed. Please try again.</section>
-            </div>
-          )
-        }
-        {
-          Astro.url.searchParams.get('account_deleted') && (
-            <div class="alert mb-6">
-              <CircleCheck class="size-4" />
-              <section>Your account has been deleted.</section>
-            </div>
-          )
-        }
         <slot />
       </Container>
     </main>

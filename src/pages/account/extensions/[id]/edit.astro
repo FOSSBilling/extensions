@@ -10,6 +10,7 @@ import {
   SubmissionValidationError,
 } from '@/lib/submission-form';
 import { formString } from '@/lib/form';
+import { setFlash } from '@/lib/flash';
 import type { Extension } from '@/types';
 
 const guard = await requireUser(Astro, env);
@@ -60,7 +61,8 @@ if (Astro.request.method === 'POST') {
   try {
     const payload = buildSubmissionPayload(form, developer, extension);
     await api.submitExtension(payload);
-    return Astro.redirect('/account?submitted=1');
+    setFlash(Astro.session, { title: 'Submitted for Review.' });
+    return Astro.redirect('/account');
   } catch (e) {
     error =
       e instanceof ApiRequestError || e instanceof SubmissionValidationError

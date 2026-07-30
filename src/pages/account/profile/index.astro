@@ -4,6 +4,7 @@ import { env } from 'cloudflare:workers';
 import { requireUser } from '@/lib/auth-guard';
 import { getUserProfile, updateUserProfile } from '@/lib/users';
 import { formString } from '@/lib/form';
+import { setFlash } from '@/lib/flash';
 
 const guard = await requireUser(Astro, env);
 if (guard instanceof Response) return guard;
@@ -16,7 +17,8 @@ if (Astro.request.method === 'POST') {
   await updateUserProfile(env.DB_EXTENSIONS, user.sub, {
     display_name: displayName || null,
   });
-  return Astro.redirect('/account?profile_updated=1');
+  setFlash(Astro.session, { title: 'Profile Updated.' });
+  return Astro.redirect('/account');
 }
 
 const profile = await getUserProfile(env.DB_EXTENSIONS, user.sub);
@@ -29,26 +31,31 @@ const profile = await getUserProfile(env.DB_EXTENSIONS, user.sub);
       Your personal profile, separate from any developer/publisher identity.
     </p>
 
-    <form method="POST" class="space-y-6">
-      <div class="field">
-        <label for="display_name">Display Name</label>
-        <input
-          class="input"
-          type="text"
-          id="display_name"
-          name="display_name"
-          placeholder={user.name}
-          value={profile.display_name ?? ''}
-        />
-        <p class="text-sm text-muted-foreground">
-          Defaults to "{user.name}" from your sign-in provider if left blank.
-        </p>
-      </div>
+    <div class="card">
+      <section>
+        <form method="POST" class="space-y-6">
+          <div class="field">
+            <label for="display_name">Display Name</label>
+            <input
+              class="input"
+              type="text"
+              id="display_name"
+              name="display_name"
+              placeholder={user.name}
+              value={profile.display_name ?? ''}
+            />
+            <p class="text-sm text-muted-foreground">
+              Defaults to "{user.name}" from your sign-in provider if left
+              blank.
+            </p>
+          </div>
 
-      <div class="flex justify-end gap-3">
-        <a href="/account" class="btn" data-variant="ghost">Cancel</a>
-        <button type="submit" class="btn">Save</button>
-      </div>
-    </form>
+          <div class="flex gap-3">
+            <button type="submit" class="btn">Save</button>
+            <a href="/account" class="btn" data-variant="ghost">Cancel</a>
+          </div>
+        </form>
+      </section>
+    </div>
   </div>
 </Base>

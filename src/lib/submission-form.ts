@@ -7,6 +7,7 @@ import type {
   SubmissionPayload,
 } from '@/types';
 import { formString } from './form';
+import { withHttpsScheme } from './url-prefix';
 
 // Thrown for form-level validation failures that should be shown to the
 // user, distinct from ApiRequestError (the api rejecting an otherwise
@@ -45,7 +46,7 @@ export function buildSubmissionPayload(
   }
   if (newReleaseTag) {
     const releaseDate = str('release_date');
-    const releaseDownloadUrl = str('download_url');
+    const releaseDownloadUrl = withHttpsScheme(str('download_url'));
     const minVersion = str('min_fossbilling_version');
     if (!releaseDate || !releaseDownloadUrl || !minVersion) {
       throw new SubmissionValidationError(
@@ -57,7 +58,7 @@ export function buildSubmissionPayload(
       tag: newReleaseTag,
       date: releaseDate,
       download_url: releaseDownloadUrl,
-      changelog_url: str('changelog_url') || undefined,
+      changelog_url: withHttpsScheme(str('changelog_url')),
       min_fossbilling_version: minVersion,
     };
     releases.push(release);
@@ -84,12 +85,12 @@ export function buildSubmissionPayload(
       name: str('name'),
       description: str('description'),
       releases,
-      website: str('website'),
+      website: withHttpsScheme(str('website')) ?? '',
       license: {
         name: str('license_name'),
-        URL: str('license_url') || undefined,
+        URL: withHttpsScheme(str('license_url')),
       },
-      icon_url: str('icon_url') || undefined,
+      icon_url: withHttpsScheme(str('icon_url')),
       readme: str('readme'),
       source: {
         type: sourceTypeInput,

@@ -102,10 +102,14 @@ export function createApiClient(env: Cloudflare.Env, sub: string) {
     // linked GitHub identity — no GitHub API call on the api repo's side,
     // just a fresh comparison against already-synced data. Used both by the
     // owner's own "Re-verify" action and opportunistically after login.
-    reverifyDeveloper: () =>
-      call<DeveloperProfile>('/developers/me/reverify', {
-        method: 'POST',
-      }),
+    // checkUrl additionally re-checks Publisher URL against GitHub's on-file
+    // website — costs a real GitHub API call, so only ever passed true by
+    // the manual "Re-verify" button, never the opportunistic login call.
+    reverifyDeveloper: (checkUrl = false) =>
+      call<DeveloperProfile>(
+        `/developers/me/reverify${checkUrl ? '?check_url=true' : ''}`,
+        { method: 'POST' },
+      ),
 
     listUnapprovedDevelopers: () =>
       call<DeveloperProfile[]>('/developers/unapproved'),

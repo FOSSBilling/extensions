@@ -1,0 +1,29 @@
+---
+import { Building2, CircleUserRound } from '@lucide/astro';
+
+interface Props {
+  avatarUrl?: string | null;
+  type: 'user' | 'organization';
+  size?: 'md' | 'lg';
+}
+
+const { avatarUrl, type, size = 'md' } = Astro.props;
+const dimension = size === 'lg' ? 'w-16 h-16' : 'w-14 h-14';
+const iconSize = size === 'lg' ? 'size-7' : 'size-6';
+---
+
+<span class={`avatar ${dimension}`}>
+  {
+    avatarUrl ? (
+      <img src={avatarUrl} alt="" />
+    ) : (
+      <span>
+        {type === 'organization' ? (
+          <Building2 class={iconSize} />
+        ) : (
+          <CircleUserRound class={iconSize} />
+        )}
+      </span>
+    )
+  }
+</span>

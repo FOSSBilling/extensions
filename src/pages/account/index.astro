@@ -8,7 +8,10 @@ import { isModerator, hasLinkedGithub } from '@/lib/users';
 import { ISSUER } from '@/lib/oauth';
 import { getLatestRelease } from '@/types';
 import type { DeveloperClaim, Submission } from '@/types';
-import { CircleAlert, CircleCheck } from '@lucide/astro';
+import { CircleAlert } from '@lucide/astro';
+import ProfileTrustBadge from '@/components/ProfileTrustBadge.astro';
+import DeveloperAvatar from '@/components/DeveloperAvatar.astro';
+import { formatDate } from '@/lib/format-date';
 
 const guard = await requireUser(Astro, env);
 if (guard instanceof Response) return guard;
@@ -22,23 +25,6 @@ const [ownedExtensions, moderator, developer, githubLinked] = await Promise.all(
     hasLinkedGithub(env.DB_EXTENSIONS, user.sub),
   ],
 );
-
-const banner: Record<string, string> = {
-  submitted: 'Submitted for Review.',
-  profile_saved: 'Developer Profile Saved.',
-  profile_updated: 'Profile Updated.',
-  profile_deleted: 'Developer Profile Deleted.',
-  claim_cancelled: 'Claim Cancelled.',
-};
-const bannerKey = [
-  'submitted',
-  'profile_saved',
-  'profile_updated',
-  'profile_deleted',
-  'claim_cancelled',
-].find((key) => Astro.url.searchParams.has(key));
-
-const error = Astro.url.searchParams.get('error');
 
 const api = createApiClient(env, user.sub);
 let submissions: Submission[] = [];
@@ -89,7 +75,9 @@ const reconnectUrl = `${ISSUER}/account?callbackURL=${encodeURIComponent(
       <div class="flex items-center gap-4">
         {
           user.picture && (
-            <img src={user.picture} alt="" class="w-12 h-12 rounded-full" />
+            <span class="avatar w-12 h-12">
+              <img src={user.picture} alt="" />
+            </span>
           )
         }
         <div>
@@ -110,24 +98,6 @@ const reconnectUrl = `${ISSUER}/account?callbackURL=${encodeURIComponent(
         }
       </div>
     </header>
-
-    {
-      bannerKey && (
-        <div class="alert">
-          <CircleCheck class="size-4" />
-          <section>{banner[bannerKey]}</section>
-        </div>
-      )
-    }
-
-    {
-      error && (
-        <div class="alert" data-variant="destructive">
-          <CircleAlert class="size-4" />
-          <section>{error}</section>
-        </div>
-      )
-    }
 
     {
       !githubLinked && (
@@ -151,7 +121,10 @@ const reconnectUrl = `${ISSUER}/account?callbackURL=${encodeURIComponent(
       )
     }
 
-    <section class="card">
+    <!-- overflow-visible: basecoat's .card sets overflow-hidden (to clip a
+         first/last-child image to its rounded corners, not relevant here)
+         which otherwise clips ProfileTrustBadge's/Re-verify's tooltips. -->
+    <section class="card overflow-visible">
       <header class="flex items-center justify-between">
         <h2 class="font-semibold">Developer Profile</h2>
         {
@@ -181,16 +154,65 @@ const reconnectUrl = `${ISSUER}/account?callbackURL=${encodeURIComponent(
       <section>
         {
           developer ? (
-            <p class="text-sm flex items-center gap-2">
-              Publishing as <strong>{developer.name}</strong> ({developer.id})
-              {developer.approved ? (
-                <span class="badge">Approved</span>
-              ) : (
-                <span class="badge" data-variant="secondary">
-                  Not Yet Reviewed
-                </span>
+            <div class="space-y-3">
+              <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div class="flex items-center gap-4">
+                  <DeveloperAvatar
+                    avatarUrl={developer.avatar_url}
+                    type={developer.type}
+                  />
+                  <div class="flex-1">
+                    <p class="font-medium flex items-center gap-2">
+                      {developer.name}
+                      <ProfileTrustBadge
+                        approved={developer.approved}
+                        githubOrgVerified={developer.github_org_verified}
+                        githubVerifiedAt={developer.github_verified_at}
+                      />
+                    </p>
+                    <p class="text-sm text-muted-foreground">{developer.id}</p>
+                  </div>
+                </div>
+                <div class="flex items-center gap-2">
+                  <a
+                    href={`/developer/${developer.id}`}
+                    class="btn"
+                    data-size="sm"
+                    data-variant="outline"
+                  >
+                    View Public Profile
+                  </a>
+                  <form method="POST" action="/account/developer/reverify">
+                    <button
+                      type="submit"
+                      class="btn"
+                      data-size="sm"
+                      data-variant={
+                        developer.github_org_verified === false
+                          ? 'primary'
+                          : 'ghost'
+                      }
+                      data-tooltip="Check GitHub verification now"
+                      data-side="bottom"
+                    >
+                      Re-verify
+                    </button>
+                  </form>
+                </div>
+              </div>
+              {developer.github_org_verified === false && (
+                <div class="alert" data-variant="destructive">
+                  <CircleAlert class="size-4" />
+                  <section>
+                    Your linked GitHub identity no longer matches this profile.
+                    This doesn't affect your submissions or ownership — it's
+                    only shown to moderators as a trust signal. Re-verify if
+                    this should still match (e.g. you rejoined the
+                    organization).
+                  </section>
+                </div>
               )}
-            </p>
+            </div>
           ) : displayClaim ? (
             <div class="space-y-2">
               <p class="text-sm flex items-center gap-2">
@@ -313,7 +335,7 @@ const reconnectUrl = `${ISSUER}/account?callbackURL=${encodeURIComponent(
                     <p class="font-medium">{s.payload.extension.name}</p>
                     <p class="text-sm text-muted-foreground">
                       {s.extension_id ? 'Edit' : 'New extension'} &middot;
-                      submitted {new Date(s.created_at).toLocaleDateString()}
+                      submitted {formatDate(s.created_at)}
                     </p>
                     {s.status === 'rejected' && s.review_note && (
                       <p class="text-sm text-destructive mt-1">

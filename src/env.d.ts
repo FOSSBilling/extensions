@@ -1,3 +1,5 @@
+import type { FlashMessage } from '@/lib/flash';
+
 export {};
 
 // Extends the `Cloudflare.Env` interface generated in worker-configuration.d.ts
@@ -11,6 +13,17 @@ declare global {
       SESSION_SECRET: string;
       ASSERTION_SIGNING_SECRET: string;
       EXTENSIONS_API_BASE_URL: string;
+    }
+  }
+
+  namespace App {
+    interface SessionData {
+      flash: FlashMessage;
+    }
+    interface Locals {
+      // Read and cleared once per request by src/middleware.ts, before any
+      // rendering starts — see the comment there for why that timing matters.
+      flash: FlashMessage | undefined;
     }
   }
 }
