@@ -91,7 +91,8 @@ try {
                   )}
                 </p>
                 <p class="text-sm text-muted-foreground mt-1">
-                  Changed by <code>{entry.changed_by}</code>
+                  Changed by{' '}
+                  <strong>{entry.changed_by_name ?? entry.changed_by}</strong>
                 </p>
               </section>
             </li>

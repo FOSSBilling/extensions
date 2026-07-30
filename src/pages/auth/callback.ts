@@ -14,6 +14,8 @@ import {
   SESSION_MAX_AGE,
 } from '@/lib/session';
 import { upsertUser } from '@/lib/users';
+import { getDeveloperByOwner } from '@/lib/database';
+import { createApiClient } from '@/lib/apiClient';
 
 export const GET: APIRoute = async ({ cookies, redirect, url }) => {
   const verifier = cookies.get(OAUTH_VERIFIER_COOKIE)?.value;
@@ -60,6 +62,27 @@ export const GET: APIRoute = async ({ cookies, redirect, url }) => {
   // doesn't depend on it, only future ownership features will.
   try {
     await upsertUser(env.DB_EXTENSIONS, userInfo);
+  } catch {}
+
+  // Opportunistic re-verification: if this account owns a developer
+  // profile, every login is a chance to notice their linked GitHub
+  // identity (just refreshed above) no longer matches — or now does,
+  // if it didn't before. Best-effort, same as upsertUser above; a
+  // failure here must never block signing in. Skipped when already
+  // checked recently so a user logging in repeatedly doesn't add an
+  // extra API round-trip to every one of those logins.
+  const RECENT_VERIFICATION_MS = 60 * 60 * 1000;
+  try {
+    const developer = await getDeveloperByOwner(
+      env.DB_EXTENSIONS,
+      userInfo.sub,
+    );
+    const lastVerifiedAt = developer?.github_verified_at
+      ? new Date(developer.github_verified_at).getTime()
+      : 0;
+    if (developer && Date.now() - lastVerifiedAt > RECENT_VERIFICATION_MS) {
+      await createApiClient(env, userInfo.sub).reverifyDeveloper();
+    }
   } catch {}
 
   const secure = url.protocol === 'https:';
