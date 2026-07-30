@@ -154,6 +154,7 @@ export type DeveloperProfileInput = Omit<
   | 'content_revision'
   | 'github_org_verified'
   | 'github_verification_note'
+  | 'github_verified_at'
 >;
 
 // What getDeveloperById (the public /developer/[id] read) returns —
@@ -167,6 +168,9 @@ export type PublicDeveloperProfile = Omit<
   | 'content_revision'
   | 'github_org_verified'
   | 'github_verification_note'
+  | 'github_verified_at'
+  | 'owner_name'
+  | 'owner_github_login'
 >;
 
 // A snapshot of a developers row as it existed right after one

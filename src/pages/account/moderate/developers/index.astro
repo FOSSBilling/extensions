@@ -6,6 +6,7 @@ import { createApiClient } from '@/lib/apiClient';
 import { isSafeHttpUrl } from '@/lib/safe-url';
 import type { DeveloperProfile } from '@/types';
 import { CircleAlert } from '@lucide/astro';
+import GithubVerifiedBadge from '@/components/GithubVerifiedBadge.astro';
 
 const guard = await requireModerator(Astro, env);
 if (guard instanceof Response) return guard;
@@ -101,31 +102,10 @@ try {
                   <h2 class="font-semibold flex items-center gap-2">
                     {d.name} ({d.id})
                     {d.approved && <span class="badge">Approved</span>}
-                    {d.github_org_verified === true && (
-                      <span
-                        class="badge"
-                        title={
-                          d.github_verified_at
-                            ? `Verified ${new Date(d.github_verified_at).toLocaleString()}`
-                            : undefined
-                        }
-                      >
-                        GitHub verified
-                      </span>
-                    )}
-                    {d.github_org_verified === false && (
-                      <span
-                        class="badge"
-                        data-variant="destructive"
-                        title={
-                          d.github_verified_at
-                            ? `Last checked ${new Date(d.github_verified_at).toLocaleString()}`
-                            : undefined
-                        }
-                      >
-                        Not GitHub verified
-                      </span>
-                    )}
+                    <GithubVerifiedBadge
+                      verified={d.github_org_verified}
+                      verifiedAt={d.github_verified_at}
+                    />
                     {d.unclaimed && (
                       <span class="badge" data-variant="secondary">
                         Unclaimed

@@ -68,13 +68,19 @@ export const GET: APIRoute = async ({ cookies, redirect, url }) => {
   // profile, every login is a chance to notice their linked GitHub
   // identity (just refreshed above) no longer matches — or now does,
   // if it didn't before. Best-effort, same as upsertUser above; a
-  // failure here must never block signing in.
+  // failure here must never block signing in. Skipped when already
+  // checked recently so a user logging in repeatedly doesn't add an
+  // extra API round-trip to every one of those logins.
+  const RECENT_VERIFICATION_MS = 60 * 60 * 1000;
   try {
     const developer = await getDeveloperByOwner(
       env.DB_EXTENSIONS,
       userInfo.sub,
     );
-    if (developer) {
+    const lastVerifiedAt = developer?.github_verified_at
+      ? new Date(developer.github_verified_at).getTime()
+      : 0;
+    if (developer && Date.now() - lastVerifiedAt > RECENT_VERIFICATION_MS) {
       await createApiClient(env, userInfo.sub).reverifyDeveloper();
     }
   } catch {}

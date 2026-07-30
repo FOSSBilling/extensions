@@ -14,6 +14,7 @@ import {
 } from '@/lib/developer-form';
 import { DEVELOPER_TYPES } from '@/types';
 import { CircleAlert, CircleCheck } from '@lucide/astro';
+import GithubVerifiedBadge from '@/components/GithubVerifiedBadge.astro';
 import type {
   DeveloperClaim,
   DeveloperProfileInput,
@@ -239,31 +240,10 @@ const fields = submitted ?? developer;
                     Not Yet Reviewed
                   </span>
                 )}
-                {developer!.github_org_verified === true && (
-                  <span
-                    class="badge"
-                    title={
-                      developer!.github_verified_at
-                        ? `Verified ${new Date(developer!.github_verified_at).toLocaleString()}`
-                        : undefined
-                    }
-                  >
-                    GitHub verified
-                  </span>
-                )}
-                {developer!.github_org_verified === false && (
-                  <span
-                    class="badge"
-                    data-variant="destructive"
-                    title={
-                      developer!.github_verified_at
-                        ? `Last checked ${new Date(developer!.github_verified_at).toLocaleString()}`
-                        : undefined
-                    }
-                  >
-                    Not GitHub verified
-                  </span>
-                )}
+                <GithubVerifiedBadge
+                  verified={developer!.github_org_verified}
+                  verifiedAt={developer!.github_verified_at}
+                />
               </p>
             </div>
             <a

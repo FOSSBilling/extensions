@@ -1,0 +1,38 @@
+---
+interface Props {
+  verified: boolean | undefined;
+  verifiedAt: string | null | undefined;
+}
+
+const { verified, verifiedAt } = Astro.props;
+---
+
+{
+  verified === true && (
+    <span
+      class="badge"
+      title={
+        verifiedAt
+          ? `Verified ${new Date(verifiedAt).toLocaleString()}`
+          : undefined
+      }
+    >
+      GitHub verified
+    </span>
+  )
+}
+{
+  verified === false && (
+    <span
+      class="badge"
+      data-variant="destructive"
+      title={
+        verifiedAt
+          ? `Last checked ${new Date(verifiedAt).toLocaleString()}`
+          : undefined
+      }
+    >
+      Not GitHub verified
+    </span>
+  )
+}
