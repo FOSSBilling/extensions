@@ -57,6 +57,11 @@ type DeveloperProfileRow = {
   // Not selected by SELECT_DEVELOPER_PUBLIC — getDeveloperById's return type
   // omits content_revision, so the fallback below is never exposed there.
   content_revision?: number;
+  // Only selected by getDeveloperByOwner (the owner's own read) — never
+  // public, same trust level as contact_email above.
+  github_org_verified?: number | null;
+  github_verification_note?: string | null;
+  github_verified_at?: string | null;
 };
 
 function parseDeveloperProfileRow(row: DeveloperProfileRow): DeveloperProfile {
@@ -70,6 +75,10 @@ function parseDeveloperProfileRow(row: DeveloperProfileRow): DeveloperProfile {
     approved: row.approved_at !== null,
     content_revision: row.content_revision ?? 1,
     unclaimed: row.unclaimed === 1,
+    github_org_verified:
+      row.github_org_verified == null ? undefined : row.github_org_verified === 1,
+    github_verification_note: row.github_verification_note ?? undefined,
+    github_verified_at: row.github_verified_at ?? undefined,
   } as DeveloperProfile;
 }
 
@@ -142,7 +151,7 @@ export async function getDeveloperByOwner(
   try {
     row = await db
       .prepare(
-        'SELECT id, type, name, url, avatar_url, contact_email, approved_at, content_revision FROM developers WHERE owner_user_id = ?',
+        'SELECT id, type, name, url, avatar_url, contact_email, approved_at, content_revision, github_org_verified, github_verification_note, github_verified_at FROM developers WHERE owner_user_id = ?',
       )
       .bind(userId)
       .first<DeveloperProfileRow>();

@@ -57,20 +57,26 @@ export async function isModerator(
   return row?.is_moderator === 1;
 }
 
-// True once a user has signed in via GitHub since the auth service started
-// requesting read:org (see oauth.ts's UserInfo type) — used to prompt
-// existing accounts that signed in before that change to reconnect, since
-// their developer-profile claims otherwise fall back to unverified/manual
-// review indefinitely.
+// True once a user's GitHub org memberships have actually been fetched —
+// checked via github_orgs, NOT github_login. github_login is set on every
+// GitHub sign-in unconditionally, but github_orgs is only written when the
+// read:org-scoped org-membership fetch succeeds (see the auth repo's
+// persistGithubProfile/fetchActiveOrgLogins) — it stays null if that scope
+// was never granted or the fetch failed, which can happen even though
+// github_login is already set. Checking github_login here would mark those
+// accounts as "linked" and permanently hide the reconnect prompt, leaving
+// their developer-profile claims stuck on unverified/manual review with no
+// visible way to fix it. An empty (but non-null) github_orgs is a
+// legitimate "confirmed zero memberships" and correctly counts as linked.
 export async function hasLinkedGithub(
   db: D1Database,
   userId: string,
 ): Promise<boolean> {
   const row = await db
-    .prepare('SELECT github_login FROM users WHERE id = ?')
+    .prepare('SELECT github_orgs FROM users WHERE id = ?')
     .bind(userId)
-    .first<{ github_login: string | null }>();
-  return Boolean(row?.github_login);
+    .first<{ github_orgs: string | null }>();
+  return row?.github_orgs != null;
 }
 
 export async function deleteUser(

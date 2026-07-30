@@ -13,7 +13,7 @@ import {
   DeveloperValidationError,
 } from '@/lib/developer-form';
 import { DEVELOPER_TYPES } from '@/types';
-import { CircleAlert } from '@lucide/astro';
+import { CircleAlert, CircleCheck } from '@lucide/astro';
 import type {
   DeveloperClaim,
   DeveloperProfileInput,
@@ -79,6 +79,16 @@ if (Astro.request.method === 'POST') {
         e instanceof ApiRequestError
           ? e.message
           : 'Unable to create a transfer link. Please try again.';
+    }
+  } else if (form.get('intent') === 'reverify' && developer) {
+    try {
+      developer = await api.reverifyDeveloper();
+      return Astro.redirect('/account/developer?reverified=1');
+    } catch (e) {
+      error =
+        e instanceof ApiRequestError
+          ? e.message
+          : 'Unable to re-verify your GitHub identity right now. Please try again.';
     }
   } else if (form.get('intent') === 'delete' && developer) {
     // extensions.length > 0 falls through here as a no-op — the danger-zone
@@ -205,7 +215,12 @@ const fields = submitted ?? developer;
 
     {
       isEdit && (
-        <div class="card">
+        // overflow-visible: basecoat's .card sets overflow-hidden (to clip
+        // a first/last-child image to its rounded corners, not relevant
+        // here) which otherwise clips the Re-verify button's tooltip —
+        // Tailwind's utilities layer overrides basecoat's components layer
+        // regardless of source order, so this wins cleanly without !important.
+        <div class="card overflow-visible">
           <section class="flex items-center gap-4">
             {developer!.avatar_url && (
               <img
@@ -224,6 +239,31 @@ const fields = submitted ?? developer;
                     Not Yet Reviewed
                   </span>
                 )}
+                {developer!.github_org_verified === true && (
+                  <span
+                    class="badge"
+                    title={
+                      developer!.github_verified_at
+                        ? `Verified ${new Date(developer!.github_verified_at).toLocaleString()}`
+                        : undefined
+                    }
+                  >
+                    GitHub verified
+                  </span>
+                )}
+                {developer!.github_org_verified === false && (
+                  <span
+                    class="badge"
+                    data-variant="destructive"
+                    title={
+                      developer!.github_verified_at
+                        ? `Last checked ${new Date(developer!.github_verified_at).toLocaleString()}`
+                        : undefined
+                    }
+                  >
+                    Not GitHub verified
+                  </span>
+                )}
               </p>
             </div>
             <a
@@ -234,6 +274,48 @@ const fields = submitted ?? developer;
             >
               View Public Profile
             </a>
+            <form method="POST">
+              <input type="hidden" name="intent" value="reverify" />
+              <button
+                type="submit"
+                class="btn"
+                data-size="sm"
+                data-variant={developer!.github_org_verified === false
+                  ? 'primary'
+                  : 'ghost'}
+                data-tooltip="Check GitHub verification now"
+                data-side="bottom"
+              >
+                Re-verify
+              </button>
+            </form>
+          </section>
+          {
+            developer!.github_org_verified === false && (
+              <div class="alert mt-4" data-variant="destructive">
+                <CircleAlert class="size-4" />
+                <section>
+                  Your linked GitHub identity no longer matches this profile.
+                  This doesn't affect your submissions or ownership — it's
+                  only shown to moderators as a trust signal. Re-verify if
+                  this should still match (e.g. you rejoined the
+                  organization).
+                </section>
+              </div>
+            )
+          }
+        </div>
+      )
+    }
+
+    {
+      Astro.url.searchParams.get('reverified') && (
+        <div class="alert">
+          <CircleCheck class="size-4" />
+          <section>
+            {developer?.github_org_verified
+              ? 'GitHub verification re-checked — your linked GitHub identity matches this profile.'
+              : "GitHub verification re-checked — your linked GitHub identity doesn't currently match this profile."}
           </section>
         </div>
       )

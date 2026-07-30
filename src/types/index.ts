@@ -117,19 +117,32 @@ export type DeveloperProfile = Developer & {
   // POST /developers/{id}/approve as `expected_revision` so an approval
   // can't silently apply to a profile edited after it was reviewed.
   content_revision: number;
-  // Local-only: derived from `owner_user_id IS NULL` by getDeveloperById's
-  // own query, not part of the api repo's DeveloperProfile response. Never
-  // set on profiles read via the api client (upsertDeveloperProfile,
-  // listUnapprovedDevelopers, listAllDevelopers) — only on the public
-  // /developer/[id] read.
+  // For the public /developer/[id] read, derived locally from
+  // `owner_user_id IS NULL` by getDeveloperById's own query. For the
+  // moderator queue (listUnapprovedDevelopers/listAllDevelopers), set by
+  // the api repo's listAll/listUnapproved instead (same meaning — don't
+  // infer this from owner_name being present, since a real owner can still
+  // have a null name). Absent on every other DeveloperProfile response.
   unclaimed?: boolean;
-  // Server-computed at creation time only (api repo's
-  // DevelopersDatabase.verifyGithubOwnership()) — whether this id was
-  // confirmed to match the creator's own linked GitHub org/username.
-  // Moderator-review signal, not selected by the public /developer/[id]
-  // query (SELECT_DEVELOPER_PUBLIC in database.ts).
+  // Server-computed — see the api repo's DevelopersDatabase.
+  // verifyGithubOwnership() (at claim/creation time) and reverifyOwn()
+  // (opportunistic re-check on login, or the owner's own "Re-verify"
+  // action) — whether this id currently matches the owner's linked GitHub
+  // org/username. Moderator/owner-review signal, not selected by the
+  // public /developer/[id] query (SELECT_DEVELOPER_PUBLIC in database.ts).
   github_org_verified?: boolean;
   github_verification_note?: string;
+  // Set whenever github_org_verified was last (re-)computed to a
+  // definitive true/false. Absent/stale on an inconclusive check.
+  github_verified_at?: string;
+  // Only populated by listUnapprovedDevelopers/listAllDevelopers (the
+  // moderator queue) — the api repo's listAll/listUnapproved join for it.
+  // Null when the profile has no owner, or the owner has no name on file.
+  // Absent on every other DeveloperProfile response. Never present on the
+  // public /developer/[id] read — owner identity is intentionally never
+  // exposed publicly.
+  owner_name?: string | null;
+  owner_github_login?: string | null;
 };
 
 // Body for PUT /extensions/v2/developers/me — everything but the server-set
@@ -166,6 +179,9 @@ export type DeveloperHistoryEntry = {
   name: string;
   URL?: string;
   changed_by: string;
+  // The editor's account name at read time — null if the auth provider
+  // never gave one, or the users row was since deleted.
+  changed_by_name: string | null;
   changed_at: string;
 };
 
@@ -199,6 +215,11 @@ export type DeveloperClaim = {
 export type PendingDeveloperClaim = DeveloperClaim & {
   developer_name: string;
   developer_type: (typeof DEVELOPER_TYPES)[number];
+  // The claimant's own account name/GitHub handle, so the moderator sees
+  // who's asking instead of just their opaque id. Null if the auth
+  // provider never gave a name, or the claimant hasn't linked GitHub yet.
+  claimant_name: string | null;
+  claimant_github_login: string | null;
 };
 
 // Result of POST /developers/{id}/transfer — the raw token is only ever

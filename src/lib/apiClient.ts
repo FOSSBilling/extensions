@@ -98,6 +98,15 @@ export function createApiClient(env: Cloudflare.Env, sub: string) {
         method: 'DELETE',
       }),
 
+    // Re-checks the caller's own developer profile against their current
+    // linked GitHub identity — no GitHub API call on the api repo's side,
+    // just a fresh comparison against already-synced data. Used both by the
+    // owner's own "Re-verify" action and opportunistically after login.
+    reverifyDeveloper: () =>
+      call<DeveloperProfile>('/developers/me/reverify', {
+        method: 'POST',
+      }),
+
     listUnapprovedDevelopers: () =>
       call<DeveloperProfile[]>('/developers/unapproved'),
 

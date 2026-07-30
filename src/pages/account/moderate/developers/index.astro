@@ -101,8 +101,35 @@ try {
                   <h2 class="font-semibold flex items-center gap-2">
                     {d.name} ({d.id})
                     {d.approved && <span class="badge">Approved</span>}
-                    {d.github_org_verified && (
-                      <span class="badge">GitHub verified</span>
+                    {d.github_org_verified === true && (
+                      <span
+                        class="badge"
+                        title={
+                          d.github_verified_at
+                            ? `Verified ${new Date(d.github_verified_at).toLocaleString()}`
+                            : undefined
+                        }
+                      >
+                        GitHub verified
+                      </span>
+                    )}
+                    {d.github_org_verified === false && (
+                      <span
+                        class="badge"
+                        data-variant="destructive"
+                        title={
+                          d.github_verified_at
+                            ? `Last checked ${new Date(d.github_verified_at).toLocaleString()}`
+                            : undefined
+                        }
+                      >
+                        Not GitHub verified
+                      </span>
+                    )}
+                    {d.unclaimed && (
+                      <span class="badge" data-variant="secondary">
+                        Unclaimed
+                      </span>
                     )}
                   </h2>
                   <p class="text-sm text-muted-foreground">
@@ -119,6 +146,21 @@ try {
                       </>
                     )}
                   </p>
+                  {d.owner_name && (
+                    <p class="text-sm text-muted-foreground">
+                      Owned by <strong>{d.owner_name}</strong>
+                      {d.owner_github_login && (
+                        <>
+                          {' '}
+                          (<a
+                            href={`https://github.com/${d.owner_github_login}`}
+                          >
+                            @{d.owner_github_login}
+                          </a>)
+                        </>
+                      )}
+                    </p>
+                  )}
                 </div>
                 <div class="flex items-center gap-2">
                   <a

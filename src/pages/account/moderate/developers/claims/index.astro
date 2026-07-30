@@ -71,8 +71,18 @@ try {
                 </h2>
                 <p class="text-sm text-muted-foreground">
                   {c.developer_type} &middot; claimed by{' '}
-                  <code>{c.claimant_id}</code> on{' '}
-                  {new Date(c.created_at).toLocaleDateString()}
+                  <strong>{c.claimant_name ?? c.claimant_id}</strong>
+                  {c.claimant_github_login && (
+                    <>
+                      {' '}
+                      (<a
+                        href={`https://github.com/${c.claimant_github_login}`}
+                      >
+                        @{c.claimant_github_login}
+                      </a>)
+                    </>
+                  )}{' '}
+                  on {new Date(c.created_at).toLocaleDateString()}
                 </p>
                 {c.note && <p class="text-sm mt-1">&ldquo;{c.note}&rdquo;</p>}
               </header>
