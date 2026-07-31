@@ -103,6 +103,10 @@ submitter/moderator status, and any other authorization concept live entirely in
 app's own `users` table (`src/lib/db/migrations/`), keyed by the auth service's `sub`
 claim, in the same `DB_EXTENSIONS` D1 database this app already reads from.
 
+The client requests the dedicated `github` scope when it needs the linked GitHub
+username and organization claims. The issuer omits those claims for tokens without
+that scope, and users may need to reauthorize after a scope change.
+
 Sessions are a self-contained, HMAC-signed cookie minted after the initial token
 exchange — this app does not depend on the auth service's own token lifetimes beyond
 that exchange.

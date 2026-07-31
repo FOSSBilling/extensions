@@ -8,7 +8,7 @@ const AUTHORIZE_ENDPOINT = `${ISSUER}/oauth2/authorize`;
 const TOKEN_ENDPOINT = `${ISSUER}/oauth2/token`;
 const USERINFO_ENDPOINT = `${ISSUER}/oauth2/userinfo`;
 
-const SCOPE = 'openid profile email';
+const SCOPE = 'openid profile email github';
 
 // Short-lived cookies that carry the PKCE verifier and CSRF state across the
 // redirect to the auth service and back. Cleared as soon as the callback
@@ -92,7 +92,8 @@ export type UserInfo = {
   picture?: string;
   // Linked GitHub identity, present once a user has signed in via GitHub
   // after the auth service started requesting the read:org scope — see
-  // upsertUser in users.ts. github_orgs is the caller's active org logins,
+  // upsertUser in users.ts. The github OIDC scope is required for these
+  // linked-identity claims. github_orgs is the caller's active org logins,
   // used to verify developer profile claims (api repo's claim()). The expiry
   // is an absolute RFC3339 timestamp from the central auth service; consumers
   // must treat a missing, malformed, or past value as no organization evidence.
