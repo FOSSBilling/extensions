@@ -1,5 +1,73 @@
 import type { UserInfo } from './oauth';
 
+const GITHUB_ORGS_EXPIRES_AT_CLAIM =
+  'https://fossbilling.org/claims/github_orgs_expires_at' as const;
+const RFC3339_TIMESTAMP =
+  /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(Z|[+-]\d{2}:\d{2})$/;
+
+function parseRfc3339Timestamp(value: string): number | null {
+  const match = RFC3339_TIMESTAMP.exec(value);
+  if (!match || match[0] !== value) return null;
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const hour = Number(match[4]);
+  const minute = Number(match[5]);
+  const second = Number(match[6]);
+  if (
+    month < 1 ||
+    month > 12 ||
+    day < 1 ||
+    hour > 23 ||
+    minute > 59 ||
+    second > 59
+  ) {
+    return null;
+  }
+
+  const daysInMonth = [
+    31,
+    year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0) ? 29 : 28,
+    31,
+    30,
+    31,
+    30,
+    31,
+    31,
+    30,
+    31,
+    30,
+    31,
+  ][month - 1];
+  if (day > daysInMonth) return null;
+
+  if (match[7] !== 'Z') {
+    const offset = /[+-](\d{2}):(\d{2})/.exec(match[7]);
+    if (!offset || Number(offset[1]) > 23 || Number(offset[2]) > 59) {
+      return null;
+    }
+  }
+
+  // Date.parse normalizes invalid components, so only call it after the
+  // RFC3339 fields and calendar date have been checked above.
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp) ? timestamp : null;
+}
+
+function isFutureGithubOrgsExpiry(
+  value: unknown,
+  now = Date.now(),
+): value is string {
+  if (typeof value !== 'string') return false;
+  const expiresAt = parseRfc3339Timestamp(value);
+  return expiresAt !== null && expiresAt > now;
+}
+
+function isGithubOrgList(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((org) => typeof org === 'string');
+}
+
 export async function upsertUser(
   db: D1Database,
   info: UserInfo,
@@ -8,10 +76,14 @@ export async function upsertUser(
   const githubLogin =
     info['https://fossbilling.org/claims/github_login'] ?? null;
   const githubOrgs = info['https://fossbilling.org/claims/github_orgs'];
+  const githubOrgsExpiresAt = info[GITHUB_ORGS_EXPIRES_AT_CLAIM];
+  const hasFreshGithubOrgs =
+    isGithubOrgList(githubOrgs) &&
+    isFutureGithubOrgsExpiry(githubOrgsExpiresAt);
   await db
     .prepare(
-      `INSERT INTO users (id, name, email, email_verified, picture, github_login, github_orgs, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `INSERT INTO users (id, name, email, email_verified, picture, github_login, github_orgs, github_orgs_expires_at, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(id) DO UPDATE SET
          name = excluded.name,
          email = excluded.email,
@@ -19,6 +91,7 @@ export async function upsertUser(
          picture = excluded.picture,
          github_login = excluded.github_login,
          github_orgs = excluded.github_orgs,
+         github_orgs_expires_at = excluded.github_orgs_expires_at,
          updated_at = excluded.updated_at`,
     )
     .bind(
@@ -28,7 +101,8 @@ export async function upsertUser(
       info.email_verified ? 1 : 0,
       info.picture ?? null,
       githubLogin,
-      githubOrgs ? JSON.stringify(githubOrgs) : null,
+      hasFreshGithubOrgs ? JSON.stringify(githubOrgs) : null,
+      hasFreshGithubOrgs ? githubOrgsExpiresAt : null,
       now,
       now,
     )
@@ -57,26 +131,38 @@ export async function isModerator(
   return row?.is_moderator === 1;
 }
 
-// True once a user's GitHub org memberships have actually been fetched —
-// checked via github_orgs, NOT github_login. github_login is set on every
-// GitHub sign-in unconditionally, but github_orgs is only written when the
-// read:org-scoped org-membership fetch succeeds (see the auth repo's
-// persistGithubProfile/fetchActiveOrgLogins) — it stays null if that scope
-// was never granted or the fetch failed, which can happen even though
-// github_login is already set. Checking github_login here would mark those
-// accounts as "linked" and permanently hide the reconnect prompt, leaving
-// their developer-profile claims stuck on unverified/manual review with no
-// visible way to fix it. An empty (but non-null) github_orgs is a
-// legitimate "confirmed zero memberships" and correctly counts as linked.
+// True while a user's GitHub org memberships have actually been fetched and
+// the central auth service's absolute expiry is still in the future — checked
+// via github_orgs + github_orgs_expires_at, NOT github_login. github_login is
+// set on every GitHub sign-in unconditionally, but github_orgs is only written
+// when the read:org-scoped org-membership fetch succeeds. Missing or expired
+// evidence must keep the reconnect prompt visible. An empty (but non-null)
+// github_orgs with a future expiry is a legitimate "confirmed zero
+// memberships" and counts as linked.
 export async function hasLinkedGithub(
   db: D1Database,
   userId: string,
 ): Promise<boolean> {
   const row = await db
-    .prepare('SELECT github_orgs FROM users WHERE id = ?')
+    .prepare(
+      'SELECT github_orgs, github_orgs_expires_at FROM users WHERE id = ?',
+    )
     .bind(userId)
-    .first<{ github_orgs: string | null }>();
-  return row?.github_orgs != null;
+    .first<{
+      github_orgs: string | null;
+      github_orgs_expires_at: string | null;
+    }>();
+  if (
+    !row?.github_orgs ||
+    !isFutureGithubOrgsExpiry(row.github_orgs_expires_at)
+  ) {
+    return false;
+  }
+  try {
+    return isGithubOrgList(JSON.parse(row.github_orgs));
+  } catch {
+    return false;
+  }
 }
 
 export async function deleteUser(
