@@ -93,9 +93,12 @@ export type UserInfo = {
   // Linked GitHub identity, present once a user has signed in via GitHub
   // after the auth service started requesting the read:org scope — see
   // upsertUser in users.ts. github_orgs is the caller's active org logins,
-  // used to verify developer profile claims (api repo's claim()).
+  // used to verify developer profile claims (api repo's claim()). The expiry
+  // is an absolute RFC3339 timestamp from the central auth service; consumers
+  // must treat a missing, malformed, or past value as no organization evidence.
   'https://fossbilling.org/claims/github_login'?: string;
   'https://fossbilling.org/claims/github_orgs'?: string[];
+  'https://fossbilling.org/claims/github_orgs_expires_at'?: string;
 };
 
 export async function fetchUserInfo(accessToken: string): Promise<UserInfo> {
