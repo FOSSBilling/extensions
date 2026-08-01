@@ -53,6 +53,13 @@ const pendingClaim = myClaims.find((c) => c.status === 'pending');
 // since, leaving the page with no way to proceed.
 const displayClaim = pendingClaim ?? latestClaim;
 
+let reverifyCooldownUntil =
+  (await Astro.session?.get('reverifyCooldownUntil')) ?? 0;
+if (reverifyCooldownUntil <= Date.now()) {
+  Astro.session?.delete('reverifyCooldownUntil');
+  reverifyCooldownUntil = 0;
+}
+
 const statusBadgeVariant: Record<Submission['status'], string | undefined> = {
   pending: 'secondary',
   approved: undefined,
@@ -182,10 +189,21 @@ const reconnectUrl = `${ISSUER}/account?callbackURL=${encodeURIComponent(
                   >
                     View Public Profile
                   </a>
-                  <form method="POST" action="/account/developer/reverify">
+                  <form
+                    method="POST"
+                    action="/account/developer/reverify"
+                    data-reverify-form
+                    data-cooldown-until={reverifyCooldownUntil || undefined}
+                  >
                     <button
                       type="submit"
                       class="btn"
+                      disabled={reverifyCooldownUntil > 0}
+                      aria-label={
+                        reverifyCooldownUntil > 0
+                          ? 'Re-verify unavailable temporarily'
+                          : 'Re-verify'
+                      }
                       data-size="sm"
                       data-variant={
                         developer.github_org_verified === false
@@ -195,7 +213,9 @@ const reconnectUrl = `${ISSUER}/account?callbackURL=${encodeURIComponent(
                       data-tooltip="Check GitHub verification now"
                       data-side="bottom"
                     >
-                      Re-verify
+                      {reverifyCooldownUntil > 0
+                        ? 'Try again shortly'
+                        : 'Re-verify'}
                     </button>
                   </form>
                 </div>
@@ -364,3 +384,36 @@ const reconnectUrl = `${ISSUER}/account?callbackURL=${encodeURIComponent(
     </div>
   </div>
 </Base>
+
+<script>
+  const form = document.querySelector<HTMLFormElement>('[data-reverify-form]');
+  const button = form?.querySelector<HTMLButtonElement>(
+    'button[type="submit"]',
+  );
+
+  if (form && button) {
+    const cooldownUntil = Number(form.dataset.cooldownUntil ?? 0);
+    if (cooldownUntil > Date.now()) {
+      button.disabled = true;
+      window.setTimeout(() => {
+        button.disabled = false;
+        button.textContent = 'Re-verify';
+        button.setAttribute('aria-label', 'Re-verify');
+      }, cooldownUntil - Date.now());
+    }
+
+    let submitting = false;
+    form.addEventListener('submit', (event) => {
+      if (submitting || cooldownUntil > Date.now()) {
+        event.preventDefault();
+        return;
+      }
+
+      submitting = true;
+      button.disabled = true;
+      button.textContent = 'Re-verifying…';
+      button.setAttribute('aria-label', 'Re-verifying GitHub account');
+      button.setAttribute('aria-busy', 'true');
+    });
+  }
+</script>
