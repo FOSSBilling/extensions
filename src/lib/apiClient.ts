@@ -25,6 +25,23 @@ export class ApiRequestError extends Error {
   }
 }
 
+/**
+ * Converts API failures that need special user guidance into actionable copy.
+ * Other failures retain the message supplied by the API.
+ */
+export function getApiErrorMessage(error: ApiRequestError): string {
+  switch (error.code) {
+    case 'RATE_LIMITED':
+      return 'Too many requests were made. Please wait a few minutes and try again.';
+    case 'SERVICE_UNAVAILABLE':
+      return 'The service is temporarily unavailable. Please try again manually in a few minutes.';
+    case 'GITHUB_ENTITY_UNSUPPORTED':
+      return error.message;
+    default:
+      return error.message;
+  }
+}
+
 export function createApiClient(env: Cloudflare.Env, sub: string) {
   async function call<T>(path: string, init?: RequestInit): Promise<T> {
     const token = await mintBearerAssertion(sub, env.ASSERTION_SIGNING_SECRET);
