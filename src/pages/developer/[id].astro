@@ -4,7 +4,11 @@ import ExtensionCard from '@/components/ExtensionCard.astro';
 import { getDeveloperById, getExtensionsByDeveloperId } from '@/lib/database';
 import { getSessionUser } from '@/lib/session';
 import { requireUser } from '@/lib/auth-guard';
-import { createApiClient, ApiRequestError } from '@/lib/apiClient';
+import {
+  createApiClient,
+  ApiRequestError,
+  getApiErrorMessage,
+} from '@/lib/apiClient';
 import { formString } from '@/lib/form';
 import { isSafeHttpUrl } from '@/lib/safe-url';
 import { env } from 'cloudflare:workers';
@@ -28,6 +32,7 @@ const currentUser = await getSessionUser(Astro.cookies, env.SESSION_SECRET);
 
 let claimError: string | null = null;
 let claimSubmitted = false;
+let submittedNote = '';
 
 if (Astro.request.method === 'POST' && developer.unclaimed) {
   const guard = await requireUser(Astro, env);
@@ -35,16 +40,16 @@ if (Astro.request.method === 'POST' && developer.unclaimed) {
   const user = guard;
 
   const form = await Astro.request.formData();
-  const note = formString(form, 'note');
+  submittedNote = formString(form, 'note');
 
   const api = createApiClient(env, user.sub);
   try {
-    await api.claimDeveloper(developer.id, note || undefined);
+    await api.claimDeveloper(developer.id, submittedNote || undefined);
     claimSubmitted = true;
   } catch (e) {
     claimError =
       e instanceof ApiRequestError
-        ? e.message
+        ? getApiErrorMessage(e)
         : 'Unable to submit your claim. Please try again.';
   }
 }
@@ -133,6 +138,7 @@ const extensions = await getExtensionsByDeveloperId(
                       type="text"
                       id="note"
                       name="note"
+                      value={submittedNote}
                       maxlength="500"
                       placeholder="e.g. I'm the maintainer, see github.com/..."
                     />
