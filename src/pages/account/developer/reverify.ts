@@ -10,6 +10,19 @@ export const POST: APIRoute = async (context) => {
   if (guard instanceof Response) return guard;
   const user = guard;
 
+  const cooldownUntil =
+    (await context.session?.get('reverifyCooldownUntil')) ?? 0;
+  if (cooldownUntil > Date.now()) {
+    setFlash(context.session, {
+      category: 'error',
+      title: 'Could not refresh GitHub verification',
+      description:
+        'GitHub verification is temporarily unavailable. Please wait until the one-minute cooldown ends, then retry manually.',
+    });
+    return context.redirect('/account');
+  }
+  context.session?.delete('reverifyCooldownUntil');
+
   const developer = await getDeveloperByOwner(env.DB_EXTENSIONS, user.sub);
   if (!developer) return context.redirect('/account');
 
