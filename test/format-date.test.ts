@@ -50,5 +50,7 @@ describe('date formatting', () => {
   it('rejects invalid dates', () => {
     expect(() => formatDate('not-a-date')).toThrow(RangeError);
     expect(() => formatDate('2026-02-31')).toThrow(RangeError);
+    expect(() => formatDate('2026-02-31T00:00:00Z')).toThrow(RangeError);
+    expect(() => formatDate('2026-02-31t00:00:00Z')).toThrow(RangeError);
   });
 });

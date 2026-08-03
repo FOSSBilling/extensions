@@ -11,10 +11,11 @@ function requestContext(
   variant: string,
   url: string,
   accept = 'image/avif,image/webp,image/*,*/*;q=0.8',
+  additionalHeaders: Record<string, string> = {},
 ): Parameters<typeof handleImageRequest>[0] {
   return {
     params: { variant },
-    request: new Request(url, { headers: { accept } }),
+    request: new Request(url, { headers: { accept, ...additionalHeaders } }),
   };
 }
 
@@ -31,6 +32,14 @@ describe('image URLs', () => {
     expect(
       getOptimizedImageUrl('https://cdn.example.test/logo.png', 'icon'),
     ).toBe('https://cdn.example.test/logo.png');
+    expect(
+      getOptimizedImageUrl(
+        'https://extensions.fossbilling.org/logo.png',
+        'icon',
+      ),
+    ).toBe(
+      '/images/icon?src=https%3A%2F%2Fextensions.fossbilling.org%2Flogo.png',
+    );
     expect(getOptimizedImageUrl('javascript:alert(1)', 'icon')).toBeUndefined();
     expect(
       getOptimizedImageUrl('https://user:secret@github.com/logo.png', 'icon'),
@@ -132,6 +141,75 @@ describe('image transformation route', () => {
     expect(response.headers.get('set-cookie')).toBeNull();
     expect(response.headers.get('x-origin-secret')).toBeNull();
     expect(response.headers.get('x-content-type-options')).toBe('nosniff');
+  });
+
+  it('allows same-origin application images without recursing into the image route', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response('same-origin image', {
+        headers: { 'content-type': 'image/png' },
+      }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await handleImageRequest(
+      requestContext(
+        'icon',
+        'https://extensions.fossbilling.org/images/icon?src=https%3A%2F%2Fextensions.fossbilling.org%2Fassets%2Flogo.png',
+      ),
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.text()).toBe('same-origin image');
+    expect(String(fetchMock.mock.calls[0]?.[0])).toBe(
+      'https://extensions.fossbilling.org/assets/logo.png',
+    );
+  });
+
+  it('rejects same-origin image route sources to prevent recursion', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await handleImageRequest(
+      requestContext(
+        'icon',
+        'https://extensions.fossbilling.org/images/icon?src=https%3A%2F%2Fextensions.fossbilling.org%2Fimages%2Favatar%3Fsrc%3Dhttps%253A%252F%252Fraw.githubusercontent.com%252Ffossbilling%252Flogo.png',
+      ),
+    );
+
+    expect(response.status).toBe(400);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('forwards browser validators and preserves transformed 304 responses', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(null, {
+        status: 304,
+        headers: {
+          etag: '"image-version"',
+          'last-modified': 'Thu, 30 Jul 2026 13:05:00 GMT',
+        },
+      }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await handleImageRequest(
+      requestContext(
+        'icon',
+        'https://extensions.example.test/images/icon?src=https%3A%2F%2Fraw.githubusercontent.com%2Ffossbilling%2Flogo.png',
+        'image/avif,image/webp,image/*,*/*;q=0.8',
+        {
+          'if-none-match': '"image-version"',
+          'if-modified-since': 'Thu, 30 Jul 2026 13:05:00 GMT',
+        },
+      ),
+    );
+
+    const headers = fetchMock.mock.calls[0]?.[1]?.headers as Headers;
+    expect(headers.get('if-none-match')).toBe('"image-version"');
+    expect(headers.get('if-modified-since')).toBe(
+      'Thu, 30 Jul 2026 13:05:00 GMT',
+    );
+    expect(response.status).toBe(304);
   });
 
   it('returns a controlled error when the streamed body exceeds the limit', async () => {

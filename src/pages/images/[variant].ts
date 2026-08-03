@@ -10,6 +10,11 @@ import {
 const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
 const INITIAL_IMAGE_BUFFER_BYTES = 64 * 1024;
 const CACHE_CONTROL = 'public, max-age=3600, s-maxage=86400';
+const IMAGE_ROUTE_PATHS = new Set(['/images/icon', '/images/avatar']);
+const CONDITIONAL_REQUEST_HEADERS = [
+  'if-none-match',
+  'if-modified-since',
+] as const;
 
 function imageUnavailable(): Response {
   return new Response('Image unavailable.', { status: 502 });
@@ -24,7 +29,8 @@ function parseImageSource(value: string | null, requestUrl: URL): URL | null {
     const sourceUrl = new URL(value);
     if (
       !isTransformableImageSource(value) ||
-      sourceUrl.origin === requestUrl.origin
+      (sourceUrl.origin === requestUrl.origin &&
+        IMAGE_ROUTE_PATHS.has(sourceUrl.pathname))
     ) {
       return null;
     }
@@ -218,12 +224,19 @@ export async function handleImageRequest({
   const variant: ImageVariant = params.variant;
   const format = negotiateFormat(request.headers.get('accept'));
   const { width, height } = IMAGE_VARIANTS[variant];
+  const upstreamHeaders = new Headers({
+    accept: request.headers.get('accept') ?? 'image/*',
+  });
+  for (const name of CONDITIONAL_REQUEST_HEADERS) {
+    const value = request.headers.get(name);
+    if (value !== null) {
+      upstreamHeaders.set(name, value);
+    }
+  }
 
   try {
     const response = await fetch(sourceUrl, {
-      headers: {
-        accept: request.headers.get('accept') ?? 'image/*',
-      },
+      headers: upstreamHeaders,
       redirect: 'error',
       cf: {
         image: {

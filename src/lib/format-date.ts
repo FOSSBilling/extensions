@@ -23,34 +23,81 @@ const relativeTimeFormatter = new Intl.RelativeTimeFormat('en', {
   numeric: 'always',
 });
 
+const defaultDateFormatter = new Intl.DateTimeFormat(
+  'en-GB',
+  DATE_FORMAT_OPTIONS,
+);
+const defaultTimeFormatter = new Intl.DateTimeFormat(
+  'en-GB',
+  TIME_FORMAT_OPTIONS,
+);
+
+type ZonedFormatters = {
+  date: Intl.DateTimeFormat;
+  time: Intl.DateTimeFormat;
+  offset: Intl.DateTimeFormat;
+};
+
+const zonedFormatters = new Map<string, ZonedFormatters>();
+
+function validateCalendarDate(year: number, month: number, day: number): void {
+  const daysInMonth = [
+    31,
+    year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0) ? 29 : 28,
+    31,
+    30,
+    31,
+    30,
+    31,
+    31,
+    30,
+    31,
+    30,
+    31,
+  ][month - 1];
+
+  if (month < 1 || month > 12 || day < 1 || day > (daysInMonth ?? 0)) {
+    throw new RangeError('Invalid time value');
+  }
+}
+
+function getZonedFormatters(timeZone: string): ZonedFormatters {
+  const cached = zonedFormatters.get(timeZone);
+  if (cached) {
+    return cached;
+  }
+
+  const formatters = {
+    date: new Intl.DateTimeFormat('en-GB', {
+      ...DATE_FORMAT_OPTIONS,
+      timeZone,
+    }),
+    time: new Intl.DateTimeFormat('en-GB', {
+      ...TIME_FORMAT_OPTIONS,
+      timeZone,
+    }),
+    offset: new Intl.DateTimeFormat('en-US', {
+      timeZone,
+      timeZoneName: 'shortOffset',
+    }),
+  };
+  zonedFormatters.set(timeZone, formatters);
+  return formatters;
+}
+
 function toDate(value: string | Date): Date {
   let date: Date;
   if (value instanceof Date) {
     date = value;
   } else {
     const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
-    if (dateOnly) {
-      const year = Number(dateOnly[1]);
-      const month = Number(dateOnly[2]);
-      const day = Number(dateOnly[3]);
-      const daysInMonth = [
-        31,
-        year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0) ? 29 : 28,
-        31,
-        30,
-        31,
-        30,
-        31,
-        31,
-        30,
-        31,
-        30,
-        31,
-      ][month - 1];
-
-      if (month < 1 || month > 12 || day < 1 || day > (daysInMonth ?? 0)) {
-        throw new RangeError('Invalid time value');
-      }
+    const isoDate = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
+    if (isoDate) {
+      validateCalendarDate(
+        Number(isoDate[1]),
+        Number(isoDate[2]),
+        Number(isoDate[3]),
+      );
     }
 
     // Date-only ISO strings are parsed as UTC by the built-in Date
@@ -66,21 +113,19 @@ function toDate(value: string | Date): Date {
 }
 
 function formatDatePart(date: Date, timeZone?: string): string {
-  const options =
+  return (
     timeZone === undefined
-      ? DATE_FORMAT_OPTIONS
-      : { ...DATE_FORMAT_OPTIONS, timeZone };
-
-  return new Intl.DateTimeFormat('en-GB', options).format(date);
+      ? defaultDateFormatter
+      : getZonedFormatters(timeZone).date
+  ).format(date);
 }
 
 function formatTimePart(date: Date, timeZone?: string): string {
-  const options =
+  return (
     timeZone === undefined
-      ? TIME_FORMAT_OPTIONS
-      : { ...TIME_FORMAT_OPTIONS, timeZone };
-
-  return new Intl.DateTimeFormat('en-GB', options).format(date);
+      ? defaultTimeFormatter
+      : getZonedFormatters(timeZone).time
+  ).format(date);
 }
 
 // `d LLLL yyyy` (e.g. "30 July 2026") — locale-independent to read, unlike
@@ -104,11 +149,8 @@ export function formatDateTime(value: string | Date): string {
 // fixed numeric offset (always "GMT+1"-style) is used instead — verbose but
 // unambiguous and locale-independent.
 function tzOffsetLabel(timeZone: string, date: Date): string {
-  const part = new Intl.DateTimeFormat('en-US', {
-    timeZone,
-    timeZoneName: 'shortOffset',
-  })
-    .formatToParts(date)
+  const part = getZonedFormatters(timeZone)
+    .offset.formatToParts(date)
     .find((p) => p.type === 'timeZoneName');
   // Intl's "en-US" data labels the offset "GMT" — swapped for "UTC", the
   // timezone-neutral standard these offsets are actually computed against
