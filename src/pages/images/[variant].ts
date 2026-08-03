@@ -1,12 +1,12 @@
 import type { APIContext, APIRoute } from 'astro';
 import {
   IMAGE_VARIANTS,
+  MAX_IMAGE_SOURCE_URL_LENGTH,
   isImageVariant,
   isTransformableImageSource,
   type ImageVariant,
 } from '@/lib/image-url';
 
-const MAX_SOURCE_URL_LENGTH = 2048;
 const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
 const CACHE_CONTROL = 'public, max-age=3600, s-maxage=86400';
 
@@ -15,7 +15,7 @@ function imageUnavailable(): Response {
 }
 
 function parseImageSource(value: string | null, requestUrl: URL): URL | null {
-  if (!value || value.length > MAX_SOURCE_URL_LENGTH) {
+  if (!value || value.length > MAX_IMAGE_SOURCE_URL_LENGTH) {
     return null;
   }
 
@@ -74,10 +74,13 @@ function isImageResponse(response: Response): boolean {
     return true;
   }
 
+  const contentType = response.headers.get('content-type')?.toLowerCase();
+  const mediaType = contentType?.split(';', 1)[0].trim();
+
   return (
     response.ok &&
-    response.headers.get('content-type')?.toLowerCase().startsWith('image/') ===
-      true
+    mediaType?.startsWith('image/') === true &&
+    mediaType !== 'image/svg+xml'
   );
 }
 

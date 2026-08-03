@@ -1,10 +1,14 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   formatDate,
   formatDateTime,
   formatDateTimeInZone,
   formatRelativeTime,
 } from '@/lib/format-date';
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 describe('date formatting', () => {
   it('formats dates and local date-times using the application format', () => {
@@ -21,6 +25,7 @@ describe('date formatting', () => {
   });
 
   it('keeps date-only ISO values on the local calendar date', () => {
+    vi.stubEnv('TZ', 'America/Los_Angeles');
     expect(formatDate('2026-07-30')).toBe('30 July 2026');
   });
 
@@ -31,7 +36,17 @@ describe('date formatting', () => {
     expect(formatRelativeTime('2026-07-30T13:05:00Z', now)).toBe('now');
   });
 
+  it('does not round relative values across their unit boundary', () => {
+    const now = new Date('2026-07-30T13:05:00Z');
+
+    expect(formatRelativeTime('2026-07-30T14:04:30Z', now)).toBe(
+      'in 59 minutes',
+    );
+    expect(formatRelativeTime('2026-07-31T13:05:00Z', now)).toBe('in 1 day');
+  });
+
   it('rejects invalid dates', () => {
     expect(() => formatDate('not-a-date')).toThrow(RangeError);
+    expect(() => formatDate('2026-02-31')).toThrow(RangeError);
   });
 });

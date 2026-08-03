@@ -282,9 +282,9 @@ function parseExtensionRow(row: Record<string, unknown>): Extension | null {
     !isExtensionType(type) ||
     !name ||
     !description ||
-    !website ||
+    website === undefined ||
     !version ||
-    !downloadUrl
+    downloadUrl === undefined
   ) {
     return null;
   }

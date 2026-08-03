@@ -28,11 +28,34 @@ function toDate(value: string | Date): Date {
   if (value instanceof Date) {
     date = value;
   } else {
+    const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+    if (dateOnly) {
+      const year = Number(dateOnly[1]);
+      const month = Number(dateOnly[2]);
+      const day = Number(dateOnly[3]);
+      const daysInMonth = [
+        31,
+        year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0) ? 29 : 28,
+        31,
+        30,
+        31,
+        30,
+        31,
+        31,
+        30,
+        31,
+        30,
+        31,
+      ][month - 1];
+
+      if (month < 1 || month > 12 || day < 1 || day > (daysInMonth ?? 0)) {
+        throw new RangeError('Invalid time value');
+      }
+    }
+
     // Date-only ISO strings are parsed as UTC by the built-in Date
-    // constructor, while the previous parser treated them as local dates.
-    date = /^\d{4}-\d{2}-\d{2}$/.test(value)
-      ? new Date(`${value}T00:00:00`)
-      : new Date(value);
+    // constructor, while the previous parser treats them as local dates.
+    date = dateOnly ? new Date(`${value}T00:00:00`) : new Date(value);
   }
 
   if (Number.isNaN(date.getTime())) {
@@ -115,7 +138,7 @@ export function formatRelativeTime(
     RELATIVE_TIME_UNITS.find(
       ({ milliseconds }) => absoluteDelta >= milliseconds,
     ) ?? RELATIVE_TIME_UNITS[RELATIVE_TIME_UNITS.length - 1];
-  const amount = Math.round(delta / unit.milliseconds);
+  const amount = Math.trunc(delta / unit.milliseconds);
 
   return amount === 0 ? 'now' : relativeTimeFormatter.format(amount, unit.unit);
 }

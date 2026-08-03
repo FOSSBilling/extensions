@@ -61,7 +61,6 @@ export type Developer = {
   name: string;
   URL?: string;
   avatar_url?: string;
-  contact_email?: string;
   approved?: boolean;
 };
 
@@ -83,6 +82,7 @@ export type Extension = {
 
 export type DeveloperProfile = Developer & {
   approved: boolean;
+  contact_email?: string;
   content_revision: number;
   github_org_verified?: boolean;
   github_verification_note?: string;

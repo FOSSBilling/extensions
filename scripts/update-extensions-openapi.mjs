@@ -33,9 +33,22 @@ if (!cursorSchemas.every(isNullableStringSchema)) {
 }
 
 const listItem = schemas?.ExtensionListItem;
+const listItemProperties = listItem?.properties;
 if (
-  Object.hasOwn(listItem?.properties ?? {}, 'readme') ||
-  Object.hasOwn(listItem?.properties ?? {}, 'releases')
+  !listItem ||
+  typeof listItem !== 'object' ||
+  !listItemProperties ||
+  typeof listItemProperties !== 'object' ||
+  Array.isArray(listItemProperties)
+) {
+  throw new Error(
+    'The fetched OpenAPI document must define ExtensionListItem with a properties object.',
+  );
+}
+
+if (
+  Object.hasOwn(listItemProperties, 'readme') ||
+  Object.hasOwn(listItemProperties, 'releases')
 ) {
   throw new Error(
     'The fetched OpenAPI document must keep readme and releases out of ExtensionListItem.',

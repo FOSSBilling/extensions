@@ -4,6 +4,7 @@ import { requireUser } from '@/lib/auth-guard';
 import {
   ApiRequestError,
   createApiClient,
+  getApiErrorMessage,
   listMyClaimsSafely,
 } from '@/lib/api/client';
 import { getDeveloperByOwner, getExtensionsByOwner } from '@/lib/database';
@@ -48,7 +49,7 @@ try {
 } catch (error) {
   submissionsError =
     error instanceof ApiRequestError
-      ? error.message
+      ? getApiErrorMessage(error)
       : 'Unable to load your submissions right now.';
 }
 
@@ -374,34 +375,36 @@ const reconnectUrl = `${ISSUER}/account?callbackURL=${encodeURIComponent(
         {
           submissionsError ? (
             <p class="text-sm text-destructive">{submissionsError}</p>
-          ) : submissions.length === 0 ? (
-            <p class="text-muted-foreground text-sm">No submissions yet.</p>
           ) : (
             <>
-              <ul class="divide-y divide-border">
-                {submissions.map((s) => (
-                  <li class="py-3 flex items-center justify-between gap-3">
-                    <div>
-                      <p class="font-medium">{s.payload.extension.name}</p>
-                      <p class="text-sm text-muted-foreground">
-                        {s.extension_id ? 'Edit' : 'New extension'} &middot;
-                        submitted {formatDate(s.created_at)}
-                      </p>
-                      {s.status === 'rejected' && s.review_note && (
-                        <p class="text-sm text-destructive mt-1">
-                          {s.review_note}
+              {submissions.length === 0 ? (
+                <p class="text-muted-foreground text-sm">No submissions yet.</p>
+              ) : (
+                <ul class="divide-y divide-border">
+                  {submissions.map((s) => (
+                    <li class="py-3 flex items-center justify-between gap-3">
+                      <div>
+                        <p class="font-medium">{s.payload.extension.name}</p>
+                        <p class="text-sm text-muted-foreground">
+                          {s.extension_id ? 'Edit' : 'New extension'} &middot;
+                          submitted {formatDate(s.created_at)}
                         </p>
-                      )}
-                    </div>
-                    <span
-                      class="badge"
-                      data-variant={statusBadgeVariant[s.status]}
-                    >
-                      {s.status}
-                    </span>
-                  </li>
-                ))}
-              </ul>
+                        {s.status === 'rejected' && s.review_note && (
+                          <p class="text-sm text-destructive mt-1">
+                            {s.review_note}
+                          </p>
+                        )}
+                      </div>
+                      <span
+                        class="badge"
+                        data-variant={statusBadgeVariant[s.status]}
+                      >
+                        {s.status}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
               {nextSubmissionsUrl && (
                 <a href={nextSubmissionsUrl} class="btn mt-4">
                   Next submissions page

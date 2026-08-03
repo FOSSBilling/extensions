@@ -62,7 +62,12 @@ export function buildSubmissionPayload(
   }
 
   return {
-    developer,
+    developer: {
+      id: developer.id,
+      type: developer.type,
+      name: developer.name,
+      ...(developer.URL ? { URL: developer.URL } : {}),
+    },
     extension: {
       // In edit mode, always use the id of the already-verified extension —
       // never the form's own extension_id — so the payload can't be aimed at

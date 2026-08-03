@@ -3,6 +3,8 @@ export const IMAGE_VARIANTS = {
   avatar: { width: 128, height: 128 },
 } as const;
 
+export const MAX_IMAGE_SOURCE_URL_LENGTH = 2048;
+
 // Only these origins are sent through the server-side transformer. Other
 // valid HTTP(S) image URLs are left as direct browser requests so custom
 // developer-hosted images continue to work without creating an open proxy.
@@ -72,7 +74,10 @@ export function getOptimizedImageUrl(
     return undefined;
   }
 
-  if (!isTransformableImageSource(source)) {
+  if (
+    !isTransformableImageSource(source) ||
+    source.length > MAX_IMAGE_SOURCE_URL_LENGTH
+  ) {
     return source;
   }
 

@@ -51,7 +51,20 @@ const validRow = {
 };
 
 describe('SQL domain parsing', () => {
-  it('parses supported JSON fields without asserting the whole row as an API DTO', async () => {
+  it('parses valid serialized license and source fields', async () => {
+    const extension = await getExtensionForSubmission(
+      mockDatabase({ first: validRow }),
+      'Example',
+    );
+
+    expect(extension?.license).toEqual({ name: 'MIT' });
+    expect(extension?.source).toEqual({
+      type: 'github',
+      repo: 'example/repo',
+    });
+  });
+
+  it('falls back for malformed JSON fields without asserting the whole row as an API DTO', async () => {
     const extension = await getExtensionForSubmission(
       mockDatabase({
         first: {
@@ -91,5 +104,21 @@ describe('SQL domain parsing', () => {
 
     expect(extensions).toHaveLength(1);
     expect(extensions[0]?.id).toBe('Example');
+  });
+
+  it('keeps rows with empty website and download URLs', async () => {
+    const row = { ...validRow, website: '', download_url: '' };
+
+    const extension = await getExtensionForSubmission(
+      mockDatabase({ first: row }),
+      'Example',
+    );
+    const extensions = await getExtensionsByOwner(
+      mockDatabase({ all: { success: true, results: [row] } }),
+      'owner-id',
+    );
+
+    expect(extension).toMatchObject({ website: '', download_url: '' });
+    expect(extensions).toHaveLength(1);
   });
 });

@@ -29,9 +29,15 @@ import {
 import { mintBearerAssertion } from '@/lib/assertion';
 import { isCatalogueCardPage } from '@/scripts/extension-catalogue';
 import { isDeveloperType, isExtensionType, isSourceType } from '@/types';
+import type {
+  DeveloperProfile as LocalDeveloperProfile,
+  Extension as LocalExtension,
+} from '@/types';
 import {
+  appendPage,
   createCataloguePager,
   createCataloguePagerFromIds,
+  stateFromPage,
   type CataloguePageRequest,
 } from '@/lib/cataloguePagination';
 import { cursorPageUrl } from '@/lib/pagination';
@@ -237,6 +243,9 @@ describe('generated Extensions v2 façade', () => {
     expect(requestFrom(fetchMock, 0).headers.get('authorization')).toBe(
       'Bearer token-one',
     );
+    expect(requestFrom(fetchMock, 1).headers.get('authorization')).toBe(
+      'Bearer token-two',
+    );
     expect(requestUrl(fetchMock, 0).pathname).toBe(
       '/extensions/v2/submissions/mine',
     );
@@ -321,9 +330,11 @@ describe('generated Extensions v2 façade', () => {
     );
     vi.stubGlobal('fetch', structuredFetch);
 
-    await expect(
-      listExtensions(publicEnv, { cursor: 'invalid-cursor' }),
-    ).rejects.toMatchObject({
+    const structuredError = listExtensions(publicEnv, {
+      cursor: 'invalid-cursor',
+    });
+    await expect(structuredError).rejects.toBeInstanceOf(ApiRequestError);
+    await expect(structuredError).rejects.toMatchObject({
       status: 422,
       code: 'INVALID_CURSOR',
       message: 'Cursor is invalid.',
@@ -334,7 +345,9 @@ describe('generated Extensions v2 façade', () => {
       .fn()
       .mockResolvedValue(new Response('not-json', { status: 500 }));
     vi.stubGlobal('fetch', invalidJsonFetch);
-    await expect(listExtensions(publicEnv)).rejects.toMatchObject({
+    const invalidJsonError = listExtensions(publicEnv);
+    await expect(invalidJsonError).rejects.toBeInstanceOf(ApiRequestError);
+    await expect(invalidJsonError).rejects.toMatchObject({
       status: 500,
       code: 'request_failed',
     });
@@ -360,6 +373,15 @@ describe('generated Extensions v2 façade', () => {
     >().toEqualTypeOf<false>();
     expectTypeOf<Extension>().toHaveProperty('readme');
     expectTypeOf<Extension>().toHaveProperty('releases');
+  });
+
+  it('keeps private developer contact data out of local public extension models', () => {
+    expectTypeOf<
+      'contact_email' extends keyof LocalExtension['developer'] ? true : false
+    >().toEqualTypeOf<false>();
+    expectTypeOf<
+      'contact_email' extends keyof LocalDeveloperProfile ? true : false
+    >().toEqualTypeOf<true>();
   });
 
   it('keeps façade pagination and payload types tied to generated responses', () => {
@@ -520,6 +542,18 @@ describe('catalogue page accumulation', () => {
     expect(state.hasMore).toBe(false);
     expect(state.nextCursor).toBeNull();
     expect(loadPage).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not offer a next page when the cursor is empty', () => {
+    const pageWithEmptyCursor = page([item('only')], '', true);
+
+    expect(stateFromPage(pageWithEmptyCursor).hasMore).toBe(false);
+    expect(
+      appendPage(
+        stateFromPage(page([item('first')], 'cursor-2', true)),
+        pageWithEmptyCursor,
+      ).hasMore,
+    ).toBe(false);
   });
 
   it('retains loaded results and does not reset or retry after an invalid cursor', async () => {

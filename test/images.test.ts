@@ -37,6 +37,12 @@ describe('image URLs', () => {
     ).toBeUndefined();
     expect(getOptimizedImageUrl('  ', 'avatar')).toBeUndefined();
   });
+
+  it('leaves long allowlisted URLs as direct browser requests', () => {
+    const source = `https://raw.githubusercontent.com/fossbilling/extensions/${'a'.repeat(2040)}.png`;
+
+    expect(getOptimizedImageUrl(source, 'icon')).toBe(source);
+  });
 });
 
 describe('image transformation route', () => {
@@ -134,6 +140,27 @@ describe('image transformation route', () => {
       'https://raw.githubusercontent.com/fossbilling/avatar.png',
     );
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not proxy SVG responses as same-origin images', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response('<svg></svg>', {
+        headers: { 'content-type': 'image/svg+xml' },
+      }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await handleImageRequest(
+      requestContext(
+        'icon',
+        'https://extensions.example.test/images/icon?src=https%3A%2F%2Fraw.githubusercontent.com%2Ffossbilling%2Ficon.svg',
+      ),
+    );
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get('location')).toBe(
+      'https://raw.githubusercontent.com/fossbilling/icon.svg',
+    );
   });
 
   it('redirects to the original when the transformer request throws', async () => {

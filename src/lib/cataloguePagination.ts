@@ -125,7 +125,7 @@ export function stateFromPage<Item extends CatalogueItem = ExtensionListItem>(
   return {
     items: [...page.result],
     nextCursor: page.pagination.next_cursor,
-    hasMore: page.pagination.has_more && page.pagination.next_cursor !== null,
+    hasMore: hasNextPage(page.pagination),
     isLoading: false,
     error: null,
   };
@@ -148,8 +148,16 @@ export function appendPage<Item extends CatalogueItem = ExtensionListItem>(
   return {
     items: [...state.items, ...newItems],
     nextCursor: page.pagination.next_cursor,
-    hasMore: page.pagination.has_more && page.pagination.next_cursor !== null,
+    hasMore: hasNextPage(page.pagination),
     isLoading: false,
     error: null,
   };
+}
+
+function hasNextPage(pagination: ExtensionListResponse['pagination']): boolean {
+  return (
+    pagination.has_more &&
+    pagination.next_cursor !== null &&
+    pagination.next_cursor.length > 0
+  );
 }
