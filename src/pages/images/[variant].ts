@@ -16,6 +16,15 @@ const CONDITIONAL_REQUEST_HEADERS = [
   'if-modified-since',
 ] as const;
 
+function isImageRoutePath(pathname: string): boolean {
+  try {
+    const normalizedPath = decodeURIComponent(pathname).replace(/\/+$/, '');
+    return IMAGE_ROUTE_PATHS.has(normalizedPath);
+  } catch {
+    return false;
+  }
+}
+
 function imageUnavailable(): Response {
   return new Response('Image unavailable.', { status: 502 });
 }
@@ -30,7 +39,7 @@ function parseImageSource(value: string | null, requestUrl: URL): URL | null {
     if (
       !isTransformableImageSource(value) ||
       (sourceUrl.origin === requestUrl.origin &&
-        IMAGE_ROUTE_PATHS.has(sourceUrl.pathname))
+        isImageRoutePath(sourceUrl.pathname))
     ) {
       return null;
     }

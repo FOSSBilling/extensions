@@ -172,7 +172,7 @@ describe('image transformation route', () => {
     const response = await handleImageRequest(
       requestContext(
         'icon',
-        'https://extensions.fossbilling.org/images/icon?src=https%3A%2F%2Fextensions.fossbilling.org%2Fimages%2Favatar%3Fsrc%3Dhttps%253A%252F%252Fraw.githubusercontent.com%252Ffossbilling%252Flogo.png',
+        'https://extensions.fossbilling.org/images/icon?src=https%3A%2F%2Fextensions.fossbilling.org%2Fimages%2F%2569con%2F%3Fsrc%3Dhttps%253A%252F%252Fraw.githubusercontent.com%252Ffossbilling%252Flogo.png',
       ),
     );
 
@@ -210,6 +210,10 @@ describe('image transformation route', () => {
       'Thu, 30 Jul 2026 13:05:00 GMT',
     );
     expect(response.status).toBe(304);
+    expect(response.headers.get('etag')).toBe('"image-version"');
+    expect(response.headers.get('last-modified')).toBe(
+      'Thu, 30 Jul 2026 13:05:00 GMT',
+    );
   });
 
   it('returns a controlled error when the streamed body exceeds the limit', async () => {
