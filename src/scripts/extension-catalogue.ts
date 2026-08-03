@@ -6,6 +6,7 @@ import type {
   ExtensionListItem,
   ExtensionListResponse,
 } from '@/lib/api/client';
+import { getOptimizedImageUrl } from '@/lib/image-url';
 
 const DEFAULT_PAGE_LIMIT = 50;
 
@@ -45,7 +46,8 @@ export function isCatalogueCardPage(
   return (
     Array.isArray(value.result) &&
     value.result.every(isCatalogueCardItem) &&
-    (typeof value.pagination.next_cursor === 'string' ||
+    ((typeof value.pagination.next_cursor === 'string' &&
+      value.pagination.next_cursor.length > 0) ||
       value.pagination.next_cursor === null) &&
     typeof value.pagination.has_more === 'boolean'
   );
@@ -119,13 +121,24 @@ function makeCard(item: CatalogueCardItem): HTMLAnchorElement {
   section.className = 'flex items-start space-x-4';
 
   const iconContainer = document.createElement('div');
-  iconContainer.className = 'p-2 bg-primary/10 rounded-lg';
-  if (item.icon_url) {
+  iconContainer.className =
+    'p-2 bg-primary/10 rounded-lg w-14 h-14 flex items-center justify-center shrink-0';
+  const iconUrl = getOptimizedImageUrl(item.icon_url, 'icon');
+  if (iconUrl) {
     const icon = document.createElement('img');
-    icon.src = item.icon_url;
-    icon.className = 'w-10 h-10';
+    icon.src = iconUrl;
+    icon.width = 40;
+    icon.height = 40;
+    icon.className = 'w-10 h-10 object-contain';
     icon.alt = `${item.name} icon`;
+    icon.loading = 'lazy';
+    icon.decoding = 'async';
     iconContainer.appendChild(icon);
+  } else {
+    const placeholder = document.createElement('span');
+    placeholder.className = 'w-10 h-10';
+    placeholder.setAttribute('aria-hidden', 'true');
+    iconContainer.appendChild(placeholder);
   }
 
   const content = document.createElement('div');
@@ -218,9 +231,6 @@ function installCatalogue(root: HTMLElement): void {
 
     if (!state.isLoading && state.error) {
       loadMore.disabled = false;
-    }
-    if (state.nextCursor !== null) {
-      loadMore.dataset.nextCursor = state.nextCursor;
     }
   };
 

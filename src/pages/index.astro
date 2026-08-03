@@ -40,7 +40,8 @@ const activeFilterCount =
   Number(Boolean(activeType)) + Number(Boolean(activeDeveloperId));
 const hasNextPage = Boolean(
   cataloguePage?.pagination.has_more &&
-  cataloguePage.pagination.next_cursor !== null,
+  cataloguePage.pagination.next_cursor !== null &&
+  cataloguePage.pagination.next_cursor.length > 0,
 );
 ---
 

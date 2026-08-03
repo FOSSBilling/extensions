@@ -1,8 +1,7 @@
 ---
 import type { Extension } from '@/types';
 import { getLatestRelease, sortReleasesDescending } from '@/types';
-import { formatDistanceToNow } from 'date-fns';
-import { enUS } from 'date-fns/locale';
+import { formatRelativeTime } from '@/lib/format-date';
 import { Download } from '@lucide/astro';
 
 interface Props {
@@ -33,10 +32,7 @@ const latestThree = ext ? sortReleasesDescending(ext.releases).slice(0, 3) : [];
           </div>
           <p class="text-sm text-muted-foreground mt-1">
             <time datetime={latest.date}>
-              {formatDistanceToNow(new Date(latest.date), {
-                locale: enUS,
-                addSuffix: true,
-              })}
+              {formatRelativeTime(latest.date)}
             </time>
           </p>
         </header>
@@ -50,10 +46,7 @@ const latestThree = ext ? sortReleasesDescending(ext.releases).slice(0, 3) : [];
                 <span>v{release.tag}</span>
                 <span class="text-muted-foreground">
                   <time datetime={release.date}>
-                    {formatDistanceToNow(new Date(release.date), {
-                      locale: enUS,
-                      addSuffix: true,
-                    })}
+                    {formatRelativeTime(release.date)}
                   </time>
                 </span>
               </li>

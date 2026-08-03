@@ -390,6 +390,13 @@ describe('application boundary validation', () => {
         pagination: { next_cursor: null, has_more: false },
       }),
     ).toBe(false);
+
+    expect(
+      isCatalogueCardPage({
+        result: [],
+        pagination: { next_cursor: '', has_more: true },
+      }),
+    ).toBe(false);
   });
 
   it('keeps runtime filter validation independent from generated DTO imports', () => {

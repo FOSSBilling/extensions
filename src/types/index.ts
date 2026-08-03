@@ -1,4 +1,5 @@
-import { gt, lt } from 'semver';
+import gt from 'semver/functions/gt';
+import lt from 'semver/functions/lt';
 
 export const EXTENSION_TYPES = [
   'mod',

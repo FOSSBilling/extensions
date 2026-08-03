@@ -17,10 +17,12 @@ import ProfileTrustBadge from '@/components/ProfileTrustBadge.astro';
 import DeveloperAvatar from '@/components/DeveloperAvatar.astro';
 import { formatDate } from '@/lib/format-date';
 import { cursorPageUrl } from '@/lib/pagination';
+import { getOptimizedImageUrl } from '@/lib/image-url';
 
 const guard = await requireUser(Astro, env);
 if (guard instanceof Response) return guard;
 const user = guard;
+const userPictureUrl = getOptimizedImageUrl(user.picture, 'avatar');
 
 const [ownedExtensions, moderator, developer, githubLinked] = await Promise.all(
   [
@@ -51,7 +53,9 @@ try {
 }
 
 const nextSubmissionsUrl =
-  submissionsHasMore && submissionsNextCursor !== null
+  submissionsHasMore &&
+  submissionsNextCursor !== null &&
+  submissionsNextCursor.length > 0
     ? cursorPageUrl(Astro.url, 'submissions_cursor', submissionsNextCursor)
     : null;
 
@@ -101,9 +105,16 @@ const reconnectUrl = `${ISSUER}/account?callbackURL=${encodeURIComponent(
     <header class="flex items-center justify-between gap-4">
       <div class="flex items-center gap-4">
         {
-          user.picture && (
+          userPictureUrl && (
             <span class="avatar w-12 h-12">
-              <img src={user.picture} alt="" />
+              <img
+                src={userPictureUrl}
+                width="48"
+                height="48"
+                class="object-contain"
+                alt=""
+                decoding="async"
+              />
             </span>
           )
         }

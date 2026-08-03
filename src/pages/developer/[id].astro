@@ -72,7 +72,8 @@ try {
 const extensions = extensionsPage?.result ?? [];
 const hasNextPage = Boolean(
   extensionsPage?.pagination.has_more &&
-  extensionsPage.pagination.next_cursor !== null,
+  extensionsPage.pagination.next_cursor !== null &&
+  extensionsPage.pagination.next_cursor.length > 0,
 );
 ---
 

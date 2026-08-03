@@ -1,12 +1,14 @@
 ---
 import type { Extension } from '@/types';
 import { ArrowLeft } from '@lucide/astro';
+import { getOptimizedImageUrl } from '@/lib/image-url';
 
 interface Props {
   ext: Extension;
 }
 
 const { ext } = Astro.props;
+const iconUrl = getOptimizedImageUrl(ext.icon_url, 'icon');
 ---
 
 <div class="flex items-start space-x-4">
@@ -19,11 +21,20 @@ const { ext } = Astro.props;
   >
     <ArrowLeft class="w-4 h-4" />
   </a>
-  <img
-    src={ext.icon_url}
-    class="w-12 h-12 rounded-lg"
-    alt={`${ext.name} icon`}
-  />
+  {
+    iconUrl ? (
+      <img
+        src={iconUrl}
+        width="48"
+        height="48"
+        class="w-12 h-12 rounded-lg object-contain"
+        alt={`${ext.name} icon`}
+        decoding="async"
+      />
+    ) : (
+      <span class="w-12 h-12 rounded-lg bg-primary/10" aria-hidden="true" />
+    )
+  }
   <div class="flex-1">
     <div class="flex items-baseline flex-wrap gap-2">
       <h1 class="text-2xl font-semibold">{ext.name}</h1>

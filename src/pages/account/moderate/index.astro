@@ -38,7 +38,7 @@ try {
 }
 
 const nextPageUrl =
-  hasMore && nextCursor !== null
+  hasMore && nextCursor !== null && nextCursor.length > 0
     ? cursorPageUrl(Astro.url, 'cursor', nextCursor)
     : null;
 ---
