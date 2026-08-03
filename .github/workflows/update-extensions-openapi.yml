@@ -1,0 +1,80 @@
+name: Update Extensions v2 OpenAPI
+
+on:
+  schedule:
+    - cron: '23 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: update-extensions-openapi
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Refresh OpenAPI Snapshot and Client
+        run: npm run api:update
+
+      - name: Detect Contract Changes
+        id: changes
+        shell: bash
+        run: |
+          if git diff --quiet -- openapi/extensions-v2.json src/lib/api/generated/extensions-v2; then
+            echo 'changed=false' >> "$GITHUB_OUTPUT"
+          else
+            echo 'changed=true' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Verify Generated API Client
+        if: steps.changes.outputs.changed == 'true'
+        run: npm run api:check
+
+      - name: Check Formatting
+        if: steps.changes.outputs.changed == 'true'
+        run: npm run format:check
+
+      - name: Run Tests
+        if: steps.changes.outputs.changed == 'true'
+        run: npm test
+
+      - name: Run Astro Checks
+        if: steps.changes.outputs.changed == 'true'
+        run: npm run check
+
+      - name: Build Site
+        if: steps.changes.outputs.changed == 'true'
+        run: npm run build
+
+      - name: Create or Update Pull Request
+        if: steps.changes.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8
+        with:
+          add-paths: |
+            openapi/extensions-v2.json
+            src/lib/api/generated/extensions-v2
+          branch: automation/update-extensions-openapi
+          delete-branch: true
+          commit-message: 'chore: update Extensions v2 API client'
+          title: 'chore: update Extensions v2 API client'
+          body: |
+            This PR refreshes the checked-in Extensions v2 OpenAPI snapshot from the deployed API and regenerates the Hey API client.
+
+            The generated client and application checks run in this workflow before the PR is created or updated.

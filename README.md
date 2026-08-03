@@ -204,9 +204,10 @@ Regenerate the client from the checked-in API contract with:
 npm run api:generate
 ```
 
-Refresh the reviewed contract snapshot from the upstream API and regenerate it
-with `npm run api:update`. `npm run api:check` verifies that the committed
-generated files match `openapi/extensions-v2.json`.
+The `Update Extensions v2 OpenAPI` GitHub Actions workflow refreshes the
+upstream contract weekly and opens or updates a pull request when it changes.
+For an immediate refresh, run `npm run api:update`; `npm run api:check` verifies
+that the committed generated files match `openapi/extensions-v2.json`.
 
 Each request to `/extensions/v2` is authenticated with a short-lived (60s) HMAC-signed
 bearer assertion this app mints per-request (`src/lib/assertion.ts`), proving the
