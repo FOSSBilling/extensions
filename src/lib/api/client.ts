@@ -47,6 +47,7 @@ import {
   type Client,
 } from '@/lib/api/generated/extensions-v2/client';
 import { mintBearerAssertion } from '../assertion';
+import type { ApplicationEnv } from '../runtime';
 
 export const DEFAULT_API_PAGE_LIMIT = 50;
 export const MIN_API_PAGE_LIMIT = 1;
@@ -132,15 +133,14 @@ export function clampApiPageLimit(limit?: number): number {
 
 export const clampExtensionPageLimit = clampApiPageLimit;
 
-function createApiTransport(env: Cloudflare.Env, subject?: string): Client {
-  const baseUrl = env.EXTENSIONS_API_BASE_URL.replace(/\/$/, '');
+function createApiTransport(env: ApplicationEnv, subject?: string): Client {
+  const baseUrl = env.extensionsApiBaseUrl.replace(/\/$/, '');
 
   return createClient({
     baseUrl: `${baseUrl}/extensions/v2`,
     ...(subject
       ? {
-          auth: () =>
-            mintBearerAssertion(subject, env.ASSERTION_SIGNING_SECRET),
+          auth: () => mintBearerAssertion(subject, env.assertionSigningSecret),
         }
       : {}),
   });
@@ -231,7 +231,7 @@ function extensionQuery(
 }
 
 export async function listExtensions(
-  env: Cloudflare.Env,
+  env: ApplicationEnv,
   filters: ExtensionCatalogueFilters = {},
 ): Promise<ExtensionListResponse> {
   return unwrap(
@@ -243,7 +243,7 @@ export async function listExtensions(
 }
 
 export async function getExtensionById(
-  env: Cloudflare.Env,
+  env: ApplicationEnv,
   id: string,
 ): Promise<Extension> {
   const response = await getExtensionsById({
@@ -254,7 +254,7 @@ export async function getExtensionById(
   return data.result;
 }
 
-export function createApiClient(env: Cloudflare.Env, subject: string) {
+export function createApiClient(env: ApplicationEnv, subject: string) {
   const client = createApiTransport(env, subject);
 
   return {

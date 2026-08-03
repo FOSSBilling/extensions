@@ -1,6 +1,5 @@
 ---
 import Base from '../../../layouts/Base.astro';
-import { env } from 'cloudflare:workers';
 import { requireModerator } from '@/lib/auth-guard';
 import { ApiRequestError, createApiClient } from '@/lib/api/client';
 import type { Submission, SubmissionStatus } from '@/lib/api/client';
@@ -8,6 +7,7 @@ import RejectDialog from '@/components/RejectDialog.astro';
 import { formatDate } from '@/lib/format-date';
 import { cursorPageUrl } from '@/lib/pagination';
 
+const env = Astro.locals.env;
 const guard = await requireModerator(Astro, env);
 if (guard instanceof Response) return guard;
 const user = guard;

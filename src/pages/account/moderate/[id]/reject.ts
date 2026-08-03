@@ -1,11 +1,11 @@
 import type { APIRoute } from 'astro';
-import { env } from 'cloudflare:workers';
 import { requireModerator } from '@/lib/auth-guard';
 import { createApiClient, ApiRequestError } from '@/lib/api/client';
 import { formString } from '@/lib/form';
 import { setFlash } from '@/lib/flash';
 
 export const POST: APIRoute = async (context) => {
+  const env = context.locals.env;
   const guard = await requireModerator(context, env);
   if (guard instanceof Response) return guard;
   const user = guard;

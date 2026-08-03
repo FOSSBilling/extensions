@@ -105,6 +105,21 @@ allowlisted source directly. It rejects redirects and responses larger than 2 Mi
 For Cloudflare resizing to take effect, deployments must allow the listed
 origins under Images → Transformations → Sources.
 
+### Runtime portability
+
+Application code reads its runtime dependencies from `Astro.locals.env`, using the
+provider-neutral interfaces in `src/lib/runtime.ts`. The current Cloudflare
+binding mapping is isolated to `src/platform/cloudflare.ts`, so moving to another
+serverless provider requires replacing that adapter and deployment configuration
+rather than changing pages and domain services throughout the application.
+
+The domain helpers use the small `SqlDatabase` interface instead of Cloudflare's
+`D1Database` type. The current queries and migrations remain SQLite-compatible;
+a provider using a different SQL dialect would need a database adapter rather than
+leaking provider types into application code. Cloudflare image transformations are
+an optional optimization: the image route retains a direct-fetch fallback for
+allowlisted sources when that capability is unavailable.
+
 ## Authentication
 
 Sign-in is delegated to FOSSBilling's central auth service at

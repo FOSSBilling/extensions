@@ -1,8 +1,8 @@
 import type { AstroSession } from 'astro';
 
 // One-shot flash messages carried across a POST -> redirect -> GET cycle via
-// Astro's built-in session (Cloudflare KV-backed, auto-provisioned by the
-// adapter) — distinct from this app's own signed auth-cookie session
+// Astro's built-in session (backed by the configured Astro session driver) —
+// distinct from this app's own signed auth-cookie session
 // (getSessionUser/SESSION_SECRET, see lib/session.ts). Keeps confirmation
 // and error messages out of the URL entirely, rather than passing them as
 // query params.

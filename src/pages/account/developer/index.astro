@@ -1,6 +1,5 @@
 ---
 import Base from '../../../layouts/Base.astro';
-import { env } from 'cloudflare:workers';
 import { requireUser } from '@/lib/auth-guard';
 import {
   createApiClient,
@@ -26,41 +25,32 @@ import { stripUrlScheme } from '@/lib/url-prefix';
 import type { DeveloperClaim, DeveloperTransfer } from '@/lib/api/client';
 import type { DeveloperProfileInput } from '@/lib/api/client';
 
+const env = Astro.locals.env;
 const guard = await requireUser(Astro, env);
 if (guard instanceof Response) return guard;
 const user = guard;
 
-let developer = await getDeveloperByOwner(env.DB_EXTENSIONS, user.sub);
+let developer = await getDeveloperByOwner(env.db, user.sub);
 const isEdit = Boolean(developer);
 
 // Gates both the delete-profile action below and full account deletion
 // (/account/delete) — a developer profile with published extensions can't
 // be removed without orphaning them first.
-const extensions = isEdit
-  ? await getExtensionsByOwner(env.DB_EXTENSIONS, user.sub)
-  : [];
+const extensions = isEdit ? await getExtensionsByOwner(env.db, user.sub) : [];
 
 // Drives whether "Generate"/"Re-generate" wording and the "Revoke" button
 // show — re-checked below after a successful transfer-initiate, since that
 // action makes one pending without a redirect (see the comment on that
 // branch) in between.
 let pendingTransfer =
-  isEdit && developer
-    ? await hasPendingTransfer(env.DB_EXTENSIONS, developer.id)
-    : false;
+  isEdit && developer ? await hasPendingTransfer(env.db, developer.id) : false;
 
 const api = createApiClient(env, user.sub);
 
-// Cloudflare geolocates the request and attaches an IANA name here — good
-// enough to render the transfer link's expiry against the viewer's own
-// clock without needing client-side JS. Falls back to UTC when absent (e.g.
-// local dev without Cloudflare in front of it). Cast because `cf`'s type is
-// a union with the outgoing-fetch `RequestInitCfProperties` shape, which
-// has no `timezone` field of its own — only ever relevant for incoming
-// requests here.
-const timeZone =
-  (Astro.request.cf as IncomingRequestCfProperties | undefined)?.timezone ??
-  'UTC';
+// The runtime adapter may provide an IANA name for the viewer's timezone.
+// Falling back to UTC keeps this page portable to providers without request
+// geolocation metadata.
+const timeZone = Astro.locals.timeZone ?? 'UTC';
 
 let myClaims: DeveloperClaim[] = [];
 // Unlike the informational display on /account, a failure here must not
@@ -152,10 +142,7 @@ if (Astro.request.method === 'POST') {
         e.code === 'DEVELOPER_ID_TAKEN' &&
         submitted?.id
       ) {
-        const conflicting = await getDeveloperById(
-          env.DB_EXTENSIONS,
-          submitted.id,
-        );
+        const conflicting = await getDeveloperById(env.db, submitted.id);
         idTaken = conflicting?.unclaimed === true;
       }
     }

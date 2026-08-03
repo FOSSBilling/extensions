@@ -1,5 +1,4 @@
 import type { APIRoute } from 'astro';
-import { env } from 'cloudflare:workers';
 import {
   generateCodeVerifier,
   generateCodeChallenge,
@@ -14,7 +13,8 @@ import {
   OAUTH_COOKIE_MAX_AGE,
 } from '@/lib/oauth';
 
-export const GET: APIRoute = async ({ cookies, redirect, url }) => {
+export const GET: APIRoute = async ({ cookies, redirect, url, locals }) => {
+  const env = locals.env;
   const verifier = generateCodeVerifier();
   const challenge = await generateCodeChallenge(verifier);
   const state = generateState();
@@ -52,7 +52,7 @@ export const GET: APIRoute = async ({ cookies, redirect, url }) => {
 
   const redirectUri = `${url.origin}/auth/callback`;
   const authorizeUrl = buildAuthorizeUrl({
-    clientId: env.AUTH_CLIENT_ID,
+    clientId: env.authClientId,
     redirectUri,
     state,
     codeChallenge: challenge,

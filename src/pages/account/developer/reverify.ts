@@ -1,11 +1,11 @@
 import type { APIRoute } from 'astro';
-import { env } from 'cloudflare:workers';
 import { requireUser } from '@/lib/auth-guard';
 import { getDeveloperByOwner } from '@/lib/database';
 import { createApiClient, ApiRequestError } from '@/lib/api/client';
 import { setFlash } from '@/lib/flash';
 
 export const POST: APIRoute = async (context) => {
+  const env = context.locals.env;
   const guard = await requireUser(context, env);
   if (guard instanceof Response) return guard;
   const user = guard;
@@ -23,7 +23,7 @@ export const POST: APIRoute = async (context) => {
   }
   context.session?.delete('reverifyCooldownUntil');
 
-  const developer = await getDeveloperByOwner(env.DB_EXTENSIONS, user.sub);
+  const developer = await getDeveloperByOwner(env.db, user.sub);
   if (!developer) return context.redirect('/account');
 
   const api = createApiClient(env, user.sub);

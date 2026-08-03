@@ -1,5 +1,4 @@
 import type { APIRoute } from 'astro';
-import { env } from 'cloudflare:workers';
 import {
   ApiRequestError,
   listExtensions,
@@ -7,7 +6,8 @@ import {
 } from '@/lib/api/client';
 import { isExtensionType } from '@/types';
 
-export const GET: APIRoute = async ({ url }) => {
+export const GET: APIRoute = async ({ url, locals }) => {
+  const env = locals.env;
   const filters: ExtensionCatalogueFilters = {};
   const type = url.searchParams.get('type');
   const developerId = url.searchParams.get('developer_id');

@@ -6,8 +6,8 @@ import ReleasesCard from '@/components/ReleasesCard.astro';
 import Overview from '@/components/Overview.astro';
 import ReleasesTable from '@/components/ReleasesTable.astro';
 import { ApiRequestError, getExtensionById } from '@/lib/api/client';
-import { env } from 'cloudflare:workers';
 
+const env = Astro.locals.env;
 const { id } = Astro.params;
 
 if (!id) {

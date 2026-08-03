@@ -13,24 +13,24 @@ import { getSessionUser } from '@/lib/session';
 import { requireUser } from '@/lib/auth-guard';
 import { formString } from '@/lib/form';
 import { isSafeHttpUrl } from '@/lib/safe-url';
-import { env } from 'cloudflare:workers';
 import { CircleAlert } from '@lucide/astro';
 import ProfileTrustBadge from '@/components/ProfileTrustBadge.astro';
 import DeveloperAvatar from '@/components/DeveloperAvatar.astro';
 
+const env = Astro.locals.env;
 const { id } = Astro.params;
 
 if (!id) {
   return Astro.redirect('/404');
 }
 
-const developer = await getDeveloperById(env.DB_EXTENSIONS, id);
+const developer = await getDeveloperById(env.db, id);
 
 if (!developer) {
   return Astro.redirect('/404');
 }
 
-const currentUser = await getSessionUser(Astro.cookies, env.SESSION_SECRET);
+const currentUser = await getSessionUser(Astro.cookies, env.sessionSecret);
 
 let claimError: string | null = null;
 let claimSubmitted = false;

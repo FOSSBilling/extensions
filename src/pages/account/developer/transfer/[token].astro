@@ -1,11 +1,11 @@
 ---
 import Base from '../../../../layouts/Base.astro';
-import { env } from 'cloudflare:workers';
 import { requireUser } from '@/lib/auth-guard';
 import { createApiClient, ApiRequestError } from '@/lib/api/client';
 import { CircleAlert } from '@lucide/astro';
 import { setFlash } from '@/lib/flash';
 
+const env = Astro.locals.env;
 const guard = await requireUser(Astro, env);
 if (guard instanceof Response) return guard;
 const user = guard;

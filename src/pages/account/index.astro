@@ -1,6 +1,5 @@
 ---
 import Base from '../../layouts/Base.astro';
-import { env } from 'cloudflare:workers';
 import { requireUser } from '@/lib/auth-guard';
 import {
   ApiRequestError,
@@ -19,6 +18,7 @@ import { formatDate } from '@/lib/format-date';
 import { cursorPageUrl } from '@/lib/pagination';
 import { getOptimizedImageUrl } from '@/lib/image-url';
 
+const env = Astro.locals.env;
 const guard = await requireUser(Astro, env);
 if (guard instanceof Response) return guard;
 const user = guard;
@@ -26,10 +26,10 @@ const userPictureUrl = getOptimizedImageUrl(user.picture, 'avatar');
 
 const [ownedExtensions, moderator, developer, githubLinked] = await Promise.all(
   [
-    getExtensionsByOwner(env.DB_EXTENSIONS, user.sub),
-    isModerator(env.DB_EXTENSIONS, user.sub),
-    getDeveloperByOwner(env.DB_EXTENSIONS, user.sub),
-    hasLinkedGithub(env.DB_EXTENSIONS, user.sub),
+    getExtensionsByOwner(env.db, user.sub),
+    isModerator(env.db, user.sub),
+    getDeveloperByOwner(env.db, user.sub),
+    hasLinkedGithub(env.db, user.sub),
   ],
 );
 

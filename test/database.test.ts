@@ -3,6 +3,7 @@ import {
   getExtensionForSubmission,
   getExtensionsByOwner,
 } from '@/lib/database';
+import type { SqlDatabase } from '@/lib/runtime';
 
 function mockDatabase({
   first,
@@ -10,7 +11,7 @@ function mockDatabase({
 }: {
   first?: Record<string, unknown> | null;
   all?: { success: boolean; results: Record<string, unknown>[] };
-}): D1Database {
+}): SqlDatabase {
   const statement = {
     all: vi.fn().mockResolvedValue(all ?? { success: true, results: [] }),
     bind: vi.fn().mockReturnThis(),
@@ -19,7 +20,7 @@ function mockDatabase({
 
   return {
     prepare: vi.fn().mockReturnValue(statement),
-  } as unknown as D1Database;
+  } as unknown as SqlDatabase;
 }
 
 const validRow = {
@@ -49,7 +50,7 @@ const validRow = {
   readme: '# Example',
 };
 
-describe('D1 domain parsing', () => {
+describe('SQL domain parsing', () => {
   it('parses supported JSON fields without asserting the whole row as an API DTO', async () => {
     const extension = await getExtensionForSubmission(
       mockDatabase({

@@ -1,5 +1,4 @@
 import type { APIRoute } from 'astro';
-import { env } from 'cloudflare:workers';
 import {
   exchangeCodeForToken,
   fetchUserInfo,
@@ -24,7 +23,14 @@ const AUTH_ERROR_FLASH = {
   description: 'Please try again.',
 } as const;
 
-export const GET: APIRoute = async ({ cookies, redirect, url, session }) => {
+export const GET: APIRoute = async ({
+  cookies,
+  redirect,
+  url,
+  session,
+  locals,
+}) => {
+  const env = locals.env;
   const verifier = cookies.get(OAUTH_VERIFIER_COOKIE)?.value;
   const expectedState = cookies.get(OAUTH_STATE_COOKIE)?.value;
   const redirectTo = cookies.get(OAUTH_REDIRECT_COOKIE)?.value;
@@ -59,8 +65,8 @@ export const GET: APIRoute = async ({ cookies, redirect, url, session }) => {
       code,
       redirectUri,
       codeVerifier: verifier,
-      clientId: env.AUTH_CLIENT_ID,
-      clientSecret: env.AUTH_CLIENT_SECRET,
+      clientId: env.authClientId,
+      clientSecret: env.authClientSecret,
     });
     userInfo = await fetchUserInfo(token.access_token);
   } catch {
@@ -71,7 +77,7 @@ export const GET: APIRoute = async ({ cookies, redirect, url, session }) => {
   // A write failure here shouldn't block signing in — the session below
   // doesn't depend on it, only future ownership features will.
   try {
-    await upsertUser(env.DB_EXTENSIONS, userInfo);
+    await upsertUser(env.db, userInfo);
   } catch {}
 
   // Opportunistic re-verification: if this account owns a developer
@@ -83,10 +89,7 @@ export const GET: APIRoute = async ({ cookies, redirect, url, session }) => {
   // extra API round-trip to every one of those logins.
   const RECENT_VERIFICATION_MS = 60 * 60 * 1000;
   try {
-    const developer = await getDeveloperByOwner(
-      env.DB_EXTENSIONS,
-      userInfo.sub,
-    );
+    const developer = await getDeveloperByOwner(env.db, userInfo.sub);
     const lastVerifiedAt = developer?.github_verified_at
       ? new Date(developer.github_verified_at).getTime()
       : 0;
@@ -103,7 +106,7 @@ export const GET: APIRoute = async ({ cookies, redirect, url, session }) => {
       email: userInfo.email ?? '',
       picture: userInfo.picture,
     },
-    env.SESSION_SECRET,
+    env.sessionSecret,
   );
 
   cookies.set(SESSION_COOKIE, sessionValue, {

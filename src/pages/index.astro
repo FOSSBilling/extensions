@@ -8,8 +8,8 @@ import {
   type ExtensionListResponse,
 } from '@/lib/api/client';
 import { EXTENSION_TYPES, isExtensionType } from '@/types';
-import { env } from 'cloudflare:workers';
 
+const env = Astro.locals.env;
 const requestedType = Astro.url.searchParams.get('type');
 const activeType = isExtensionType(requestedType) ? requestedType : undefined;
 const requestedDeveloperId = Astro.url.searchParams.get('developer_id');
@@ -131,7 +131,10 @@ const hasNextPage = Boolean(
 
     {
       catalogueError ? (
-        <div class="card" role="alert">
+        <div
+          class="card flex min-h-32 flex-col items-center justify-center px-6 py-12 text-center"
+          role="alert"
+        >
           <h2 class="font-semibold">Unable to Load Extensions</h2>
           <p class="text-muted-foreground mt-2">{catalogueError}</p>
           <a href={Astro.url.pathname + Astro.url.search} class="btn mt-4">

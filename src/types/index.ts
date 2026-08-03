@@ -35,7 +35,7 @@ export function isDeveloperType(value: string): value is DeveloperType {
   return (DEVELOPER_TYPES as readonly string[]).includes(value);
 }
 
-// Local view/domain models used by D1-backed account pages and shared detail
+// Local view/domain models used by SQL-backed account pages and shared detail
 // components. These intentionally do not depend on API transport DTOs.
 export type Release = {
   tag: string;

@@ -1,4 +1,4 @@
-// Queries the shared D1 database (extensions_data) directly.
+// Queries the shared SQLite-compatible extensions database directly.
 // If the D1 schema changes, update fossbilling/api AND this file.
 import {
   isDeveloperType,
@@ -11,6 +11,7 @@ import {
   type Release,
   type Repository,
 } from '@/types';
+import type { SqlDatabase } from './runtime';
 
 // Omits readme (large field) — used for account-owned extension lists where
 // the full detail content is not rendered.
@@ -103,7 +104,7 @@ const SELECT_EXTENSION_DETAIL = `
 `;
 
 export async function getExtensionForSubmission(
-  db: D1Database,
+  db: SqlDatabase,
   id: string,
 ): Promise<Extension | null> {
   let row;
@@ -122,7 +123,7 @@ export async function getExtensionForSubmission(
 // (developers.owner_user_id, added by the api repo's v2 migration — see
 // that repo's src/services/extensions/v2/db/migrations/0001_add_v2_tables.sql).
 export async function getExtensionsByOwner(
-  db: D1Database,
+  db: SqlDatabase,
   userId: string,
 ): Promise<Extension[]> {
   let result;
@@ -144,7 +145,7 @@ export async function getExtensionsByOwner(
 // Includes contact_email — this is the owner viewing/editing their own
 // profile, not a public read.
 export async function getDeveloperByOwner(
-  db: D1Database,
+  db: SqlDatabase,
   userId: string,
 ): Promise<DeveloperProfile | null> {
   let row;
@@ -165,7 +166,7 @@ export async function getDeveloperByOwner(
 // mirrors the "pending" definition the api repo's acceptTransfer() checks
 // (developers-database.ts): not yet accepted, not revoked, not expired.
 export async function hasPendingTransfer(
-  db: D1Database,
+  db: SqlDatabase,
   developerId: string,
 ): Promise<boolean> {
   let row;
@@ -187,7 +188,7 @@ export async function hasPendingTransfer(
 
 // Public read for the /developer/[id] page — never selects contact_email.
 export async function getDeveloperById(
-  db: D1Database,
+  db: SqlDatabase,
   id: string,
 ): Promise<PublicDeveloperProfile | null> {
   let row;

@@ -35,15 +35,27 @@ import {
   type CataloguePageRequest,
 } from '@/lib/cataloguePagination';
 import { cursorPageUrl } from '@/lib/pagination';
+import type { ApplicationEnv, SqlDatabase } from '@/lib/runtime';
 
-const publicEnv = {
-  EXTENSIONS_API_BASE_URL: 'https://api.example.test',
-} as Cloudflare.Env;
+const unusedDatabase: SqlDatabase = {
+  prepare() {
+    throw new Error('database not used in API client tests');
+  },
+};
 
-const authenticatedEnv = {
+const publicEnv: ApplicationEnv = {
+  db: unusedDatabase,
+  extensionsApiBaseUrl: 'https://api.example.test',
+  authClientId: 'test-client',
+  authClientSecret: 'test-secret',
+  sessionSecret: 'test-session-secret',
+  assertionSigningSecret: '',
+};
+
+const authenticatedEnv: ApplicationEnv = {
   ...publicEnv,
-  ASSERTION_SIGNING_SECRET: 'test-secret',
-} as Cloudflare.Env;
+  assertionSigningSecret: 'test-secret',
+};
 
 function apiResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {

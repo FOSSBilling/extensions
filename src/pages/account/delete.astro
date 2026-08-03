@@ -1,6 +1,5 @@
 ---
 import Base from '../../layouts/Base.astro';
-import { env } from 'cloudflare:workers';
 import { requireUser } from '@/lib/auth-guard';
 import { createApiClient, ApiRequestError } from '@/lib/api/client';
 import { getDeveloperByOwner, getExtensionsByOwner } from '@/lib/database';
@@ -10,13 +9,14 @@ import { CircleAlert } from '@lucide/astro';
 import ConfirmDeleteDialog from '@/components/ConfirmDeleteDialog.astro';
 import { setFlash } from '@/lib/flash';
 
+const env = Astro.locals.env;
 const guard = await requireUser(Astro, env);
 if (guard instanceof Response) return guard;
 const user = guard;
 
-const developer = await getDeveloperByOwner(env.DB_EXTENSIONS, user.sub);
+const developer = await getDeveloperByOwner(env.db, user.sub);
 const extensions = developer
-  ? await getExtensionsByOwner(env.DB_EXTENSIONS, user.sub)
+  ? await getExtensionsByOwner(env.db, user.sub)
   : [];
 
 let error: string | null = null;
@@ -37,7 +37,7 @@ if (Astro.request.method === 'POST' && extensions.length === 0) {
   }
 
   if (!error) {
-    await deleteUser(env.DB_EXTENSIONS, user.sub);
+    await deleteUser(env.db, user.sub);
     Astro.cookies.delete(SESSION_COOKIE, { path: '/' });
     setFlash(Astro.session, {
       category: 'success',
