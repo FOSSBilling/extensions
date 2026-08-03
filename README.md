@@ -97,9 +97,13 @@ Icons and avatars from the known FOSSBilling, GitHub, GitLab, Google, and
 Gravatar origins are resized through the `/images/{variant}` route on Cloudflare.
 Other valid HTTP(S) image URLs remain direct browser requests, so custom-hosted
 images continue to work without turning the route into an arbitrary fetch proxy.
-The transformer rejects redirects and responses larger than 2 MiB.
-Cloudflare deployments must also allow the listed origins under Images →
-Transformations → Sources.
+During local development, allowlisted sources are redirected to the browser
+because Cloudflare image transformations are not available in Astro's local
+Cloudflare runtime.
+If a Cloudflare transformation is unavailable, the route fetches the same
+allowlisted source directly. It rejects redirects and responses larger than 2 MiB.
+For Cloudflare resizing to take effect, deployments must allow the listed
+origins under Images → Transformations → Sources.
 
 ## Authentication
 

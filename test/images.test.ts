@@ -4,6 +4,7 @@ import { handleImageRequest } from '@/pages/images/[variant]';
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
 });
 
 function requestContext(
@@ -39,6 +40,25 @@ describe('image URLs', () => {
 });
 
 describe('image transformation route', () => {
+  it('redirects allowlisted sources during local development', async () => {
+    vi.stubEnv('MODE', 'development');
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await handleImageRequest(
+      requestContext(
+        'icon',
+        'https://extensions.example.test/images/icon?src=https%3A%2F%2Fraw.githubusercontent.com%2Ffossbilling%2Flogo.png',
+      ),
+    );
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get('location')).toBe(
+      'https://raw.githubusercontent.com/fossbilling/logo.png',
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it('requests the bounded icon transform and negotiates AVIF', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response('transformed image', {
@@ -94,12 +114,19 @@ describe('image transformation route', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('returns an error when transformation is unavailable without fetching the original', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response('not an image', {
-        headers: { 'content-type': 'text/html' },
-      }),
-    );
+  it('falls back to the bounded original for an allowlisted source', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response('not an image', {
+          headers: { 'content-type': 'text/html' },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response('original image', {
+          headers: { 'content-type': 'image/png' },
+        }),
+      );
     vi.stubGlobal('fetch', fetchMock);
 
     const response = await handleImageRequest(
@@ -109,8 +136,13 @@ describe('image transformation route', () => {
       ),
     );
 
-    expect(response.status).toBe(502);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(response.status).toBe(200);
+    expect(await response.text()).toBe('original image');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls[1]?.[1]).toMatchObject({
+      redirect: 'error',
+    });
+    expect(fetchMock.mock.calls[1]?.[1]).not.toHaveProperty('cf');
   });
 
   it('prefers an accepted format with a non-zero quality value', async () => {

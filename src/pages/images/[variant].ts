@@ -10,6 +10,10 @@ const MAX_SOURCE_URL_LENGTH = 2048;
 const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
 const CACHE_CONTROL = 'public, max-age=3600, s-maxage=86400';
 
+function imageUnavailable(): Response {
+  return new Response('Image unavailable.', { status: 502 });
+}
+
 function parseImageSource(value: string | null, requestUrl: URL): URL | null {
   if (!value || value.length > MAX_SOURCE_URL_LENGTH) {
     return null;
@@ -126,6 +130,28 @@ function cacheImageResponse(response: Response): Response {
   });
 }
 
+async function fetchOriginalImage(
+  sourceUrl: URL,
+  request: Request,
+): Promise<Response> {
+  try {
+    const response = await fetch(sourceUrl, {
+      headers: {
+        accept: request.headers.get('accept') ?? 'image/*',
+      },
+      redirect: 'error',
+    });
+
+    if (!isImageResponse(response) || !hasAcceptableContentLength(response)) {
+      return imageUnavailable();
+    }
+
+    return cacheImageResponse(response);
+  } catch {
+    return imageUnavailable();
+  }
+}
+
 export async function handleImageRequest({
   params,
   request,
@@ -141,6 +167,10 @@ export async function handleImageRequest({
   );
   if (!sourceUrl) {
     return new Response('Invalid image source.', { status: 400 });
+  }
+
+  if (import.meta.env.MODE === 'development') {
+    return Response.redirect(sourceUrl, 307);
   }
 
   const variant: ImageVariant = params.variant;
@@ -165,13 +195,17 @@ export async function handleImageRequest({
       },
     });
 
-    if (!isImageResponse(response) || !hasAcceptableContentLength(response)) {
-      return new Response('Image unavailable.', { status: 502 });
+    if (!isImageResponse(response)) {
+      return fetchOriginalImage(sourceUrl, request);
+    }
+
+    if (!hasAcceptableContentLength(response)) {
+      return imageUnavailable();
     }
 
     return cacheImageResponse(response);
   } catch {
-    return new Response('Image unavailable.', { status: 502 });
+    return fetchOriginalImage(sourceUrl, request);
   }
 }
 
