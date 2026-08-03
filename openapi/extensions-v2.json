@@ -1,0 +1,2246 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "FOSSBilling Extensions API (v2)",
+    "version": "2.0.0",
+    "description": "Self-service extension submission, ownership, moderation, and public browsing. v1 (/extensions/v1) remains available for existing integrations."
+  },
+  "servers": [{ "url": "/extensions/v2" }],
+  "components": {
+    "securitySchemes": { "Bearer": { "type": "http", "scheme": "bearer" } },
+    "schemas": {
+      "ExtensionListResponse": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/ExtensionListItem" }
+          },
+          "pagination": {
+            "type": "object",
+            "properties": {
+              "next_cursor": { "type": ["string", "null"] },
+              "has_more": { "type": "boolean" }
+            },
+            "required": ["next_cursor", "has_more"]
+          }
+        },
+        "required": ["result", "pagination"]
+      },
+      "ExtensionListItem": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
+          "type": {
+            "type": "string",
+            "enum": [
+              "mod",
+              "theme",
+              "payment-gateway",
+              "server-manager",
+              "domain-registrar",
+              "hook",
+              "translation"
+            ]
+          },
+          "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          },
+          "website": { "type": "string", "maxLength": 2048, "format": "uri" },
+          "license": { "$ref": "#/components/schemas/License" },
+          "icon_url": { "type": "string", "maxLength": 2048, "format": "uri" },
+          "source": { "$ref": "#/components/schemas/Repository" },
+          "version": { "type": "string", "minLength": 1, "maxLength": 100 },
+          "download_url": {
+            "type": "string",
+            "maxLength": 2048,
+            "format": "uri"
+          },
+          "developer": { "$ref": "#/components/schemas/PublicDeveloper" }
+        },
+        "required": [
+          "id",
+          "type",
+          "name",
+          "description",
+          "website",
+          "license",
+          "source",
+          "version",
+          "download_url",
+          "developer"
+        ],
+        "additionalProperties": false
+      },
+      "License": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string", "minLength": 1, "maxLength": 100 },
+          "URL": { "type": "string", "maxLength": 2048, "format": "uri" }
+        },
+        "required": ["name"],
+        "additionalProperties": false
+      },
+      "Repository": {
+        "type": "object",
+        "properties": {
+          "type": { "type": "string", "enum": ["github", "gitlab", "custom"] },
+          "repo": { "type": "string", "minLength": 1, "maxLength": 500 }
+        },
+        "required": ["type", "repo"],
+        "additionalProperties": false
+      },
+      "PublicDeveloper": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
+          "type": { "type": "string", "enum": ["user", "organization"] },
+          "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+          "URL": { "type": "string", "maxLength": 2048, "format": "uri" },
+          "avatar_url": {
+            "type": "string",
+            "maxLength": 2048,
+            "format": "uri"
+          },
+          "approved": { "type": "boolean" }
+        },
+        "required": ["id", "type", "name", "approved"]
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "message": { "type": "string" },
+              "code": { "type": "string" },
+              "details": {
+                "type": "array",
+                "items": {
+                  "type": [
+                    "string",
+                    "number",
+                    "boolean",
+                    "object",
+                    "array",
+                    "null"
+                  ]
+                }
+              }
+            },
+            "required": ["message", "code"]
+          }
+        },
+        "required": ["error"]
+      },
+      "Extension": {
+        "allOf": [
+          { "$ref": "#/components/schemas/ExtensionPayload" },
+          {
+            "type": "object",
+            "properties": {
+              "developer": { "$ref": "#/components/schemas/PublicDeveloper" }
+            },
+            "required": ["developer"],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "Release": {
+        "type": "object",
+        "properties": {
+          "tag": { "type": "string", "minLength": 1, "maxLength": 100 },
+          "date": { "type": "string", "minLength": 1, "maxLength": 64 },
+          "download_url": {
+            "type": "string",
+            "maxLength": 2048,
+            "format": "uri"
+          },
+          "changelog_url": {
+            "type": "string",
+            "maxLength": 2048,
+            "format": "uri"
+          },
+          "min_fossbilling_version": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          }
+        },
+        "required": ["tag", "date", "download_url", "min_fossbilling_version"],
+        "additionalProperties": false
+      },
+      "ExtensionPayload": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
+          "type": {
+            "type": "string",
+            "enum": [
+              "mod",
+              "theme",
+              "payment-gateway",
+              "server-manager",
+              "domain-registrar",
+              "hook",
+              "translation"
+            ]
+          },
+          "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          },
+          "releases": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Release" },
+            "minItems": 1,
+            "maxItems": 100
+          },
+          "website": { "type": "string", "maxLength": 2048, "format": "uri" },
+          "license": { "$ref": "#/components/schemas/License" },
+          "icon_url": { "type": "string", "maxLength": 2048, "format": "uri" },
+          "readme": { "type": "string", "minLength": 1, "maxLength": 100000 },
+          "source": { "$ref": "#/components/schemas/Repository" },
+          "version": { "type": "string", "minLength": 1, "maxLength": 100 },
+          "download_url": {
+            "type": "string",
+            "maxLength": 2048,
+            "format": "uri"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "name",
+          "description",
+          "releases",
+          "website",
+          "license",
+          "readme",
+          "source",
+          "version",
+          "download_url"
+        ],
+        "additionalProperties": false
+      },
+      "SubmissionPayload": {
+        "type": "object",
+        "properties": {
+          "developer": { "$ref": "#/components/schemas/SubmissionDeveloper" },
+          "extension": { "$ref": "#/components/schemas/ExtensionPayload" }
+        },
+        "required": ["developer", "extension"],
+        "additionalProperties": false
+      },
+      "SubmissionDeveloper": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
+          "type": { "type": "string", "enum": ["user", "organization"] },
+          "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+          "URL": { "type": "string", "maxLength": 2048, "format": "uri" }
+        },
+        "required": ["id", "type", "name"],
+        "additionalProperties": false
+      },
+      "Submission": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "extension_id": { "type": ["string", "null"] },
+          "developer_id": { "type": "string" },
+          "submitted_by": { "type": "string" },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "approved", "rejected"]
+          },
+          "payload": { "$ref": "#/components/schemas/SubmissionPayload" },
+          "reviewer_id": { "type": ["string", "null"] },
+          "review_note": { "type": ["string", "null"] },
+          "created_at": { "type": "string" },
+          "reviewed_at": { "type": ["string", "null"] }
+        },
+        "required": [
+          "id",
+          "extension_id",
+          "developer_id",
+          "submitted_by",
+          "status",
+          "payload",
+          "reviewer_id",
+          "review_note",
+          "created_at",
+          "reviewed_at"
+        ]
+      },
+      "Pagination": {
+        "type": "object",
+        "properties": {
+          "next_cursor": { "type": ["string", "null"] },
+          "has_more": { "type": "boolean" }
+        },
+        "required": ["next_cursor", "has_more"]
+      },
+      "ReviewNoteOptional": {
+        "type": "object",
+        "properties": { "review_note": { "type": "string", "maxLength": 2000 } }
+      },
+      "ReviewNoteRequired": {
+        "type": "object",
+        "properties": {
+          "review_note": { "type": "string", "minLength": 1, "maxLength": 2000 }
+        },
+        "required": ["review_note"]
+      },
+      "DeveloperProfile": {
+        "allOf": [
+          { "$ref": "#/components/schemas/Developer" },
+          {
+            "type": "object",
+            "properties": {
+              "approved": { "type": "boolean" },
+              "content_revision": {
+                "type": "integer",
+                "minimum": 0,
+                "exclusiveMinimum": true
+              },
+              "github_org_verified": { "type": "boolean" },
+              "github_verification_note": { "type": "string" },
+              "github_verified_at": { "type": ["string", "null"] },
+              "github_url_verified": { "type": "boolean" },
+              "unclaimed": { "type": "boolean" },
+              "owner_name": { "type": ["string", "null"] },
+              "owner_github_login": { "type": ["string", "null"] }
+            },
+            "required": ["approved", "content_revision"]
+          }
+        ]
+      },
+      "Developer": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
+          "type": { "type": "string", "enum": ["user", "organization"] },
+          "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+          "URL": { "type": "string", "maxLength": 2048, "format": "uri" },
+          "avatar_url": {
+            "type": "string",
+            "maxLength": 2048,
+            "format": "uri"
+          },
+          "contact_email": {
+            "type": "string",
+            "maxLength": 254,
+            "format": "email"
+          }
+        },
+        "required": ["id", "type", "name"]
+      },
+      "DeveloperClaim": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "developer_id": { "type": "string" },
+          "claimant_id": { "type": "string" },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "approved", "rejected"]
+          },
+          "note": { "type": "string" },
+          "review_note": { "type": "string" },
+          "reviewer_id": { "type": "string" },
+          "created_at": { "type": "string" },
+          "reviewed_at": { "type": "string" },
+          "github_org_verified": { "type": "boolean" },
+          "github_verification_note": { "type": "string" }
+        },
+        "required": [
+          "id",
+          "developer_id",
+          "claimant_id",
+          "status",
+          "created_at"
+        ]
+      },
+      "ClaimNote": {
+        "type": "object",
+        "properties": { "note": { "type": "string", "maxLength": 500 } }
+      },
+      "PendingDeveloperClaim": {
+        "allOf": [
+          { "$ref": "#/components/schemas/DeveloperClaim" },
+          {
+            "type": "object",
+            "properties": {
+              "developer_name": { "type": "string" },
+              "developer_type": {
+                "type": "string",
+                "enum": ["user", "organization"]
+              },
+              "claimant_name": { "type": ["string", "null"] },
+              "claimant_github_login": { "type": ["string", "null"] }
+            },
+            "required": [
+              "developer_name",
+              "developer_type",
+              "claimant_name",
+              "claimant_github_login"
+            ]
+          }
+        ]
+      },
+      "DeveloperTransfer": {
+        "type": "object",
+        "properties": {
+          "token": { "type": "string" },
+          "expires_at": { "type": "string" }
+        },
+        "required": ["token", "expires_at"]
+      },
+      "TransferAcceptance": {
+        "type": "object",
+        "properties": {
+          "token": { "type": "string", "minLength": 64, "maxLength": 128 }
+        },
+        "required": ["token"],
+        "additionalProperties": false
+      },
+      "DeveloperApproval": {
+        "type": "object",
+        "properties": {
+          "expected_revision": {
+            "type": "integer",
+            "minimum": 0,
+            "exclusiveMinimum": true
+          }
+        },
+        "required": ["expected_revision"],
+        "additionalProperties": false
+      },
+      "DeveloperHistoryEntry": {
+        "type": "object",
+        "properties": {
+          "developer_id": { "type": "string" },
+          "type": { "type": "string", "enum": ["user", "organization"] },
+          "name": { "type": "string" },
+          "URL": { "type": "string", "maxLength": 2048, "format": "uri" },
+          "changed_by": { "type": "string" },
+          "changed_by_name": { "type": ["string", "null"] },
+          "changed_at": { "type": "string" }
+        },
+        "required": [
+          "developer_id",
+          "type",
+          "name",
+          "changed_by",
+          "changed_by_name",
+          "changed_at"
+        ]
+      }
+    },
+    "parameters": {}
+  },
+  "paths": {
+    "/extensions": {
+      "get": {
+        "tags": ["Extensions"],
+        "summary": "List published extensions",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "mod",
+                "theme",
+                "payment-gateway",
+                "server-manager",
+                "domain-registrar",
+                "hook",
+                "translation"
+              ]
+            },
+            "required": false,
+            "name": "type",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string" },
+            "required": false,
+            "name": "developer_id",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1000,
+              "description": "Opaque cursor returned by the previous page"
+            },
+            "required": false,
+            "description": "Opaque cursor returned by the previous page",
+            "name": "cursor",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Extensions matching the given filters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExtensionListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Filter or pagination query failed validation",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "500": {
+            "description": "Database error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/extensions/{id}": {
+      "get": {
+        "tags": ["Extensions"],
+        "summary": "Get a single published extension",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "b6e2c9c4-3f1a-4e9b-9c3a-2e4b1a2f9d10"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The extension",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": { "$ref": "#/components/schemas/Extension" }
+                  },
+                  "required": ["result"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No extension with that id",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "422": {
+            "description": "id param failed validation",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "500": {
+            "description": "Database error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/submissions": {
+      "post": {
+        "tags": ["Submissions"],
+        "summary": "Submit a new extension, or an edit to one you own",
+        "security": [{ "Bearer": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/SubmissionPayload" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Submission created and pending moderator review",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "id": { "type": "string" },
+                        "status": { "type": "string", "enum": ["pending"] }
+                      },
+                      "required": ["id", "status"]
+                    }
+                  },
+                  "required": ["result"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid bearer token",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "403": {
+            "description": "Caller does not own the target developer or extension",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "409": {
+            "description": "Ownership or target changed, a duplicate is pending, or the pending limit was reached",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "422": {
+            "description": "Payload failed validation",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "500": {
+            "description": "Database error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/submissions/mine": {
+      "get": {
+        "tags": ["Submissions"],
+        "summary": "List the caller's own submissions, in any status",
+        "security": [{ "Bearer": [] }],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "maxLength": 1000 },
+            "required": false,
+            "name": "cursor",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The caller's submissions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Submission" }
+                    },
+                    "pagination": { "$ref": "#/components/schemas/Pagination" }
+                  },
+                  "required": ["result", "pagination"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid bearer token",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "422": {
+            "description": "Pagination query failed validation",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "500": {
+            "description": "Database error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/submissions/queue": {
+      "get": {
+        "tags": ["Moderation"],
+        "summary": "List submissions in the moderation queue",
+        "security": [{ "Bearer": [] }],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": ["pending", "approved", "rejected"]
+            },
+            "required": false,
+            "name": "status",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "maxLength": 1000 },
+            "required": false,
+            "name": "cursor",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Submissions matching the requested status (default: pending)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Submission" }
+                    },
+                    "pagination": { "$ref": "#/components/schemas/Pagination" }
+                  },
+                  "required": ["result", "pagination"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid bearer token",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "403": {
+            "description": "Caller is not a moderator",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "422": {
+            "description": "status query param failed validation",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "500": {
+            "description": "Database error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/submissions/{id}/approve": {
+      "post": {
+        "tags": ["Moderation"],
+        "summary": "Approve a pending submission",
+        "security": [{ "Bearer": [] }],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "b6e2c9c4-3f1a-4e9b-9c3a-2e4b1a2f9d10"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ReviewNoteOptional" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Submission approved and written through to the live extension/developer",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "id": { "type": "string" },
+                        "status": { "type": "string", "enum": ["approved"] }
+                      },
+                      "required": ["id", "status"]
+                    }
+                  },
+                  "required": ["result"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid bearer token",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "403": {
+            "description": "Caller is not a moderator",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "404": {
+            "description": "No submission with that id",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "409": {
+            "description": "Submission is not pending, or ownership has changed since it was submitted",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "422": {
+            "description": "id param or review_note body failed validation",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "500": {
+            "description": "Database error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/submissions/{id}/reject": {
+      "post": {
+        "tags": ["Moderation"],
+        "summary": "Reject a pending submission",
+        "security": [{ "Bearer": [] }],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "b6e2c9c4-3f1a-4e9b-9c3a-2e4b1a2f9d10"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ReviewNoteRequired" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Submission rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "id": { "type": "string" },
+                        "status": { "type": "string", "enum": ["rejected"] }
+                      },
+                      "required": ["id", "status"]
+                    }
+                  },
+                  "required": ["result"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid bearer token",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "403": {
+            "description": "Caller is not a moderator",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "404": {
+            "description": "No submission with that id",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "409": {
+            "description": "Submission is not pending",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "422": {
+            "description": "review_note is required",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "500": {
+            "description": "Database error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/developers/me": {
+      "put": {
+        "tags": ["Developers"],
+        "summary": "Create or update the caller's own developer profile",
+        "security": [{ "Bearer": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/Developer" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Developer profile created or updated and usable immediately",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "$ref": "#/components/schemas/DeveloperProfile"
+                    }
+                  },
+                  "required": ["result"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid bearer token",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "403": {
+            "description": "This id matches a real GitHub organization or username that isn't linked to the caller's account",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "409": {
+            "description": "Developer id already taken by someone else, or id was changed on an existing profile",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "422": {
+            "description": "Payload failed validation, or the GitHub account type is unsupported",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "429": {
+            "description": "GitHub verification is temporarily rate limited",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "500": {
+            "description": "Database error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "503": {
+            "description": "GitHub verification is temporarily unavailable",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Developers"],
+        "summary": "Permanently delete the caller's own developer profile",
+        "security": [{ "Bearer": [] }],
+        "responses": {
+          "200": {
+            "description": "Profile deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "id": { "type": "string" },
+                        "deleted": { "type": "boolean", "enum": [true] }
+                      },
+                      "required": ["id", "deleted"]
+                    }
+                  },
+                  "required": ["result"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid bearer token",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "404": {
+            "description": "Caller has no developer profile",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "409": {
+            "description": "Profile still has published extensions, or has a pending submission awaiting review",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "500": {
+            "description": "Database error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/developers/me/reverify": {
+      "post": {
+        "tags": ["Developers"],
+        "summary": "Re-check the caller's linked GitHub identity against their own developer profile",
+        "security": [{ "Bearer": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "enum": ["true", "false"] },
+            "required": false,
+            "name": "check_url",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Verification re-checked (result may be verified or not)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "$ref": "#/components/schemas/DeveloperProfile"
+                    }
+                  },
+                  "required": ["result"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid bearer token",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "404": {
+            "description": "Caller has no developer profile",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "409": {
+            "description": "Developer ownership changed while re-verifying",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "422": {
+            "description": "The GitHub account type is unsupported",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "429": {
+            "description": "check_url was used again too soon, or GitHub verification is rate limited",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "500": {
+            "description": "Database error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "503": {
+            "description": "GitHub verification is temporarily unavailable",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/developers/{id}/claim": {
+      "post": {
+        "tags": ["Developers"],
+        "summary": "Request ownership of an unowned developer profile",
+        "security": [{ "Bearer": [] }],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "b6e2c9c4-3f1a-4e9b-9c3a-2e4b1a2f9d10"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ClaimNote" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Claim created and pending moderator review",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": { "$ref": "#/components/schemas/DeveloperClaim" }
+                  },
+                  "required": ["result"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid bearer token",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "403": {
+            "description": "Caller's linked GitHub account doesn't match this developer's GitHub organization or username",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "404": {
+            "description": "No developer with that id",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "409": {
+            "description": "Profile is already owned, caller already owns a different profile, or already has a pending claim on this one",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "422": {
+            "description": "The request failed validation, or the GitHub account type is unsupported",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "429": {
+            "description": "GitHub verification is temporarily rate limited",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "500": {
+            "description": "Database error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "503": {
+            "description": "GitHub verification is temporarily unavailable",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/developers/claims/{id}/cancel": {
+      "post": {
+        "tags": ["Developers"],
+        "summary": "Withdraw the caller's own pending profile claim",
+        "security": [{ "Bearer": [] }],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "b6e2c9c4-3f1a-4e9b-9c3a-2e4b1a2f9d10"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Claim withdrawn",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "id": { "type": "string" },
+                        "cancelled": { "type": "boolean", "enum": [true] }
+                      },
+                      "required": ["id", "cancelled"]
+                    }
+                  },
+                  "required": ["result"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid bearer token",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "404": {
+            "description": "No pending claim with that id owned by the caller",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "422": {
+            "description": "id param failed validation",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "500": {
+            "description": "Database error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/developers/claims/mine": {
+      "get": {
+        "tags": ["Developers"],
+        "summary": "List the caller's own profile claims, in any status",
+        "security": [{ "Bearer": [] }],
+        "responses": {
+          "200": {
+            "description": "The caller's claims",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/DeveloperClaim" }
+                    }
+                  },
+                  "required": ["result"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid bearer token",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "500": {
+            "description": "Database error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/developers/claims": {
+      "get": {
+        "tags": ["Moderation"],
+        "summary": "List pending profile claims",
+        "security": [{ "Bearer": [] }],
+        "responses": {
+          "200": {
+            "description": "Claims awaiting moderator review",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/PendingDeveloperClaim"
+                      }
+                    }
+                  },
+                  "required": ["result"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid bearer token",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "403": {
+            "description": "Caller is not a moderator",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "500": {
+            "description": "Database error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/developers/claims/{id}/approve": {
+      "post": {
+        "tags": ["Moderation"],
+        "summary": "Approve a pending profile claim",
+        "security": [{ "Bearer": [] }],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "b6e2c9c4-3f1a-4e9b-9c3a-2e4b1a2f9d10"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Claim approved; profile ownership transferred to the claimant",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "$ref": "#/components/schemas/DeveloperProfile"
+                    }
+                  },
+                  "required": ["result"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid bearer token",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "403": {
+            "description": "Caller is not a moderator",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "404": {
+            "description": "No claim or developer with that id",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "409": {
+            "description": "Claim is no longer pending, profile is no longer unowned, or the claimant now owns a different profile",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "422": {
+            "description": "id param failed validation",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "500": {
+            "description": "Database error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/developers/claims/{id}/reject": {
+      "post": {
+        "tags": ["Moderation"],
+        "summary": "Reject a pending profile claim",
+        "security": [{ "Bearer": [] }],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "b6e2c9c4-3f1a-4e9b-9c3a-2e4b1a2f9d10"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ReviewNoteRequired" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Claim rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": { "$ref": "#/components/schemas/DeveloperClaim" }
+                  },
+                  "required": ["result"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid bearer token",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "403": {
+            "description": "Caller is not a moderator",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "404": {
+            "description": "No pending claim with that id",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "422": {
+            "description": "id param or review_note body failed validation",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "500": {
+            "description": "Database error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/developers/{id}/transfer": {
+      "post": {
+        "tags": ["Developers"],
+        "summary": "Create a single-use link to hand this profile to another account",
+        "security": [{ "Bearer": [] }],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "b6e2c9c4-3f1a-4e9b-9c3a-2e4b1a2f9d10"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Transfer token created; share it out-of-band with the recipient",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "$ref": "#/components/schemas/DeveloperTransfer"
+                    }
+                  },
+                  "required": ["result"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid bearer token",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "403": {
+            "description": "Caller does not own this profile",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "404": {
+            "description": "No developer with that id",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "422": {
+            "description": "id param failed validation",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "500": {
+            "description": "Database error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/developers/{id}/transfer/revoke": {
+      "post": {
+        "tags": ["Developers"],
+        "summary": "Revoke this profile's pending transfer link, if any",
+        "security": [{ "Bearer": [] }],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "b6e2c9c4-3f1a-4e9b-9c3a-2e4b1a2f9d10"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Any pending transfer for this profile is revoked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "id": { "type": "string" },
+                        "revoked": { "type": "boolean", "enum": [true] }
+                      },
+                      "required": ["id", "revoked"]
+                    }
+                  },
+                  "required": ["result"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid bearer token",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "403": {
+            "description": "Caller does not own this profile",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "404": {
+            "description": "No developer with that id",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "422": {
+            "description": "id param failed validation",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "500": {
+            "description": "Database error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/developers/transfers/accept": {
+      "post": {
+        "tags": ["Developers"],
+        "summary": "Accept a developer profile transfer using its single-use token",
+        "security": [{ "Bearer": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/TransferAcceptance" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Profile is now owned by the caller",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "$ref": "#/components/schemas/DeveloperProfile"
+                    }
+                  },
+                  "required": ["result"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid bearer token",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "404": {
+            "description": "Transfer link is invalid, already used, or expired",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "409": {
+            "description": "Caller already owns a different developer profile",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "422": {
+            "description": "token body failed validation",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "500": {
+            "description": "Database error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/developers": {
+      "get": {
+        "tags": ["Moderation"],
+        "summary": "List every developer profile, approved or not",
+        "security": [{ "Bearer": [] }],
+        "responses": {
+          "200": {
+            "description": "All developer profiles",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/DeveloperProfile"
+                      }
+                    }
+                  },
+                  "required": ["result"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid bearer token",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "403": {
+            "description": "Caller is not a moderator",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "500": {
+            "description": "Database error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/developers/unapproved": {
+      "get": {
+        "tags": ["Moderation"],
+        "summary": "List developer profiles awaiting moderator review",
+        "security": [{ "Bearer": [] }],
+        "responses": {
+          "200": {
+            "description": "Developer profiles not yet approved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/DeveloperProfile"
+                      }
+                    }
+                  },
+                  "required": ["result"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid bearer token",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "403": {
+            "description": "Caller is not a moderator",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "500": {
+            "description": "Database error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/developers/{id}": {
+      "get": {
+        "tags": ["Developers"],
+        "summary": "Get a developer's public profile",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "b6e2c9c4-3f1a-4e9b-9c3a-2e4b1a2f9d10"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The developer's public profile",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": { "$ref": "#/components/schemas/PublicDeveloper" }
+                  },
+                  "required": ["result"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No developer with that id",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "422": {
+            "description": "id param failed validation",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "500": {
+            "description": "Database error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/developers/{id}/approve": {
+      "post": {
+        "tags": ["Moderation"],
+        "summary": "Mark a developer profile as reviewed/approved",
+        "security": [{ "Bearer": [] }],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "b6e2c9c4-3f1a-4e9b-9c3a-2e4b1a2f9d10"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/DeveloperApproval" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Developer profile marked approved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "id": { "type": "string" },
+                        "approved": { "type": "boolean", "enum": [true] }
+                      },
+                      "required": ["id", "approved"]
+                    }
+                  },
+                  "required": ["result"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid bearer token",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "403": {
+            "description": "Caller is not a moderator",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "404": {
+            "description": "No developer with that id",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "409": {
+            "description": "Profile changed after the reviewed revision",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "422": {
+            "description": "id param failed validation",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "500": {
+            "description": "Database error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/developers/{id}/history": {
+      "get": {
+        "tags": ["Moderation"],
+        "summary": "List the write history of a developer profile",
+        "security": [{ "Bearer": [] }],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "b6e2c9c4-3f1a-4e9b-9c3a-2e4b1a2f9d10"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Snapshots of the profile, newest first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/DeveloperHistoryEntry"
+                      }
+                    }
+                  },
+                  "required": ["result"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid bearer token",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "403": {
+            "description": "Caller is not a moderator",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "422": {
+            "description": "id param failed validation",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "500": {
+            "description": "Database error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

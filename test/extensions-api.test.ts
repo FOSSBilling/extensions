@@ -1,20 +1,45 @@
-import { afterEach, describe, expect, expectTypeOf, it, vi } from 'vitest';
 import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  expectTypeOf,
+  it,
+  vi,
+} from 'vitest';
+
+vi.mock('@/lib/assertion', () => ({
+  mintBearerAssertion: vi.fn(),
+}));
+
+import {
+  ApiRequestError,
+  clampApiPageLimit,
   clampExtensionPageLimit,
-  ExtensionsApiError,
+  createApiClient,
   getExtensionById,
   listExtensions,
   type Extension,
   type ExtensionListItem,
   type ExtensionListResponse,
-} from '@/lib/extensionsApi';
+  type SubmissionPayload,
+  type SubmissionPage,
+} from '@/lib/api/client';
+import { mintBearerAssertion } from '@/lib/assertion';
 import {
   createCataloguePager,
+  createCataloguePagerFromIds,
   type CataloguePageRequest,
 } from '@/lib/cataloguePagination';
+import { cursorPageUrl } from '@/lib/pagination';
 
-const env = {
+const publicEnv = {
   EXTENSIONS_API_BASE_URL: 'https://api.example.test',
+} as Cloudflare.Env;
+
+const authenticatedEnv = {
+  ...publicEnv,
+  ASSERTION_SIGNING_SECRET: 'test-secret',
 } as Cloudflare.Env;
 
 function apiResponse(body: unknown, status = 200): Response {
@@ -52,22 +77,40 @@ function page(
   return { result, pagination: { next_cursor, has_more } };
 }
 
-function requestUrl(fetchMock: ReturnType<typeof vi.fn>): URL {
-  const request = fetchMock.mock.calls[0]?.[0];
-  return new URL(request instanceof Request ? request.url : String(request));
+function submissionPage(
+  next_cursor: string | null,
+  has_more: boolean,
+): SubmissionPage {
+  return {
+    result: [],
+    pagination: { next_cursor, has_more },
+  };
+}
+
+function requestFrom(fetchMock: ReturnType<typeof vi.fn>, index = 0): Request {
+  return fetchMock.mock.calls[index]?.[0] as Request;
+}
+
+function requestUrl(fetchMock: ReturnType<typeof vi.fn>, index = 0): URL {
+  return new URL(requestFrom(fetchMock, index).url);
 }
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.clearAllMocks();
 });
 
-describe('generated Extensions v2 catalogue client', () => {
+beforeEach(() => {
+  vi.mocked(mintBearerAssertion).mockResolvedValue('test-token');
+});
+
+describe('generated Extensions v2 façade', () => {
   it('uses the bounded default limit, omits the first cursor, and consumes result items', async () => {
     const firstPage = page([item('first')], 'opaque-page-2', true);
     const fetchMock = vi.fn().mockResolvedValue(apiResponse(firstPage));
     vi.stubGlobal('fetch', fetchMock);
 
-    const response = await listExtensions(env);
+    const response = await listExtensions(publicEnv);
     const url = requestUrl(fetchMock);
 
     expect(url.pathname).toBe('/extensions/v2/extensions');
@@ -77,6 +120,7 @@ describe('generated Extensions v2 catalogue client', () => {
     expect(response.pagination).toEqual(firstPage.pagination);
     expect(response.result[0]).not.toHaveProperty('readme');
     expect(response.result[0]).not.toHaveProperty('releases');
+    expect(requestFrom(fetchMock).headers.get('authorization')).toBeNull();
   });
 
   it('sends limit 100 and clamps larger values instead of sending them', async () => {
@@ -87,13 +131,12 @@ describe('generated Extensions v2 catalogue client', () => {
       );
     vi.stubGlobal('fetch', fetchMock);
 
-    await listExtensions(env, { limit: 100 });
-    expect(requestUrl(fetchMock).searchParams.get('limit')).toBe('100');
+    await listExtensions(publicEnv, { limit: 100 });
+    await listExtensions(publicEnv, { limit: 101 });
 
-    await listExtensions(env, { limit: 101 });
-    const secondRequest = fetchMock.mock.calls[1]?.[0] as Request;
-    expect(new URL(secondRequest.url).searchParams.get('limit')).toBe('100');
-    expect(clampExtensionPageLimit(0)).toBe(1);
+    expect(requestUrl(fetchMock, 0).searchParams.get('limit')).toBe('100');
+    expect(requestUrl(fetchMock, 1).searchParams.get('limit')).toBe('100');
+    expect(clampApiPageLimit(0)).toBe(1);
     expect(clampExtensionPageLimit(101)).toBe(100);
   });
 
@@ -104,7 +147,7 @@ describe('generated Extensions v2 catalogue client', () => {
     vi.stubGlobal('fetch', fetchMock);
     const opaqueCursor = 'cursor/with?opaque=characters';
 
-    await listExtensions(env, {
+    await listExtensions(publicEnv, {
       type: 'theme',
       developer_id: 'developer-id',
       limit: 100,
@@ -117,7 +160,7 @@ describe('generated Extensions v2 catalogue client', () => {
     expect(url.searchParams.get('cursor')).toBe(opaqueCursor);
   });
 
-  it('returns the complete detail DTO, including README and releases', async () => {
+  it('returns the complete detail DTO by ID', async () => {
     const detail: Extension = {
       ...item('full-extension'),
       readme: '# Full extension\n\nREADME content',
@@ -142,10 +185,9 @@ describe('generated Extensions v2 catalogue client', () => {
       .mockResolvedValue(apiResponse({ result: detail }));
     vi.stubGlobal('fetch', fetchMock);
 
-    const response = await getExtensionById(env, 'full-extension');
-    const request = fetchMock.mock.calls[0]?.[0] as Request;
+    const response = await getExtensionById(publicEnv, 'full-extension');
 
-    expect(request.url).toBe(
+    expect(requestFrom(fetchMock).url).toBe(
       'https://api.example.test/extensions/v2/extensions/full-extension',
     );
     expect(response.readme).toContain('README content');
@@ -156,30 +198,163 @@ describe('generated Extensions v2 catalogue client', () => {
     expect(response.developer.id).toBe('fossbilling');
   });
 
-  it('surfaces a 422 invalid cursor as an API error', async () => {
+  it('uses generated serialization and a fresh bearer callback for authenticated requests', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(() =>
+        Promise.resolve(apiResponse(submissionPage(null, false))),
+      );
+    vi.stubGlobal('fetch', fetchMock);
+    vi.mocked(mintBearerAssertion)
+      .mockResolvedValueOnce('token-one')
+      .mockResolvedValueOnce('token-two');
+
+    const api = createApiClient(authenticatedEnv, 'user-sub');
+    await api.listMySubmissions({ limit: 100, cursor: 'opaque cursor' });
+    await api.listMySubmissions({ limit: 100 });
+
+    expect(mintBearerAssertion).toHaveBeenCalledTimes(2);
+    expect(mintBearerAssertion).toHaveBeenNthCalledWith(
+      1,
+      'user-sub',
+      'test-secret',
+    );
+    expect(requestFrom(fetchMock, 0).headers.get('authorization')).toBe(
+      'Bearer token-one',
+    );
+    expect(requestUrl(fetchMock, 0).pathname).toBe(
+      '/extensions/v2/submissions/mine',
+    );
+    expect(requestUrl(fetchMock, 0).searchParams.get('limit')).toBe('100');
+    expect(requestUrl(fetchMock, 0).searchParams.get('cursor')).toBe(
+      'opaque cursor',
+    );
+    expect(requestUrl(fetchMock, 1).searchParams.has('cursor')).toBe(false);
+  });
+
+  it('serializes generated request bodies as well as paths and queries', async () => {
+    const payload = {
+      developer: {
+        id: 'fossbilling',
+        type: 'organization' as const,
+        name: 'FOSSBilling',
+      },
+      extension: {
+        id: 'body-extension',
+        type: 'mod' as const,
+        name: 'Body extension',
+        description: 'Submitted through the generated client.',
+        releases: [],
+        website: 'https://example.test/body-extension',
+        license: { name: 'MIT' },
+        readme: '# Body extension',
+        source: { type: 'github' as const, repo: 'fossbilling/body-extension' },
+        version: '1.0.0',
+        download_url: 'https://example.test/body-extension.zip',
+      },
+    } satisfies SubmissionPayload;
     const fetchMock = vi
       .fn()
       .mockResolvedValue(
-        apiResponse(
-          { error: { code: 'INVALID_CURSOR', message: 'Cursor is invalid.' } },
-          422,
-        ),
+        apiResponse({ result: { id: 'submission-1', status: 'pending' } }, 201),
       );
     vi.stubGlobal('fetch', fetchMock);
 
+    await createApiClient(authenticatedEnv, 'user-sub').submitExtension(
+      payload,
+    );
+
+    const request = requestFrom(fetchMock);
+    expect(new URL(request.url).pathname).toBe('/extensions/v2/submissions');
+    expect(request.headers.get('content-type')).toBe('application/json');
+    expect(await request.json()).toEqual(payload);
+  });
+
+  it('returns submission pagination and preserves moderation filters', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(apiResponse(submissionPage('next-page', true)));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await createApiClient(
+      authenticatedEnv,
+      'moderator-sub',
+    ).listQueue('approved', { limit: 100, cursor: 'queue-cursor' });
+
+    expect(response.pagination).toEqual({
+      next_cursor: 'next-page',
+      has_more: true,
+    });
+    expect(requestUrl(fetchMock).searchParams.get('status')).toBe('approved');
+    expect(requestUrl(fetchMock).searchParams.get('cursor')).toBe(
+      'queue-cursor',
+    );
+  });
+
+  it('normalizes structured, invalid-json, and network failures to one error type', async () => {
+    const structuredFetch = vi.fn().mockResolvedValue(
+      apiResponse(
+        {
+          error: {
+            code: 'INVALID_CURSOR',
+            message: 'Cursor is invalid.',
+            details: ['expired'],
+          },
+        },
+        422,
+      ),
+    );
+    vi.stubGlobal('fetch', structuredFetch);
+
     await expect(
-      listExtensions(env, { cursor: 'invalid-cursor' }),
+      listExtensions(publicEnv, { cursor: 'invalid-cursor' }),
     ).rejects.toMatchObject({
       status: 422,
       code: 'INVALID_CURSOR',
       message: 'Cursor is invalid.',
+      details: ['expired'],
     });
+
+    const invalidJsonFetch = vi
+      .fn()
+      .mockResolvedValue(new Response('not-json', { status: 500 }));
+    vi.stubGlobal('fetch', invalidJsonFetch);
+    await expect(listExtensions(publicEnv)).rejects.toMatchObject({
+      status: 500,
+      code: 'request_failed',
+    });
+
+    const networkFetch = vi
+      .fn()
+      .mockRejectedValue(new TypeError('network down'));
+    vi.stubGlobal('fetch', networkFetch);
+    await expect(listExtensions(publicEnv)).rejects.toBeInstanceOf(
+      ApiRequestError,
+    );
   });
 
   it('keeps list consumers on ExtensionListItem rather than Extension', () => {
     expectTypeOf<ExtensionListItem[]>().toEqualTypeOf<
       ExtensionListResponse['result']
     >();
+    expectTypeOf<
+      'readme' extends keyof ExtensionListItem ? true : false
+    >().toEqualTypeOf<false>();
+    expectTypeOf<
+      'releases' extends keyof ExtensionListItem ? true : false
+    >().toEqualTypeOf<false>();
+    expectTypeOf<Extension>().toHaveProperty('readme');
+    expectTypeOf<Extension>().toHaveProperty('releases');
+  });
+
+  it('keeps façade pagination and payload types tied to generated responses', () => {
+    expectTypeOf<SubmissionPage['pagination']>().toEqualTypeOf<{
+      next_cursor: string | null;
+      has_more: boolean;
+    }>();
+    expectTypeOf<
+      ReturnType<ReturnType<typeof createApiClient>['listQueue']>
+    >().resolves.toEqualTypeOf<SubmissionPage>();
   });
 });
 
@@ -217,6 +392,22 @@ describe('catalogue page accumulation', () => {
     ]);
     expect(state.nextCursor).toBe('cursor-3');
     expect(state.hasMore).toBe(true);
+  });
+
+  it('deduplicates already-rendered DOM IDs without constructing fake DTOs', async () => {
+    const loadPage = vi
+      .fn()
+      .mockResolvedValue(page([item('ALPHA'), item('second')], null, false));
+    const pager = createCataloguePagerFromIds(
+      ['alpha'],
+      { next_cursor: 'cursor-2', has_more: true },
+      filters,
+      loadPage,
+    );
+
+    const state = await pager.loadNextPage();
+
+    expect(state.items.map((extension) => extension.id)).toEqual(['second']);
   });
 
   it('does not duplicate concurrent next-page requests', async () => {
@@ -269,7 +460,7 @@ describe('catalogue page accumulation', () => {
   });
 
   it('retains loaded results and does not reset or retry after an invalid cursor', async () => {
-    const invalidCursor = new ExtensionsApiError(
+    const invalidCursor = new ApiRequestError(
       422,
       'INVALID_CURSOR',
       'Cursor is invalid.',
@@ -288,5 +479,21 @@ describe('catalogue page accumulation', () => {
     expect(state.hasMore).toBe(true);
     expect(state.error).toBe(invalidCursor);
     expect(loadPage).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('server-rendered cursor links', () => {
+  it('preserves active filters and passes the opaque cursor unchanged', () => {
+    expect(
+      cursorPageUrl(
+        new URL(
+          'https://example.test/account/moderate?status=approved&view=queue',
+        ),
+        'cursor',
+        'cursor/with?opaque=characters',
+      ),
+    ).toBe(
+      '/account/moderate?status=approved&view=queue&cursor=cursor%2Fwith%3Fopaque%3Dcharacters',
+    );
   });
 });

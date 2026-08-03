@@ -3,17 +3,14 @@ import Base from '../../layouts/Base.astro';
 import ExtensionCard from '@/components/ExtensionCard.astro';
 import { getDeveloperById } from '@/lib/database';
 import {
-  ExtensionsApiError,
+  ApiRequestError,
+  createApiClient,
+  getApiErrorMessage,
   listExtensions,
   type ExtensionListResponse,
-} from '@/lib/extensionsApi';
+} from '@/lib/api/client';
 import { getSessionUser } from '@/lib/session';
 import { requireUser } from '@/lib/auth-guard';
-import {
-  createApiClient,
-  ApiRequestError,
-  getApiErrorMessage,
-} from '@/lib/apiClient';
 import { formString } from '@/lib/form';
 import { isSafeHttpUrl } from '@/lib/safe-url';
 import { env } from 'cloudflare:workers';
@@ -67,7 +64,7 @@ try {
   });
 } catch (error) {
   extensionsError =
-    error instanceof ExtensionsApiError
+    error instanceof ApiRequestError
       ? error.message
       : 'Unable to load this developer’s extensions. Please try again.';
 }

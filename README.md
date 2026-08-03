@@ -162,18 +162,22 @@ higher bar than developer profiles since they carry download URLs and arbitrary 
 content. All writes to the shared `developers`/`extensions` tables — moderated or not — happen in
 the [`FOSSBilling/api`](https://github.com/FOSSBilling/api) repo's `/extensions/v2` service,
 not here; this app never writes to those tables directly. The public catalogue uses the generated
-client from `src/generated/extensions-v2`, with `GET /extensions` loaded in bounded cursor pages
+client from `src/lib/api/generated/extensions-v2`, with `GET /extensions` loaded in bounded cursor pages
 and `GET /extensions/{id}` used for complete detail pages. Account ownership/editing queries still
 use this app's D1 helpers (`getExtensionsByOwner`, `getExtensionForSubmission`,
 `getDeveloperByOwner`, and `getDeveloperById`); the public developer page derives its `unclaimed`
 flag from `owner_user_id IS NULL` (never exposing the raw owner id itself, which would leak
 another user's identifier).
 
-Regenerate the client from the current API contract with:
+Regenerate the client from the checked-in API contract with:
 
 ```bash
 npm run api:generate
 ```
+
+Refresh the reviewed contract snapshot from the upstream API and regenerate it
+with `npm run api:update`. `npm run api:check` verifies that the committed
+generated files match `openapi/extensions-v2.json`.
 
 Each request to `/extensions/v2` is authenticated with a short-lived (60s) HMAC-signed
 bearer assertion this app mints per-request (`src/lib/assertion.ts`), proving the

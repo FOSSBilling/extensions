@@ -1,7 +1,7 @@
 import type { APIRoute } from 'astro';
 import { env } from 'cloudflare:workers';
 import { requireUser } from '@/lib/auth-guard';
-import { createApiClient, ApiRequestError } from '@/lib/apiClient';
+import { createApiClient, ApiRequestError } from '@/lib/api/client';
 import { setFlash } from '@/lib/flash';
 
 export const POST: APIRoute = async (context) => {

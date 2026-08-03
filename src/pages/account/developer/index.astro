@@ -6,7 +6,7 @@ import {
   createApiClient,
   ApiRequestError,
   getApiErrorMessage,
-} from '@/lib/apiClient';
+} from '@/lib/api/client';
 import {
   getDeveloperByOwner,
   getDeveloperById,
@@ -23,11 +23,8 @@ import ConfirmDeleteDialog from '@/components/ConfirmDeleteDialog.astro';
 import { setFlash } from '@/lib/flash';
 import { formatDateTimeInZone } from '@/lib/format-date';
 import { stripUrlScheme } from '@/lib/url-prefix';
-import type {
-  DeveloperClaim,
-  DeveloperProfileInput,
-  DeveloperTransfer,
-} from '@/types';
+import type { DeveloperClaim, DeveloperTransfer } from '@/lib/api/client';
+import type { DeveloperProfileInput } from '@/lib/api/client';
 
 const guard = await requireUser(Astro, env);
 if (guard instanceof Response) return guard;

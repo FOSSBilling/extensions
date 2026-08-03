@@ -78,7 +78,7 @@ function parseDeveloperProfileRow(row: DeveloperProfileRow): DeveloperProfile {
     github_verification_note: row.github_verification_note ?? undefined,
     github_verified_at: row.github_verified_at ?? undefined,
     github_url_verified: row.github_url_verified === 1 ? true : undefined,
-  } as DeveloperProfile;
+  };
 }
 
 // Includes readme and releases — used when an owner edits a submission.

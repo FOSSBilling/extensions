@@ -1,36 +1,12 @@
 import { gt, lt } from 'semver';
-
 import type {
-  Developer,
-  DeveloperClaim,
-  DeveloperHistoryEntry,
-  DeveloperProfile,
-  DeveloperTransfer,
-  Extension,
-  ExtensionListItem,
-  ExtensionPayload,
-  PendingDeveloperClaim,
-  Release,
-  Repository,
-  Submission,
-  SubmissionPayload,
-} from '@/generated/extensions-v2';
-
-export type {
-  Developer,
-  DeveloperClaim,
-  DeveloperHistoryEntry,
-  DeveloperProfile,
-  DeveloperTransfer,
-  Extension,
-  ExtensionListItem,
-  ExtensionPayload,
-  PendingDeveloperClaim,
-  Release,
-  Repository,
-  Submission,
-  SubmissionPayload,
-};
+  Developer as ApiDeveloper,
+  DeveloperProfile as ApiDeveloperProfile,
+  Extension as ApiExtension,
+  License as ApiLicense,
+  Release as ApiRelease,
+  Repository as ApiRepository,
+} from '@/lib/api/generated/extensions-v2';
 
 export const EXTENSION_TYPES = [
   'mod',
@@ -40,11 +16,78 @@ export const EXTENSION_TYPES = [
   'domain-registrar',
   'hook',
   'translation',
-] as const;
+] as const satisfies readonly ApiExtension['type'][];
 
-export const SOURCE_TYPES = ['github', 'gitlab', 'custom'] as const;
+export const SOURCE_TYPES = [
+  'github',
+  'gitlab',
+  'custom',
+] as const satisfies readonly ApiRepository['type'][];
 
-export const DEVELOPER_TYPES = ['user', 'organization'] as const;
+export const DEVELOPER_TYPES = [
+  'user',
+  'organization',
+] as const satisfies readonly ApiDeveloper['type'][];
+
+export type ExtensionType = ApiExtension['type'];
+export type SourceType = ApiRepository['type'];
+export type DeveloperType = ApiDeveloper['type'];
+
+// Local view/domain models used by D1-backed account pages and shared detail
+// components. API transport DTOs are intentionally exported by the API
+// façade instead of this application-wide module.
+export type Release = Pick<
+  ApiRelease,
+  'tag' | 'date' | 'download_url' | 'changelog_url' | 'min_fossbilling_version'
+>;
+
+export type Repository = Pick<ApiRepository, 'type' | 'repo'>;
+
+export type License = Pick<ApiLicense, 'name' | 'URL'>;
+
+export type Developer = Pick<
+  ApiDeveloper,
+  'id' | 'type' | 'name' | 'URL' | 'avatar_url' | 'contact_email'
+> & {
+  approved?: boolean;
+};
+
+export type Extension = Omit<ApiExtension, 'developer'> & {
+  developer: Developer;
+};
+
+export type DeveloperProfile = Pick<
+  ApiDeveloperProfile,
+  | 'id'
+  | 'type'
+  | 'name'
+  | 'URL'
+  | 'avatar_url'
+  | 'contact_email'
+  | 'approved'
+  | 'content_revision'
+  | 'github_org_verified'
+  | 'github_verification_note'
+  | 'github_verified_at'
+  | 'github_url_verified'
+  | 'unclaimed'
+  | 'owner_name'
+  | 'owner_github_login'
+>;
+
+// What getDeveloperById (the public /developer/[id] read) returns — private
+// owner and moderation fields are excluded from the local public view.
+export type PublicDeveloperProfile = Omit<
+  DeveloperProfile,
+  | 'contact_email'
+  | 'content_revision'
+  | 'github_org_verified'
+  | 'github_verification_note'
+  | 'github_verified_at'
+  | 'github_url_verified'
+  | 'owner_name'
+  | 'owner_github_login'
+>;
 
 export function getLatestRelease(extension: Extension): Release | undefined {
   if (extension.releases.length === 0) {
@@ -74,41 +117,6 @@ export function sortReleasesDescending(releases: Release[]): Release[] {
     }
   });
 }
-
-// Body for PUT /extensions/v2/developers/me — everything but the server-set
-// `approved` flag, `content_revision`, GitHub verification fields, and
-// owner-identity fields (only ever populated by the moderator list query).
-export type DeveloperProfileInput = Omit<
-  DeveloperProfile,
-  | 'approved'
-  | 'unclaimed'
-  | 'content_revision'
-  | 'github_org_verified'
-  | 'github_verification_note'
-  | 'github_verified_at'
-  | 'github_url_verified'
-  | 'owner_name'
-  | 'owner_github_login'
->;
-
-// What getDeveloperById (the public /developer/[id] read) returns —
-// contact_email is owner/moderator-only, content_revision is an internal
-// moderation concern, and github_org_verified/github_verification_note are
-// a moderator-review signal — all excluded at the type level rather than
-// relying solely on the query not selecting them.
-export type PublicDeveloperProfile = Omit<
-  DeveloperProfile,
-  | 'contact_email'
-  | 'content_revision'
-  | 'github_org_verified'
-  | 'github_verification_note'
-  | 'github_verified_at'
-  | 'github_url_verified'
-  | 'owner_name'
-  | 'owner_github_login'
->;
-
-export type SubmissionStatus = Submission['status'];
 
 export function repositoryURL(repository: Repository): string {
   switch (repository.type) {

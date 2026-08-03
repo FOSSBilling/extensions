@@ -56,7 +56,16 @@ export type Error = {
   error: {
     message: string;
     code: string;
-    details?: Array<unknown>;
+    details?: Array<
+      | string
+      | number
+      | boolean
+      | {
+          [key: string]: unknown;
+        }
+      | Array<unknown>
+      | null
+    >;
   };
 };
 

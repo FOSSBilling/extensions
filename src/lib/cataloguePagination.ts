@@ -2,7 +2,7 @@ import type {
   ExtensionCatalogueFilters,
   ExtensionListItem,
   ExtensionListResponse,
-} from './extensionsApi';
+} from './api/client';
 
 export type CataloguePageRequest = Omit<ExtensionCatalogueFilters, 'cursor'> & {
   cursor: string;
@@ -24,8 +24,13 @@ export function createCataloguePager(
   firstPage: ExtensionListResponse,
   filters: Omit<ExtensionCatalogueFilters, 'cursor'>,
   loadPage: CataloguePageLoader,
+  initialIds: string[] = [],
 ) {
   let state = stateFromPage(firstPage);
+  const knownIds = new Set([
+    ...initialIds.map((id) => id.toLowerCase()),
+    ...state.items.map((item) => item.id.toLowerCase()),
+  ]);
   let inFlight: Promise<CataloguePagerState> | null = null;
 
   return {
@@ -57,7 +62,7 @@ export function createCataloguePager(
         try {
           const page = await loadPage(request);
           state = {
-            ...appendPage(state, page),
+            ...appendPage(state, page, knownIds),
             isLoading: false,
           };
         } catch (error) {
@@ -83,6 +88,20 @@ export function createCataloguePager(
   };
 }
 
+export function createCataloguePagerFromIds(
+  initialIds: string[],
+  pagination: ExtensionListResponse['pagination'],
+  filters: Omit<ExtensionCatalogueFilters, 'cursor'>,
+  loadPage: CataloguePageLoader,
+) {
+  return createCataloguePager(
+    { result: [], pagination },
+    filters,
+    loadPage,
+    initialIds,
+  );
+}
+
 export function stateFromPage(
   page: ExtensionListResponse,
 ): CataloguePagerState {
@@ -98,8 +117,8 @@ export function stateFromPage(
 export function appendPage(
   state: CataloguePagerState,
   page: ExtensionListResponse,
+  knownIds = new Set(state.items.map((item) => item.id.toLowerCase())),
 ): CataloguePagerState {
-  const knownIds = new Set(state.items.map((item) => item.id.toLowerCase()));
   const newItems = page.result.filter((item) => {
     const key = item.id.toLowerCase();
     if (knownIds.has(key)) {

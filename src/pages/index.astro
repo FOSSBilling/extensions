@@ -3,11 +3,11 @@ import Base from '../layouts/Base.astro';
 import ExtensionCard from '../components/ExtensionCard.astro';
 import {
   clampExtensionPageLimit,
-  ExtensionsApiError,
+  ApiRequestError,
   listExtensions,
   type ExtensionListItem,
   type ExtensionListResponse,
-} from '@/lib/extensionsApi';
+} from '@/lib/api/client';
 import { EXTENSION_TYPES } from '@/types';
 import { env } from 'cloudflare:workers';
 
@@ -39,7 +39,7 @@ try {
   });
 } catch (error) {
   catalogueError =
-    error instanceof ExtensionsApiError
+    error instanceof ApiRequestError
       ? error.message
       : 'Unable to load the extension catalogue. Please try again.';
 }

@@ -2,16 +2,21 @@
 import Base from '../../layouts/Base.astro';
 import { env } from 'cloudflare:workers';
 import { requireUser } from '@/lib/auth-guard';
-import { createApiClient, listMyClaimsSafely } from '@/lib/apiClient';
+import {
+  ApiRequestError,
+  createApiClient,
+  listMyClaimsSafely,
+} from '@/lib/api/client';
 import { getDeveloperByOwner, getExtensionsByOwner } from '@/lib/database';
 import { isModerator, hasLinkedGithub } from '@/lib/users';
 import { ISSUER } from '@/lib/oauth';
 import { getLatestRelease } from '@/types';
-import type { DeveloperClaim, Submission } from '@/types';
+import type { DeveloperClaim, Submission } from '@/lib/api/client';
 import { CircleAlert } from '@lucide/astro';
 import ProfileTrustBadge from '@/components/ProfileTrustBadge.astro';
 import DeveloperAvatar from '@/components/DeveloperAvatar.astro';
 import { formatDate } from '@/lib/format-date';
+import { cursorPageUrl } from '@/lib/pagination';
 
 const guard = await requireUser(Astro, env);
 if (guard instanceof Response) return guard;
@@ -28,12 +33,27 @@ const [ownedExtensions, moderator, developer, githubLinked] = await Promise.all(
 
 const api = createApiClient(env, user.sub);
 let submissions: Submission[] = [];
-let submissionsError = false;
+let submissionsNextCursor: string | null = null;
+let submissionsHasMore = false;
+let submissionsError: string | null = null;
 try {
-  submissions = await api.listMySubmissions();
-} catch {
-  submissionsError = true;
+  const submissionsPage = await api.listMySubmissions({
+    cursor: Astro.url.searchParams.get('submissions_cursor') ?? undefined,
+  });
+  submissions = submissionsPage.result;
+  submissionsNextCursor = submissionsPage.pagination.next_cursor;
+  submissionsHasMore = submissionsPage.pagination.has_more;
+} catch (error) {
+  submissionsError =
+    error instanceof ApiRequestError
+      ? error.message
+      : 'Unable to load your submissions right now.';
 }
+
+const nextSubmissionsUrl =
+  submissionsHasMore && submissionsNextCursor !== null
+    ? cursorPageUrl(Astro.url, 'submissions_cursor', submissionsNextCursor)
+    : null;
 
 const myClaims: DeveloperClaim[] = developer
   ? []
@@ -342,36 +362,41 @@ const reconnectUrl = `${ISSUER}/account?callbackURL=${encodeURIComponent(
       <section>
         {
           submissionsError ? (
-            <p class="text-sm text-destructive">
-              Unable to load your submissions right now.
-            </p>
+            <p class="text-sm text-destructive">{submissionsError}</p>
           ) : submissions.length === 0 ? (
             <p class="text-muted-foreground text-sm">No submissions yet.</p>
           ) : (
-            <ul class="divide-y divide-border">
-              {submissions.map((s) => (
-                <li class="py-3 flex items-center justify-between gap-3">
-                  <div>
-                    <p class="font-medium">{s.payload.extension.name}</p>
-                    <p class="text-sm text-muted-foreground">
-                      {s.extension_id ? 'Edit' : 'New extension'} &middot;
-                      submitted {formatDate(s.created_at)}
-                    </p>
-                    {s.status === 'rejected' && s.review_note && (
-                      <p class="text-sm text-destructive mt-1">
-                        {s.review_note}
+            <>
+              <ul class="divide-y divide-border">
+                {submissions.map((s) => (
+                  <li class="py-3 flex items-center justify-between gap-3">
+                    <div>
+                      <p class="font-medium">{s.payload.extension.name}</p>
+                      <p class="text-sm text-muted-foreground">
+                        {s.extension_id ? 'Edit' : 'New extension'} &middot;
+                        submitted {formatDate(s.created_at)}
                       </p>
-                    )}
-                  </div>
-                  <span
-                    class="badge"
-                    data-variant={statusBadgeVariant[s.status]}
-                  >
-                    {s.status}
-                  </span>
-                </li>
-              ))}
-            </ul>
+                      {s.status === 'rejected' && s.review_note && (
+                        <p class="text-sm text-destructive mt-1">
+                          {s.review_note}
+                        </p>
+                      )}
+                    </div>
+                    <span
+                      class="badge"
+                      data-variant={statusBadgeVariant[s.status]}
+                    >
+                      {s.status}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              {nextSubmissionsUrl && (
+                <a href={nextSubmissionsUrl} class="btn mt-4">
+                  Next submissions page
+                </a>
+              )}
+            </>
           )
         }
       </section>

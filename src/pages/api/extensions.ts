@@ -1,11 +1,11 @@
 import type { APIRoute } from 'astro';
 import { env } from 'cloudflare:workers';
 import {
-  ExtensionsApiError,
+  ApiRequestError,
   listExtensions,
   type ExtensionCatalogueFilters,
   type ExtensionListItem,
-} from '@/lib/extensionsApi';
+} from '@/lib/api/client';
 
 export const GET: APIRoute = async ({ url }) => {
   const filters: ExtensionCatalogueFilters = {};
@@ -32,7 +32,7 @@ export const GET: APIRoute = async ({ url }) => {
   try {
     return Response.json(await listExtensions(env, filters));
   } catch (error) {
-    if (error instanceof ExtensionsApiError) {
+    if (error instanceof ApiRequestError) {
       return Response.json(
         {
           error: {

@@ -15,7 +15,7 @@ import {
 } from '@/lib/session';
 import { upsertUser } from '@/lib/users';
 import { getDeveloperByOwner } from '@/lib/database';
-import { createApiClient } from '@/lib/apiClient';
+import { createApiClient } from '@/lib/api/client';
 import { setFlash } from '@/lib/flash';
 
 const AUTH_ERROR_FLASH = {

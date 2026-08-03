@@ -4,6 +4,8 @@
   "type": "module",
   "scripts": {
     "api:generate": "openapi-ts -f openapi-ts.config.ts",
+    "api:update": "node scripts/update-extensions-openapi.mjs && npm run api:generate",
+    "api:check": "npm run api:generate && git diff --exit-code -- src/lib/api/generated/extensions-v2",
     "cf-typegen": "wrangler types",
     "cf-deploy": "wrangler deploy",
     "db:migrate:local": "wrangler d1 migrations apply DB_EXTENSIONS --local",
@@ -13,8 +15,8 @@
     "preview": "astro preview",
     "test": "vitest run",
     "check": "astro check",
-    "format": "prettier --write \"{src,public,test}/**/*.{astro,css,js,json,mjs,ts}\" \"*.{json,mjs,ts}\"",
-    "format:check": "prettier --check \"{src,public,test}/**/*.{astro,css,js,json,mjs,ts}\" \"*.{json,mjs,ts}\""
+    "format": "prettier --write \"{src,public,test,scripts,openapi}/**/*.{astro,css,js,json,mjs,ts}\" \"*.{json,mjs,ts}\"",
+    "format:check": "prettier --check \"{src,public,test,scripts,openapi}/**/*.{astro,css,js,json,mjs,ts}\" \"*.{json,mjs,ts}\""
   },
   "dependencies": {
     "@astrojs/check": "^0.9.9",

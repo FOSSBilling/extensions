@@ -1,7 +1,7 @@
 import type { APIRoute } from 'astro';
 import { env } from 'cloudflare:workers';
 import { requireModerator } from '@/lib/auth-guard';
-import { createApiClient, ApiRequestError } from '@/lib/apiClient';
+import { createApiClient, ApiRequestError } from '@/lib/api/client';
 import { formString } from '@/lib/form';
 import { setFlash } from '@/lib/flash';
 

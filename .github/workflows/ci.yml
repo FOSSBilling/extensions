@@ -27,8 +27,14 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
+      - name: Verify Generated API Client
+        run: npm run api:check
+
       - name: Check Formatting
         run: npm run format:check
+
+      - name: Run Tests
+        run: npm test
 
       - name: Run Astro Checks
         run: npm run check

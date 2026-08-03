@@ -1,11 +1,11 @@
 import {
-  createCataloguePager,
+  createCataloguePagerFromIds,
   type CataloguePageRequest,
 } from '@/lib/cataloguePagination';
 import type {
   ExtensionListItem,
   ExtensionListResponse,
-} from '@/lib/extensionsApi';
+} from '@/lib/api/client';
 
 const DEFAULT_PAGE_LIMIT = 50;
 
@@ -146,25 +146,25 @@ function installCatalogue(root: HTMLElement): void {
     return;
   }
 
-  const initialItems = Array.from(
+  const initialIds = Array.from(
     grid.querySelectorAll<HTMLElement>('[data-extension-id]'),
-  ).map(
-    (card) => ({ id: card.dataset.extensionId ?? '' }) as ExtensionListItem,
-  );
-  const firstPage: ExtensionListResponse = {
-    result: initialItems,
-    pagination: {
-      next_cursor: loadMore.dataset.nextCursor ?? null,
-      has_more: root.dataset.hasMore === 'true',
-    },
+  )
+    .map((card) => card.dataset.extensionId ?? '')
+    .filter(Boolean);
+  const pagination: ExtensionListResponse['pagination'] = {
+    next_cursor: loadMore.dataset.nextCursor ?? null,
+    has_more: root.dataset.hasMore === 'true',
   };
   const filters = {
     type: root.dataset.type as ExtensionListItem['type'] | undefined,
     developer_id: root.dataset.developerId,
     limit: Number(root.dataset.limit) || DEFAULT_PAGE_LIMIT,
   };
-  const pager = createCataloguePager(firstPage, filters, (request) =>
-    loadPage(root.dataset.apiUrl ?? '/api/extensions', request),
+  const pager = createCataloguePagerFromIds(
+    initialIds,
+    pagination,
+    filters,
+    (request) => loadPage(root.dataset.apiUrl ?? '/api/extensions', request),
   );
 
   const updateControls = (itemsBeforeLoad: number) => {

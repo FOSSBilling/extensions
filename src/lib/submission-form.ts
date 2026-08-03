@@ -1,11 +1,6 @@
 import { EXTENSION_TYPES, SOURCE_TYPES } from '@/types';
-import type {
-  Developer,
-  Extension,
-  Release,
-  Repository,
-  SubmissionPayload,
-} from '@/types';
+import type { Developer, Extension, Release, Repository } from '@/types';
+import type { SubmissionPayload } from '@/lib/api/client';
 import { formString } from './form';
 import { withHttpsScheme } from './url-prefix';
 

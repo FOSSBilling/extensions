@@ -5,7 +5,7 @@ import DetailsCard from '@/components/DetailsCard.astro';
 import ReleasesCard from '@/components/ReleasesCard.astro';
 import Overview from '@/components/Overview.astro';
 import ReleasesTable from '@/components/ReleasesTable.astro';
-import { ExtensionsApiError, getExtensionById } from '@/lib/extensionsApi';
+import { ApiRequestError, getExtensionById } from '@/lib/api/client';
 import { env } from 'cloudflare:workers';
 
 const { id } = Astro.params;
@@ -18,7 +18,7 @@ let ext;
 try {
   ext = await getExtensionById(env, id);
 } catch (error) {
-  if (error instanceof ExtensionsApiError && error.status === 404) {
+  if (error instanceof ApiRequestError && error.status === 404) {
     return Astro.redirect('/404');
   }
   throw error;
