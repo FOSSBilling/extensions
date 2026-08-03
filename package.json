@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "api:generate": "openapi-ts -f openapi-ts.config.ts",
-    "api:update": "node scripts/update-extensions-openapi.mjs && npm run api:generate",
+    "api:update": "node scripts/update-extensions-openapi.mjs && prettier --write openapi/extensions-v2.json && npm run api:generate",
     "api:check": "npm run api:generate && git diff --exit-code -- src/lib/api/generated/extensions-v2",
     "cf-typegen": "wrangler types",
     "cf-deploy": "wrangler deploy",
