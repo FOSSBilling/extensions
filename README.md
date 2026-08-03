@@ -100,8 +100,10 @@ images continue to work without turning the route into an arbitrary fetch proxy.
 During local development, allowlisted sources are redirected to the browser
 because Cloudflare image transformations are not available in Astro's local
 Cloudflare runtime.
-If a Cloudflare transformation is unavailable, the route fetches the same
-allowlisted source directly. It rejects redirects and responses larger than 2 MiB.
+If a Cloudflare transformation is unavailable, the route redirects the browser
+to the same allowlisted source instead of proxying an unbounded fallback. The
+server-side transform request does not follow origin redirects, and transformed
+responses larger than 2 MiB are rejected.
 For Cloudflare resizing to take effect, deployments must allow the listed
 origins under Images → Transformations → Sources.
 
@@ -117,8 +119,8 @@ The domain helpers use the small `SqlDatabase` interface instead of Cloudflare's
 `D1Database` type. The current queries and migrations remain SQLite-compatible;
 a provider using a different SQL dialect would need a database adapter rather than
 leaking provider types into application code. Cloudflare image transformations are
-an optional optimization: the image route retains a direct-fetch fallback for
-allowlisted sources when that capability is unavailable.
+an optional optimization: the image route falls back to a direct browser request
+for allowlisted sources when that capability is unavailable.
 
 ## Authentication
 

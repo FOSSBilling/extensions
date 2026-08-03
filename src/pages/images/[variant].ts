@@ -130,28 +130,6 @@ function cacheImageResponse(response: Response): Response {
   });
 }
 
-async function fetchOriginalImage(
-  sourceUrl: URL,
-  request: Request,
-): Promise<Response> {
-  try {
-    const response = await fetch(sourceUrl, {
-      headers: {
-        accept: request.headers.get('accept') ?? 'image/*',
-      },
-      redirect: 'error',
-    });
-
-    if (!isImageResponse(response) || !hasAcceptableContentLength(response)) {
-      return imageUnavailable();
-    }
-
-    return cacheImageResponse(response);
-  } catch {
-    return imageUnavailable();
-  }
-}
-
 export async function handleImageRequest({
   params,
   request,
@@ -196,7 +174,7 @@ export async function handleImageRequest({
     });
 
     if (!isImageResponse(response)) {
-      return fetchOriginalImage(sourceUrl, request);
+      return Response.redirect(sourceUrl, 307);
     }
 
     if (!hasAcceptableContentLength(response)) {
@@ -205,7 +183,7 @@ export async function handleImageRequest({
 
     return cacheImageResponse(response);
   } catch {
-    return fetchOriginalImage(sourceUrl, request);
+    return Response.redirect(sourceUrl, 307);
   }
 }
 

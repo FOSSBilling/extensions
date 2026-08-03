@@ -114,19 +114,12 @@ describe('image transformation route', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('falls back to the bounded original for an allowlisted source', async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(
-        new Response('not an image', {
-          headers: { 'content-type': 'text/html' },
-        }),
-      )
-      .mockResolvedValueOnce(
-        new Response('original image', {
-          headers: { 'content-type': 'image/png' },
-        }),
-      );
+  it('redirects to the original when transformation is unavailable', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response('not an image', {
+        headers: { 'content-type': 'text/html' },
+      }),
+    );
     vi.stubGlobal('fetch', fetchMock);
 
     const response = await handleImageRequest(
@@ -136,13 +129,28 @@ describe('image transformation route', () => {
       ),
     );
 
-    expect(response.status).toBe(200);
-    expect(await response.text()).toBe('original image');
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(fetchMock.mock.calls[1]?.[1]).toMatchObject({
-      redirect: 'error',
-    });
-    expect(fetchMock.mock.calls[1]?.[1]).not.toHaveProperty('cf');
+    expect(response.status).toBe(307);
+    expect(response.headers.get('location')).toBe(
+      'https://raw.githubusercontent.com/fossbilling/avatar.png',
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('redirects to the original when the transformer request throws', async () => {
+    const fetchMock = vi.fn().mockRejectedValue(new Error('transform failed'));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await handleImageRequest(
+      requestContext(
+        'icon',
+        'https://extensions.example.test/images/icon?src=https%3A%2F%2Fraw.githubusercontent.com%2Ffossbilling%2Flogo.png',
+      ),
+    );
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get('location')).toBe(
+      'https://raw.githubusercontent.com/fossbilling/logo.png',
+    );
   });
 
   it('prefers an accepted format with a non-zero quality value', async () => {
