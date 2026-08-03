@@ -8,6 +8,7 @@ import {
 } from '@/lib/image-url';
 
 const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
+const INITIAL_IMAGE_BUFFER_BYTES = 64 * 1024;
 const CACHE_CONTROL = 'public, max-age=3600, s-maxage=86400';
 
 function imageUnavailable(): Response {
@@ -125,11 +126,16 @@ async function readBoundedBody(response: Response): Promise<Uint8Array | null> {
     return new Uint8Array();
   }
 
-  const reader = response.body.getReader();
-  const chunks: Uint8Array[] = [];
+  const contentLength = response.headers.get('content-length');
+  const initialCapacity =
+    contentLength === null
+      ? INITIAL_IMAGE_BUFFER_BYTES
+      : Math.min(MAX_IMAGE_BYTES, Number(contentLength));
+  let body = new Uint8Array(initialCapacity);
   let bytesRead = 0;
 
   try {
+    const reader = response.body.getReader();
     while (true) {
       const { done, value } = await reader.read();
       if (done) {
@@ -144,19 +150,23 @@ async function readBoundedBody(response: Response): Promise<Uint8Array | null> {
         await reader.cancel();
         return null;
       }
-      chunks.push(value);
+
+      if (bytesRead > body.length) {
+        const nextCapacity = Math.min(
+          MAX_IMAGE_BYTES,
+          Math.max(bytesRead, body.length * 2, 1),
+        );
+        const nextBody = new Uint8Array(nextCapacity);
+        nextBody.set(body.subarray(0, bytesRead - value.byteLength));
+        body = nextBody;
+      }
+      body.set(value, bytesRead - value.byteLength);
     }
   } catch {
     return null;
   }
 
-  const body = new Uint8Array(bytesRead);
-  let offset = 0;
-  for (const chunk of chunks) {
-    body.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-  return body;
+  return body.subarray(0, bytesRead);
 }
 
 async function cacheImageResponse(response: Response): Promise<Response> {

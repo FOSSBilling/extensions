@@ -81,6 +81,7 @@ describe('image transformation route', () => {
     );
 
     expect(response.status).toBe(200);
+    expect(await response.text()).toBe('transformed image');
     expect(response.headers.get('cache-control')).toBe(
       'public, max-age=3600, s-maxage=86400',
     );
