@@ -23,6 +23,7 @@ reviews:
   ignore:
     files:
       - "openapi/*"
+      - "lib/generated/*"
     head_branches:
       - renovate/*
       - dependabot/*
