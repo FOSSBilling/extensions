@@ -1,4 +1,5 @@
 import type { UserInfo } from './oauth';
+import type { SqlDatabase } from './runtime';
 
 const GITHUB_ORGS_EXPIRES_AT_CLAIM =
   'https://fossbilling.org/claims/github_orgs_expires_at' as const;
@@ -69,7 +70,7 @@ function isGithubOrgList(value: unknown): value is string[] {
 }
 
 export async function upsertUser(
-  db: D1Database,
+  db: SqlDatabase,
   info: UserInfo,
 ): Promise<void> {
   const now = new Date().toISOString();
@@ -110,7 +111,7 @@ export async function upsertUser(
 }
 
 export async function userExists(
-  db: D1Database,
+  db: SqlDatabase,
   userId: string,
 ): Promise<boolean> {
   const row = await db
@@ -121,7 +122,7 @@ export async function userExists(
 }
 
 export async function isModerator(
-  db: D1Database,
+  db: SqlDatabase,
   userId: string,
 ): Promise<boolean> {
   const row = await db
@@ -140,7 +141,7 @@ export async function isModerator(
 // github_orgs with a future expiry is a legitimate "confirmed zero
 // memberships" and counts as linked.
 export async function hasLinkedGithub(
-  db: D1Database,
+  db: SqlDatabase,
   userId: string,
 ): Promise<boolean> {
   const row = await db
@@ -166,7 +167,7 @@ export async function hasLinkedGithub(
 }
 
 export async function deleteUser(
-  db: D1Database,
+  db: SqlDatabase,
   userId: string,
 ): Promise<void> {
   await db.prepare('DELETE FROM users WHERE id = ?').bind(userId).run();
@@ -180,7 +181,7 @@ export type UserProfile = {
 // picture synced from the auth provider on every login (upsertUser above
 // never touches it) and separate from any developer/publisher identity.
 export async function getUserProfile(
-  db: D1Database,
+  db: SqlDatabase,
   userId: string,
 ): Promise<UserProfile> {
   const row = await db
@@ -196,7 +197,7 @@ export async function getUserProfile(
 // would silently affect zero rows — this would report success while saving
 // nothing. Ensure the row exists first so the UPDATE always lands.
 export async function updateUserProfile(
-  db: D1Database,
+  db: SqlDatabase,
   userId: string,
   profile: UserProfile,
 ): Promise<void> {

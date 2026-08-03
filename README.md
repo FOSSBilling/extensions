@@ -93,6 +93,35 @@ npm run dev
 
 The site uses Cloudflare D1 for extension data, so some pages require a populated local D1 database or a Wrangler-powered local environment to fully match production.
 
+Icons and avatars from the known FOSSBilling, GitHub, GitLab, Google, and
+Gravatar origins are resized through the `/images/{variant}` route on Cloudflare.
+Other valid HTTP(S) image URLs remain direct browser requests, so custom-hosted
+images continue to work without turning the route into an arbitrary fetch proxy.
+During local development, allowlisted sources are redirected to the browser
+because Cloudflare image transformations are not available in Astro's local
+Cloudflare runtime.
+If a Cloudflare transformation is unavailable, the route redirects the browser
+to the same allowlisted source instead of proxying an unbounded fallback. The
+server-side transform request does not follow origin redirects, and transformed
+responses larger than 2 MiB are rejected.
+For Cloudflare resizing to take effect, deployments must allow the listed
+origins under Images → Transformations → Sources.
+
+### Runtime portability
+
+Application code reads its runtime dependencies from `Astro.locals.env`, using the
+provider-neutral interfaces in `src/lib/runtime.ts`. The current Cloudflare
+binding mapping is isolated to `src/platform/cloudflare.ts`, so moving to another
+serverless provider requires replacing that adapter and deployment configuration
+rather than changing pages and domain services throughout the application.
+
+The domain helpers use the small `SqlDatabase` interface instead of Cloudflare's
+`D1Database` type. The current queries and migrations remain SQLite-compatible;
+a provider using a different SQL dialect would need a database adapter rather than
+leaking provider types into application code. Cloudflare image transformations are
+an optional optimization: the image route falls back to a direct browser request
+for allowlisted sources when that capability is unavailable.
+
 ## Authentication
 
 Sign-in is delegated to FOSSBilling's central auth service at
@@ -161,12 +190,24 @@ into a queue at `/account/moderate` and only take effect once a moderator approv
 higher bar than developer profiles since they carry download URLs and arbitrary readme/website
 content. All writes to the shared `developers`/`extensions` tables — moderated or not — happen in
 the [`FOSSBilling/api`](https://github.com/FOSSBilling/api) repo's `/extensions/v2` service,
-not here; this app never writes to those tables directly. This app's own
-`getExtensionsByOwner`/`getExtensionById`/`getDeveloperByOwner`/`getDeveloperById`/
-`getExtensionsByDeveloperId` (in `src/lib/database.ts`) read the live tables directly, same as
-the public listings — including the public developer page at `/developer/[id]`, which also
-derives an `unclaimed` flag from `owner_user_id IS NULL` (never exposing the raw owner id
-itself, which would leak another user's identifier publicly).
+not here; this app never writes to those tables directly. The public catalogue uses the generated
+client from `src/lib/api/generated/extensions-v2`, with `GET /extensions` loaded in bounded cursor pages
+and `GET /extensions/{id}` used for complete detail pages. Account ownership/editing queries still
+use this app's D1 helpers (`getExtensionsByOwner`, `getExtensionForSubmission`,
+`getDeveloperByOwner`, and `getDeveloperById`); the public developer page derives its `unclaimed`
+flag from `owner_user_id IS NULL` (never exposing the raw owner id itself, which would leak
+another user's identifier).
+
+Regenerate the client from the checked-in API contract with:
+
+```bash
+npm run api:generate
+```
+
+The `Update Extensions v2 OpenAPI` GitHub Actions workflow refreshes the
+upstream contract weekly and opens or updates a pull request when it changes.
+For an immediate refresh, run `npm run api:update`; `npm run api:check` verifies
+that the committed generated files match `openapi/extensions-v2.json`.
 
 Each request to `/extensions/v2` is authenticated with a short-lived (60s) HMAC-signed
 bearer assertion this app mints per-request (`src/lib/assertion.ts`), proving the

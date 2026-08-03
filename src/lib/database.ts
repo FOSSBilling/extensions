@@ -1,21 +1,27 @@
-// Queries the shared D1 database (extensions_data) directly.
+// Queries the shared SQLite-compatible extensions database directly.
 // If the D1 schema changes, update fossbilling/api AND this file.
 import {
-  type Extension,
-  type Developer,
+  isDeveloperType,
+  isExtensionType,
+  isSourceType,
   type DeveloperProfile,
+  type Extension,
+  type License,
   type PublicDeveloperProfile,
   type Release,
   type Repository,
 } from '@/types';
+import type { SqlDatabase } from './runtime';
 
-// Omits readme (large field) — used for index page listings.
+// Omits readme (large field) — used for account-owned extension lists where
+// the full detail content is not rendered.
 // extensions.author_id is v1's own column, kept as-is by the api repo's
 // authors->developers rename (only the table it references was renamed) —
 // aliased to developer_id here so nothing downstream depends on that name.
 const SELECT_EXTENSIONS_LIST = `
   SELECT e.id, e.type, e.author_id AS developer_id,
          d.type AS developer_type, d.name AS developer_name, d.url AS developer_url,
+         d.approved_at AS developer_approved_at,
          e.name, e.description, e.website, e.license,
          e.icon_url, e.source, e.version, e.download_url, e.releases
   FROM extensions e
@@ -25,12 +31,6 @@ const SELECT_EXTENSIONS_LIST = `
 const SELECT_EXTENSIONS_BY_OWNER = `
   ${SELECT_EXTENSIONS_LIST}
   WHERE d.owner_user_id = ?
-  ORDER BY e.name
-`;
-
-const SELECT_EXTENSIONS_BY_DEVELOPER = `
-  ${SELECT_EXTENSIONS_LIST}
-  WHERE LOWER(d.id) = LOWER(?)
   ORDER BY e.name
 `;
 
@@ -45,72 +45,66 @@ const SELECT_DEVELOPER_PUBLIC = `
   FROM developers
 `;
 
-type DeveloperProfileRow = {
-  id: string;
-  type: string;
-  name: string;
-  url: string | null;
-  avatar_url: string | null;
-  contact_email?: string | null;
-  approved_at: string | null;
-  unclaimed?: number;
-  // Not selected by SELECT_DEVELOPER_PUBLIC — getDeveloperById's return type
-  // omits content_revision, so the fallback below is never exposed there.
-  content_revision?: number;
-  // Only selected by getDeveloperByOwner (the owner's own read) — never
-  // public, same trust level as contact_email above.
-  github_org_verified?: number | null;
-  github_verification_note?: string | null;
-  github_verified_at?: string | null;
-  github_url_verified?: number | null;
-};
-
-function parseDeveloperProfileRow(row: DeveloperProfileRow): DeveloperProfile {
-  return {
-    type: row.type as 'organization' | 'user',
-    name: row.name,
-    id: row.id.toLowerCase() as Lowercase<string>,
-    URL: row.url ?? undefined,
-    avatar_url: row.avatar_url ?? undefined,
-    contact_email: row.contact_email ?? undefined,
-    approved: row.approved_at !== null,
-    content_revision: row.content_revision ?? 1,
-    unclaimed: row.unclaimed === 1,
-    github_org_verified:
-      row.github_org_verified == null
-        ? undefined
-        : row.github_org_verified === 1,
-    github_verification_note: row.github_verification_note ?? undefined,
-    github_verified_at: row.github_verified_at ?? undefined,
-    github_url_verified: row.github_url_verified === 1 ? true : undefined,
-  } as DeveloperProfile;
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
 }
 
-// Includes readme — used for detail pages.
+function stringValue(value: unknown): string | undefined {
+  return typeof value === 'string' ? value : undefined;
+}
+
+function numberValue(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value)
+    ? value
+    : undefined;
+}
+
+function sqlBoolean(value: unknown): boolean | undefined {
+  if (value === true || value === 1) return true;
+  if (value === false || value === 0) return false;
+  return undefined;
+}
+
+function parseDeveloperProfileRow(
+  row: Record<string, unknown>,
+): DeveloperProfile | null {
+  const id = stringValue(row.id);
+  const name = stringValue(row.name);
+  const type = stringValue(row.type);
+  if (!id || !name || !type || !isDeveloperType(type)) {
+    return null;
+  }
+
+  return {
+    type,
+    name,
+    id: id.toLowerCase(),
+    URL: stringValue(row.url),
+    avatar_url: stringValue(row.avatar_url),
+    contact_email: stringValue(row.contact_email),
+    approved: row.approved_at != null,
+    content_revision: numberValue(row.content_revision) ?? 1,
+    unclaimed: row.unclaimed === 1,
+    github_org_verified: sqlBoolean(row.github_org_verified),
+    github_verification_note: stringValue(row.github_verification_note),
+    github_verified_at: stringValue(row.github_verified_at),
+    github_url_verified: row.github_url_verified === 1 ? true : undefined,
+  };
+}
+
+// Includes readme and releases — used when an owner edits a submission.
 const SELECT_EXTENSION_DETAIL = `
   SELECT e.id, e.type, e.author_id AS developer_id,
          d.type AS developer_type, d.name AS developer_name, d.url AS developer_url,
+         d.approved_at AS developer_approved_at,
          e.name, e.description, e.releases, e.website, e.license,
          e.icon_url, e.readme, e.source, e.version, e.download_url
   FROM extensions e
   LEFT JOIN developers d ON e.author_id = d.id
 `;
 
-export async function getAllExtensions(db: D1Database): Promise<Extension[]> {
-  let result;
-  try {
-    result = await db
-      .prepare(`${SELECT_EXTENSIONS_LIST} ORDER BY e.name`)
-      .all<Record<string, unknown>>();
-  } catch {
-    return [];
-  }
-  if (!result.success) return [];
-  return result.results.map(parseExtensionRow);
-}
-
-export async function getExtensionById(
-  db: D1Database,
+export async function getExtensionForSubmission(
+  db: SqlDatabase,
   id: string,
 ): Promise<Extension | null> {
   let row;
@@ -129,7 +123,7 @@ export async function getExtensionById(
 // (developers.owner_user_id, added by the api repo's v2 migration — see
 // that repo's src/services/extensions/v2/db/migrations/0001_add_v2_tables.sql).
 export async function getExtensionsByOwner(
-  db: D1Database,
+  db: SqlDatabase,
   userId: string,
 ): Promise<Extension[]> {
   let result;
@@ -142,13 +136,16 @@ export async function getExtensionsByOwner(
     return [];
   }
   if (!result.success) return [];
-  return result.results.map(parseExtensionRow);
+  return result.results.flatMap((row) => {
+    const extension = parseExtensionRow(row);
+    return extension ? [extension] : [];
+  });
 }
 
 // Includes contact_email — this is the owner viewing/editing their own
 // profile, not a public read.
 export async function getDeveloperByOwner(
-  db: D1Database,
+  db: SqlDatabase,
   userId: string,
 ): Promise<DeveloperProfile | null> {
   let row;
@@ -158,7 +155,7 @@ export async function getDeveloperByOwner(
         'SELECT id, type, name, url, avatar_url, contact_email, approved_at, content_revision, github_org_verified, github_verification_note, github_verified_at, github_url_verified FROM developers WHERE owner_user_id = ?',
       )
       .bind(userId)
-      .first<DeveloperProfileRow>();
+      .first<Record<string, unknown>>();
   } catch {
     return null;
   }
@@ -169,7 +166,7 @@ export async function getDeveloperByOwner(
 // mirrors the "pending" definition the api repo's acceptTransfer() checks
 // (developers-database.ts): not yet accepted, not revoked, not expired.
 export async function hasPendingTransfer(
-  db: D1Database,
+  db: SqlDatabase,
   developerId: string,
 ): Promise<boolean> {
   let row;
@@ -191,7 +188,7 @@ export async function hasPendingTransfer(
 
 // Public read for the /developer/[id] page — never selects contact_email.
 export async function getDeveloperById(
-  db: D1Database,
+  db: SqlDatabase,
   id: string,
 ): Promise<PublicDeveloperProfile | null> {
   let row;
@@ -199,63 +196,123 @@ export async function getDeveloperById(
     row = await db
       .prepare(`${SELECT_DEVELOPER_PUBLIC} WHERE LOWER(id) = LOWER(?)`)
       .bind(id)
-      .first<DeveloperProfileRow>();
+      .first<Record<string, unknown>>();
   } catch {
     return null;
   }
   return row ? parseDeveloperProfileRow(row) : null;
 }
 
-// Public listing for the /developer/[id] page.
-export async function getExtensionsByDeveloperId(
-  db: D1Database,
-  developerId: string,
-): Promise<Extension[]> {
-  let result;
-  try {
-    result = await db
-      .prepare(SELECT_EXTENSIONS_BY_DEVELOPER)
-      .bind(developerId)
-      .all<Record<string, unknown>>();
-  } catch {
-    return [];
-  }
-  if (!result.success) return [];
-  return result.results.map(parseExtensionRow);
-}
-
-function parseJSON<T>(value: unknown, fallback: T): T {
+function parseJSON(value: unknown): unknown {
   if (typeof value === 'string') {
     try {
-      return JSON.parse(value) as T;
+      return JSON.parse(value);
     } catch {
-      return fallback;
+      return undefined;
     }
   }
-  return value !== undefined && value !== null ? (value as T) : fallback;
+  return value;
 }
 
-function parseExtensionRow(row: Record<string, unknown>): Extension {
+function parseRelease(value: unknown): Release | null {
+  if (!isRecord(value)) return null;
+
+  const tag = stringValue(value.tag);
+  const date = stringValue(value.date);
+  const downloadUrl = stringValue(value.download_url);
+  const minVersion = stringValue(value.min_fossbilling_version);
+  if (!tag || !date || !downloadUrl || !minVersion) return null;
+
+  const changelogUrl = stringValue(value.changelog_url);
   return {
-    id: row.id as string,
-    type: row.type as Extension['type'],
-    name: row.name as string,
-    description: row.description as string,
+    tag,
+    date,
+    download_url: downloadUrl,
+    min_fossbilling_version: minVersion,
+    ...(changelogUrl ? { changelog_url: changelogUrl } : {}),
+  };
+}
+
+function parseReleases(value: unknown): Release[] {
+  const parsed = parseJSON(value);
+  return Array.isArray(parsed)
+    ? parsed.flatMap((release) => {
+        const parsedRelease = parseRelease(release);
+        return parsedRelease ? [parsedRelease] : [];
+      })
+    : [];
+}
+
+function parseLicense(value: unknown): License {
+  const parsed = parseJSON(value);
+  if (!isRecord(parsed)) return { name: '' };
+
+  const URL = stringValue(parsed.URL);
+  return {
+    name: stringValue(parsed.name) ?? '',
+    ...(URL ? { URL } : {}),
+  };
+}
+
+function parseRepository(value: unknown): Repository {
+  const parsed = parseJSON(value);
+  if (
+    !isRecord(parsed) ||
+    typeof parsed.type !== 'string' ||
+    !isSourceType(parsed.type) ||
+    typeof parsed.repo !== 'string'
+  ) {
+    return { type: 'custom', repo: '' };
+  }
+
+  return { type: parsed.type, repo: parsed.repo };
+}
+
+function parseExtensionRow(row: Record<string, unknown>): Extension | null {
+  const id = stringValue(row.id);
+  const type = stringValue(row.type);
+  const name = stringValue(row.name);
+  const description = stringValue(row.description);
+  const website = stringValue(row.website);
+  const version = stringValue(row.version);
+  const downloadUrl = stringValue(row.download_url);
+  if (
+    !id ||
+    !type ||
+    !isExtensionType(type) ||
+    !name ||
+    !description ||
+    website === undefined ||
+    !version ||
+    downloadUrl === undefined
+  ) {
+    return null;
+  }
+
+  const developerType = stringValue(row.developer_type);
+
+  return {
+    id,
+    type,
+    name,
+    description,
     developer: {
-      type: (row.developer_type as 'organization' | 'user') ?? 'user',
-      name: (row.developer_name as string) ?? '',
-      id: ((row.developer_id as string | undefined)?.toLowerCase() ??
-        '') as Lowercase<string>,
-      URL:
-        typeof row.developer_url === 'string' ? row.developer_url : undefined,
-    } as Developer,
-    releases: parseJSON<Release[]>(row.releases, []),
-    website: row.website as string,
-    license: parseJSON(row.license, { name: '' }),
-    icon_url: typeof row.icon_url === 'string' ? row.icon_url : undefined,
-    readme: (row.readme as string | undefined) ?? '',
-    source: parseJSON<Repository>(row.source, { type: 'custom', repo: '' }),
-    version: row.version as string,
-    download_url: row.download_url as string,
+      type:
+        developerType && isDeveloperType(developerType)
+          ? developerType
+          : 'user',
+      name: stringValue(row.developer_name) ?? '',
+      id: stringValue(row.developer_id)?.toLowerCase() ?? '',
+      URL: stringValue(row.developer_url),
+      approved: row.developer_approved_at != null,
+    },
+    releases: parseReleases(row.releases),
+    website,
+    license: parseLicense(row.license),
+    icon_url: stringValue(row.icon_url),
+    readme: stringValue(row.readme) ?? '',
+    source: parseRepository(row.source),
+    version,
+    download_url: downloadUrl,
   };
 }

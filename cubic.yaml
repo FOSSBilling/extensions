@@ -21,6 +21,9 @@ reviews:
     exclude_external_contributors: true
   auto_ultrareview: disabled
   ignore:
+    files:
+      - "openapi/*"
+      - "src/lib/api/generated/extensions-v2/**"
     head_branches:
       - renovate/*
       - dependabot/*

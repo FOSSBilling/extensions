@@ -1,13 +1,13 @@
 ---
 import Base from '../../../../layouts/Base.astro';
-import { env } from 'cloudflare:workers';
 import { requireModerator } from '@/lib/auth-guard';
-import { createApiClient } from '@/lib/apiClient';
+import { createApiClient } from '@/lib/api/client';
 import { isSafeHttpUrl } from '@/lib/safe-url';
-import type { DeveloperProfile } from '@/types';
+import type { DeveloperProfile } from '@/lib/api/client';
 import { CircleCheck } from '@lucide/astro';
 import ProfileTrustBadge from '@/components/ProfileTrustBadge.astro';
 
+const env = Astro.locals.env;
 const guard = await requireModerator(Astro, env);
 if (guard instanceof Response) return guard;
 const user = guard;

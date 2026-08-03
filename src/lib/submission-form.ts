@@ -1,11 +1,6 @@
-import { EXTENSION_TYPES, SOURCE_TYPES } from '@/types';
-import type {
-  Developer,
-  Extension,
-  Release,
-  Repository,
-  SubmissionPayload,
-} from '@/types';
+import { isExtensionType, isSourceType } from '@/types';
+import type { Developer, Extension, Release } from '@/types';
+import type { SubmissionPayload } from '@/lib/api/client';
 import { formString } from './form';
 import { withHttpsScheme } from './url-prefix';
 
@@ -13,14 +8,6 @@ import { withHttpsScheme } from './url-prefix';
 // user, distinct from ApiRequestError (the api rejecting an otherwise
 // well-formed payload) — see the try/catch in new.astro/edit.astro.
 export class SubmissionValidationError extends Error {}
-
-function isExtensionType(value: string): value is Extension['type'] {
-  return (EXTENSION_TYPES as readonly string[]).includes(value);
-}
-
-function isSourceType(value: string): value is Repository['type'] {
-  return (SOURCE_TYPES as readonly string[]).includes(value);
-}
 
 // Builds a SubmissionPayload from the ExtensionSubmissionForm component's
 // fields. A new release is only appended when version_tag is filled — for
@@ -75,7 +62,12 @@ export function buildSubmissionPayload(
   }
 
   return {
-    developer,
+    developer: {
+      id: developer.id,
+      type: developer.type,
+      name: developer.name,
+      ...(developer.URL ? { URL: developer.URL } : {}),
+    },
     extension: {
       // In edit mode, always use the id of the already-verified extension —
       // never the form's own extension_id — so the payload can't be aimed at

@@ -1,7 +1,8 @@
 ---
 import type { Extension } from '@/types';
 import { getLatestRelease, repositoryURL } from '@/types';
-import { CircleCheck, GitBranch, Scale, User } from '@lucide/astro';
+import { isSafeHttpUrl } from '@/lib/safe-url';
+import { CircleCheck, Download, GitBranch, Scale, User } from '@lucide/astro';
 
 interface Props {
   ext: Extension;
@@ -9,6 +10,7 @@ interface Props {
 
 const { ext } = Astro.props;
 const latest = getLatestRelease(ext);
+const sourceUrl = repositoryURL(ext.source);
 
 type DetailsItem = {
   name: string;
@@ -44,6 +46,12 @@ const details: DetailsItem[] = [
     link: `/developer/${ext.developer.id}`,
   },
   {
+    name: 'Current Version',
+    icon: CircleCheck,
+    color: 'green',
+    text: `v${ext.version}`,
+  },
+  {
     name: 'FOSSBilling Version',
     icon: CircleCheck,
     color: 'green',
@@ -56,14 +64,24 @@ const details: DetailsItem[] = [
     icon: Scale,
     color: 'blue',
     text: ext.license.name,
-    link: ext.license.URL,
+    link:
+      ext.license.URL && isSafeHttpUrl(ext.license.URL)
+        ? ext.license.URL
+        : undefined,
   },
   {
     name: 'Source Code',
     icon: GitBranch,
     color: 'fuchsia',
     text: ext.source.repo,
-    link: repositoryURL(ext.source),
+    link: isSafeHttpUrl(sourceUrl) ? sourceUrl : undefined,
+  },
+  {
+    name: 'Download',
+    icon: Download,
+    color: 'blue',
+    text: 'Download extension',
+    link: isSafeHttpUrl(ext.download_url) ? ext.download_url : undefined,
   },
 ];
 ---

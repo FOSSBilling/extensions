@@ -1,5 +1,6 @@
 import { defineMiddleware } from 'astro:middleware';
 import { takeFlash } from '@/lib/flash';
+import { getApplicationEnv, getRequestTimeZone } from '@/platform/cloudflare';
 
 // Reads (and clears) the flash here, in middleware, rather than in Base.astro
 // or any page — by the time a nested layout component's frontmatter runs,
@@ -8,6 +9,8 @@ import { takeFlash } from '@/lib/flash';
 // never reaches the persisted write). Middleware runs before rendering
 // starts, so the mutation is guaranteed to land before headers are sent.
 export const onRequest = defineMiddleware(async (context, next) => {
+  context.locals.env = getApplicationEnv();
+  context.locals.timeZone = getRequestTimeZone(context.request);
   context.locals.flash = await takeFlash(context.session);
   return next();
 });

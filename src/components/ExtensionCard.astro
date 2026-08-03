@@ -1,20 +1,35 @@
 ---
-import type { Extension } from '@/types';
-import { getLatestRelease } from '@/types';
+import type { ExtensionListItem } from '@/lib/api/client';
+import { getOptimizedImageUrl } from '@/lib/image-url';
 
 interface Props {
-  ext: Extension;
+  ext: ExtensionListItem;
 }
 
 const { ext } = Astro.props;
-const latest = getLatestRelease(ext);
+const iconUrl = getOptimizedImageUrl(ext.icon_url, 'icon');
 ---
 
-<a href={`/extension/${ext.id}`} class="block">
+<a href={`/extension/${ext.id}`} class="block" data-extension-id={ext.id}>
   <article class="card hover:bg-muted/50 transition-colors h-full">
     <section class="flex items-start space-x-4">
-      <div class="p-2 bg-primary/10 rounded-lg">
-        <img src={ext.icon_url} class="w-10 h-10" alt={`${ext.name} icon`} />
+      <div
+        class="p-2 bg-primary/10 rounded-lg w-14 h-14 flex items-center justify-center shrink-0"
+      >
+        {
+          iconUrl && (
+            <img
+              src={iconUrl}
+              width="40"
+              height="40"
+              class="w-10 h-10 object-contain"
+              alt={`${ext.name} icon`}
+              loading="lazy"
+              decoding="async"
+            />
+          )
+        }
+        {!iconUrl && <span class="w-10 h-10" aria-hidden="true" />}
       </div>
       <div class="flex-1 min-w-0">
         <div class="flex items-baseline space-x-2">
@@ -22,7 +37,7 @@ const latest = getLatestRelease(ext);
             {ext.name}
           </h3>
           <span class="text-sm text-muted-foreground"
-            >v{latest?.tag ?? 'unknown'}</span
+            >v{ext.version || 'unknown'}</span
           >
         </div>
         <p class="text-sm text-muted-foreground mt-1 truncate">

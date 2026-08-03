@@ -1,10 +1,11 @@
 import type { FlashMessage } from '@/lib/flash';
+import type { ApplicationEnv } from '@/lib/runtime';
 
 export {};
 
 // Extends the `Cloudflare.Env` interface generated in worker-configuration.d.ts
 // with secrets that aren't Wrangler bindings (set via `wrangler secret put`,
-// or `.dev.vars` locally) so `cloudflare:workers`' `env` stays fully typed.
+// or `.dev.vars` locally) so the Cloudflare adapter stays fully typed.
 declare global {
   namespace Cloudflare {
     interface Env {
@@ -21,6 +22,8 @@ declare global {
       flash: FlashMessage;
     }
     interface Locals {
+      env: ApplicationEnv;
+      timeZone: string | undefined;
       // Read and cleared once per request by src/middleware.ts, before any
       // rendering starts — see the comment there for why that timing matters.
       flash: FlashMessage | undefined;

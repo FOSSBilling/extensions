@@ -1,5 +1,6 @@
 ---
 import { Building2, CircleUserRound } from '@lucide/astro';
+import { getOptimizedImageUrl } from '@/lib/image-url';
 
 interface Props {
   avatarUrl?: string | null;
@@ -10,12 +11,21 @@ interface Props {
 const { avatarUrl, type, size = 'md' } = Astro.props;
 const dimension = size === 'lg' ? 'w-16 h-16' : 'w-14 h-14';
 const iconSize = size === 'lg' ? 'size-7' : 'size-6';
+const imageUrl = getOptimizedImageUrl(avatarUrl, 'avatar');
 ---
 
 <span class={`avatar ${dimension}`}>
   {
-    avatarUrl ? (
-      <img src={avatarUrl} alt="" />
+    imageUrl ? (
+      <img
+        src={imageUrl}
+        width={size === 'lg' ? 64 : 56}
+        height={size === 'lg' ? 64 : 56}
+        class="object-contain"
+        alt=""
+        loading="lazy"
+        decoding="async"
+      />
     ) : (
       <span>
         {type === 'organization' ? (

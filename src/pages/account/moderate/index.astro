@@ -1,12 +1,17 @@
 ---
 import Base from '../../../layouts/Base.astro';
-import { env } from 'cloudflare:workers';
 import { requireModerator } from '@/lib/auth-guard';
-import { createApiClient } from '@/lib/apiClient';
-import type { Submission, SubmissionStatus } from '@/types';
+import {
+  ApiRequestError,
+  createApiClient,
+  getApiErrorMessage,
+} from '@/lib/api/client';
+import type { Submission, SubmissionStatus } from '@/lib/api/client';
 import RejectDialog from '@/components/RejectDialog.astro';
 import { formatDate } from '@/lib/format-date';
+import { cursorPageUrl } from '@/lib/pagination';
 
+const env = Astro.locals.env;
 const guard = await requireModerator(Astro, env);
 if (guard instanceof Response) return guard;
 const user = guard;
@@ -19,12 +24,27 @@ const status: SubmissionStatus =
 
 const api = createApiClient(env, user.sub);
 let submissions: Submission[] = [];
-let loadError = false;
+let nextCursor: string | null = null;
+let hasMore = false;
+let loadError: string | null = null;
 try {
-  submissions = await api.listQueue(status);
-} catch {
-  loadError = true;
+  const page = await api.listQueue(status, {
+    cursor: Astro.url.searchParams.get('cursor') ?? undefined,
+  });
+  submissions = page.result;
+  nextCursor = page.pagination.next_cursor;
+  hasMore = page.pagination.has_more;
+} catch (error) {
+  loadError =
+    error instanceof ApiRequestError
+      ? getApiErrorMessage(error)
+      : 'Unable to load the moderation queue right now.';
 }
+
+const nextPageUrl =
+  hasMore && nextCursor !== null && nextCursor.length > 0
+    ? cursorPageUrl(Astro.url, 'cursor', nextCursor)
+    : null;
 ---
 
 <Base title="Moderation Queue — FOSSBilling Extensions">
@@ -53,78 +73,87 @@ try {
 
     {
       loadError ? (
-        <p class="text-sm text-destructive">
-          Unable to load the moderation queue right now.
-        </p>
-      ) : submissions.length === 0 ? (
-        <p class="text-muted-foreground text-sm">No {status} submissions.</p>
+        <p class="text-sm text-destructive">{loadError}</p>
       ) : (
-        <ul class="space-y-4">
-          {submissions.map((s) => (
-            <li class="card">
-              <header class="flex items-start justify-between gap-4">
-                <div>
-                  <h2 class="font-semibold">{s.payload.extension.name}</h2>
-                  <p class="text-sm text-muted-foreground">
-                    {s.extension_id ? 'Edit' : 'New extension'} by{' '}
-                    {s.payload.developer.name} ({s.developer_id}) &middot;
-                    submitted {formatDate(s.created_at)}
-                  </p>
-                </div>
-                <span class="badge" data-variant="secondary">
-                  {s.payload.extension.type}
-                </span>
-              </header>
-              <section>
-                <p class="text-sm">{s.payload.extension.description}</p>
-                <details class="mt-2">
-                  <summary class="text-sm text-muted-foreground cursor-pointer">
-                    Full Payload
-                  </summary>
-                  <pre class="text-xs mt-2 overflow-x-auto bg-muted rounded-md p-3">
-                    {JSON.stringify(s.payload, null, 2)}
-                  </pre>
-                </details>
-                {s.status === 'pending' && (
-                  <div class="flex items-center gap-3 mt-4">
-                    <form
-                      method="POST"
-                      action={`/account/moderate/${s.id}/approve`}
-                    >
-                      <button type="submit" class="btn" data-size="sm">
-                        Approve
-                      </button>
-                    </form>
-                    <button
-                      type="button"
-                      class="btn"
-                      data-size="sm"
-                      data-variant="destructive"
-                      onclick={`document.getElementById('reject-submission-${s.id}').showModal()`}
-                    >
-                      Reject
-                    </button>
-                  </div>
-                )}
+        <>
+          {submissions.length === 0 ? (
+            <p class="text-muted-foreground text-sm">
+              No {status} submissions.
+            </p>
+          ) : (
+            <ul class="space-y-4">
+              {submissions.map((s) => (
+                <li class="card">
+                  <header class="flex items-start justify-between gap-4">
+                    <div>
+                      <h2 class="font-semibold">{s.payload.extension.name}</h2>
+                      <p class="text-sm text-muted-foreground">
+                        {s.extension_id ? 'Edit' : 'New extension'} by{' '}
+                        {s.payload.developer.name} ({s.developer_id}) &middot;
+                        submitted {formatDate(s.created_at)}
+                      </p>
+                    </div>
+                    <span class="badge" data-variant="secondary">
+                      {s.payload.extension.type}
+                    </span>
+                  </header>
+                  <section>
+                    <p class="text-sm">{s.payload.extension.description}</p>
+                    <details class="mt-2">
+                      <summary class="text-sm text-muted-foreground cursor-pointer">
+                        Full Payload
+                      </summary>
+                      <pre class="text-xs mt-2 overflow-x-auto bg-muted rounded-md p-3">
+                        {JSON.stringify(s.payload, null, 2)}
+                      </pre>
+                    </details>
+                    {s.status === 'pending' && (
+                      <div class="flex items-center gap-3 mt-4">
+                        <form
+                          method="POST"
+                          action={`/account/moderate/${s.id}/approve`}
+                        >
+                          <button type="submit" class="btn" data-size="sm">
+                            Approve
+                          </button>
+                        </form>
+                        <button
+                          type="button"
+                          class="btn"
+                          data-size="sm"
+                          data-variant="destructive"
+                          onclick={`document.getElementById('reject-submission-${s.id}').showModal()`}
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    )}
 
-                {s.status === 'pending' && (
-                  <RejectDialog
-                    id={`reject-submission-${s.id}`}
-                    title={`Reject "${s.payload.extension.name}"?`}
-                    description="The submitter will see this reason."
-                    formAction={`/account/moderate/${s.id}/reject`}
-                    reasonPlaceholder="Reason for rejection"
-                  />
-                )}
-                {s.status !== 'pending' && s.review_note && (
-                  <p class="text-sm text-muted-foreground mt-2">
-                    Note: {s.review_note}
-                  </p>
-                )}
-              </section>
-            </li>
-          ))}
-        </ul>
+                    {s.status === 'pending' && (
+                      <RejectDialog
+                        id={`reject-submission-${s.id}`}
+                        title={`Reject "${s.payload.extension.name}"?`}
+                        description="The submitter will see this reason."
+                        formAction={`/account/moderate/${s.id}/reject`}
+                        reasonPlaceholder="Reason for rejection"
+                      />
+                    )}
+                    {s.status !== 'pending' && s.review_note && (
+                      <p class="text-sm text-muted-foreground mt-2">
+                        Note: {s.review_note}
+                      </p>
+                    )}
+                  </section>
+                </li>
+              ))}
+            </ul>
+          )}
+          {nextPageUrl && (
+            <a href={nextPageUrl} class="btn mt-4">
+              Next queue page
+            </a>
+          )}
+        </>
       )
     }
   </div>

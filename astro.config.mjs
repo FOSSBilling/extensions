@@ -6,7 +6,10 @@ import cloudflare from '@astrojs/cloudflare';
 // https://astro.build/config
 export default defineConfig({
   output: 'server',
-  adapter: cloudflare(),
+  // Image URLs are served through src/pages/images/[variant].ts. Keep Astro's
+  // built-in asset image service as passthrough because pages render ordinary
+  // <img> elements and the custom route owns the fixed image variants.
+  adapter: cloudflare({ imageService: 'passthrough' }),
   vite: {
     plugins: [tailwindcss()],
     optimizeDeps: {

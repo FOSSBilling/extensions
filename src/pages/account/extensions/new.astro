@@ -1,9 +1,8 @@
 ---
 import Base from '../../../layouts/Base.astro';
 import ExtensionSubmissionForm from '@/components/ExtensionSubmissionForm.astro';
-import { env } from 'cloudflare:workers';
 import { requireUser } from '@/lib/auth-guard';
-import { createApiClient, ApiRequestError } from '@/lib/apiClient';
+import { createApiClient, ApiRequestError } from '@/lib/api/client';
 import { getDeveloperByOwner } from '@/lib/database';
 import {
   buildSubmissionPayload,
@@ -11,11 +10,12 @@ import {
 } from '@/lib/submission-form';
 import { setFlash } from '@/lib/flash';
 
+const env = Astro.locals.env;
 const guard = await requireUser(Astro, env);
 if (guard instanceof Response) return guard;
 const user = guard;
 
-const developer = await getDeveloperByOwner(env.DB_EXTENSIONS, user.sub);
+const developer = await getDeveloperByOwner(env.db, user.sub);
 if (!developer) {
   return Astro.redirect('/account/developer?required_for=extension');
 }

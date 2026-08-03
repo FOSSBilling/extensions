@@ -3,6 +3,9 @@
   "license": "AGPL-3.0-only",
   "type": "module",
   "scripts": {
+    "api:generate": "openapi-ts -f openapi-ts.config.ts",
+    "api:update": "node scripts/update-extensions-openapi.mjs && prettier --write openapi/extensions-v2.json && npm run api:generate",
+    "api:check": "npm run api:generate && git diff --exit-code -- src/lib/api/generated/extensions-v2 && test -z \"$(git ls-files --others --exclude-standard -- src/lib/api/generated/extensions-v2)\"",
     "cf-typegen": "wrangler types",
     "cf-deploy": "wrangler deploy",
     "db:migrate:local": "wrangler d1 migrations apply DB_EXTENSIONS --local",
@@ -10,31 +13,32 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
+    "test": "vitest run",
     "check": "astro check",
-    "format": "prettier --write \"{src,public}/**/*.{astro,css,js,json,mjs,ts}\" \"*.{json,mjs,ts}\"",
-    "format:check": "prettier --check \"{src,public}/**/*.{astro,css,js,json,mjs,ts}\" \"*.{json,mjs,ts}\""
+    "format": "prettier --write \"{src,public,test,scripts,openapi}/**/*.{astro,css,js,json,mjs,ts}\" \"*.{json,mjs,ts}\"",
+    "format:check": "prettier --check \"{src,public,test,scripts,openapi}/**/*.{astro,css,js,json,mjs,ts}\" \"*.{json,mjs,ts}\""
   },
   "dependencies": {
-    "@astrojs/check": "^0.9.9",
     "@astrojs/cloudflare": "^14.0.0",
-    "@date-fns/tz": "^1.5.0",
     "@lucide/astro": "^1.17.0",
     "@tailwindcss/vite": "^4.3.0",
     "astro": "^7.0.0",
     "basecoat-css": "^1.0.0",
-    "date-fns": "^4.4.0",
     "marked": "^18.0.5",
     "sanitize-html": "^2.17.5",
     "semver": "^7.8.2",
     "tailwindcss": "^4.3.0"
   },
   "devDependencies": {
+    "@astrojs/check": "^0.9.9",
+    "@hey-api/openapi-ts": "0.99.0",
     "@types/node": "26.1.2",
     "@types/sanitize-html": "2.16.1",
     "@types/semver": "7.7.1",
     "prettier": "3.9.6",
     "prettier-plugin-astro": "0.14.1",
-    "typescript": "6.0.3"
+    "typescript": "6.0.3",
+    "vitest": "^4.1.10"
   },
   "overrides": {
     "vite": "^8.0.0"

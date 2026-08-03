@@ -5,16 +5,24 @@ import DetailsCard from '@/components/DetailsCard.astro';
 import ReleasesCard from '@/components/ReleasesCard.astro';
 import Overview from '@/components/Overview.astro';
 import ReleasesTable from '@/components/ReleasesTable.astro';
-import { getExtensionById } from '@/lib/database';
-import { env } from 'cloudflare:workers';
+import { ApiRequestError, getExtensionById } from '@/lib/api/client';
 
+const env = Astro.locals.env;
 const { id } = Astro.params;
 
 if (!id) {
   return Astro.redirect('/404');
 }
 
-const ext = await getExtensionById(env.DB_EXTENSIONS, id);
+let ext;
+try {
+  ext = await getExtensionById(env, id);
+} catch (error) {
+  if (error instanceof ApiRequestError && error.status === 404) {
+    return Astro.redirect('/404');
+  }
+  throw error;
+}
 
 if (!ext) {
   return Astro.redirect('/404');

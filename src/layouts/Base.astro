@@ -5,7 +5,6 @@ import LogoDark from '@/assets/logo-dark.svg';
 import Container from '@/components/Container.astro';
 import Toast from '@/components/Toast.astro';
 import { Sun, Moon, LogIn, LogOut, CircleUser } from '@lucide/astro';
-import { env } from 'cloudflare:workers';
 import { getSessionUser } from '@/lib/session';
 
 interface Props {
@@ -13,7 +12,10 @@ interface Props {
 }
 
 const { title } = Astro.props;
-const user = await getSessionUser(Astro.cookies, env.SESSION_SECRET);
+const user = await getSessionUser(
+  Astro.cookies,
+  Astro.locals.env.sessionSecret,
+);
 // Read and cleared once per request by src/middleware.ts — see the comment
 // there for why it can't be done here in the layout.
 const { flash } = Astro.locals;

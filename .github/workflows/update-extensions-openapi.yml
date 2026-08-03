@@ -1,0 +1,122 @@
+name: Update Extensions v2 OpenAPI
+
+on:
+  schedule:
+    - cron: '23 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: update-extensions-openapi
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      changed: ${{ steps.changes.outputs.changed }}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Verify Committed Generated API Client
+        run: npm run api:check
+
+      - name: Refresh OpenAPI Snapshot and Client
+        run: npm run api:update
+
+      - name: Verify Refreshed Client Is Reproducible
+        shell: bash
+        run: |
+          set -euo pipefail
+          snapshot_dir="$(mktemp -d)"
+          cp -R src/lib/api/generated/extensions-v2 "$snapshot_dir/generated"
+          npm run api:generate
+          diff -ru "$snapshot_dir/generated" src/lib/api/generated/extensions-v2
+
+      - name: Detect Contract Changes
+        id: changes
+        shell: bash
+        run: |
+          changes="$(git status --porcelain=v1 --untracked-files=all -- openapi/extensions-v2.json src/lib/api/generated/extensions-v2)"
+          if [ -z "$changes" ]; then
+            echo 'changed=false' >> "$GITHUB_OUTPUT"
+          else
+            echo 'changed=true' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check Formatting
+        if: steps.changes.outputs.changed == 'true'
+        run: npm run format:check
+
+      - name: Run Tests
+        if: steps.changes.outputs.changed == 'true'
+        run: npm test
+
+      - name: Run Astro Checks
+        if: steps.changes.outputs.changed == 'true'
+        run: npm run check
+
+      - name: Build Site
+        if: steps.changes.outputs.changed == 'true'
+        run: npm run build
+
+      - name: Upload Validated Contract
+        if: steps.changes.outputs.changed == 'true'
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: extensions-v2-openapi-update
+          if-no-files-found: error
+          retention-days: 1
+          path: |
+            openapi/extensions-v2.json
+            src/lib/api/generated/extensions-v2
+
+  publish:
+    needs: validate
+    if: needs.validate.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Download Validated Contract
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          name: extensions-v2-openapi-update
+          path: .
+
+      - name: Create or Update Pull Request
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8
+        with:
+          add-paths: |
+            openapi/extensions-v2.json
+            src/lib/api/generated/extensions-v2
+          branch: automation/update-extensions-openapi
+          delete-branch: true
+          commit-message: 'chore: update Extensions v2 API client'
+          title: 'chore: update Extensions v2 API client'
+          body: |
+            This PR refreshes the checked-in Extensions v2 OpenAPI snapshot from the deployed API and regenerates the Hey API client.
+
+            The snapshot and generated client are validated in a read-only workflow job before this PR is created or updated.
