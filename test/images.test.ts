@@ -105,6 +105,59 @@ describe('image transformation route', () => {
     });
   });
 
+  it('forwards only safe image headers', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response('transformed image', {
+        headers: {
+          'content-type': 'image/png',
+          etag: '"image-version"',
+          'set-cookie': 'session=attacker-value',
+          'x-origin-secret': 'must-not-leak',
+        },
+      }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await handleImageRequest(
+      requestContext(
+        'icon',
+        'https://extensions.example.test/images/icon?src=https%3A%2F%2Fraw.githubusercontent.com%2Ffossbilling%2Flogo.png',
+      ),
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('content-type')).toBe('image/png');
+    expect(response.headers.get('etag')).toBe('"image-version"');
+    expect(response.headers.get('set-cookie')).toBeNull();
+    expect(response.headers.get('x-origin-secret')).toBeNull();
+    expect(response.headers.get('x-content-type-options')).toBe('nosniff');
+  });
+
+  it('returns a controlled error when the streamed body exceeds the limit', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(new Uint8Array(2 * 1024 * 1024 + 1));
+            controller.close();
+          },
+        }),
+        { headers: { 'content-type': 'image/png' } },
+      ),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await handleImageRequest(
+      requestContext(
+        'icon',
+        'https://extensions.example.test/images/icon?src=https%3A%2F%2Fraw.githubusercontent.com%2Ffossbilling%2Flarge.png',
+      ),
+    );
+
+    expect(response.status).toBe(502);
+    expect(await response.text()).toBe('Image unavailable.');
+  });
+
   it('rejects unapproved sources before making a fetch request', async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);

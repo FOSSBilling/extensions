@@ -94,7 +94,11 @@ describe('SQL domain parsing', () => {
   });
 
   it('skips malformed extension rows instead of returning invalid domain objects', async () => {
-    const malformedRow = { ...validRow, type: 'not-a-supported-type' };
+    const malformedRow = {
+      ...validRow,
+      id: 'Malformed',
+      type: 'not-a-supported-type',
+    };
     const extensions = await getExtensionsByOwner(
       mockDatabase({
         all: { success: true, results: [validRow, malformedRow] },
@@ -104,6 +108,7 @@ describe('SQL domain parsing', () => {
 
     expect(extensions).toHaveLength(1);
     expect(extensions[0]?.id).toBe('Example');
+    expect(extensions[0]?.name).toBe('Example extension');
   });
 
   it('keeps rows with empty website and download URLs', async () => {

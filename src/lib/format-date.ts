@@ -134,11 +134,25 @@ export function formatRelativeTime(
 ): string {
   const delta = toDate(value).getTime() - toDate(now).getTime();
   const absoluteDelta = Math.abs(delta);
-  const unit =
-    RELATIVE_TIME_UNITS.find(
-      ({ milliseconds }) => absoluteDelta >= milliseconds,
-    ) ?? RELATIVE_TIME_UNITS[RELATIVE_TIME_UNITS.length - 1];
-  const amount = Math.trunc(delta / unit.milliseconds);
+  let unitIndex = RELATIVE_TIME_UNITS.findIndex(
+    ({ milliseconds }) => absoluteDelta >= milliseconds,
+  );
+  if (unitIndex === -1) {
+    unitIndex = RELATIVE_TIME_UNITS.length - 1;
+  }
+
+  let unit = RELATIVE_TIME_UNITS[unitIndex];
+  let roundedAmount = Math.round(absoluteDelta / unit.milliseconds);
+  const largerUnit = RELATIVE_TIME_UNITS[unitIndex - 1];
+  if (
+    largerUnit &&
+    roundedAmount * unit.milliseconds >= largerUnit.milliseconds
+  ) {
+    unit = largerUnit;
+    roundedAmount = Math.round(absoluteDelta / unit.milliseconds);
+  }
+
+  const amount = Math.sign(delta) * roundedAmount;
 
   return amount === 0 ? 'now' : relativeTimeFormatter.format(amount, unit.unit);
 }

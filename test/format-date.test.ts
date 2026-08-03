@@ -39,9 +39,11 @@ describe('date formatting', () => {
   it('does not round relative values across their unit boundary', () => {
     const now = new Date('2026-07-30T13:05:00Z');
 
-    expect(formatRelativeTime('2026-07-30T14:04:30Z', now)).toBe(
+    expect(formatRelativeTime('2026-07-30T14:04:29Z', now)).toBe(
       'in 59 minutes',
     );
+    expect(formatRelativeTime('2026-07-30T14:04:30Z', now)).toBe('in 1 hour');
+    expect(formatRelativeTime('2026-07-30T11:35:00Z', now)).toBe('2 hours ago');
     expect(formatRelativeTime('2026-07-31T13:05:00Z', now)).toBe('in 1 day');
   });
 

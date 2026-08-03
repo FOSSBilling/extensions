@@ -100,33 +100,84 @@ function hasAcceptableContentLength(response: Response): boolean {
   );
 }
 
-function cacheImageResponse(response: Response): Response {
-  const headers = new Headers(response.headers);
+const IMAGE_RESPONSE_HEADERS = [
+  'content-type',
+  'etag',
+  'last-modified',
+] as const;
+
+function imageResponseHeaders(response: Response): Headers {
+  const headers = new Headers();
+  for (const name of IMAGE_RESPONSE_HEADERS) {
+    const value = response.headers.get(name);
+    if (value !== null) {
+      headers.set(name, value);
+    }
+  }
   headers.set('cache-control', CACHE_CONTROL);
   headers.set('vary', 'Accept');
+  headers.set('x-content-type-options', 'nosniff');
+  return headers;
+}
 
-  let body: BodyInit | null = response.body;
-  if (response.body) {
-    let bytesRead = 0;
-    const boundedBody = response.body.pipeThrough(
-      new TransformStream<Uint8Array, Uint8Array>({
-        transform(chunk, controller) {
-          bytesRead += chunk.byteLength;
-          if (bytesRead > MAX_IMAGE_BYTES) {
-            controller.error(new Error('Image response is too large.'));
-            return;
-          }
-          controller.enqueue(chunk);
-        },
-      }),
-    );
-    // Cloudflare's fetch types use ArrayBufferLike while lib.dom's Response
-    // constructor currently narrows ReadableStream bodies to ArrayBuffer.
-    body = boundedBody as unknown as BodyInit;
-    headers.delete('content-length');
+async function readBoundedBody(response: Response): Promise<Uint8Array | null> {
+  if (!response.body) {
+    return new Uint8Array();
   }
 
-  return new Response(body, {
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let bytesRead = 0;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) {
+        break;
+      }
+      if (!value) {
+        continue;
+      }
+
+      bytesRead += value.byteLength;
+      if (bytesRead > MAX_IMAGE_BYTES) {
+        await reader.cancel();
+        return null;
+      }
+      chunks.push(value);
+    }
+  } catch {
+    return null;
+  }
+
+  const body = new Uint8Array(bytesRead);
+  let offset = 0;
+  for (const chunk of chunks) {
+    body.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return body;
+}
+
+async function cacheImageResponse(response: Response): Promise<Response> {
+  const headers = imageResponseHeaders(response);
+
+  if (response.status === 304) {
+    return new Response(null, {
+      status: response.status,
+      statusText: response.statusText,
+      headers,
+    });
+  }
+
+  const body = await readBoundedBody(response);
+  if (body === null) {
+    return imageUnavailable();
+  }
+
+  // Cloudflare's Uint8Array uses ArrayBufferLike while lib.dom's Response
+  // constructor currently narrows BodyInit's typed array to ArrayBuffer.
+  return new Response(body as unknown as BodyInit, {
     status: response.status,
     statusText: response.statusText,
     headers,
@@ -184,7 +235,7 @@ export async function handleImageRequest({
       return imageUnavailable();
     }
 
-    return cacheImageResponse(response);
+    return await cacheImageResponse(response);
   } catch {
     return Response.redirect(sourceUrl, 307);
   }
