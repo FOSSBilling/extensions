@@ -1,16 +1,14 @@
 ---
-import type { Extension } from '@/types';
-import { getLatestRelease } from '@/types';
+import type { ExtensionListItem } from '@/types';
 
 interface Props {
-  ext: Extension;
+  ext: ExtensionListItem;
 }
 
 const { ext } = Astro.props;
-const latest = getLatestRelease(ext);
 ---
 
-<a href={`/extension/${ext.id}`} class="block">
+<a href={`/extension/${ext.id}`} class="block" data-extension-id={ext.id}>
   <article class="card hover:bg-muted/50 transition-colors h-full">
     <section class="flex items-start space-x-4">
       <div class="p-2 bg-primary/10 rounded-lg">
@@ -22,7 +20,7 @@ const latest = getLatestRelease(ext);
             {ext.name}
           </h3>
           <span class="text-sm text-muted-foreground"
-            >v{latest?.tag ?? 'unknown'}</span
+            >v{ext.version || 'unknown'}</span
           >
         </div>
         <p class="text-sm text-muted-foreground mt-1 truncate">

@@ -2,20 +2,21 @@
 // If the D1 schema changes, update fossbilling/api AND this file.
 import {
   type Extension,
-  type Developer,
   type DeveloperProfile,
   type PublicDeveloperProfile,
   type Release,
   type Repository,
 } from '@/types';
 
-// Omits readme (large field) — used for index page listings.
+// Omits readme (large field) — used for account-owned extension lists where
+// the full detail content is not rendered.
 // extensions.author_id is v1's own column, kept as-is by the api repo's
 // authors->developers rename (only the table it references was renamed) —
 // aliased to developer_id here so nothing downstream depends on that name.
 const SELECT_EXTENSIONS_LIST = `
   SELECT e.id, e.type, e.author_id AS developer_id,
          d.type AS developer_type, d.name AS developer_name, d.url AS developer_url,
+         d.approved_at AS developer_approved_at,
          e.name, e.description, e.website, e.license,
          e.icon_url, e.source, e.version, e.download_url, e.releases
   FROM extensions e
@@ -25,12 +26,6 @@ const SELECT_EXTENSIONS_LIST = `
 const SELECT_EXTENSIONS_BY_OWNER = `
   ${SELECT_EXTENSIONS_LIST}
   WHERE d.owner_user_id = ?
-  ORDER BY e.name
-`;
-
-const SELECT_EXTENSIONS_BY_DEVELOPER = `
-  ${SELECT_EXTENSIONS_LIST}
-  WHERE LOWER(d.id) = LOWER(?)
   ORDER BY e.name
 `;
 
@@ -86,30 +81,18 @@ function parseDeveloperProfileRow(row: DeveloperProfileRow): DeveloperProfile {
   } as DeveloperProfile;
 }
 
-// Includes readme — used for detail pages.
+// Includes readme and releases — used when an owner edits a submission.
 const SELECT_EXTENSION_DETAIL = `
   SELECT e.id, e.type, e.author_id AS developer_id,
          d.type AS developer_type, d.name AS developer_name, d.url AS developer_url,
+         d.approved_at AS developer_approved_at,
          e.name, e.description, e.releases, e.website, e.license,
          e.icon_url, e.readme, e.source, e.version, e.download_url
   FROM extensions e
   LEFT JOIN developers d ON e.author_id = d.id
 `;
 
-export async function getAllExtensions(db: D1Database): Promise<Extension[]> {
-  let result;
-  try {
-    result = await db
-      .prepare(`${SELECT_EXTENSIONS_LIST} ORDER BY e.name`)
-      .all<Record<string, unknown>>();
-  } catch {
-    return [];
-  }
-  if (!result.success) return [];
-  return result.results.map(parseExtensionRow);
-}
-
-export async function getExtensionById(
+export async function getExtensionForSubmission(
   db: D1Database,
   id: string,
 ): Promise<Extension | null> {
@@ -206,24 +189,6 @@ export async function getDeveloperById(
   return row ? parseDeveloperProfileRow(row) : null;
 }
 
-// Public listing for the /developer/[id] page.
-export async function getExtensionsByDeveloperId(
-  db: D1Database,
-  developerId: string,
-): Promise<Extension[]> {
-  let result;
-  try {
-    result = await db
-      .prepare(SELECT_EXTENSIONS_BY_DEVELOPER)
-      .bind(developerId)
-      .all<Record<string, unknown>>();
-  } catch {
-    return [];
-  }
-  if (!result.success) return [];
-  return result.results.map(parseExtensionRow);
-}
-
 function parseJSON<T>(value: unknown, fallback: T): T {
   if (typeof value === 'string') {
     try {
@@ -248,7 +213,8 @@ function parseExtensionRow(row: Record<string, unknown>): Extension {
         '') as Lowercase<string>,
       URL:
         typeof row.developer_url === 'string' ? row.developer_url : undefined,
-    } as Developer,
+      approved: row.developer_approved_at != null,
+    },
     releases: parseJSON<Release[]>(row.releases, []),
     website: row.website as string,
     license: parseJSON(row.license, { name: '' }),

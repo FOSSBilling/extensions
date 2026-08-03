@@ -1,6 +1,5 @@
 ---
 import type { Extension } from '@/types';
-import { getLatestRelease } from '@/types';
 import { ArrowLeft } from '@lucide/astro';
 
 interface Props {
@@ -8,7 +7,6 @@ interface Props {
 }
 
 const { ext } = Astro.props;
-const latest = getLatestRelease(ext);
 ---
 
 <div class="flex items-start space-x-4">
@@ -29,7 +27,7 @@ const latest = getLatestRelease(ext);
   <div class="flex-1">
     <div class="flex items-baseline flex-wrap gap-2">
       <h1 class="text-2xl font-semibold">{ext.name}</h1>
-      <span class="text-muted-foreground">v{latest?.tag ?? 'unknown'}</span>
+      <span class="text-muted-foreground">v{ext.version || 'unknown'}</span>
     </div>
     <p class="text-muted-foreground mt-1">{ext.description}</p>
   </div>

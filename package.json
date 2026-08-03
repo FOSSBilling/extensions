@@ -3,6 +3,7 @@
   "license": "AGPL-3.0-only",
   "type": "module",
   "scripts": {
+    "api:generate": "openapi-ts -f openapi-ts.config.ts",
     "cf-typegen": "wrangler types",
     "cf-deploy": "wrangler deploy",
     "db:migrate:local": "wrangler d1 migrations apply DB_EXTENSIONS --local",
@@ -10,9 +11,10 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
+    "test": "vitest run",
     "check": "astro check",
-    "format": "prettier --write \"{src,public}/**/*.{astro,css,js,json,mjs,ts}\" \"*.{json,mjs,ts}\"",
-    "format:check": "prettier --check \"{src,public}/**/*.{astro,css,js,json,mjs,ts}\" \"*.{json,mjs,ts}\""
+    "format": "prettier --write \"{src,public,test}/**/*.{astro,css,js,json,mjs,ts}\" \"*.{json,mjs,ts}\"",
+    "format:check": "prettier --check \"{src,public,test}/**/*.{astro,css,js,json,mjs,ts}\" \"*.{json,mjs,ts}\""
   },
   "dependencies": {
     "@astrojs/check": "^0.9.9",
@@ -29,12 +31,14 @@
     "tailwindcss": "^4.3.0"
   },
   "devDependencies": {
+    "@hey-api/openapi-ts": "0.99.0",
     "@types/node": "26.1.2",
     "@types/sanitize-html": "2.16.1",
     "@types/semver": "7.7.1",
     "prettier": "3.9.6",
     "prettier-plugin-astro": "0.14.1",
-    "typescript": "6.0.3"
+    "typescript": "6.0.3",
+    "vitest": "^4.1.10"
   },
   "overrides": {
     "vite": "^8.0.0"

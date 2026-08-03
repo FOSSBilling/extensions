@@ -1,10 +1,54 @@
 ---
 import Base from '../layouts/Base.astro';
 import ExtensionCard from '../components/ExtensionCard.astro';
-import { getAllExtensions } from '@/lib/database';
+import {
+  clampExtensionPageLimit,
+  ExtensionsApiError,
+  listExtensions,
+  type ExtensionListItem,
+  type ExtensionListResponse,
+} from '@/lib/extensionsApi';
+import { EXTENSION_TYPES } from '@/types';
 import { env } from 'cloudflare:workers';
 
-const extensions = await getAllExtensions(env.DB_EXTENSIONS);
+function isExtensionType(
+  value: string | null,
+): value is ExtensionListItem['type'] {
+  return (
+    value !== null && (EXTENSION_TYPES as readonly string[]).includes(value)
+  );
+}
+
+const requestedType = Astro.url.searchParams.get('type');
+const activeType = isExtensionType(requestedType) ? requestedType : undefined;
+const requestedDeveloperId = Astro.url.searchParams.get('developer_id');
+const activeDeveloperId = requestedDeveloperId || undefined;
+const requestedLimit = Astro.url.searchParams.get('limit');
+const activeLimit = clampExtensionPageLimit(
+  requestedLimit === null ? undefined : Number(requestedLimit),
+);
+
+let cataloguePage: ExtensionListResponse | null = null;
+let catalogueError: string | null = null;
+
+try {
+  cataloguePage = await listExtensions(env, {
+    type: activeType,
+    developer_id: activeDeveloperId,
+    limit: activeLimit,
+  });
+} catch (error) {
+  catalogueError =
+    error instanceof ExtensionsApiError
+      ? error.message
+      : 'Unable to load the extension catalogue. Please try again.';
+}
+
+const extensions = cataloguePage?.result ?? [];
+const hasNextPage = Boolean(
+  cataloguePage?.pagination.has_more &&
+  cataloguePage.pagination.next_cursor !== null,
+);
 ---
 
 <Base title="FOSSBilling Extensions">
@@ -27,9 +71,107 @@ const extensions = await getAllExtensions(env.DB_EXTENSIONS);
     </a>
     {' '}.
   </p>
+
   <div
-    class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+    data-extension-catalogue
+    data-api-url="/api/extensions"
+    data-limit={activeLimit}
+    data-type={activeType}
+    data-developer-id={activeDeveloperId}
+    data-has-more={hasNextPage}
   >
-    {extensions.map((ext) => <ExtensionCard ext={ext} />)}
+    <form method="get" class="card mb-8">
+      <div class="grid gap-4 sm:grid-cols-2 sm:items-end">
+        <label class="space-y-2">
+          <span class="font-medium text-sm">Extension type</span>
+          <select name="type" class="input w-full">
+            <option value="">All types</option>
+            {
+              EXTENSION_TYPES.map((type) => (
+                <option value={type} selected={activeType === type}>
+                  {type}
+                </option>
+              ))
+            }
+          </select>
+        </label>
+        <label class="space-y-2">
+          <span class="font-medium text-sm">Developer ID</span>
+          <input
+            type="text"
+            name="developer_id"
+            value={activeDeveloperId ?? ''}
+            placeholder="Filter by developer"
+            class="input w-full"
+          />
+        </label>
+      </div>
+      <div class="flex items-center gap-3 mt-4">
+        <button type="submit" class="btn" data-variant="primary">
+          Apply filters
+        </button>
+        {
+          activeType || activeDeveloperId ? (
+            <a href="/" class="btn" data-variant="ghost">
+              Clear filters
+            </a>
+          ) : null
+        }
+      </div>
+    </form>
+
+    {
+      catalogueError ? (
+        <div class="card" role="alert">
+          <h2 class="font-semibold">Unable to load extensions</h2>
+          <p class="text-muted-foreground mt-2">{catalogueError}</p>
+          <a href={Astro.url.pathname + Astro.url.search} class="btn mt-4">
+            Try again
+          </a>
+        </div>
+      ) : (
+        <>
+          <div
+            data-extension-grid
+            class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+          >
+            {extensions.map((ext) => (
+              <ExtensionCard ext={ext} />
+            ))}
+          </div>
+
+          {extensions.length === 0 ? (
+            <p class="card text-muted-foreground" data-empty-catalogue>
+              No extensions match the selected filters.
+            </p>
+          ) : null}
+
+          <div class="mt-8 flex flex-col items-center gap-3">
+            {hasNextPage ? (
+              <button
+                type="button"
+                class="btn"
+                data-variant="outline"
+                data-load-more
+                data-next-cursor={cataloguePage?.pagination.next_cursor}
+              >
+                Load more extensions
+              </button>
+            ) : extensions.length > 0 ? (
+              <p class="text-sm text-muted-foreground">
+                All extensions loaded.
+              </p>
+            ) : null}
+            <p
+              data-catalogue-status
+              class="text-sm text-muted-foreground"
+              aria-live="polite"
+            />
+          </div>
+        </>
+      )
+    }
   </div>
 </Base>
+
+<script src="../scripts/extension-catalogue.ts"></script>

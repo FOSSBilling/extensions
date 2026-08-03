@@ -161,12 +161,19 @@ into a queue at `/account/moderate` and only take effect once a moderator approv
 higher bar than developer profiles since they carry download URLs and arbitrary readme/website
 content. All writes to the shared `developers`/`extensions` tables — moderated or not — happen in
 the [`FOSSBilling/api`](https://github.com/FOSSBilling/api) repo's `/extensions/v2` service,
-not here; this app never writes to those tables directly. This app's own
-`getExtensionsByOwner`/`getExtensionById`/`getDeveloperByOwner`/`getDeveloperById`/
-`getExtensionsByDeveloperId` (in `src/lib/database.ts`) read the live tables directly, same as
-the public listings — including the public developer page at `/developer/[id]`, which also
-derives an `unclaimed` flag from `owner_user_id IS NULL` (never exposing the raw owner id
-itself, which would leak another user's identifier publicly).
+not here; this app never writes to those tables directly. The public catalogue uses the generated
+client from `src/generated/extensions-v2`, with `GET /extensions` loaded in bounded cursor pages
+and `GET /extensions/{id}` used for complete detail pages. Account ownership/editing queries still
+use this app's D1 helpers (`getExtensionsByOwner`, `getExtensionForSubmission`,
+`getDeveloperByOwner`, and `getDeveloperById`); the public developer page derives its `unclaimed`
+flag from `owner_user_id IS NULL` (never exposing the raw owner id itself, which would leak
+another user's identifier).
+
+Regenerate the client from the current API contract with:
+
+```bash
+npm run api:generate
+```
 
 Each request to `/extensions/v2` is authenticated with a short-lived (60s) HMAC-signed
 bearer assertion this app mints per-request (`src/lib/assertion.ts`), proving the

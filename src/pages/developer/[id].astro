@@ -1,7 +1,12 @@
 ---
 import Base from '../../layouts/Base.astro';
 import ExtensionCard from '@/components/ExtensionCard.astro';
-import { getDeveloperById, getExtensionsByDeveloperId } from '@/lib/database';
+import { getDeveloperById } from '@/lib/database';
+import {
+  ExtensionsApiError,
+  listExtensions,
+  type ExtensionListResponse,
+} from '@/lib/extensionsApi';
 import { getSessionUser } from '@/lib/session';
 import { requireUser } from '@/lib/auth-guard';
 import {
@@ -54,9 +59,23 @@ if (Astro.request.method === 'POST' && developer.unclaimed) {
   }
 }
 
-const extensions = await getExtensionsByDeveloperId(
-  env.DB_EXTENSIONS,
-  developer.id,
+let extensionsPage: ExtensionListResponse | null = null;
+let extensionsError: string | null = null;
+try {
+  extensionsPage = await listExtensions(env, {
+    developer_id: developer.id,
+  });
+} catch (error) {
+  extensionsError =
+    error instanceof ExtensionsApiError
+      ? error.message
+      : 'Unable to load this developer’s extensions. Please try again.';
+}
+
+const extensions = extensionsPage?.result ?? [];
+const hasNextPage = Boolean(
+  extensionsPage?.pagination.has_more &&
+  extensionsPage.pagination.next_cursor !== null,
 );
 ---
 
@@ -164,18 +183,60 @@ const extensions = await getExtensionsByDeveloperId(
     )
   }
 
-  <h2 class="font-semibold mb-4">
-    Extensions by {developer.name} ({extensions.length})
-  </h2>
-  {
-    extensions.length === 0 ? (
-      <p class="text-muted-foreground text-sm">No published extensions yet.</p>
-    ) : (
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {extensions.map((ext) => (
-          <ExtensionCard ext={ext} />
-        ))}
-      </div>
-    )
-  }
+  <h2 class="font-semibold mb-4">Extensions by {developer.name}</h2>
+  <div
+    data-extension-catalogue
+    data-api-url="/api/extensions"
+    data-limit="50"
+    data-developer-id={developer.id}
+    data-has-more={hasNextPage}
+  >
+    {
+      extensionsError ? (
+        <div class="card" role="alert">
+          <p class="text-muted-foreground">{extensionsError}</p>
+        </div>
+      ) : (
+        <>
+          <div
+            data-extension-grid
+            class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+          >
+            {extensions.map((ext) => (
+              <ExtensionCard ext={ext} />
+            ))}
+          </div>
+          {extensions.length === 0 ? (
+            <p class="text-muted-foreground text-sm">
+              No published extensions yet.
+            </p>
+          ) : null}
+          <div class="mt-8 flex flex-col items-center gap-3">
+            {hasNextPage ? (
+              <button
+                type="button"
+                class="btn"
+                data-variant="outline"
+                data-load-more
+                data-next-cursor={extensionsPage?.pagination.next_cursor}
+              >
+                Load more extensions
+              </button>
+            ) : extensions.length > 0 ? (
+              <p class="text-sm text-muted-foreground">
+                All extensions loaded.
+              </p>
+            ) : null}
+            <p
+              data-catalogue-status
+              class="text-sm text-muted-foreground"
+              aria-live="polite"
+            />
+          </div>
+        </>
+      )
+    }
+  </div>
 </Base>
+
+<script src="../../scripts/extension-catalogue.ts"></script>

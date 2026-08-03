@@ -1,7 +1,7 @@
 ---
 import type { Extension } from '@/types';
 import { getLatestRelease, repositoryURL } from '@/types';
-import { CircleCheck, GitBranch, Scale, User } from '@lucide/astro';
+import { CircleCheck, Download, GitBranch, Scale, User } from '@lucide/astro';
 
 interface Props {
   ext: Extension;
@@ -44,6 +44,12 @@ const details: DetailsItem[] = [
     link: `/developer/${ext.developer.id}`,
   },
   {
+    name: 'Current Version',
+    icon: CircleCheck,
+    color: 'green',
+    text: `v${ext.version}`,
+  },
+  {
     name: 'FOSSBilling Version',
     icon: CircleCheck,
     color: 'green',
@@ -64,6 +70,13 @@ const details: DetailsItem[] = [
     color: 'fuchsia',
     text: ext.source.repo,
     link: repositoryURL(ext.source),
+  },
+  {
+    name: 'Download',
+    icon: Download,
+    color: 'blue',
+    text: 'Download extension',
+    link: ext.download_url,
   },
 ];
 ---
