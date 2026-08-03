@@ -45,6 +45,8 @@ try {
 }
 
 const extensions = cataloguePage?.result ?? [];
+const activeFilterCount =
+  Number(Boolean(activeType)) + Number(Boolean(activeDeveloperId));
 const hasNextPage = Boolean(
   cataloguePage?.pagination.has_more &&
   cataloguePage.pagination.next_cursor !== null,
@@ -80,53 +82,68 @@ const hasNextPage = Boolean(
     data-developer-id={activeDeveloperId}
     data-has-more={hasNextPage}
   >
-    <form method="get" class="card mb-8">
-      <div class="grid gap-4 sm:grid-cols-2 sm:items-end">
-        <label class="space-y-2">
-          <span class="font-medium text-sm">Extension type</span>
-          <select name="type" class="input w-full">
-            <option value="">All types</option>
-            {
-              EXTENSION_TYPES.map((type) => (
-                <option value={type} selected={activeType === type}>
-                  {type}
-                </option>
-              ))
-            }
-          </select>
-        </label>
-        <label class="space-y-2">
-          <span class="font-medium text-sm">Developer ID</span>
-          <input
-            type="text"
-            name="developer_id"
-            value={activeDeveloperId ?? ''}
-            placeholder="Filter by developer"
-            class="input w-full"
-          />
-        </label>
-      </div>
-      <div class="flex items-center gap-3 mt-4">
-        <button type="submit" class="btn" data-variant="primary">
-          Apply filters
-        </button>
+    <details class="mb-8 w-full" open={activeFilterCount > 0}>
+      <summary
+        class="btn ml-auto flex w-fit"
+        data-size="sm"
+        data-variant="outline"
+      >
+        Filters
         {
-          activeType || activeDeveloperId ? (
-            <a href="/" class="btn" data-variant="ghost">
-              Clear filters
-            </a>
+          activeFilterCount > 0 ? (
+            <span class="font-normal">({activeFilterCount} active)</span>
           ) : null
         }
-      </div>
-    </form>
+      </summary>
+
+      <form method="get" class="card mt-3 grid gap-4 px-6">
+        <div class="grid gap-4 sm:grid-cols-2 sm:items-end">
+          <label class="flex flex-col gap-2">
+            <span class="font-medium text-sm">Extension Type</span>
+            <select name="type" class="input w-full">
+              <option value="">All Types</option>
+              {
+                EXTENSION_TYPES.map((type) => (
+                  <option value={type} selected={activeType === type}>
+                    {type}
+                  </option>
+                ))
+              }
+            </select>
+          </label>
+          <label class="flex flex-col gap-2">
+            <span class="font-medium text-sm">Developer ID</span>
+            <input
+              type="text"
+              name="developer_id"
+              value={activeDeveloperId ?? ''}
+              placeholder="Filter by Developer"
+              class="input w-full"
+            />
+          </label>
+        </div>
+        <div class="flex items-center gap-3">
+          <button type="submit" class="btn" data-variant="primary">
+            Apply Filters
+          </button>
+          {
+            activeType || activeDeveloperId ? (
+              <a href="/" class="btn" data-variant="ghost">
+                Clear Filters
+              </a>
+            ) : null
+          }
+        </div>
+      </form>
+    </details>
 
     {
       catalogueError ? (
         <div class="card" role="alert">
-          <h2 class="font-semibold">Unable to load extensions</h2>
+          <h2 class="font-semibold">Unable to Load Extensions</h2>
           <p class="text-muted-foreground mt-2">{catalogueError}</p>
           <a href={Astro.url.pathname + Astro.url.search} class="btn mt-4">
-            Try again
+            Try Again
           </a>
         </div>
       ) : (
@@ -141,8 +158,11 @@ const hasNextPage = Boolean(
           </div>
 
           {extensions.length === 0 ? (
-            <p class="card text-muted-foreground" data-empty-catalogue>
-              No extensions match the selected filters.
+            <p
+              class="card flex min-h-32 items-center justify-center px-6 py-12 text-center text-muted-foreground"
+              data-empty-catalogue
+            >
+              No Extensions Match the Selected Filters
             </p>
           ) : null}
 
@@ -155,12 +175,10 @@ const hasNextPage = Boolean(
                 data-load-more
                 data-next-cursor={cataloguePage?.pagination.next_cursor}
               >
-                Load more extensions
+                Load More Extensions
               </button>
             ) : extensions.length > 0 ? (
-              <p class="text-sm text-muted-foreground">
-                All extensions loaded.
-              </p>
+              <p class="text-sm text-muted-foreground">All Extensions Loaded</p>
             ) : null}
             <p
               data-catalogue-status
