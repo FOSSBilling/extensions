@@ -22,10 +22,13 @@ import {
   type Extension,
   type ExtensionListItem,
   type ExtensionListResponse,
+  type SubmissionQueuePage,
   type SubmissionPayload,
   type SubmissionPage,
 } from '@/lib/api/client';
 import { mintBearerAssertion } from '@/lib/assertion';
+import { isCatalogueCardPage } from '@/scripts/extension-catalogue';
+import { isDeveloperType, isExtensionType, isSourceType } from '@/types';
 import {
   createCataloguePager,
   createCataloguePagerFromIds,
@@ -354,7 +357,48 @@ describe('generated Extensions v2 façade', () => {
     }>();
     expectTypeOf<
       ReturnType<ReturnType<typeof createApiClient>['listQueue']>
-    >().resolves.toEqualTypeOf<SubmissionPage>();
+    >().resolves.toEqualTypeOf<SubmissionQueuePage>();
+  });
+});
+
+describe('application boundary validation', () => {
+  it('validates only the fields used by catalogue cards', () => {
+    expect(
+      isCatalogueCardPage({
+        result: [
+          {
+            id: 'card-only',
+            name: 'Card only',
+            description: 'Card fields are sufficient.',
+            version: '1.0.0',
+          },
+        ],
+        pagination: { next_cursor: null, has_more: false },
+      }),
+    ).toBe(true);
+
+    expect(
+      isCatalogueCardPage({
+        result: [
+          {
+            id: 'invalid-card',
+            name: 123,
+            description: 'Invalid name.',
+            version: '1.0.0',
+          },
+        ],
+        pagination: { next_cursor: null, has_more: false },
+      }),
+    ).toBe(false);
+  });
+
+  it('keeps runtime filter validation independent from generated DTO imports', () => {
+    expect(isExtensionType('mod')).toBe(true);
+    expect(isExtensionType('not-a-type')).toBe(false);
+    expect(isSourceType('github')).toBe(true);
+    expect(isSourceType('not-a-source')).toBe(false);
+    expect(isDeveloperType('organization')).toBe(true);
+    expect(isDeveloperType('not-a-developer')).toBe(false);
   });
 });
 

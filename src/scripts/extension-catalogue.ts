@@ -9,34 +9,56 @@ import type {
 
 const DEFAULT_PAGE_LIMIT = 50;
 
-type CatalogueErrorBody = {
-  error?: {
-    message?: string;
-  };
+type CatalogueCardItem = Pick<
+  ExtensionListItem,
+  'id' | 'name' | 'description' | 'version' | 'icon_url'
+>;
+
+type CatalogueCardPage = {
+  result: CatalogueCardItem[];
+  pagination: ExtensionListResponse['pagination'];
 };
 
-function isExtensionListResponse(
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function isCatalogueCardItem(value: unknown): value is CatalogueCardItem {
+  if (!isRecord(value)) return false;
+
+  return (
+    typeof value.id === 'string' &&
+    typeof value.name === 'string' &&
+    typeof value.description === 'string' &&
+    typeof value.version === 'string' &&
+    (value.icon_url === undefined || typeof value.icon_url === 'string')
+  );
+}
+
+export function isCatalogueCardPage(
   value: unknown,
-): value is ExtensionListResponse {
-  if (!value || typeof value !== 'object') {
+): value is CatalogueCardPage {
+  if (!isRecord(value) || !isRecord(value.pagination)) {
     return false;
   }
 
-  const page = value as {
-    result?: unknown;
-    pagination?: {
-      next_cursor?: unknown;
-      has_more?: unknown;
-    };
-  };
-
   return (
-    Array.isArray(page.result) &&
-    page.pagination !== undefined &&
-    (typeof page.pagination.next_cursor === 'string' ||
-      page.pagination.next_cursor === null) &&
-    typeof page.pagination.has_more === 'boolean'
+    Array.isArray(value.result) &&
+    value.result.every(isCatalogueCardItem) &&
+    (typeof value.pagination.next_cursor === 'string' ||
+      value.pagination.next_cursor === null) &&
+    typeof value.pagination.has_more === 'boolean'
   );
+}
+
+function catalogueErrorMessage(value: unknown): string | undefined {
+  if (!isRecord(value) || !isRecord(value.error)) {
+    return undefined;
+  }
+
+  return typeof value.error.message === 'string'
+    ? value.error.message
+    : undefined;
 }
 
 function getErrorMessage(error: unknown): string {
@@ -49,7 +71,7 @@ function getErrorMessage(error: unknown): string {
 async function loadPage(
   apiUrl: string,
   request: CataloguePageRequest,
-): Promise<ExtensionListResponse> {
+): Promise<CatalogueCardPage> {
   const params = new URLSearchParams();
   params.set('limit', String(request.limit ?? DEFAULT_PAGE_LIMIT));
   if (request.type !== undefined) {
@@ -71,20 +93,20 @@ async function loadPage(
   }
 
   if (!response.ok) {
-    const message = (body as CatalogueErrorBody | null)?.error?.message;
+    const message = catalogueErrorMessage(body);
     throw new Error(
       message || `The extensions API returned ${response.status}.`,
     );
   }
 
-  if (!isExtensionListResponse(body)) {
+  if (!isCatalogueCardPage(body)) {
     throw new Error('The extensions API returned an unexpected response.');
   }
 
   return body;
 }
 
-function makeCard(item: ExtensionListItem): HTMLAnchorElement {
+function makeCard(item: CatalogueCardItem): HTMLAnchorElement {
   const link = document.createElement('a');
   link.href = `/extension/${encodeURIComponent(item.id)}`;
   link.className = 'block';
@@ -151,12 +173,12 @@ function installCatalogue(root: HTMLElement): void {
   )
     .map((card) => card.dataset.extensionId ?? '')
     .filter(Boolean);
-  const pagination: ExtensionListResponse['pagination'] = {
+  const pagination: CatalogueCardPage['pagination'] = {
     next_cursor: loadMore.dataset.nextCursor ?? null,
     has_more: root.dataset.hasMore === 'true',
   };
   const filters = {
-    type: root.dataset.type as ExtensionListItem['type'] | undefined,
+    type: root.dataset.type || undefined,
     developer_id: root.dataset.developerId,
     limit: Number(root.dataset.limit) || DEFAULT_PAGE_LIMIT,
   };
@@ -222,9 +244,11 @@ function installCatalogue(root: HTMLElement): void {
   });
 }
 
-const catalogue = document.querySelector<HTMLElement>(
-  '[data-extension-catalogue]',
-);
-if (catalogue) {
-  installCatalogue(catalogue);
+if (typeof document !== 'undefined') {
+  const catalogue = document.querySelector<HTMLElement>(
+    '[data-extension-catalogue]',
+  );
+  if (catalogue) {
+    installCatalogue(catalogue);
+  }
 }

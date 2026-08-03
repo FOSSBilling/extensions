@@ -4,8 +4,8 @@ import {
   ApiRequestError,
   listExtensions,
   type ExtensionCatalogueFilters,
-  type ExtensionListItem,
 } from '@/lib/api/client';
+import { isExtensionType } from '@/types';
 
 export const GET: APIRoute = async ({ url }) => {
   const filters: ExtensionCatalogueFilters = {};
@@ -13,8 +13,19 @@ export const GET: APIRoute = async ({ url }) => {
   const developerId = url.searchParams.get('developer_id');
   const limit = url.searchParams.get('limit');
 
-  if (type !== null) {
-    filters.type = type as ExtensionListItem['type'];
+  if (type !== null && type !== '' && !isExtensionType(type)) {
+    return Response.json(
+      {
+        error: {
+          code: 'INVALID_EXTENSION_TYPE',
+          message: 'The extension type filter is invalid.',
+        },
+      },
+      { status: 422 },
+    );
+  }
+  if (type) {
+    filters.type = type;
   }
   if (developerId !== null) {
     filters.developer_id = developerId;

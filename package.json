@@ -5,7 +5,7 @@
   "scripts": {
     "api:generate": "openapi-ts -f openapi-ts.config.ts",
     "api:update": "node scripts/update-extensions-openapi.mjs && prettier --write openapi/extensions-v2.json && npm run api:generate",
-    "api:check": "npm run api:generate && git diff --exit-code -- src/lib/api/generated/extensions-v2",
+    "api:check": "npm run api:generate && git diff --exit-code -- src/lib/api/generated/extensions-v2 && test -z \"$(git ls-files --others --exclude-standard -- src/lib/api/generated/extensions-v2)\"",
     "cf-typegen": "wrangler types",
     "cf-deploy": "wrangler deploy",
     "db:migrate:local": "wrangler d1 migrations apply DB_EXTENSIONS --local",
@@ -19,7 +19,6 @@
     "format:check": "prettier --check \"{src,public,test,scripts,openapi}/**/*.{astro,css,js,json,mjs,ts}\" \"*.{json,mjs,ts}\""
   },
   "dependencies": {
-    "@astrojs/check": "^0.9.9",
     "@astrojs/cloudflare": "^14.0.0",
     "@date-fns/tz": "^1.5.0",
     "@lucide/astro": "^1.17.0",
@@ -33,6 +32,7 @@
     "tailwindcss": "^4.3.0"
   },
   "devDependencies": {
+    "@astrojs/check": "^0.9.9",
     "@hey-api/openapi-ts": "0.99.0",
     "@types/node": "26.1.2",
     "@types/sanitize-html": "2.16.1",

@@ -5,19 +5,10 @@ import {
   clampExtensionPageLimit,
   ApiRequestError,
   listExtensions,
-  type ExtensionListItem,
   type ExtensionListResponse,
 } from '@/lib/api/client';
-import { EXTENSION_TYPES } from '@/types';
+import { EXTENSION_TYPES, isExtensionType } from '@/types';
 import { env } from 'cloudflare:workers';
-
-function isExtensionType(
-  value: string | null,
-): value is ExtensionListItem['type'] {
-  return (
-    value !== null && (EXTENSION_TYPES as readonly string[]).includes(value)
-  );
-}
 
 const requestedType = Astro.url.searchParams.get('type');
 const activeType = isExtensionType(requestedType) ? requestedType : undefined;

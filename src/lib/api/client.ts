@@ -35,6 +35,8 @@ import {
   type GetExtensionsData,
   type GetSubmissionsMineResponse,
   type GetSubmissionsMineData,
+  type GetSubmissionsQueueData,
+  type GetSubmissionsQueueResponse,
   type PendingDeveloperClaim,
   type PutDevelopersMeData,
   type Submission,
@@ -52,6 +54,7 @@ export const MAX_API_PAGE_LIMIT = 100;
 
 type ExtensionListQuery = NonNullable<GetExtensionsData['query']>;
 type SubmissionPageQuery = NonNullable<GetSubmissionsMineData['query']>;
+type SubmissionQueueQuery = NonNullable<GetSubmissionsQueueData['query']>;
 
 export type ExtensionCatalogueFilters = Pick<
   ExtensionListQuery,
@@ -64,8 +67,12 @@ export type SubmissionPageOptions = Pick<
 >;
 
 export type SubmissionPage = GetSubmissionsMineResponse;
+export type SubmissionQueuePage = GetSubmissionsQueueResponse;
 export type DeveloperProfileInput = NonNullable<PutDevelopersMeData['body']>;
-export type SubmissionStatus = Submission['status'];
+export type SubmissionStatus = Exclude<
+  SubmissionQueueQuery['status'],
+  undefined
+>;
 
 export type {
   Developer,
@@ -107,8 +114,6 @@ export function getApiErrorMessage(error: ApiRequestError): string {
       return 'Too many requests were made. Please wait a few minutes and try again.';
     case 'SERVICE_UNAVAILABLE':
       return 'The service is temporarily unavailable. Please try again manually in a few minutes.';
-    case 'GITHUB_ENTITY_UNSUPPORTED':
-      return error.message;
     default:
       return error.message;
   }
@@ -151,7 +156,9 @@ function isStructuredApiError(error: unknown): error is ApiErrorBody {
     nested !== null &&
     typeof nested === 'object' &&
     typeof (nested as { code?: unknown }).code === 'string' &&
-    typeof (nested as { message?: unknown }).message === 'string'
+    typeof (nested as { message?: unknown }).message === 'string' &&
+    (typeof (nested as { details?: unknown }).details === 'undefined' ||
+      Array.isArray((nested as { details?: unknown }).details))
   );
 }
 
@@ -265,9 +272,9 @@ export function createApiClient(env: Cloudflare.Env, subject: string) {
       ),
 
     listQueue: async (
-      status: Submission['status'] = 'pending',
+      status: SubmissionStatus = 'pending',
       options: SubmissionPageOptions = {},
-    ): Promise<SubmissionPage> =>
+    ): Promise<SubmissionQueuePage> =>
       unwrap(
         await getSubmissionsQueue({
           client,

@@ -1,12 +1,8 @@
 import type { Developer } from '@/types';
 import type { DeveloperProfileInput } from '@/lib/api/client';
-import { DEVELOPER_TYPES } from '@/types';
+import { isDeveloperType } from '@/types';
 import { formString } from './form';
 import { withHttpsScheme } from './url-prefix';
-
-function isDeveloperType(value: string): value is Developer['type'] {
-  return (DEVELOPER_TYPES as readonly string[]).includes(value);
-}
 
 // Thrown for form-level validation failures that should be shown to the
 // user, distinct from ApiRequestError (the api rejecting an otherwise
