@@ -155,10 +155,11 @@ export function clampApiPageLimit(limit?: number): number {
 export const clampExtensionPageLimit = clampApiPageLimit;
 
 function createApiTransport(env: ApplicationEnv, subject?: string): Client {
-  const baseUrl = env.extensionsApiBaseUrl.replace(/\/$/, '');
+  const baseUrl = env.extensionsApi.baseUrl.replace(/\/$/, '');
 
   return createClient({
     baseUrl: `${baseUrl}/extensions/v2`,
+    fetch: env.extensionsApi.fetch,
     ...(subject
       ? {
           auth: () => mintBearerAssertion(subject, env.assertionSigningSecret),

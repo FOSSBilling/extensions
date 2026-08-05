@@ -21,7 +21,10 @@ import {
 import type { ApplicationEnv } from '@/lib/runtime';
 
 const env: ApplicationEnv = {
-  extensionsApiBaseUrl: 'https://api.example.test',
+  extensionsApi: {
+    baseUrl: 'https://api.example.test',
+    fetch: (...args) => globalThis.fetch(...args),
+  },
   authClientId: 'client-id',
   authClientSecret: 'client-secret',
   sessionSecret: 'session-secret',

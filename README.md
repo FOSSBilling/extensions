@@ -76,6 +76,15 @@ signed-in user's identity to that repo's `/extensions/v2` submission endpoints (
 `https://api.fossbilling.net`; set `EXTENSIONS_API_BASE_URL` in `.dev.vars` to point at
 a local `api` dev server instead if you're working on that side too.
 
+`EXTENSIONS_API_TRANSPORT` selects how server-side API calls are delivered. Set it
+to `http` for the normal local setup. Production uses `binding`, which forwards the
+same Fetch/OpenAPI requests through the `api` Worker service binding. Binding failures
+are surfaced; the site does not silently retry over HTTP.
+
+To exercise the binding locally, run the site and API with a connected multi-Worker
+Wrangler setup using sibling `extensions` and `api` checkouts. The HTTP mode remains
+the simpler option when only one Worker is running.
+
 Start the development server:
 
 ```bash
@@ -200,7 +209,9 @@ that the committed generated files match `openapi/extensions-v2.json`.
 Each request to `/extensions/v2` is authenticated with a short-lived (60s) HMAC-signed
 bearer assertion this app mints per-request (`src/lib/assertion.ts`), proving the
 signed-in user's identity to the api repo without that repo needing to know anything
-about auth.fossbilling.net. See that repo's `src/lib/auth/` for the verification side.
+about auth.fossbilling.net. The assertion includes fixed issuer, audience, purpose,
+and version claims; the API can temporarily accept a previous secret during key
+rotation. See that repo's `src/lib/auth/` for the verification side.
 
 Moderators are flagged via the `is_moderator` column on the API-owned `users` table;
 there's no UI to grant it. Database administration belongs in the API repository.
@@ -213,6 +224,11 @@ npx wrangler secret put AUTH_CLIENT_SECRET
 npx wrangler secret put SESSION_SECRET
 npx wrangler secret put ASSERTION_SIGNING_SECRET
 ```
+
+For a no-downtime assertion-secret rotation, configure the API's
+`ASSERTION_SIGNING_SECRET_PREVIOUS` with the old value first, replace the API's
+active secret, then replace this Worker's `ASSERTION_SIGNING_SECRET`. After at
+least 65 seconds and successful request checks, remove the API previous secret.
 
 ## License
 
