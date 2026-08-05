@@ -27,9 +27,10 @@ const userPictureUrl = getOptimizedImageUrl(user.picture, 'avatar');
 
 const moderator = user.account.is_moderator;
 const githubLinked = user.account.github_linked;
+const ownerReadOptions = { failSoft: false } as const;
 const [extensionsResult, developerResult] = await Promise.allSettled([
-  getExtensionsByOwner(env, user.sub),
-  getDeveloperByOwner(env, user.sub),
+  getExtensionsByOwner(env, user.sub, ownerReadOptions),
+  getDeveloperByOwner(env, user.sub, ownerReadOptions),
 ]);
 const ownedExtensions =
   extensionsResult.status === 'fulfilled' ? extensionsResult.value : [];

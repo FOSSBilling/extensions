@@ -4,6 +4,11 @@ import type { ApplicationEnv } from './runtime';
 
 const GITHUB_ORGS_EXPIRES_AT_CLAIM =
   'https://fossbilling.org/claims/github_orgs_expires_at' as const;
+// Keep the OIDC projection within the API contract before sending it over the
+// boundary. Claims come from an external identity provider, so runtime
+// validation must not rely on the narrower UserInfo TypeScript declaration.
+const MAX_GITHUB_ORGS = 500;
+const MAX_GITHUB_ORG_LENGTH = 200;
 const RFC3339_TIMESTAMP =
   /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(Z|[+-]\d{2}:\d{2})$/;
 
@@ -67,7 +72,13 @@ function isFutureGithubOrgsExpiry(
 }
 
 function isGithubOrgList(value: unknown): value is string[] {
-  return Array.isArray(value) && value.every((org) => typeof org === 'string');
+  return (
+    Array.isArray(value) &&
+    value.length <= MAX_GITHUB_ORGS &&
+    value.every(
+      (org) => typeof org === 'string' && org.length <= MAX_GITHUB_ORG_LENGTH,
+    )
+  );
 }
 
 function identityFrom(info: UserInfo) {

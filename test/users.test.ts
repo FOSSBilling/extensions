@@ -65,6 +65,16 @@ describe('upsertUser', () => {
     ['a malformed expiry', 'not-a-timestamp', ['fossbilling']],
     ['a malformed organization list', futureExpiry, ['fossbilling', 42]],
     ['a non-array organization list', futureExpiry, 'fossbilling'],
+    [
+      'an organization list over the API item limit',
+      futureExpiry,
+      Array.from({ length: 501 }, () => 'fossbilling'),
+    ],
+    [
+      'an organization name over the API length limit',
+      futureExpiry,
+      ['a'.repeat(201)],
+    ],
   ])(
     'clears both evidence fields for %s',
     async (_description, expiry, orgs) => {

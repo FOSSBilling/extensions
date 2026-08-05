@@ -60,4 +60,19 @@ describe('API-backed extension data adapters', () => {
       [],
     );
   });
+
+  it('can preserve owner API failures for pages that render an error state', async () => {
+    const error = new Error('API unavailable');
+    mocks.createApiClient.mockReturnValue({
+      getOwnDeveloper: vi.fn().mockRejectedValue(error),
+      listMyExtensions: vi.fn().mockRejectedValue(error),
+    });
+
+    await expect(
+      getDeveloperByOwner(env, 'user-subject', { failSoft: false }),
+    ).rejects.toBe(error);
+    await expect(
+      getExtensionsByOwner(env, 'user-subject', { failSoft: false }),
+    ).rejects.toBe(error);
+  });
 });

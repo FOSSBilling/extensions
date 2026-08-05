@@ -17,6 +17,15 @@ import type {
   PublicDeveloperProfile,
 } from '@/types';
 
+export interface OwnerReadOptions {
+  /**
+   * Return the adapter's empty-state value when the API cannot be reached.
+   * Account overview pages disable this so they can distinguish an API error
+   * from a user who simply has no profile or published extensions.
+   */
+  failSoft?: boolean;
+}
+
 function toDeveloperProfile(
   developer: ApiDeveloperProfile & { has_pending_transfer?: boolean },
 ): DeveloperProfile & { has_pending_transfer?: boolean } {
@@ -87,6 +96,7 @@ export async function getExtensionForSubmission(
 export async function getExtensionsByOwner(
   env: ApplicationEnv,
   userId: string,
+  options: OwnerReadOptions = {},
 ): Promise<ApiExtensionListItem[]> {
   try {
     const api = createApiClient(env, userId);
@@ -100,9 +110,14 @@ export async function getExtensionsByOwner(
         : undefined;
     } while (cursor !== undefined);
     return extensions;
-  } catch {
-    // The account/developer and deletion pages use an empty list as their
-    // non-fatal "nothing to show" state.
+  } catch (error) {
+    if (options.failSoft === false) {
+      throw error;
+    }
+
+    // Developer-profile and deletion pages use an empty list as their
+    // non-fatal "nothing to show" state. Callers that render an explicit
+    // error state can disable fail-soft handling through the option above.
     return [];
   }
 }
@@ -110,13 +125,20 @@ export async function getExtensionsByOwner(
 export async function getDeveloperByOwner(
   env: ApplicationEnv,
   userId: string,
+  options: OwnerReadOptions = {},
 ): Promise<(DeveloperProfile & { has_pending_transfer?: boolean }) | null> {
   try {
     const developer = await createApiClient(env, userId).getOwnDeveloper();
     return developer ? toDeveloperProfile(developer) : null;
-  } catch {
-    // A missing profile and a temporarily unavailable profile both remain
-    // non-fatal to callers; API-backed mutations still enforce ownership.
+  } catch (error) {
+    if (options.failSoft === false) {
+      throw error;
+    }
+
+    // Fail-soft callers treat a missing profile and a temporarily unavailable
+    // profile as the same empty state; API-backed mutations still enforce
+    // ownership. Callers that need to distinguish those states can disable
+    // fail-soft handling through the option above.
     return null;
   }
 }

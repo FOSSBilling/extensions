@@ -66,6 +66,25 @@ describe('requireUser', () => {
     },
   );
 
+  it('clears the session when the API reports an inactive account', async () => {
+    mocks.getUser.mockResolvedValue({
+      active: false,
+      display_name: null,
+      is_moderator: false,
+      github_linked: false,
+    });
+    const requestContext = context();
+
+    const result = await requireUser(requestContext, env);
+
+    expect(result).toBeInstanceOf(Response);
+    expect((result as Response).status).toBe(302);
+    expect(requestContext.cookies.delete).toHaveBeenCalledWith('fb_session', {
+      path: '/',
+    });
+    expect(requestContext.redirect).toHaveBeenCalledOnce();
+  });
+
   it('clears the session only when the API confirms the account is missing', async () => {
     mocks.getUser.mockRejectedValue(
       new ApiRequestError(404, 'NOT_FOUND', 'User not found'),
