@@ -42,8 +42,8 @@
     "vite": "^8.0.0"
   },
   "allowScripts": {
-    "esbuild@0.28.1": true,
-    "fsevents@2.3.3": true,
-    "workerd@1.20260730.1": true
+    "esbuild": true,
+    "fsevents": true,
+    "workerd": true
   }
 }
