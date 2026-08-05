@@ -15,7 +15,7 @@ const guard = await requireUser(Astro, env);
 if (guard instanceof Response) return guard;
 const user = guard;
 
-const developer = await getDeveloperByOwner(env.db, user.sub);
+const developer = await getDeveloperByOwner(env, user.sub);
 if (!developer) {
   return Astro.redirect('/account/developer?required_for=extension');
 }

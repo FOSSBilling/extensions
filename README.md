@@ -76,22 +76,15 @@ signed-in user's identity to that repo's `/extensions/v2` submission endpoints (
 `https://api.fossbilling.net`; set `EXTENSIONS_API_BASE_URL` in `.dev.vars` to point at
 a local `api` dev server instead if you're working on that side too.
 
-Apply pending migrations to your local D1 database — safe to re-run any time, it only
-applies whatever hasn't already run against that database (tracked in D1's own
-`d1_migrations` table, shared with the [`FOSSBilling/api`](https://github.com/FOSSBilling/api)
-repo's migrations against this same database):
-
-```bash
-npm run db:migrate:local
-```
-
 Start the development server:
 
 ```bash
 npm run dev
 ```
 
-The site uses Cloudflare D1 for extension data, so some pages require a populated local D1 database or a Wrangler-powered local environment to fully match production.
+The site loads extension data from the API over HTTPS. For local development, point
+`EXTENSIONS_API_BASE_URL` at a local API Worker to exercise account and catalogue
+pages against a real database.
 
 Icons and avatars from the known FOSSBilling, GitHub, GitLab, Google, and
 Gravatar origins are resized through the `/images/{variant}` route on Cloudflare.
@@ -115,10 +108,8 @@ binding mapping is isolated to `src/platform/cloudflare.ts`, so moving to anothe
 serverless provider requires replacing that adapter and deployment configuration
 rather than changing pages and domain services throughout the application.
 
-The domain helpers use the small `SqlDatabase` interface instead of Cloudflare's
-`D1Database` type. The current queries and migrations remain SQLite-compatible;
-a provider using a different SQL dialect would need a database adapter rather than
-leaking provider types into application code. Cloudflare image transformations are
+Domain data is accessed through the generated HTTPS client for the API Worker;
+the site deliberately has no database binding. Cloudflare image transformations are
 an optional optimization: the image route falls back to a direct browser request
 for allowlisted sources when that capability is unavailable.
 
@@ -128,9 +119,9 @@ Sign-in is delegated to FOSSBilling's central auth service at
 [auth.fossbilling.net](https://auth.fossbilling.net) via OAuth2/OIDC (Authorization
 Code + PKCE), implemented under `src/pages/auth/` and `src/lib/`. That service is
 identity-only — it never exposes roles or permissions. Extension ownership,
-submitter/moderator status, and any other authorization concept live entirely in this
-app's own `users` table (`src/lib/db/migrations/`), keyed by the auth service's `sub`
-claim, in the same `DB_EXTENSIONS` D1 database this app already reads from.
+submitter/moderator status, and any other authorization concept live in the API
+Worker's `users` projection, keyed by the auth service's `sub` claim. The site keeps
+only the browser session and sends a signed, short-lived identity assertion to the API.
 
 The client requests the dedicated `github` scope when it needs the linked GitHub
 username and organization claims. The issuer omits those claims for tokens without
@@ -144,18 +135,16 @@ that exchange.
 
 Signed-in users manage two separate profiles from `/account`:
 
-- **Account profile** (`/account/profile`) — personal `display_name`/`bio`, stored only in
-  this app's own `users` table. Written directly to D1 here, not moderated (not yet shown
-  publicly).
+- **Account profile** (`/account/profile`) — personal `display_name`, stored by the API
+  and not moderated (not yet shown publicly).
 - **Developer profile** (`/account/developer`) — the publisher identity (`developers` row:
-  name, type, URL, bio, avatar, and a private contact email) shown on your extensions in the
+  name, type, URL, avatar, and a private contact email) shown on your extensions in the
   directory and on your public developer page at `/developer/[id]`. Writes take effect
   immediately (`PUT /extensions/v2/developers/me`) — there's no moderation gate on creating or
   editing one. A moderator can mark a profile **approved** as a trust badge
   (`/account/moderate/developers`); it's cosmetic, not a publish gate, and any edit clears
-  the badge again until it's re-reviewed. `contact_email` is never read by any public-facing
-  query (`getDeveloperById` in `src/lib/database.ts` deliberately omits it) — only
-  `getDeveloperByOwner`, used for the owner's own self-management form, selects it.
+  the badge again until it's re-reviewed. `contact_email` is never returned by the API's
+  public developer operation; it is available only to the owner-management operation.
 
 An extension submission always targets an existing, owned developer profile — the two are
 deliberately kept separate (rather than letting extension submission implicitly create/edit
@@ -178,25 +167,24 @@ profiles get linked to an actual account.
 Both flows keep the badge/moderation trust model consistent: accepting a transfer or having a
 claim approved clears the `approved` badge, same as any other change to who controls a profile.
 
-The api repo renamed its v2-owned `authors` table (and related schemas/routes) to `developers`
+The API repo renamed its v2-owned `authors` table (and related schemas/routes) to `developers`
 — "author" implied solo/literary authorship, which never fit an entity that can be an
 organization, gets moderated, and can be transferred or claimed. `extensions.author_id`, the
-FK column on the (v1-owned) `extensions` table itself, was deliberately left unrenamed — only
-the table it points to changed — so `src/lib/database.ts`'s queries still select `e.author_id`
-but alias it to `developer_id` before it reaches any app code.
+FK column on the legacy `extensions` table itself, was deliberately left unrenamed — only the
+table it points to changed — and the API maps it to `developer_id` in its generated responses.
 
 Extension submissions (new extensions and edits) are the one thing still moderated: they go
 into a queue at `/account/moderate` and only take effect once a moderator approves them — a
 higher bar than developer profiles since they carry download URLs and arbitrary readme/website
-content. All writes to the shared `developers`/`extensions` tables — moderated or not — happen in
-the [`FOSSBilling/api`](https://github.com/FOSSBilling/api) repo's `/extensions/v2` service,
-not here; this app never writes to those tables directly. The public catalogue uses the generated
+content. All reads and writes to the Extensions domain — including users, developers,
+submissions, claims, transfers, and extensions — happen in the
+[`FOSSBilling/api`](https://github.com/FOSSBilling/api) repo's `/extensions/v2` service;
+this app never queries those tables directly. The public catalogue uses the generated
 client from `src/lib/api/generated/extensions-v2`, with `GET /extensions` loaded in bounded cursor pages
 and `GET /extensions/{id}` used for complete detail pages. Account ownership/editing queries still
-use this app's D1 helpers (`getExtensionsByOwner`, `getExtensionForSubmission`,
-`getDeveloperByOwner`, and `getDeveloperById`); the public developer page derives its `unclaimed`
-flag from `owner_user_id IS NULL` (never exposing the raw owner id itself, which would leak
-another user's identifier).
+use the API-backed helpers (`getExtensionsByOwner`, `getExtensionForSubmission`,
+`getDeveloperByOwner`, and `getDeveloperById`); the public developer page receives its
+`unclaimed` flag from the API response (never exposing the raw owner id itself).
 
 Regenerate the client from the checked-in API contract with:
 
@@ -214,12 +202,8 @@ bearer assertion this app mints per-request (`src/lib/assertion.ts`), proving th
 signed-in user's identity to the api repo without that repo needing to know anything
 about auth.fossbilling.net. See that repo's `src/lib/auth/` for the verification side.
 
-Moderators are flagged via the `is_moderator` column on this repo's `users` table —
-there's no UI to grant it; run directly against D1:
-
-```bash
-npx wrangler d1 execute DB_EXTENSIONS --remote --command "UPDATE users SET is_moderator = 1 WHERE id = '<sub>'"
-```
+Moderators are flagged via the `is_moderator` column on the API-owned `users` table;
+there's no UI to grant it. Database administration belongs in the API repository.
 
 Production secrets:
 
@@ -228,10 +212,6 @@ npx wrangler secret put AUTH_CLIENT_ID
 npx wrangler secret put AUTH_CLIENT_SECRET
 npx wrangler secret put SESSION_SECRET
 npx wrangler secret put ASSERTION_SIGNING_SECRET
-```
-
-```bash
-npm run db:migrate:remote
 ```
 
 ## License

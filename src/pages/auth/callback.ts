@@ -74,11 +74,15 @@ export const GET: APIRoute = async ({
     return redirect('/');
   }
 
-  // A write failure here shouldn't block signing in — the session below
-  // doesn't depend on it, only future ownership features will.
+  // The API projection is the account's domain-side authorization anchor.
+  // Do not issue a local session until this identity sync succeeds; otherwise
+  // the freshly signed-in user would immediately fail every account guard.
   try {
-    await upsertUser(env.db, userInfo);
-  } catch {}
+    await upsertUser(env, userInfo);
+  } catch {
+    setFlash(session, AUTH_ERROR_FLASH);
+    return redirect('/');
+  }
 
   // Opportunistic re-verification: if this account owns a developer
   // profile, every login is a chance to notice their linked GitHub
@@ -89,7 +93,7 @@ export const GET: APIRoute = async ({
   // extra API round-trip to every one of those logins.
   const RECENT_VERIFICATION_MS = 60 * 60 * 1000;
   try {
-    const developer = await getDeveloperByOwner(env.db, userInfo.sub);
+    const developer = await getDeveloperByOwner(env, userInfo.sub);
     const lastVerifiedAt = developer?.github_verified_at
       ? new Date(developer.github_verified_at).getTime()
       : 0;

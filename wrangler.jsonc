@@ -30,11 +30,4 @@
 		"binding": "ASSETS",
 		"directory": "./dist"
 	},
-	"d1_databases": [
-		{
-			"binding": "DB_EXTENSIONS",
-			"database_id": "b99e8d34-4856-4f92-837d-5413869d3d83",
-			"migrations_dir": "./src/lib/db/migrations"
-		}
-	]
 }

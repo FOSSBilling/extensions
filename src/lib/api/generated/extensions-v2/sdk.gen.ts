@@ -12,6 +12,9 @@ import type {
   DeleteDevelopersMeData,
   DeleteDevelopersMeErrors,
   DeleteDevelopersMeResponses,
+  DeleteUsersMeData,
+  DeleteUsersMeErrors,
+  DeleteUsersMeResponses,
   GetDevelopersByIdData,
   GetDevelopersByIdErrors,
   GetDevelopersByIdHistoryData,
@@ -26,6 +29,9 @@ import type {
   GetDevelopersClaimsResponses,
   GetDevelopersData,
   GetDevelopersErrors,
+  GetDevelopersMeData,
+  GetDevelopersMeErrors,
+  GetDevelopersMeResponses,
   GetDevelopersResponses,
   GetDevelopersUnapprovedData,
   GetDevelopersUnapprovedErrors,
@@ -35,6 +41,9 @@ import type {
   GetExtensionsByIdResponses,
   GetExtensionsData,
   GetExtensionsErrors,
+  GetExtensionsMineData,
+  GetExtensionsMineErrors,
+  GetExtensionsMineResponses,
   GetExtensionsResponses,
   GetSubmissionsMineData,
   GetSubmissionsMineErrors,
@@ -42,6 +51,12 @@ import type {
   GetSubmissionsQueueData,
   GetSubmissionsQueueErrors,
   GetSubmissionsQueueResponses,
+  GetUsersMeData,
+  GetUsersMeErrors,
+  GetUsersMeResponses,
+  PatchUsersMeData,
+  PatchUsersMeErrors,
+  PatchUsersMeResponses,
   PostDevelopersByIdApproveData,
   PostDevelopersByIdApproveErrors,
   PostDevelopersByIdApproveResponses,
@@ -81,6 +96,9 @@ import type {
   PutDevelopersMeData,
   PutDevelopersMeErrors,
   PutDevelopersMeResponses,
+  PutUsersMeIdentityData,
+  PutUsersMeIdentityErrors,
+  PutUsersMeIdentityResponses,
 } from './types.gen';
 
 export type Options<
@@ -100,6 +118,26 @@ export type Options<
    */
   meta?: keyof ClientMeta extends never ? Record<string, unknown> : ClientMeta;
 };
+
+/**
+ * List extensions published under the caller's developer profile
+ */
+export const getExtensionsMine = <ThrowOnError extends boolean = false>(
+  options?: Options<GetExtensionsMineData, ThrowOnError>,
+): RequestResult<
+  GetExtensionsMineResponses,
+  GetExtensionsMineErrors,
+  ThrowOnError
+> =>
+  (options?.client ?? client).get<
+    GetExtensionsMineResponses,
+    GetExtensionsMineErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/extensions/mine',
+    ...options,
+  });
 
 /**
  * List published extensions
@@ -128,6 +166,82 @@ export const getExtensionsById = <ThrowOnError extends boolean = false>(
     GetExtensionsByIdErrors,
     ThrowOnError
   >({ url: '/extensions/{id}', ...options });
+
+/**
+ * Synchronize the caller's OIDC identity projection
+ */
+export const putUsersMeIdentity = <ThrowOnError extends boolean = false>(
+  options?: Options<PutUsersMeIdentityData, ThrowOnError>,
+): RequestResult<
+  PutUsersMeIdentityResponses,
+  PutUsersMeIdentityErrors,
+  ThrowOnError
+> =>
+  (options?.client ?? client).put<
+    PutUsersMeIdentityResponses,
+    PutUsersMeIdentityErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/users/me/identity',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options?.headers,
+    },
+  });
+
+/**
+ * Delete the caller's account and tombstone its user row
+ */
+export const deleteUsersMe = <ThrowOnError extends boolean = false>(
+  options?: Options<DeleteUsersMeData, ThrowOnError>,
+): RequestResult<DeleteUsersMeResponses, DeleteUsersMeErrors, ThrowOnError> =>
+  (options?.client ?? client).delete<
+    DeleteUsersMeResponses,
+    DeleteUsersMeErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/users/me',
+    ...options,
+  });
+
+/**
+ * Get the caller's account projection
+ */
+export const getUsersMe = <ThrowOnError extends boolean = false>(
+  options?: Options<GetUsersMeData, ThrowOnError>,
+): RequestResult<GetUsersMeResponses, GetUsersMeErrors, ThrowOnError> =>
+  (options?.client ?? client).get<
+    GetUsersMeResponses,
+    GetUsersMeErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/users/me',
+    ...options,
+  });
+
+/**
+ * Update the caller's personal profile
+ */
+export const patchUsersMe = <ThrowOnError extends boolean = false>(
+  options?: Options<PatchUsersMeData, ThrowOnError>,
+): RequestResult<PatchUsersMeResponses, PatchUsersMeErrors, ThrowOnError> =>
+  (options?.client ?? client).patch<
+    PatchUsersMeResponses,
+    PatchUsersMeErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/users/me',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options?.headers,
+    },
+  });
 
 /**
  * Submit a new extension, or an edit to one you own
@@ -170,140 +284,6 @@ export const getSubmissionsMine = <ThrowOnError extends boolean = false>(
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/submissions/mine',
-    ...options,
-  });
-
-/**
- * List submissions in the moderation queue
- */
-export const getSubmissionsQueue = <ThrowOnError extends boolean = false>(
-  options?: Options<GetSubmissionsQueueData, ThrowOnError>,
-): RequestResult<
-  GetSubmissionsQueueResponses,
-  GetSubmissionsQueueErrors,
-  ThrowOnError
-> =>
-  (options?.client ?? client).get<
-    GetSubmissionsQueueResponses,
-    GetSubmissionsQueueErrors,
-    ThrowOnError
-  >({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/submissions/queue',
-    ...options,
-  });
-
-/**
- * Approve a pending submission
- */
-export const postSubmissionsByIdApprove = <
-  ThrowOnError extends boolean = false,
->(
-  options: Options<PostSubmissionsByIdApproveData, ThrowOnError>,
-): RequestResult<
-  PostSubmissionsByIdApproveResponses,
-  PostSubmissionsByIdApproveErrors,
-  ThrowOnError
-> =>
-  (options.client ?? client).post<
-    PostSubmissionsByIdApproveResponses,
-    PostSubmissionsByIdApproveErrors,
-    ThrowOnError
-  >({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/submissions/{id}/approve',
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-  });
-
-/**
- * Reject a pending submission
- */
-export const postSubmissionsByIdReject = <ThrowOnError extends boolean = false>(
-  options: Options<PostSubmissionsByIdRejectData, ThrowOnError>,
-): RequestResult<
-  PostSubmissionsByIdRejectResponses,
-  PostSubmissionsByIdRejectErrors,
-  ThrowOnError
-> =>
-  (options.client ?? client).post<
-    PostSubmissionsByIdRejectResponses,
-    PostSubmissionsByIdRejectErrors,
-    ThrowOnError
-  >({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/submissions/{id}/reject',
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-  });
-
-/**
- * Permanently delete the caller's own developer profile
- */
-export const deleteDevelopersMe = <ThrowOnError extends boolean = false>(
-  options?: Options<DeleteDevelopersMeData, ThrowOnError>,
-): RequestResult<
-  DeleteDevelopersMeResponses,
-  DeleteDevelopersMeErrors,
-  ThrowOnError
-> =>
-  (options?.client ?? client).delete<
-    DeleteDevelopersMeResponses,
-    DeleteDevelopersMeErrors,
-    ThrowOnError
-  >({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/developers/me',
-    ...options,
-  });
-
-/**
- * Create or update the caller's own developer profile
- */
-export const putDevelopersMe = <ThrowOnError extends boolean = false>(
-  options?: Options<PutDevelopersMeData, ThrowOnError>,
-): RequestResult<
-  PutDevelopersMeResponses,
-  PutDevelopersMeErrors,
-  ThrowOnError
-> =>
-  (options?.client ?? client).put<
-    PutDevelopersMeResponses,
-    PutDevelopersMeErrors,
-    ThrowOnError
-  >({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/developers/me',
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options?.headers,
-    },
-  });
-
-/**
- * Re-check the caller's linked GitHub identity against their own developer profile
- */
-export const postDevelopersMeReverify = <ThrowOnError extends boolean = false>(
-  options?: Options<PostDevelopersMeReverifyData, ThrowOnError>,
-): RequestResult<
-  PostDevelopersMeReverifyResponses,
-  PostDevelopersMeReverifyErrors,
-  ThrowOnError
-> =>
-  (options?.client ?? client).post<
-    PostDevelopersMeReverifyResponses,
-    PostDevelopersMeReverifyErrors,
-    ThrowOnError
-  >({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/developers/me/reverify',
     ...options,
   });
 
@@ -512,6 +492,76 @@ export const postDevelopersTransfersAccept = <
   });
 
 /**
+ * List submissions in the moderation queue
+ */
+export const getSubmissionsQueue = <ThrowOnError extends boolean = false>(
+  options?: Options<GetSubmissionsQueueData, ThrowOnError>,
+): RequestResult<
+  GetSubmissionsQueueResponses,
+  GetSubmissionsQueueErrors,
+  ThrowOnError
+> =>
+  (options?.client ?? client).get<
+    GetSubmissionsQueueResponses,
+    GetSubmissionsQueueErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/submissions/queue',
+    ...options,
+  });
+
+/**
+ * Approve a pending submission
+ */
+export const postSubmissionsByIdApprove = <
+  ThrowOnError extends boolean = false,
+>(
+  options: Options<PostSubmissionsByIdApproveData, ThrowOnError>,
+): RequestResult<
+  PostSubmissionsByIdApproveResponses,
+  PostSubmissionsByIdApproveErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).post<
+    PostSubmissionsByIdApproveResponses,
+    PostSubmissionsByIdApproveErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/submissions/{id}/approve',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+
+/**
+ * Reject a pending submission
+ */
+export const postSubmissionsByIdReject = <ThrowOnError extends boolean = false>(
+  options: Options<PostSubmissionsByIdRejectData, ThrowOnError>,
+): RequestResult<
+  PostSubmissionsByIdRejectResponses,
+  PostSubmissionsByIdRejectErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).post<
+    PostSubmissionsByIdRejectResponses,
+    PostSubmissionsByIdRejectErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/submissions/{id}/reject',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+
+/**
  * List every developer profile, approved or not
  */
 export const getDevelopers = <ThrowOnError extends boolean = false>(
@@ -546,22 +596,6 @@ export const getDevelopersUnapproved = <ThrowOnError extends boolean = false>(
     url: '/developers/unapproved',
     ...options,
   });
-
-/**
- * Get a developer's public profile
- */
-export const getDevelopersById = <ThrowOnError extends boolean = false>(
-  options: Options<GetDevelopersByIdData, ThrowOnError>,
-): RequestResult<
-  GetDevelopersByIdResponses,
-  GetDevelopersByIdErrors,
-  ThrowOnError
-> =>
-  (options.client ?? client).get<
-    GetDevelopersByIdResponses,
-    GetDevelopersByIdErrors,
-    ThrowOnError
-  >({ url: '/developers/{id}', ...options });
 
 /**
  * Mark a developer profile as reviewed/approved
@@ -606,3 +640,103 @@ export const getDevelopersByIdHistory = <ThrowOnError extends boolean = false>(
     url: '/developers/{id}/history',
     ...options,
   });
+
+/**
+ * Permanently delete the caller's own developer profile
+ */
+export const deleteDevelopersMe = <ThrowOnError extends boolean = false>(
+  options?: Options<DeleteDevelopersMeData, ThrowOnError>,
+): RequestResult<
+  DeleteDevelopersMeResponses,
+  DeleteDevelopersMeErrors,
+  ThrowOnError
+> =>
+  (options?.client ?? client).delete<
+    DeleteDevelopersMeResponses,
+    DeleteDevelopersMeErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/developers/me',
+    ...options,
+  });
+
+/**
+ * Get the caller's own developer profile
+ */
+export const getDevelopersMe = <ThrowOnError extends boolean = false>(
+  options?: Options<GetDevelopersMeData, ThrowOnError>,
+): RequestResult<
+  GetDevelopersMeResponses,
+  GetDevelopersMeErrors,
+  ThrowOnError
+> =>
+  (options?.client ?? client).get<
+    GetDevelopersMeResponses,
+    GetDevelopersMeErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/developers/me',
+    ...options,
+  });
+
+/**
+ * Create or update the caller's own developer profile
+ */
+export const putDevelopersMe = <ThrowOnError extends boolean = false>(
+  options?: Options<PutDevelopersMeData, ThrowOnError>,
+): RequestResult<
+  PutDevelopersMeResponses,
+  PutDevelopersMeErrors,
+  ThrowOnError
+> =>
+  (options?.client ?? client).put<
+    PutDevelopersMeResponses,
+    PutDevelopersMeErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/developers/me',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options?.headers,
+    },
+  });
+
+/**
+ * Re-check the caller's linked GitHub identity against their own developer profile
+ */
+export const postDevelopersMeReverify = <ThrowOnError extends boolean = false>(
+  options?: Options<PostDevelopersMeReverifyData, ThrowOnError>,
+): RequestResult<
+  PostDevelopersMeReverifyResponses,
+  PostDevelopersMeReverifyErrors,
+  ThrowOnError
+> =>
+  (options?.client ?? client).post<
+    PostDevelopersMeReverifyResponses,
+    PostDevelopersMeReverifyErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/developers/me/reverify',
+    ...options,
+  });
+
+/**
+ * Get a developer's public profile
+ */
+export const getDevelopersById = <ThrowOnError extends boolean = false>(
+  options: Options<GetDevelopersByIdData, ThrowOnError>,
+): RequestResult<
+  GetDevelopersByIdResponses,
+  GetDevelopersByIdErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    GetDevelopersByIdResponses,
+    GetDevelopersByIdErrors,
+    ThrowOnError
+  >({ url: '/developers/{id}', ...options });

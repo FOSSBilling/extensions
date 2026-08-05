@@ -8,8 +8,6 @@
     "api:check": "npm run api:generate && git diff --exit-code -- src/lib/api/generated/extensions-v2 && test -z \"$(git ls-files --others --exclude-standard -- src/lib/api/generated/extensions-v2)\"",
     "cf-typegen": "wrangler types",
     "cf-deploy": "wrangler deploy",
-    "db:migrate:local": "wrangler d1 migrations apply DB_EXTENSIONS --local",
-    "db:migrate:remote": "wrangler d1 migrations apply DB_EXTENSIONS --remote",
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",

@@ -41,16 +41,9 @@ import {
   type CataloguePageRequest,
 } from '@/lib/cataloguePagination';
 import { cursorPageUrl } from '@/lib/pagination';
-import type { ApplicationEnv, SqlDatabase } from '@/lib/runtime';
-
-const unusedDatabase: SqlDatabase = {
-  prepare() {
-    throw new Error('database not used in API client tests');
-  },
-};
+import type { ApplicationEnv } from '@/lib/runtime';
 
 const publicEnv: ApplicationEnv = {
-  db: unusedDatabase,
   extensionsApiBaseUrl: 'https://api.example.test',
   authClientId: 'test-client',
   authClientSecret: 'test-secret',
@@ -86,6 +79,7 @@ function item(id: string, name = id): ExtensionListItem {
       type: 'organization',
       name: 'FOSSBilling',
       approved: true,
+      unclaimed: false,
     },
   };
 }
@@ -254,6 +248,26 @@ describe('generated Extensions v2 façade', () => {
       'opaque cursor',
     );
     expect(requestUrl(fetchMock, 1).searchParams.has('cursor')).toBe(false);
+  });
+
+  it('keeps owner extension listing query separate from public filters', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(apiResponse(page([], null, false)));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await createApiClient(authenticatedEnv, 'user-sub').listMyExtensions({
+      type: 'theme',
+      limit: 100,
+      cursor: 'mine-cursor',
+    });
+
+    const url = requestUrl(fetchMock);
+    expect(url.pathname).toBe('/extensions/v2/extensions/mine');
+    expect(url.searchParams.get('type')).toBe('theme');
+    expect(url.searchParams.get('limit')).toBe('100');
+    expect(url.searchParams.get('cursor')).toBe('mine-cursor');
+    expect(url.searchParams.has('developer_id')).toBe(false);
   });
 
   it('serializes generated request bodies as well as paths and queries', async () => {

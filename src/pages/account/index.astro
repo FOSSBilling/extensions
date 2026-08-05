@@ -5,12 +5,9 @@ import {
   ApiRequestError,
   createApiClient,
   getApiErrorMessage,
-  listMyClaimsSafely,
 } from '@/lib/api/client';
 import { getDeveloperByOwner, getExtensionsByOwner } from '@/lib/database';
-import { isModerator, hasLinkedGithub } from '@/lib/users';
 import { ISSUER } from '@/lib/oauth';
-import { getLatestRelease } from '@/types';
 import type { DeveloperClaim, Submission } from '@/lib/api/client';
 import { CircleAlert } from '@lucide/astro';
 import ProfileTrustBadge from '@/components/ProfileTrustBadge.astro';
@@ -25,14 +22,28 @@ if (guard instanceof Response) return guard;
 const user = guard;
 const userPictureUrl = getOptimizedImageUrl(user.picture, 'avatar');
 
-const [ownedExtensions, moderator, developer, githubLinked] = await Promise.all(
-  [
-    getExtensionsByOwner(env.db, user.sub),
-    isModerator(env.db, user.sub),
-    getDeveloperByOwner(env.db, user.sub),
-    hasLinkedGithub(env.db, user.sub),
-  ],
-);
+const moderator = user.account.is_moderator;
+const githubLinked = user.account.github_linked;
+const [extensionsResult, developerResult] = await Promise.allSettled([
+  getExtensionsByOwner(env, user.sub),
+  getDeveloperByOwner(env, user.sub),
+]);
+const ownedExtensions =
+  extensionsResult.status === 'fulfilled' ? extensionsResult.value : [];
+const ownedExtensionsError =
+  extensionsResult.status === 'rejected'
+    ? extensionsResult.reason instanceof ApiRequestError
+      ? getApiErrorMessage(extensionsResult.reason)
+      : 'Unable to load your extensions right now.'
+    : null;
+const developer =
+  developerResult.status === 'fulfilled' ? developerResult.value : null;
+const developerError =
+  developerResult.status === 'rejected'
+    ? developerResult.reason instanceof ApiRequestError
+      ? getApiErrorMessage(developerResult.reason)
+      : 'Unable to load your developer profile right now.'
+    : null;
 
 const api = createApiClient(env, user.sub);
 let submissions: Submission[] = [];
@@ -60,9 +71,18 @@ const nextSubmissionsUrl =
     ? cursorPageUrl(Astro.url, 'submissions_cursor', submissionsNextCursor)
     : null;
 
-const myClaims: DeveloperClaim[] = developer
-  ? []
-  : await listMyClaimsSafely(api);
+let myClaims: DeveloperClaim[] = [];
+let claimsError: string | null = null;
+if (!developer && !developerError) {
+  try {
+    myClaims = await api.listMyClaims();
+  } catch (error) {
+    claimsError =
+      error instanceof ApiRequestError
+        ? getApiErrorMessage(error)
+        : 'Unable to load your claims right now.';
+  }
+}
 // listMyClaims returns newest first; approved claims transfer ownership
 // immediately (developer becomes truthy), so only pending/rejected ever
 // surface here.
@@ -167,7 +187,7 @@ const reconnectUrl = `${ISSUER}/account?callbackURL=${encodeURIComponent(
       <header class="flex items-center justify-between">
         <h2 class="font-semibold">Developer Profile</h2>
         {
-          developer ? (
+          developerError || claimsError ? null : developer ? (
             <a
               href="/account/developer"
               class="btn"
@@ -192,7 +212,11 @@ const reconnectUrl = `${ISSUER}/account?callbackURL=${encodeURIComponent(
       </header>
       <section>
         {
-          developer ? (
+          developerError ? (
+            <p class="text-sm text-destructive">{developerError}</p>
+          ) : claimsError ? (
+            <p class="text-sm text-destructive">{claimsError}</p>
+          ) : developer ? (
             <div class="space-y-3">
               <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div class="flex items-center gap-4">
@@ -324,20 +348,21 @@ const reconnectUrl = `${ISSUER}/account?callbackURL=${encodeURIComponent(
       </header>
       <section>
         {
-          ownedExtensions.length === 0 ? (
+          ownedExtensionsError ? (
+            <p class="text-sm text-destructive">{ownedExtensionsError}</p>
+          ) : ownedExtensions.length === 0 ? (
             <p class="text-muted-foreground text-sm">
               You don't have any published extensions yet.
             </p>
           ) : (
             <ul class="divide-y divide-border">
               {ownedExtensions.map((ext) => {
-                const latest = getLatestRelease(ext);
                 return (
                   <li class="py-3 flex items-center justify-between gap-3">
                     <div>
                       <p class="font-medium">{ext.name}</p>
                       <p class="text-sm text-muted-foreground">
-                        v{latest?.tag ?? 'unknown'}
+                        v{ext.version}
                       </p>
                     </div>
                     <div class="flex gap-2">

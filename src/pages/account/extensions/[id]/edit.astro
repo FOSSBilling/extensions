@@ -22,12 +22,12 @@ if (!id) {
   return Astro.redirect('/404');
 }
 
-const extension = await getExtensionForSubmission(env.db, id);
+const extension = await getExtensionForSubmission(env, id);
 if (!extension) {
   return Astro.redirect('/404');
 }
 
-const developer = await getDeveloperByOwner(env.db, user.sub);
+const developer = await getDeveloperByOwner(env, user.sub);
 if (!developer || developer.id !== extension.developer.id) {
   return Astro.redirect('/404');
 }

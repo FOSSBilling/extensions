@@ -1,14 +1,19 @@
 import {
   deleteDevelopersMe,
   getDevelopers,
+  getDevelopersById,
   getDevelopersByIdHistory,
   getDevelopersClaims,
   getDevelopersClaimsMine,
+  getDevelopersMe,
   getDevelopersUnapproved,
   getExtensions,
   getExtensionsById,
+  getExtensionsMine,
   getSubmissionsMine,
   getSubmissionsQueue,
+  getUsersMe,
+  patchUsersMe,
   postDevelopersByIdApprove,
   postDevelopersByIdClaim,
   postDevelopersByIdTransfer,
@@ -21,7 +26,9 @@ import {
   postSubmissions,
   postSubmissionsByIdApprove,
   postSubmissionsByIdReject,
+  deleteUsersMe,
   putDevelopersMe,
+  putUsersMeIdentity,
   type Developer,
   type DeveloperApproval,
   type DeveloperClaim,
@@ -33,11 +40,15 @@ import {
   type ExtensionListItem,
   type ExtensionListResponse,
   type GetExtensionsData,
+  type GetExtensionsMineData,
   type GetSubmissionsMineResponse,
   type GetSubmissionsMineData,
   type GetSubmissionsQueueData,
   type GetSubmissionsQueueResponse,
+  type OwnedDeveloperProfile,
   type PendingDeveloperClaim,
+  type User,
+  type UserIdentityInput,
   type PutDevelopersMeData,
   type Submission,
   type SubmissionPayload,
@@ -54,12 +65,18 @@ export const MIN_API_PAGE_LIMIT = 1;
 export const MAX_API_PAGE_LIMIT = 100;
 
 type ExtensionListQuery = NonNullable<GetExtensionsData['query']>;
+type ExtensionMineQuery = NonNullable<GetExtensionsMineData['query']>;
 type SubmissionPageQuery = NonNullable<GetSubmissionsMineData['query']>;
 type SubmissionQueueQuery = NonNullable<GetSubmissionsQueueData['query']>;
 
 export type ExtensionCatalogueFilters = Pick<
   ExtensionListQuery,
   'type' | 'developer_id' | 'limit' | 'cursor'
+>;
+
+export type ExtensionMineFilters = Pick<
+  ExtensionMineQuery,
+  'type' | 'limit' | 'cursor'
 >;
 
 export type SubmissionPageOptions = Pick<
@@ -74,6 +91,10 @@ export type SubmissionStatus = Exclude<
   SubmissionQueueQuery['status'],
   undefined
 >;
+
+export type AccountUser = User;
+export type IdentitySyncInput = UserIdentityInput;
+export type OwnedDeveloper = OwnedDeveloperProfile;
 
 export type {
   Developer,
@@ -230,6 +251,23 @@ function extensionQuery(
   return query;
 }
 
+function mineExtensionQuery(
+  filters: ExtensionMineFilters = {},
+): ExtensionMineQuery {
+  const query: ExtensionMineQuery = {
+    limit: clampApiPageLimit(filters.limit),
+  };
+
+  if (filters.type !== undefined) {
+    query.type = filters.type;
+  }
+  if (filters.cursor !== undefined) {
+    query.cursor = filters.cursor;
+  }
+
+  return query;
+}
+
 export async function listExtensions(
   env: ApplicationEnv,
   filters: ExtensionCatalogueFilters = {},
@@ -254,10 +292,55 @@ export async function getExtensionById(
   return data.result;
 }
 
+export async function getDeveloperById(
+  env: ApplicationEnv,
+  id: string,
+): Promise<import('@/lib/api/generated/extensions-v2').PublicDeveloper> {
+  return unwrap(
+    await getDevelopersById({
+      client: createApiTransport(env),
+      path: { id },
+    }),
+  ).then((response) => response.result);
+}
+
 export function createApiClient(env: ApplicationEnv, subject: string) {
   const client = createApiTransport(env, subject);
 
   return {
+    syncIdentity: async (identity: IdentitySyncInput): Promise<AccountUser> =>
+      (await unwrap(await putUsersMeIdentity({ client, body: identity })))
+        .result,
+
+    getUser: async (): Promise<AccountUser> =>
+      (await unwrap(await getUsersMe({ client }))).result,
+
+    updateUserProfile: async (displayName: string | null) =>
+      (
+        await unwrap(
+          await patchUsersMe({
+            client,
+            body: { display_name: displayName },
+          }),
+        )
+      ).result,
+
+    deleteUser: async () =>
+      (await unwrap(await deleteUsersMe({ client }))).result,
+
+    getOwnDeveloper: async (): Promise<OwnedDeveloper | null> =>
+      (await unwrap(await getDevelopersMe({ client }))).result,
+
+    listMyExtensions: async (
+      options: ExtensionMineFilters = {},
+    ): Promise<ExtensionListResponse> =>
+      unwrap(
+        await getExtensionsMine({
+          client,
+          query: mineExtensionQuery(options),
+        }),
+      ),
+
     submitExtension: async (payload: SubmissionPayload) =>
       (await unwrap(await postSubmissions({ client, body: payload }))).result,
 
@@ -464,14 +547,4 @@ export function createApiClient(env: ApplicationEnv, subject: string) {
         )
       ).result,
   };
-}
-
-export async function listMyClaimsSafely(
-  api: ReturnType<typeof createApiClient>,
-): Promise<DeveloperClaim[]> {
-  try {
-    return await api.listMyClaims();
-  } catch {
-    return [];
-  }
 }

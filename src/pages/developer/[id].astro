@@ -24,7 +24,7 @@ if (!id) {
   return Astro.redirect('/404');
 }
 
-const developer = await getDeveloperById(env.db, id);
+const developer = await getDeveloperById(env, id);
 
 if (!developer) {
   return Astro.redirect('/404');

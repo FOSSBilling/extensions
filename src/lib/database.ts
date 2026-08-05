@@ -1,318 +1,125 @@
-// Queries the shared SQLite-compatible extensions database directly.
-// If the D1 schema changes, update fossbilling/api AND this file.
+// Domain data is owned by the API Worker. These small adapters keep the
+// existing page-facing models stable while routing every read through the
+// generated Extensions v2 client.
 import {
-  isDeveloperType,
-  isExtensionType,
-  isSourceType,
-  type DeveloperProfile,
-  type Extension,
-  type License,
-  type PublicDeveloperProfile,
-  type Release,
-  type Repository,
+  ApiRequestError,
+  createApiClient,
+  getDeveloperById as getDeveloperByIdFromApi,
+  getExtensionById as getExtensionByIdFromApi,
+  type DeveloperProfile as ApiDeveloperProfile,
+  type Extension as ApiExtension,
+  type ExtensionListItem as ApiExtensionListItem,
+} from './api/client';
+import type { PublicDeveloper } from './api/generated/extensions-v2';
+import type { ApplicationEnv } from './runtime';
+import type {
+  DeveloperProfile,
+  Extension,
+  PublicDeveloperProfile,
 } from '@/types';
-import type { SqlDatabase } from './runtime';
 
-// Omits readme (large field) — used for account-owned extension lists where
-// the full detail content is not rendered.
-// extensions.author_id is v1's own column, kept as-is by the api repo's
-// authors->developers rename (only the table it references was renamed) —
-// aliased to developer_id here so nothing downstream depends on that name.
-const SELECT_EXTENSIONS_LIST = `
-  SELECT e.id, e.type, e.author_id AS developer_id,
-         d.type AS developer_type, d.name AS developer_name, d.url AS developer_url,
-         d.approved_at AS developer_approved_at,
-         e.name, e.description, e.website, e.license,
-         e.icon_url, e.source, e.version, e.download_url, e.releases
-  FROM extensions e
-  LEFT JOIN developers d ON e.author_id = d.id
-`;
-
-const SELECT_EXTENSIONS_BY_OWNER = `
-  ${SELECT_EXTENSIONS_LIST}
-  WHERE d.owner_user_id = ?
-  ORDER BY e.name
-`;
-
-// contact_email is deliberately never selected here — this repo has no
-// public-facing query that should return it. Only getDeveloperByOwner
-// (below) selects it, for prefilling the owner's own self-management form.
-// unclaimed is derived, never the raw owner_user_id — exposing the actual
-// owner's sub would leak another user's identifier publicly.
-const SELECT_DEVELOPER_PUBLIC = `
-  SELECT id, type, name, url, avatar_url, approved_at,
-         (owner_user_id IS NULL) AS unclaimed
-  FROM developers
-`;
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
+function isNotFound(error: unknown): boolean {
+  return error instanceof ApiRequestError && error.status === 404;
 }
 
-function stringValue(value: unknown): string | undefined {
-  return typeof value === 'string' ? value : undefined;
-}
-
-function numberValue(value: unknown): number | undefined {
-  return typeof value === 'number' && Number.isFinite(value)
-    ? value
-    : undefined;
-}
-
-function sqlBoolean(value: unknown): boolean | undefined {
-  if (value === true || value === 1) return true;
-  if (value === false || value === 0) return false;
-  return undefined;
-}
-
-function parseDeveloperProfileRow(
-  row: Record<string, unknown>,
-): DeveloperProfile | null {
-  const id = stringValue(row.id);
-  const name = stringValue(row.name);
-  const type = stringValue(row.type);
-  if (!id || !name || !type || !isDeveloperType(type)) {
-    return null;
-  }
-
+function toDeveloperProfile(
+  developer: ApiDeveloperProfile & { has_pending_transfer?: boolean },
+): DeveloperProfile & { has_pending_transfer?: boolean } {
   return {
-    type,
-    name,
-    id: id.toLowerCase(),
-    URL: stringValue(row.url),
-    avatar_url: stringValue(row.avatar_url),
-    contact_email: stringValue(row.contact_email),
-    approved: row.approved_at != null,
-    content_revision: numberValue(row.content_revision) ?? 1,
-    unclaimed: row.unclaimed === 1,
-    github_org_verified: sqlBoolean(row.github_org_verified),
-    github_verification_note: stringValue(row.github_verification_note),
-    github_verified_at: stringValue(row.github_verified_at),
-    github_url_verified: row.github_url_verified === 1 ? true : undefined,
+    id: developer.id,
+    type: developer.type,
+    name: developer.name,
+    URL: developer.URL,
+    avatar_url: developer.avatar_url,
+    contact_email: developer.contact_email,
+    approved: developer.approved,
+    content_revision: developer.content_revision,
+    github_org_verified: developer.github_org_verified,
+    github_verification_note: developer.github_verification_note,
+    github_verified_at: developer.github_verified_at,
+    github_url_verified: developer.github_url_verified,
+    unclaimed: developer.unclaimed,
+    ...(developer.has_pending_transfer !== undefined
+      ? { has_pending_transfer: developer.has_pending_transfer }
+      : {}),
   };
 }
 
-// Includes readme and releases — used when an owner edits a submission.
-const SELECT_EXTENSION_DETAIL = `
-  SELECT e.id, e.type, e.author_id AS developer_id,
-         d.type AS developer_type, d.name AS developer_name, d.url AS developer_url,
-         d.approved_at AS developer_approved_at,
-         e.name, e.description, e.releases, e.website, e.license,
-         e.icon_url, e.readme, e.source, e.version, e.download_url
-  FROM extensions e
-  LEFT JOIN developers d ON e.author_id = d.id
-`;
+function toPublicDeveloper(developer: PublicDeveloper): PublicDeveloperProfile {
+  return {
+    id: developer.id,
+    type: developer.type,
+    name: developer.name,
+    URL: developer.URL,
+    avatar_url: developer.avatar_url,
+    approved: developer.approved,
+    unclaimed: developer.unclaimed,
+  };
+}
+
+function toExtension(extension: ApiExtension): Extension {
+  return {
+    id: extension.id,
+    type: extension.type,
+    name: extension.name,
+    description: extension.description,
+    releases: extension.releases,
+    website: extension.website,
+    license: extension.license,
+    icon_url: extension.icon_url,
+    readme: extension.readme,
+    source: extension.source,
+    version: extension.version,
+    download_url: extension.download_url,
+    developer: toPublicDeveloper(extension.developer),
+  };
+}
 
 export async function getExtensionForSubmission(
-  db: SqlDatabase,
+  env: ApplicationEnv,
   id: string,
 ): Promise<Extension | null> {
-  let row;
   try {
-    row = await db
-      .prepare(`${SELECT_EXTENSION_DETAIL} WHERE LOWER(e.id) = LOWER(?)`)
-      .bind(id)
-      .first<Record<string, unknown>>();
-  } catch {
-    return null;
+    return toExtension(await getExtensionByIdFromApi(env, id));
+  } catch (error) {
+    if (isNotFound(error)) return null;
+    throw error;
   }
-  return row ? parseExtensionRow(row) : null;
 }
 
-// Extensions published under a developer the given user owns
-// (developers.owner_user_id, added by the api repo's v2 migration — see
-// that repo's src/services/extensions/v2/db/migrations/0001_add_v2_tables.sql).
 export async function getExtensionsByOwner(
-  db: SqlDatabase,
+  env: ApplicationEnv,
   userId: string,
-): Promise<Extension[]> {
-  let result;
-  try {
-    result = await db
-      .prepare(SELECT_EXTENSIONS_BY_OWNER)
-      .bind(userId)
-      .all<Record<string, unknown>>();
-  } catch {
-    return [];
-  }
-  if (!result.success) return [];
-  return result.results.flatMap((row) => {
-    const extension = parseExtensionRow(row);
-    return extension ? [extension] : [];
-  });
+): Promise<ApiExtensionListItem[]> {
+  const api = createApiClient(env, userId);
+  const extensions: ApiExtensionListItem[] = [];
+  let cursor: string | undefined;
+  do {
+    const page = await api.listMyExtensions({ limit: 100, cursor });
+    extensions.push(...page.result);
+    cursor = page.pagination.has_more
+      ? (page.pagination.next_cursor ?? undefined)
+      : undefined;
+  } while (cursor !== undefined);
+  return extensions;
 }
 
-// Includes contact_email — this is the owner viewing/editing their own
-// profile, not a public read.
 export async function getDeveloperByOwner(
-  db: SqlDatabase,
+  env: ApplicationEnv,
   userId: string,
-): Promise<DeveloperProfile | null> {
-  let row;
-  try {
-    row = await db
-      .prepare(
-        'SELECT id, type, name, url, avatar_url, contact_email, approved_at, content_revision, github_org_verified, github_verification_note, github_verified_at, github_url_verified FROM developers WHERE owner_user_id = ?',
-      )
-      .bind(userId)
-      .first<Record<string, unknown>>();
-  } catch {
-    return null;
-  }
-  return row ? parseDeveloperProfileRow(row) : null;
+): Promise<(DeveloperProfile & { has_pending_transfer?: boolean }) | null> {
+  const developer = await createApiClient(env, userId).getOwnDeveloper();
+  return developer ? toDeveloperProfile(developer) : null;
 }
 
-// Whether a developer profile has a transfer link that's still usable —
-// mirrors the "pending" definition the api repo's acceptTransfer() checks
-// (developers-database.ts): not yet accepted, not revoked, not expired.
-export async function hasPendingTransfer(
-  db: SqlDatabase,
-  developerId: string,
-): Promise<boolean> {
-  let row;
-  try {
-    row = await db
-      .prepare(
-        `SELECT 1 FROM developer_transfers
-         WHERE developer_id = ? AND accepted_at IS NULL AND revoked_at IS NULL
-           AND expires_at > CURRENT_TIMESTAMP
-         LIMIT 1`,
-      )
-      .bind(developerId)
-      .first();
-  } catch {
-    return false;
-  }
-  return row != null;
-}
-
-// Public read for the /developer/[id] page — never selects contact_email.
 export async function getDeveloperById(
-  db: SqlDatabase,
+  env: ApplicationEnv,
   id: string,
 ): Promise<PublicDeveloperProfile | null> {
-  let row;
   try {
-    row = await db
-      .prepare(`${SELECT_DEVELOPER_PUBLIC} WHERE LOWER(id) = LOWER(?)`)
-      .bind(id)
-      .first<Record<string, unknown>>();
-  } catch {
-    return null;
+    return toPublicDeveloper(await getDeveloperByIdFromApi(env, id));
+  } catch (error) {
+    if (isNotFound(error)) return null;
+    throw error;
   }
-  return row ? parseDeveloperProfileRow(row) : null;
-}
-
-function parseJSON(value: unknown): unknown {
-  if (typeof value === 'string') {
-    try {
-      return JSON.parse(value);
-    } catch {
-      return undefined;
-    }
-  }
-  return value;
-}
-
-function parseRelease(value: unknown): Release | null {
-  if (!isRecord(value)) return null;
-
-  const tag = stringValue(value.tag);
-  const date = stringValue(value.date);
-  const downloadUrl = stringValue(value.download_url);
-  const minVersion = stringValue(value.min_fossbilling_version);
-  if (!tag || !date || !downloadUrl || !minVersion) return null;
-
-  const changelogUrl = stringValue(value.changelog_url);
-  return {
-    tag,
-    date,
-    download_url: downloadUrl,
-    min_fossbilling_version: minVersion,
-    ...(changelogUrl ? { changelog_url: changelogUrl } : {}),
-  };
-}
-
-function parseReleases(value: unknown): Release[] {
-  const parsed = parseJSON(value);
-  return Array.isArray(parsed)
-    ? parsed.flatMap((release) => {
-        const parsedRelease = parseRelease(release);
-        return parsedRelease ? [parsedRelease] : [];
-      })
-    : [];
-}
-
-function parseLicense(value: unknown): License {
-  const parsed = parseJSON(value);
-  if (!isRecord(parsed)) return { name: '' };
-
-  const URL = stringValue(parsed.URL);
-  return {
-    name: stringValue(parsed.name) ?? '',
-    ...(URL ? { URL } : {}),
-  };
-}
-
-function parseRepository(value: unknown): Repository {
-  const parsed = parseJSON(value);
-  if (
-    !isRecord(parsed) ||
-    typeof parsed.type !== 'string' ||
-    !isSourceType(parsed.type) ||
-    typeof parsed.repo !== 'string'
-  ) {
-    return { type: 'custom', repo: '' };
-  }
-
-  return { type: parsed.type, repo: parsed.repo };
-}
-
-function parseExtensionRow(row: Record<string, unknown>): Extension | null {
-  const id = stringValue(row.id);
-  const type = stringValue(row.type);
-  const name = stringValue(row.name);
-  const description = stringValue(row.description);
-  const website = stringValue(row.website);
-  const version = stringValue(row.version);
-  const downloadUrl = stringValue(row.download_url);
-  if (
-    !id ||
-    !type ||
-    !isExtensionType(type) ||
-    !name ||
-    !description ||
-    website === undefined ||
-    !version ||
-    downloadUrl === undefined
-  ) {
-    return null;
-  }
-
-  const developerType = stringValue(row.developer_type);
-
-  return {
-    id,
-    type,
-    name,
-    description,
-    developer: {
-      type:
-        developerType && isDeveloperType(developerType)
-          ? developerType
-          : 'user',
-      name: stringValue(row.developer_name) ?? '',
-      id: stringValue(row.developer_id)?.toLowerCase() ?? '',
-      URL: stringValue(row.developer_url),
-      approved: row.developer_approved_at != null,
-    },
-    releases: parseReleases(row.releases),
-    website,
-    license: parseLicense(row.license),
-    icon_url: stringValue(row.icon_url),
-    readme: stringValue(row.readme) ?? '',
-    source: parseRepository(row.source),
-    version,
-    download_url: downloadUrl,
-  };
 }

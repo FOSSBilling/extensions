@@ -50,6 +50,7 @@ export type PublicDeveloper = {
   URL?: string;
   avatar_url?: string;
   approved: boolean;
+  unclaimed: boolean;
 };
 
 export type Error = {
@@ -103,6 +104,27 @@ export type ExtensionPayload = {
   download_url: string;
 };
 
+export type User = {
+  display_name: string | null;
+  is_moderator: boolean;
+  github_linked: boolean;
+  active: boolean;
+};
+
+export type UserIdentityInput = {
+  name: string | null;
+  email: string | null;
+  email_verified: boolean;
+  picture: string | null;
+  github_login: string | null;
+  github_orgs: Array<string> | null;
+  github_orgs_expires_at: string | null;
+};
+
+export type UserProfileUpdate = {
+  display_name: string | null;
+};
+
 export type SubmissionPayload = {
   developer: SubmissionDeveloper;
   extension: ExtensionPayload;
@@ -133,35 +155,6 @@ export type Pagination = {
   has_more: boolean;
 };
 
-export type ReviewNoteOptional = {
-  review_note?: string;
-};
-
-export type ReviewNoteRequired = {
-  review_note: string;
-};
-
-export type DeveloperProfile = Developer & {
-  approved: boolean;
-  content_revision: number;
-  github_org_verified?: boolean;
-  github_verification_note?: string;
-  github_verified_at?: string | null;
-  github_url_verified?: boolean;
-  unclaimed?: boolean;
-  owner_name?: string | null;
-  owner_github_login?: string | null;
-};
-
-export type Developer = {
-  id: string;
-  type: 'user' | 'organization';
-  name: string;
-  URL?: string;
-  avatar_url?: string;
-  contact_email?: string;
-};
-
 export type DeveloperClaim = {
   id: string;
   developer_id: string;
@@ -187,6 +180,31 @@ export type PendingDeveloperClaim = DeveloperClaim & {
   claimant_github_login: string | null;
 };
 
+export type DeveloperProfile = Developer & {
+  approved: boolean;
+  content_revision: number;
+  github_org_verified?: boolean;
+  github_verification_note?: string;
+  github_verified_at?: string | null;
+  github_url_verified?: boolean;
+  unclaimed?: boolean;
+  owner_name?: string | null;
+  owner_github_login?: string | null;
+};
+
+export type Developer = {
+  id: string;
+  type: 'user' | 'organization';
+  name: string;
+  URL?: string;
+  avatar_url?: string;
+  contact_email?: string;
+};
+
+export type ReviewNoteRequired = {
+  review_note: string;
+};
+
 export type DeveloperTransfer = {
   token: string;
   expires_at: string;
@@ -194,6 +212,10 @@ export type DeveloperTransfer = {
 
 export type TransferAcceptance = {
   token: string;
+};
+
+export type ReviewNoteOptional = {
+  review_note?: string;
 };
 
 export type DeveloperApproval = {
@@ -209,6 +231,65 @@ export type DeveloperHistoryEntry = {
   changed_by_name: string | null;
   changed_at: string;
 };
+
+export type OwnedDeveloperProfile =
+  | (DeveloperProfile & {
+      has_pending_transfer: boolean;
+    })
+  | null;
+
+export type GetExtensionsMineData = {
+  body?: never;
+  path?: never;
+  query?: {
+    type?:
+      | 'mod'
+      | 'theme'
+      | 'payment-gateway'
+      | 'server-manager'
+      | 'domain-registrar'
+      | 'hook'
+      | 'translation';
+    limit?: number;
+    /**
+     * Opaque cursor returned by the previous page
+     */
+    cursor?: string;
+  };
+  url: '/extensions/mine';
+};
+
+export type GetExtensionsMineErrors = {
+  /**
+   * Missing or invalid bearer token
+   */
+  401: Error;
+  /**
+   * The bearer is valid but the account is inactive
+   */
+  403: Error;
+  /**
+   * Pagination query failed validation
+   */
+  422: Error;
+  /**
+   * Database error
+   */
+  500: Error;
+};
+
+export type GetExtensionsMineError =
+  GetExtensionsMineErrors[keyof GetExtensionsMineErrors];
+
+export type GetExtensionsMineResponses = {
+  /**
+   * The caller's published extensions
+   */
+  200: ExtensionListResponse;
+};
+
+export type GetExtensionsMineResponse =
+  GetExtensionsMineResponses[keyof GetExtensionsMineResponses];
 
 export type GetExtensionsData = {
   body?: never;
@@ -294,6 +375,166 @@ export type GetExtensionsByIdResponses = {
 export type GetExtensionsByIdResponse =
   GetExtensionsByIdResponses[keyof GetExtensionsByIdResponses];
 
+export type PutUsersMeIdentityData = {
+  body?: UserIdentityInput;
+  path?: never;
+  query?: never;
+  url: '/users/me/identity';
+};
+
+export type PutUsersMeIdentityErrors = {
+  /**
+   * Missing or invalid bearer token
+   */
+  401: Error;
+  /**
+   * Identity synchronization requires a trusted assertion
+   */
+  403: Error;
+  /**
+   * Identity payload failed validation
+   */
+  422: Error;
+  /**
+   * Database error
+   */
+  500: Error;
+};
+
+export type PutUsersMeIdentityError =
+  PutUsersMeIdentityErrors[keyof PutUsersMeIdentityErrors];
+
+export type PutUsersMeIdentityResponses = {
+  /**
+   * Identity projection synchronized
+   */
+  200: {
+    result: User;
+  };
+};
+
+export type PutUsersMeIdentityResponse =
+  PutUsersMeIdentityResponses[keyof PutUsersMeIdentityResponses];
+
+export type DeleteUsersMeData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/users/me';
+};
+
+export type DeleteUsersMeErrors = {
+  /**
+   * Missing or invalid bearer token
+   */
+  401: Error;
+  /**
+   * Account does not exist
+   */
+  404: Error;
+  /**
+   * Account still owns protected domain records
+   */
+  409: Error;
+  /**
+   * Database error
+   */
+  500: Error;
+};
+
+export type DeleteUsersMeError = DeleteUsersMeErrors[keyof DeleteUsersMeErrors];
+
+export type DeleteUsersMeResponses = {
+  /**
+   * Account deleted
+   */
+  200: {
+    result: {
+      deleted: true;
+    };
+  };
+};
+
+export type DeleteUsersMeResponse =
+  DeleteUsersMeResponses[keyof DeleteUsersMeResponses];
+
+export type GetUsersMeData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/users/me';
+};
+
+export type GetUsersMeErrors = {
+  /**
+   * Missing or invalid bearer token
+   */
+  401: Error;
+  /**
+   * Account does not exist
+   */
+  404: Error;
+  /**
+   * Database error
+   */
+  500: Error;
+};
+
+export type GetUsersMeError = GetUsersMeErrors[keyof GetUsersMeErrors];
+
+export type GetUsersMeResponses = {
+  /**
+   * The caller's account projection, including active status
+   */
+  200: {
+    result: User;
+  };
+};
+
+export type GetUsersMeResponse = GetUsersMeResponses[keyof GetUsersMeResponses];
+
+export type PatchUsersMeData = {
+  body?: UserProfileUpdate;
+  path?: never;
+  query?: never;
+  url: '/users/me';
+};
+
+export type PatchUsersMeErrors = {
+  /**
+   * Missing or invalid bearer token
+   */
+  401: Error;
+  /**
+   * The bearer is valid but the account is inactive
+   */
+  403: Error;
+  /**
+   * Account does not exist or has been deleted
+   */
+  404: Error;
+  /**
+   * Database error
+   */
+  500: Error;
+};
+
+export type PatchUsersMeError = PatchUsersMeErrors[keyof PatchUsersMeErrors];
+
+export type PatchUsersMeResponses = {
+  /**
+   * Profile updated
+   */
+  200: {
+    result: {
+      display_name: string | null;
+    };
+  };
+};
+
+export type PatchUsersMeResponse =
+  PatchUsersMeResponses[keyof PatchUsersMeResponses];
+
 export type PostSubmissionsData = {
   body?: SubmissionPayload;
   path?: never;
@@ -307,7 +548,7 @@ export type PostSubmissionsErrors = {
    */
   401: Error;
   /**
-   * Caller does not own the target developer or extension
+   * The account is inactive, or the caller does not own the target developer or extension
    */
   403: Error;
   /**
@@ -358,6 +599,10 @@ export type GetSubmissionsMineErrors = {
    */
   401: Error;
   /**
+   * The bearer is valid but the account is inactive
+   */
+  403: Error;
+  /**
    * Pagination query failed validation
    */
   422: Error;
@@ -383,312 +628,6 @@ export type GetSubmissionsMineResponses = {
 export type GetSubmissionsMineResponse =
   GetSubmissionsMineResponses[keyof GetSubmissionsMineResponses];
 
-export type GetSubmissionsQueueData = {
-  body?: never;
-  path?: never;
-  query?: {
-    status?: 'pending' | 'approved' | 'rejected';
-    limit?: number;
-    cursor?: string;
-  };
-  url: '/submissions/queue';
-};
-
-export type GetSubmissionsQueueErrors = {
-  /**
-   * Missing or invalid bearer token
-   */
-  401: Error;
-  /**
-   * Caller is not a moderator
-   */
-  403: Error;
-  /**
-   * status query param failed validation
-   */
-  422: Error;
-  /**
-   * Database error
-   */
-  500: Error;
-};
-
-export type GetSubmissionsQueueError =
-  GetSubmissionsQueueErrors[keyof GetSubmissionsQueueErrors];
-
-export type GetSubmissionsQueueResponses = {
-  /**
-   * Submissions matching the requested status (default: pending)
-   */
-  200: {
-    result: Array<Submission>;
-    pagination: Pagination;
-  };
-};
-
-export type GetSubmissionsQueueResponse =
-  GetSubmissionsQueueResponses[keyof GetSubmissionsQueueResponses];
-
-export type PostSubmissionsByIdApproveData = {
-  body?: ReviewNoteOptional;
-  path: {
-    id: string;
-  };
-  query?: never;
-  url: '/submissions/{id}/approve';
-};
-
-export type PostSubmissionsByIdApproveErrors = {
-  /**
-   * Missing or invalid bearer token
-   */
-  401: Error;
-  /**
-   * Caller is not a moderator
-   */
-  403: Error;
-  /**
-   * No submission with that id
-   */
-  404: Error;
-  /**
-   * Submission is not pending, or ownership has changed since it was submitted
-   */
-  409: Error;
-  /**
-   * id param or review_note body failed validation
-   */
-  422: Error;
-  /**
-   * Database error
-   */
-  500: Error;
-};
-
-export type PostSubmissionsByIdApproveError =
-  PostSubmissionsByIdApproveErrors[keyof PostSubmissionsByIdApproveErrors];
-
-export type PostSubmissionsByIdApproveResponses = {
-  /**
-   * Submission approved and written through to the live extension/developer
-   */
-  200: {
-    result: {
-      id: string;
-      status: 'approved';
-    };
-  };
-};
-
-export type PostSubmissionsByIdApproveResponse =
-  PostSubmissionsByIdApproveResponses[keyof PostSubmissionsByIdApproveResponses];
-
-export type PostSubmissionsByIdRejectData = {
-  body?: ReviewNoteRequired;
-  path: {
-    id: string;
-  };
-  query?: never;
-  url: '/submissions/{id}/reject';
-};
-
-export type PostSubmissionsByIdRejectErrors = {
-  /**
-   * Missing or invalid bearer token
-   */
-  401: Error;
-  /**
-   * Caller is not a moderator
-   */
-  403: Error;
-  /**
-   * No submission with that id
-   */
-  404: Error;
-  /**
-   * Submission is not pending
-   */
-  409: Error;
-  /**
-   * review_note is required
-   */
-  422: Error;
-  /**
-   * Database error
-   */
-  500: Error;
-};
-
-export type PostSubmissionsByIdRejectError =
-  PostSubmissionsByIdRejectErrors[keyof PostSubmissionsByIdRejectErrors];
-
-export type PostSubmissionsByIdRejectResponses = {
-  /**
-   * Submission rejected
-   */
-  200: {
-    result: {
-      id: string;
-      status: 'rejected';
-    };
-  };
-};
-
-export type PostSubmissionsByIdRejectResponse =
-  PostSubmissionsByIdRejectResponses[keyof PostSubmissionsByIdRejectResponses];
-
-export type DeleteDevelopersMeData = {
-  body?: never;
-  path?: never;
-  query?: never;
-  url: '/developers/me';
-};
-
-export type DeleteDevelopersMeErrors = {
-  /**
-   * Missing or invalid bearer token
-   */
-  401: Error;
-  /**
-   * Caller has no developer profile
-   */
-  404: Error;
-  /**
-   * Profile still has published extensions, or has a pending submission awaiting review
-   */
-  409: Error;
-  /**
-   * Database error
-   */
-  500: Error;
-};
-
-export type DeleteDevelopersMeError =
-  DeleteDevelopersMeErrors[keyof DeleteDevelopersMeErrors];
-
-export type DeleteDevelopersMeResponses = {
-  /**
-   * Profile deleted
-   */
-  200: {
-    result: {
-      id: string;
-      deleted: true;
-    };
-  };
-};
-
-export type DeleteDevelopersMeResponse =
-  DeleteDevelopersMeResponses[keyof DeleteDevelopersMeResponses];
-
-export type PutDevelopersMeData = {
-  body?: Developer;
-  path?: never;
-  query?: never;
-  url: '/developers/me';
-};
-
-export type PutDevelopersMeErrors = {
-  /**
-   * Missing or invalid bearer token
-   */
-  401: Error;
-  /**
-   * This id matches a real GitHub organization or username that isn't linked to the caller's account
-   */
-  403: Error;
-  /**
-   * Developer id already taken by someone else, or id was changed on an existing profile
-   */
-  409: Error;
-  /**
-   * Payload failed validation, or the GitHub account type is unsupported
-   */
-  422: Error;
-  /**
-   * GitHub verification is temporarily rate limited
-   */
-  429: Error;
-  /**
-   * Database error
-   */
-  500: Error;
-  /**
-   * GitHub verification is temporarily unavailable
-   */
-  503: Error;
-};
-
-export type PutDevelopersMeError =
-  PutDevelopersMeErrors[keyof PutDevelopersMeErrors];
-
-export type PutDevelopersMeResponses = {
-  /**
-   * Developer profile created or updated and usable immediately
-   */
-  200: {
-    result: DeveloperProfile;
-  };
-};
-
-export type PutDevelopersMeResponse =
-  PutDevelopersMeResponses[keyof PutDevelopersMeResponses];
-
-export type PostDevelopersMeReverifyData = {
-  body?: never;
-  path?: never;
-  query?: {
-    check_url?: 'true' | 'false';
-  };
-  url: '/developers/me/reverify';
-};
-
-export type PostDevelopersMeReverifyErrors = {
-  /**
-   * Missing or invalid bearer token
-   */
-  401: Error;
-  /**
-   * Caller has no developer profile
-   */
-  404: Error;
-  /**
-   * Developer ownership changed while re-verifying
-   */
-  409: Error;
-  /**
-   * The GitHub account type is unsupported
-   */
-  422: Error;
-  /**
-   * check_url was used again too soon, or GitHub verification is rate limited
-   */
-  429: Error;
-  /**
-   * Database error
-   */
-  500: Error;
-  /**
-   * GitHub verification is temporarily unavailable
-   */
-  503: Error;
-};
-
-export type PostDevelopersMeReverifyError =
-  PostDevelopersMeReverifyErrors[keyof PostDevelopersMeReverifyErrors];
-
-export type PostDevelopersMeReverifyResponses = {
-  /**
-   * Verification re-checked (result may be verified or not)
-   */
-  200: {
-    result: DeveloperProfile;
-  };
-};
-
-export type PostDevelopersMeReverifyResponse =
-  PostDevelopersMeReverifyResponses[keyof PostDevelopersMeReverifyResponses];
-
 export type PostDevelopersByIdClaimData = {
   body?: ClaimNote;
   path: {
@@ -704,7 +643,7 @@ export type PostDevelopersByIdClaimErrors = {
    */
   401: Error;
   /**
-   * Caller's linked GitHub account doesn't match this developer's GitHub organization or username
+   * The account is inactive, or the caller's linked GitHub account doesn't match this developer's GitHub organization or username
    */
   403: Error;
   /**
@@ -763,6 +702,10 @@ export type PostDevelopersClaimsByIdCancelErrors = {
    */
   401: Error;
   /**
+   * The bearer is valid but the account is inactive
+   */
+  403: Error;
+  /**
    * No pending claim with that id owned by the caller
    */
   404: Error;
@@ -807,6 +750,10 @@ export type GetDevelopersClaimsMineErrors = {
    */
   401: Error;
   /**
+   * The bearer is valid but the account is inactive
+   */
+  403: Error;
+  /**
    * Database error
    */
   500: Error;
@@ -840,7 +787,7 @@ export type GetDevelopersClaimsErrors = {
    */
   401: Error;
   /**
-   * Caller is not a moderator
+   * The account is inactive or the caller is not a moderator
    */
   403: Error;
   /**
@@ -879,7 +826,7 @@ export type PostDevelopersClaimsByIdApproveErrors = {
    */
   401: Error;
   /**
-   * Caller is not a moderator
+   * The account is inactive or the caller is not a moderator
    */
   403: Error;
   /**
@@ -930,7 +877,7 @@ export type PostDevelopersClaimsByIdRejectErrors = {
    */
   401: Error;
   /**
-   * Caller is not a moderator
+   * The account is inactive or the caller is not a moderator
    */
   403: Error;
   /**
@@ -977,7 +924,7 @@ export type PostDevelopersByIdTransferErrors = {
    */
   401: Error;
   /**
-   * Caller does not own this profile
+   * The account is inactive or the caller does not own this profile
    */
   403: Error;
   /**
@@ -1024,7 +971,7 @@ export type PostDevelopersByIdTransferRevokeErrors = {
    */
   401: Error;
   /**
-   * Caller does not own this profile
+   * The account is inactive or the caller does not own this profile
    */
   403: Error;
   /**
@@ -1072,6 +1019,10 @@ export type PostDevelopersTransfersAcceptErrors = {
    */
   401: Error;
   /**
+   * The bearer is valid but the account is inactive
+   */
+  403: Error;
+  /**
    * Transfer link is invalid, already used, or expired
    */
   404: Error;
@@ -1104,6 +1055,160 @@ export type PostDevelopersTransfersAcceptResponses = {
 export type PostDevelopersTransfersAcceptResponse =
   PostDevelopersTransfersAcceptResponses[keyof PostDevelopersTransfersAcceptResponses];
 
+export type GetSubmissionsQueueData = {
+  body?: never;
+  path?: never;
+  query?: {
+    status?: 'pending' | 'approved' | 'rejected';
+    limit?: number;
+    cursor?: string;
+  };
+  url: '/submissions/queue';
+};
+
+export type GetSubmissionsQueueErrors = {
+  /**
+   * Missing or invalid bearer token
+   */
+  401: Error;
+  /**
+   * The account is inactive or the caller is not a moderator
+   */
+  403: Error;
+  /**
+   * status query param failed validation
+   */
+  422: Error;
+  /**
+   * Database error
+   */
+  500: Error;
+};
+
+export type GetSubmissionsQueueError =
+  GetSubmissionsQueueErrors[keyof GetSubmissionsQueueErrors];
+
+export type GetSubmissionsQueueResponses = {
+  /**
+   * Submissions matching the requested status (default: pending)
+   */
+  200: {
+    result: Array<Submission>;
+    pagination: Pagination;
+  };
+};
+
+export type GetSubmissionsQueueResponse =
+  GetSubmissionsQueueResponses[keyof GetSubmissionsQueueResponses];
+
+export type PostSubmissionsByIdApproveData = {
+  body?: ReviewNoteOptional;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/submissions/{id}/approve';
+};
+
+export type PostSubmissionsByIdApproveErrors = {
+  /**
+   * Missing or invalid bearer token
+   */
+  401: Error;
+  /**
+   * The account is inactive or the caller is not a moderator
+   */
+  403: Error;
+  /**
+   * No submission with that id
+   */
+  404: Error;
+  /**
+   * Submission is not pending, or ownership has changed since it was submitted
+   */
+  409: Error;
+  /**
+   * id param or review_note body failed validation
+   */
+  422: Error;
+  /**
+   * Database error
+   */
+  500: Error;
+};
+
+export type PostSubmissionsByIdApproveError =
+  PostSubmissionsByIdApproveErrors[keyof PostSubmissionsByIdApproveErrors];
+
+export type PostSubmissionsByIdApproveResponses = {
+  /**
+   * Submission approved and written through to the live extension/developer
+   */
+  200: {
+    result: {
+      id: string;
+      status: 'approved';
+    };
+  };
+};
+
+export type PostSubmissionsByIdApproveResponse =
+  PostSubmissionsByIdApproveResponses[keyof PostSubmissionsByIdApproveResponses];
+
+export type PostSubmissionsByIdRejectData = {
+  body?: ReviewNoteRequired;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/submissions/{id}/reject';
+};
+
+export type PostSubmissionsByIdRejectErrors = {
+  /**
+   * Missing or invalid bearer token
+   */
+  401: Error;
+  /**
+   * The account is inactive or the caller is not a moderator
+   */
+  403: Error;
+  /**
+   * No submission with that id
+   */
+  404: Error;
+  /**
+   * Submission is not pending
+   */
+  409: Error;
+  /**
+   * review_note is required
+   */
+  422: Error;
+  /**
+   * Database error
+   */
+  500: Error;
+};
+
+export type PostSubmissionsByIdRejectError =
+  PostSubmissionsByIdRejectErrors[keyof PostSubmissionsByIdRejectErrors];
+
+export type PostSubmissionsByIdRejectResponses = {
+  /**
+   * Submission rejected
+   */
+  200: {
+    result: {
+      id: string;
+      status: 'rejected';
+    };
+  };
+};
+
+export type PostSubmissionsByIdRejectResponse =
+  PostSubmissionsByIdRejectResponses[keyof PostSubmissionsByIdRejectResponses];
+
 export type GetDevelopersData = {
   body?: never;
   path?: never;
@@ -1117,7 +1222,7 @@ export type GetDevelopersErrors = {
    */
   401: Error;
   /**
-   * Caller is not a moderator
+   * The account is inactive or the caller is not a moderator
    */
   403: Error;
   /**
@@ -1153,7 +1258,7 @@ export type GetDevelopersUnapprovedErrors = {
    */
   401: Error;
   /**
-   * Caller is not a moderator
+   * The account is inactive or the caller is not a moderator
    */
   403: Error;
   /**
@@ -1177,45 +1282,6 @@ export type GetDevelopersUnapprovedResponses = {
 export type GetDevelopersUnapprovedResponse =
   GetDevelopersUnapprovedResponses[keyof GetDevelopersUnapprovedResponses];
 
-export type GetDevelopersByIdData = {
-  body?: never;
-  path: {
-    id: string;
-  };
-  query?: never;
-  url: '/developers/{id}';
-};
-
-export type GetDevelopersByIdErrors = {
-  /**
-   * No developer with that id
-   */
-  404: Error;
-  /**
-   * id param failed validation
-   */
-  422: Error;
-  /**
-   * Database error
-   */
-  500: Error;
-};
-
-export type GetDevelopersByIdError =
-  GetDevelopersByIdErrors[keyof GetDevelopersByIdErrors];
-
-export type GetDevelopersByIdResponses = {
-  /**
-   * The developer's public profile
-   */
-  200: {
-    result: PublicDeveloper;
-  };
-};
-
-export type GetDevelopersByIdResponse =
-  GetDevelopersByIdResponses[keyof GetDevelopersByIdResponses];
-
 export type PostDevelopersByIdApproveData = {
   body?: DeveloperApproval;
   path: {
@@ -1231,7 +1297,7 @@ export type PostDevelopersByIdApproveErrors = {
    */
   401: Error;
   /**
-   * Caller is not a moderator
+   * The account is inactive or the caller is not a moderator
    */
   403: Error;
   /**
@@ -1285,7 +1351,7 @@ export type GetDevelopersByIdHistoryErrors = {
    */
   401: Error;
   /**
-   * Caller is not a moderator
+   * The account is inactive or the caller is not a moderator
    */
   403: Error;
   /**
@@ -1312,3 +1378,239 @@ export type GetDevelopersByIdHistoryResponses = {
 
 export type GetDevelopersByIdHistoryResponse =
   GetDevelopersByIdHistoryResponses[keyof GetDevelopersByIdHistoryResponses];
+
+export type DeleteDevelopersMeData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/developers/me';
+};
+
+export type DeleteDevelopersMeErrors = {
+  /**
+   * Missing or invalid bearer token
+   */
+  401: Error;
+  /**
+   * The bearer is valid but the account is inactive
+   */
+  403: Error;
+  /**
+   * Caller has no developer profile
+   */
+  404: Error;
+  /**
+   * Profile still has published extensions, or has a pending submission awaiting review
+   */
+  409: Error;
+  /**
+   * Database error
+   */
+  500: Error;
+};
+
+export type DeleteDevelopersMeError =
+  DeleteDevelopersMeErrors[keyof DeleteDevelopersMeErrors];
+
+export type DeleteDevelopersMeResponses = {
+  /**
+   * Profile deleted
+   */
+  200: {
+    result: {
+      id: string;
+      deleted: true;
+    };
+  };
+};
+
+export type DeleteDevelopersMeResponse =
+  DeleteDevelopersMeResponses[keyof DeleteDevelopersMeResponses];
+
+export type GetDevelopersMeData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/developers/me';
+};
+
+export type GetDevelopersMeErrors = {
+  /**
+   * Missing or invalid bearer token
+   */
+  401: Error;
+  /**
+   * The bearer is valid but the account is inactive
+   */
+  403: Error;
+  /**
+   * Database error
+   */
+  500: Error;
+};
+
+export type GetDevelopersMeError =
+  GetDevelopersMeErrors[keyof GetDevelopersMeErrors];
+
+export type GetDevelopersMeResponses = {
+  /**
+   * The caller's profile, or null when none exists
+   */
+  200: {
+    result: OwnedDeveloperProfile;
+  };
+};
+
+export type GetDevelopersMeResponse =
+  GetDevelopersMeResponses[keyof GetDevelopersMeResponses];
+
+export type PutDevelopersMeData = {
+  body?: Developer;
+  path?: never;
+  query?: never;
+  url: '/developers/me';
+};
+
+export type PutDevelopersMeErrors = {
+  /**
+   * Missing or invalid bearer token
+   */
+  401: Error;
+  /**
+   * The account is inactive, or this id matches a real GitHub organization or username that isn't linked to the caller's account
+   */
+  403: Error;
+  /**
+   * Developer id already taken by someone else, or id was changed on an existing profile
+   */
+  409: Error;
+  /**
+   * Payload failed validation, or the GitHub account type is unsupported
+   */
+  422: Error;
+  /**
+   * The account exhausted its profile-creation allowance, or GitHub verification is temporarily rate limited
+   */
+  429: Error;
+  /**
+   * Database error
+   */
+  500: Error;
+  /**
+   * GitHub verification is temporarily unavailable
+   */
+  503: Error;
+};
+
+export type PutDevelopersMeError =
+  PutDevelopersMeErrors[keyof PutDevelopersMeErrors];
+
+export type PutDevelopersMeResponses = {
+  /**
+   * Developer profile created or updated and usable immediately
+   */
+  200: {
+    result: DeveloperProfile;
+  };
+};
+
+export type PutDevelopersMeResponse =
+  PutDevelopersMeResponses[keyof PutDevelopersMeResponses];
+
+export type PostDevelopersMeReverifyData = {
+  body?: never;
+  path?: never;
+  query?: {
+    check_url?: 'true' | 'false';
+  };
+  url: '/developers/me/reverify';
+};
+
+export type PostDevelopersMeReverifyErrors = {
+  /**
+   * Missing or invalid bearer token
+   */
+  401: Error;
+  /**
+   * The bearer is valid but the account is inactive
+   */
+  403: Error;
+  /**
+   * Caller has no developer profile
+   */
+  404: Error;
+  /**
+   * Developer ownership changed while re-verifying
+   */
+  409: Error;
+  /**
+   * The GitHub account type is unsupported
+   */
+  422: Error;
+  /**
+   * check_url was used again too soon, or GitHub verification is rate limited
+   */
+  429: Error;
+  /**
+   * Database error
+   */
+  500: Error;
+  /**
+   * GitHub verification is temporarily unavailable
+   */
+  503: Error;
+};
+
+export type PostDevelopersMeReverifyError =
+  PostDevelopersMeReverifyErrors[keyof PostDevelopersMeReverifyErrors];
+
+export type PostDevelopersMeReverifyResponses = {
+  /**
+   * Verification re-checked (result may be verified or not)
+   */
+  200: {
+    result: DeveloperProfile;
+  };
+};
+
+export type PostDevelopersMeReverifyResponse =
+  PostDevelopersMeReverifyResponses[keyof PostDevelopersMeReverifyResponses];
+
+export type GetDevelopersByIdData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/developers/{id}';
+};
+
+export type GetDevelopersByIdErrors = {
+  /**
+   * No developer with that id
+   */
+  404: Error;
+  /**
+   * id param failed validation
+   */
+  422: Error;
+  /**
+   * Database error
+   */
+  500: Error;
+};
+
+export type GetDevelopersByIdError =
+  GetDevelopersByIdErrors[keyof GetDevelopersByIdErrors];
+
+export type GetDevelopersByIdResponses = {
+  /**
+   * The developer's public profile
+   */
+  200: {
+    result: PublicDeveloper;
+  };
+};
+
+export type GetDevelopersByIdResponse =
+  GetDevelopersByIdResponses[keyof GetDevelopersByIdResponses];

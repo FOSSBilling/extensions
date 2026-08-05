@@ -10,7 +10,7 @@ export const POST: APIRoute = async (context) => {
   if (guard instanceof Response) return guard;
   const user = guard;
 
-  const developer = await getDeveloperByOwner(env.db, user.sub);
+  const developer = await getDeveloperByOwner(env, user.sub);
   if (!developer) return context.redirect('/account/developer');
 
   const api = createApiClient(env, user.sub);

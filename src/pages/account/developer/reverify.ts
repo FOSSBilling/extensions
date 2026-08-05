@@ -23,7 +23,7 @@ export const POST: APIRoute = async (context) => {
   }
   context.session?.delete('reverifyCooldownUntil');
 
-  const developer = await getDeveloperByOwner(env.db, user.sub);
+  const developer = await getDeveloperByOwner(env, user.sub);
   if (!developer) return context.redirect('/account');
 
   const api = createApiClient(env, user.sub);
