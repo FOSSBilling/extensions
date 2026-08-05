@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 import { requireUser } from '@/lib/auth-guard';
-import { getDeveloperByOwner } from '@/lib/database';
+import { getDeveloperByOwner } from '@/lib/extensions-data';
 import { createApiClient, ApiRequestError } from '@/lib/api/client';
 import { setFlash } from '@/lib/flash';
 
@@ -10,7 +10,7 @@ export const POST: APIRoute = async (context) => {
   if (guard instanceof Response) return guard;
   const user = guard;
 
-  const developer = await getDeveloperByOwner(env.db, user.sub);
+  const developer = await getDeveloperByOwner(env, user.sub);
   if (!developer) return context.redirect('/account/developer');
 
   const api = createApiClient(env, user.sub);

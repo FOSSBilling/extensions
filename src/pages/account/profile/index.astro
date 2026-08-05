@@ -1,6 +1,7 @@
 ---
 import Base from '../../../layouts/Base.astro';
 import { requireUser } from '@/lib/auth-guard';
+import { ApiRequestError, getApiErrorMessage } from '@/lib/api/client';
 import { getUserProfile, updateUserProfile } from '@/lib/users';
 import { formString } from '@/lib/form';
 import { setFlash } from '@/lib/flash';
@@ -10,18 +11,35 @@ const guard = await requireUser(Astro, env);
 if (guard instanceof Response) return guard;
 const user = guard;
 
-if (Astro.request.method === 'POST') {
-  const form = await Astro.request.formData();
-  const displayName = formString(form, 'display_name');
+let error: string | null = null;
 
-  await updateUserProfile(env.db, user.sub, {
-    display_name: displayName || null,
-  });
-  setFlash(Astro.session, { title: 'Profile Updated.' });
-  return Astro.redirect('/account');
+if (Astro.request.method === 'POST') {
+  try {
+    const form = await Astro.request.formData();
+    const displayName = formString(form, 'display_name');
+
+    await updateUserProfile(env, user.sub, {
+      display_name: displayName || null,
+    });
+    setFlash(Astro.session, { title: 'Profile Updated.' });
+    return Astro.redirect('/account');
+  } catch (cause) {
+    error =
+      cause instanceof ApiRequestError
+        ? getApiErrorMessage(cause)
+        : 'Unable to update your profile right now.';
+  }
 }
 
-const profile = await getUserProfile(env.db, user.sub);
+let profile: Awaited<ReturnType<typeof getUserProfile>> | null = null;
+try {
+  profile = await getUserProfile(env, user.sub);
+} catch (cause) {
+  error ??=
+    cause instanceof ApiRequestError
+      ? getApiErrorMessage(cause)
+      : 'Unable to load your profile right now.';
+}
 ---
 
 <Base title="Your Profile — FOSSBilling Extensions">
@@ -31,31 +49,47 @@ const profile = await getUserProfile(env.db, user.sub);
       Your personal profile, separate from any developer/publisher identity.
     </p>
 
-    <div class="card">
-      <section>
-        <form method="POST" class="space-y-6">
-          <div class="field">
-            <label for="display_name">Display Name</label>
-            <input
-              class="input"
-              type="text"
-              id="display_name"
-              name="display_name"
-              placeholder={user.name}
-              value={profile.display_name ?? ''}
-            />
-            <p class="text-sm text-muted-foreground">
-              Defaults to "{user.name}" from your sign-in provider if left
-              blank.
-            </p>
-          </div>
+    {
+      error && (
+        <div class="alert" data-variant="destructive">
+          {error}
+        </div>
+      )
+    }
 
-          <div class="flex gap-3">
-            <button type="submit" class="btn">Save</button>
-            <a href="/account" class="btn" data-variant="ghost">Cancel</a>
-          </div>
-        </form>
-      </section>
-    </div>
+    {
+      profile ? (
+        <div class="card">
+          <section>
+            <form method="POST" class="space-y-6">
+              <div class="field">
+                <label for="display_name">Display Name</label>
+                <input
+                  class="input"
+                  type="text"
+                  id="display_name"
+                  name="display_name"
+                  placeholder={user.name}
+                  value={profile.display_name ?? ''}
+                />
+                <p class="text-sm text-muted-foreground">
+                  Defaults to "{user.name}" from your sign-in provider if left
+                  blank.
+                </p>
+              </div>
+
+              <div class="flex gap-3">
+                <button type="submit" class="btn">
+                  Save
+                </button>
+                <a href="/account" class="btn" data-variant="ghost">
+                  Cancel
+                </a>
+              </div>
+            </form>
+          </section>
+        </div>
+      ) : null
+    }
   </div>
 </Base>

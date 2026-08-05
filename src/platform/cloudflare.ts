@@ -6,7 +6,6 @@ import type { ApplicationEnv } from '@/lib/runtime';
 // and domain services continue to consume ApplicationEnv.
 export function getApplicationEnv(): ApplicationEnv {
   return {
-    db: env.DB_EXTENSIONS,
     extensionsApiBaseUrl: env.EXTENSIONS_API_BASE_URL,
     authClientId: env.AUTH_CLIENT_ID,
     authClientSecret: env.AUTH_CLIENT_SECRET,

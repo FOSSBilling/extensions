@@ -1,7 +1,7 @@
 ---
 import Base from '../../layouts/Base.astro';
 import ExtensionCard from '@/components/ExtensionCard.astro';
-import { getDeveloperById } from '@/lib/database';
+import { getDeveloperById } from '@/lib/extensions-data';
 import {
   ApiRequestError,
   createApiClient,
@@ -24,7 +24,7 @@ if (!id) {
   return Astro.redirect('/404');
 }
 
-const developer = await getDeveloperById(env.db, id);
+const developer = await getDeveloperById(env, id);
 
 if (!developer) {
   return Astro.redirect('/404');

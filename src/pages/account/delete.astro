@@ -1,8 +1,11 @@
 ---
 import Base from '../../layouts/Base.astro';
 import { requireUser } from '@/lib/auth-guard';
-import { createApiClient, ApiRequestError } from '@/lib/api/client';
-import { getDeveloperByOwner, getExtensionsByOwner } from '@/lib/database';
+import { ApiRequestError } from '@/lib/api/client';
+import {
+  getDeveloperByOwner,
+  getExtensionsByOwner,
+} from '@/lib/extensions-data';
 import { deleteUser } from '@/lib/users';
 import { SESSION_COOKIE } from '@/lib/session';
 import { CircleAlert } from '@lucide/astro';
@@ -14,36 +17,30 @@ const guard = await requireUser(Astro, env);
 if (guard instanceof Response) return guard;
 const user = guard;
 
-const developer = await getDeveloperByOwner(env.db, user.sub);
-const extensions = developer
-  ? await getExtensionsByOwner(env.db, user.sub)
-  : [];
+const developer = await getDeveloperByOwner(env, user.sub);
+const extensions = developer ? await getExtensionsByOwner(env, user.sub) : [];
 
 let error: string | null = null;
 
 // extensions.length > 0 falls through here as a no-op — the message below
 // already explains why, so no separate error banner is needed.
 if (Astro.request.method === 'POST' && extensions.length === 0) {
-  if (developer) {
-    const api = createApiClient(env, user.sub);
-    try {
-      await api.deleteDeveloperProfile();
-    } catch (e) {
-      error =
-        e instanceof ApiRequestError
-          ? e.message
-          : 'Unable to delete your developer profile. Please try again.';
-    }
-  }
-
-  if (!error) {
-    await deleteUser(env.db, user.sub);
+  try {
+    // DELETE /users/me removes this eligible developer in the same guarded
+    // D1 batch as the user tombstone. Keep account deletion as one API
+    // operation so a partial two-request cleanup cannot leave stale state.
+    await deleteUser(env, user.sub);
     Astro.cookies.delete(SESSION_COOKIE, { path: '/' });
     setFlash(Astro.session, {
       category: 'success',
       title: 'Your account has been deleted.',
     });
     return Astro.redirect('/');
+  } catch (e) {
+    error =
+      e instanceof ApiRequestError
+        ? e.message
+        : 'Unable to delete your account. Please try again.';
   }
 }
 ---

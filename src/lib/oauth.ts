@@ -1,7 +1,7 @@
 // Client for FOSSBilling's central auth service (auth.fossbilling.net).
 // Identity only — see that repo's README for the identity/authorization boundary.
-// Roles, permissions, and extension ownership are modeled in this app's own
-// database (see users.ts), never requested from or trusted to the auth service.
+// Roles, permissions, and extension ownership are modeled in the API's domain
+// projection (see users.ts), never requested from or trusted to the auth service.
 
 export const ISSUER = 'https://auth.fossbilling.net';
 const AUTHORIZE_ENDPOINT = `${ISSUER}/oauth2/authorize`;

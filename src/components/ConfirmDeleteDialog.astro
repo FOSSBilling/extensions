@@ -25,7 +25,7 @@ const {
   class="dialog"
   aria-labelledby={`${id}-title`}
   aria-describedby={`${id}-description`}
-  onclick="if (event.target === this) this.close()"
+  onclick="if (arguments[0].target === this) this.close()"
   onclose="this.querySelector('form').reset(); this.querySelector('[data-confirm-submit]').disabled = true;"
 >
   <form method="POST">

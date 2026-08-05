@@ -35,7 +35,7 @@ export function isDeveloperType(value: string): value is DeveloperType {
   return (DEVELOPER_TYPES as readonly string[]).includes(value);
 }
 
-// Local view/domain models used by SQL-backed account pages and shared detail
+// Local view/domain models used by API-backed account pages and shared detail
 // components. These intentionally do not depend on API transport DTOs.
 export type Release = {
   tag: string;
@@ -101,7 +101,8 @@ export type PublicDeveloperProfile = Omit<
   | 'github_verification_note'
   | 'github_verified_at'
   | 'github_url_verified'
->;
+  | 'unclaimed'
+> & { unclaimed: boolean };
 
 export function getLatestRelease(extension: Extension): Release | undefined {
   if (extension.releases.length === 0) {

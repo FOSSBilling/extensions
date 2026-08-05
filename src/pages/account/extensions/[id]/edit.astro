@@ -3,7 +3,10 @@ import Base from '../../../../layouts/Base.astro';
 import ExtensionSubmissionForm from '@/components/ExtensionSubmissionForm.astro';
 import { requireUser } from '@/lib/auth-guard';
 import { createApiClient, ApiRequestError } from '@/lib/api/client';
-import { getDeveloperByOwner, getExtensionForSubmission } from '@/lib/database';
+import {
+  getDeveloperByOwner,
+  getExtensionForSubmission,
+} from '@/lib/extensions-data';
 import {
   buildSubmissionPayload,
   SubmissionValidationError,
@@ -22,12 +25,12 @@ if (!id) {
   return Astro.redirect('/404');
 }
 
-const extension = await getExtensionForSubmission(env.db, id);
+const extension = await getExtensionForSubmission(env, id);
 if (!extension) {
   return Astro.redirect('/404');
 }
 
-const developer = await getDeveloperByOwner(env.db, user.sub);
+const developer = await getDeveloperByOwner(env, user.sub);
 if (!developer || developer.id !== extension.developer.id) {
   return Astro.redirect('/404');
 }
