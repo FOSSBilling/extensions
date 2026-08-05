@@ -17,8 +17,15 @@
 	"preview_urls": true,
 	"keep_vars": true,
 	"vars": {
-		"EXTENSIONS_API_BASE_URL": "https://api.fossbilling.net"
+		"EXTENSIONS_API_BASE_URL": "https://api.fossbilling.net",
+		"EXTENSIONS_API_TRANSPORT": "binding"
 	},
+	"services": [
+		{
+			"binding": "EXTENSIONS_API",
+			"service": "api"
+		}
+	],
 	"routes": [
 		{
 			"pattern": "extensions.fossbilling.org",

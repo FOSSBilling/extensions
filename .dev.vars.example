@@ -3,7 +3,10 @@ AUTH_CLIENT_SECRET="replace-with-oauth-client-secret-from-auth.fossbilling.net"
 SESSION_SECRET="replace-with-openssl-rand-base64-32"
 # Must match the api repo's ASSERTION_SIGNING_SECRET exactly (same shared secret).
 ASSERTION_SIGNING_SECRET="replace-with-openssl-rand-base64-32"
-# Defaults to https://api.fossbilling.net (see wrangler.jsonc). Uncomment to point
-# at a local `api` repo dev server instead (its ASSERTION_SIGNING_SECRET must then
+# Local development uses ordinary HTTP unless you run both Workers with a
+# connected service binding. The production Wrangler config uses `binding`.
+EXTENSIONS_API_TRANSPORT="http"
+# Defaults to https://api.fossbilling.net (see wrangler.jsonc). Override this to
+# point at a local `api` repo dev server (its ASSERTION_SIGNING_SECRET must then
 # match the value above).
 # EXTENSIONS_API_BASE_URL="http://localhost:8787"

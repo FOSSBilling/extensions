@@ -44,7 +44,10 @@ import { cursorPageUrl } from '@/lib/pagination';
 import type { ApplicationEnv } from '@/lib/runtime';
 
 const publicEnv: ApplicationEnv = {
-  extensionsApiBaseUrl: 'https://api.example.test',
+  extensionsApi: {
+    baseUrl: 'https://api.example.test',
+    fetch: (...args) => globalThis.fetch(...args),
+  },
   authClientId: 'test-client',
   authClientSecret: 'test-secret',
   sessionSecret: 'test-session-secret',
@@ -120,6 +123,126 @@ beforeEach(() => {
 });
 
 describe('generated Extensions v2 façade', () => {
+  it('uses the injected transport instead of ambient global fetch', async () => {
+    const transportFetch = vi
+      .fn()
+      .mockResolvedValue(apiResponse(page([], null, false)));
+    const ambientFetch = vi
+      .fn()
+      .mockRejectedValue(new Error('ambient fetch must not be used'));
+    vi.stubGlobal('fetch', ambientFetch);
+
+    await listExtensions({
+      ...publicEnv,
+      extensionsApi: {
+        ...publicEnv.extensionsApi,
+        fetch: transportFetch,
+      },
+    });
+
+    expect(transportFetch).toHaveBeenCalledTimes(1);
+    expect(ambientFetch).not.toHaveBeenCalled();
+  });
+
+  it('does not retry a rejected transport through HTTP', async () => {
+    const bindingFetch = vi
+      .fn()
+      .mockRejectedValue(new Error('binding unavailable'));
+    const httpFetch = vi.fn();
+    vi.stubGlobal('fetch', httpFetch);
+
+    await expect(
+      listExtensions({
+        ...publicEnv,
+        extensionsApi: {
+          ...publicEnv.extensionsApi,
+          fetch: bindingFetch,
+        },
+      }),
+    ).rejects.toThrow('binding unavailable');
+
+    expect(bindingFetch).toHaveBeenCalledTimes(1);
+    expect(httpFetch).not.toHaveBeenCalled();
+  });
+
+  it('keeps binding and HTTP transports request-compatible', async () => {
+    const bindingFetch = vi
+      .fn()
+      .mockResolvedValue(apiResponse(page([], null, false)));
+    const httpFetch = vi
+      .fn()
+      .mockResolvedValue(apiResponse(page([], null, false)));
+    const request = {
+      type: 'theme' as const,
+      developer_id: 'developer-id',
+      limit: 25,
+      cursor: 'opaque-cursor',
+    };
+
+    await listExtensions(
+      {
+        ...publicEnv,
+        extensionsApi: { ...publicEnv.extensionsApi, fetch: bindingFetch },
+      },
+      request,
+    );
+    await listExtensions(
+      {
+        ...publicEnv,
+        extensionsApi: { ...publicEnv.extensionsApi, fetch: httpFetch },
+      },
+      request,
+    );
+
+    const bindingRequest = requestFrom(bindingFetch);
+    const httpRequest = requestFrom(httpFetch);
+    expect(bindingRequest.method).toBe(httpRequest.method);
+    expect(bindingRequest.url).toBe(httpRequest.url);
+    expect([...bindingRequest.headers]).toEqual([...httpRequest.headers]);
+    expect(await bindingRequest.text()).toBe(await httpRequest.text());
+  });
+
+  it('keeps authenticated binding and HTTP transports request-compatible', async () => {
+    const bindingFetch = vi
+      .fn()
+      .mockResolvedValue(apiResponse(submissionPage(null, false)));
+    const httpFetch = vi
+      .fn()
+      .mockResolvedValue(apiResponse(submissionPage(null, false)));
+    const options = { limit: 25, cursor: 'opaque-cursor' };
+
+    await createApiClient(
+      {
+        ...authenticatedEnv,
+        extensionsApi: {
+          ...authenticatedEnv.extensionsApi,
+          fetch: bindingFetch,
+        },
+      },
+      'user-id',
+    ).listMySubmissions(options);
+    await createApiClient(
+      {
+        ...authenticatedEnv,
+        extensionsApi: {
+          ...authenticatedEnv.extensionsApi,
+          fetch: httpFetch,
+        },
+      },
+      'user-id',
+    ).listMySubmissions(options);
+
+    const bindingRequest = requestFrom(bindingFetch);
+    const httpRequest = requestFrom(httpFetch);
+    expect(bindingRequest.method).toBe(httpRequest.method);
+    expect(bindingRequest.url).toBe(httpRequest.url);
+    expect([...bindingRequest.headers]).toEqual([...httpRequest.headers]);
+    expect(bindingRequest.headers.get('authorization')).toBe(
+      'Bearer test-token',
+    );
+    expect(await bindingRequest.text()).toBe(await httpRequest.text());
+  });
+
   it('uses the bounded default limit, omits the first cursor, and consumes result items', async () => {
     const firstPage = page([item('first')], 'opaque-page-2', true);
     const fetchMock = vi.fn().mockResolvedValue(apiResponse(firstPage));

@@ -1,12 +1,25 @@
 import { env } from 'cloudflare:workers';
-import type { ApplicationEnv } from '@/lib/runtime';
+import {
+  parseExtensionsApiTransportMode,
+  type ApplicationEnv,
+} from '@/lib/runtime';
 
 // This is the only application import of the Cloudflare binding module. A
 // different serverless provider needs a different adapter here, while pages
 // and domain services continue to consume ApplicationEnv.
 export function getApplicationEnv(): ApplicationEnv {
+  const transport = parseExtensionsApiTransportMode(
+    env.EXTENSIONS_API_TRANSPORT,
+  );
+
   return {
-    extensionsApiBaseUrl: env.EXTENSIONS_API_BASE_URL,
+    extensionsApi: {
+      baseUrl: env.EXTENSIONS_API_BASE_URL,
+      fetch:
+        transport === 'binding'
+          ? (input, init) => env.EXTENSIONS_API.fetch(input, init)
+          : globalThis.fetch,
+    },
     authClientId: env.AUTH_CLIENT_ID,
     authClientSecret: env.AUTH_CLIENT_SECRET,
     sessionSecret: env.SESSION_SECRET,
