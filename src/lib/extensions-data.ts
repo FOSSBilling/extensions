@@ -2,7 +2,6 @@
 // existing page-facing models stable while routing every read through the
 // generated Extensions v2 client.
 import {
-  ApiRequestError,
   createApiClient,
   getDeveloperById as getDeveloperByIdFromApi,
   getExtensionById as getExtensionByIdFromApi,
@@ -17,10 +16,6 @@ import type {
   Extension,
   PublicDeveloperProfile,
 } from '@/types';
-
-function isNotFound(error: unknown): boolean {
-  return error instanceof ApiRequestError && error.status === 404;
-}
 
 function toDeveloperProfile(
   developer: ApiDeveloperProfile & { has_pending_transfer?: boolean },
@@ -81,9 +76,11 @@ export async function getExtensionForSubmission(
 ): Promise<Extension | null> {
   try {
     return toExtension(await getExtensionByIdFromApi(env, id));
-  } catch (error) {
-    if (isNotFound(error)) return null;
-    throw error;
+  } catch {
+    // These adapters back page reads, not authorization or writes. Preserve
+    // their fail-soft contract so a temporary API outage is rendered as a
+    // missing resource instead of an unhandled page error.
+    return null;
   }
 }
 
@@ -91,25 +88,37 @@ export async function getExtensionsByOwner(
   env: ApplicationEnv,
   userId: string,
 ): Promise<ApiExtensionListItem[]> {
-  const api = createApiClient(env, userId);
-  const extensions: ApiExtensionListItem[] = [];
-  let cursor: string | undefined;
-  do {
-    const page = await api.listMyExtensions({ limit: 100, cursor });
-    extensions.push(...page.result);
-    cursor = page.pagination.has_more
-      ? (page.pagination.next_cursor ?? undefined)
-      : undefined;
-  } while (cursor !== undefined);
-  return extensions;
+  try {
+    const api = createApiClient(env, userId);
+    const extensions: ApiExtensionListItem[] = [];
+    let cursor: string | undefined;
+    do {
+      const page = await api.listMyExtensions({ limit: 100, cursor });
+      extensions.push(...page.result);
+      cursor = page.pagination.has_more
+        ? (page.pagination.next_cursor ?? undefined)
+        : undefined;
+    } while (cursor !== undefined);
+    return extensions;
+  } catch {
+    // The account/developer and deletion pages use an empty list as their
+    // non-fatal "nothing to show" state.
+    return [];
+  }
 }
 
 export async function getDeveloperByOwner(
   env: ApplicationEnv,
   userId: string,
 ): Promise<(DeveloperProfile & { has_pending_transfer?: boolean }) | null> {
-  const developer = await createApiClient(env, userId).getOwnDeveloper();
-  return developer ? toDeveloperProfile(developer) : null;
+  try {
+    const developer = await createApiClient(env, userId).getOwnDeveloper();
+    return developer ? toDeveloperProfile(developer) : null;
+  } catch {
+    // A missing profile and a temporarily unavailable profile both remain
+    // non-fatal to callers; API-backed mutations still enforce ownership.
+    return null;
+  }
 }
 
 export async function getDeveloperById(
@@ -118,8 +127,9 @@ export async function getDeveloperById(
 ): Promise<PublicDeveloperProfile | null> {
   try {
     return toPublicDeveloper(await getDeveloperByIdFromApi(env, id));
-  } catch (error) {
-    if (isNotFound(error)) return null;
-    throw error;
+  } catch {
+    // Public pages historically treated any domain read failure as a missing
+    // profile. Keep that fail-soft behavior at the API adapter boundary.
+    return null;
   }
 }

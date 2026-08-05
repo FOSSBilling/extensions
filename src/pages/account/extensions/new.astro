@@ -3,7 +3,7 @@ import Base from '../../../layouts/Base.astro';
 import ExtensionSubmissionForm from '@/components/ExtensionSubmissionForm.astro';
 import { requireUser } from '@/lib/auth-guard';
 import { createApiClient, ApiRequestError } from '@/lib/api/client';
-import { getDeveloperByOwner } from '@/lib/database';
+import { getDeveloperByOwner } from '@/lib/extensions-data';
 import {
   buildSubmissionPayload,
   SubmissionValidationError,

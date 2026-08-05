@@ -2,7 +2,10 @@
 import Base from '../../layouts/Base.astro';
 import { requireUser } from '@/lib/auth-guard';
 import { ApiRequestError } from '@/lib/api/client';
-import { getDeveloperByOwner, getExtensionsByOwner } from '@/lib/database';
+import {
+  getDeveloperByOwner,
+  getExtensionsByOwner,
+} from '@/lib/extensions-data';
 import { deleteUser } from '@/lib/users';
 import { SESSION_COOKIE } from '@/lib/session';
 import { CircleAlert } from '@lucide/astro';
@@ -23,6 +26,9 @@ let error: string | null = null;
 // already explains why, so no separate error banner is needed.
 if (Astro.request.method === 'POST' && extensions.length === 0) {
   try {
+    // DELETE /users/me removes this eligible developer in the same guarded
+    // D1 batch as the user tombstone. Keep account deletion as one API
+    // operation so a partial two-request cleanup cannot leave stale state.
     await deleteUser(env, user.sub);
     Astro.cookies.delete(SESSION_COOKIE, { path: '/' });
     setFlash(Astro.session, {

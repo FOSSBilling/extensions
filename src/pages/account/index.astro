@@ -6,7 +6,10 @@ import {
   createApiClient,
   getApiErrorMessage,
 } from '@/lib/api/client';
-import { getDeveloperByOwner, getExtensionsByOwner } from '@/lib/database';
+import {
+  getDeveloperByOwner,
+  getExtensionsByOwner,
+} from '@/lib/extensions-data';
 import { ISSUER } from '@/lib/oauth';
 import type { DeveloperClaim, Submission } from '@/lib/api/client';
 import { CircleAlert } from '@lucide/astro';

@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 import { requireUser } from '@/lib/auth-guard';
-import { getDeveloperByOwner } from '@/lib/database';
+import { getDeveloperByOwner } from '@/lib/extensions-data';
 import { createApiClient, ApiRequestError } from '@/lib/api/client';
 import { setFlash } from '@/lib/flash';
 

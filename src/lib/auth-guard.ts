@@ -49,11 +49,11 @@ export async function requireUser(
     }
     return { ...user, account };
   } catch (error) {
-    if (
-      error instanceof ApiRequestError &&
-      error.status >= 400 &&
-      error.status < 500
-    ) {
+    // GET /users/me returns 404 only when the API has no account for this
+    // subject. Other API 4xx responses (for example rate limiting or an
+    // assertion/configuration problem) are not evidence that the local
+    // session is stale, so keep the cookie and use the retryable 503 path.
+    if (error instanceof ApiRequestError && error.status === 404) {
       context.cookies.delete(SESSION_COOKIE, { path: '/' });
       return redirectToLogin();
     }

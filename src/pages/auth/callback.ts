@@ -13,7 +13,7 @@ import {
   SESSION_MAX_AGE,
 } from '@/lib/session';
 import { upsertUser } from '@/lib/users';
-import { getDeveloperByOwner } from '@/lib/database';
+import { getDeveloperByOwner } from '@/lib/extensions-data';
 import { createApiClient } from '@/lib/api/client';
 import { setFlash } from '@/lib/flash';
 
