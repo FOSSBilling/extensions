@@ -28,16 +28,7 @@
             }
           },
           "pagination": {
-            "type": "object",
-            "properties": {
-              "next_cursor": {
-                "type": ["string", "null"]
-              },
-              "has_more": {
-                "type": "boolean"
-              }
-            },
-            "required": ["next_cursor", "has_more"]
+            "$ref": "#/components/schemas/Pagination"
           }
         },
         "required": ["result", "pagination"]
@@ -182,6 +173,18 @@
           }
         },
         "required": ["id", "type", "name", "approved", "unclaimed"]
+      },
+      "Pagination": {
+        "type": "object",
+        "properties": {
+          "next_cursor": {
+            "type": ["string", "null"]
+          },
+          "has_more": {
+            "type": "boolean"
+          }
+        },
+        "required": ["next_cursor", "has_more"]
       },
       "Error": {
         "type": "object",
@@ -509,18 +512,6 @@
           "reviewed_at"
         ]
       },
-      "Pagination": {
-        "type": "object",
-        "properties": {
-          "next_cursor": {
-            "type": ["string", "null"]
-          },
-          "has_more": {
-            "type": "boolean"
-          }
-        },
-        "required": ["next_cursor", "has_more"]
-      },
       "DeveloperClaim": {
         "type": "object",
         "properties": {
@@ -574,7 +565,8 @@
             "type": "string",
             "maxLength": 500
           }
-        }
+        },
+        "additionalProperties": false
       },
       "PendingDeveloperClaim": {
         "allOf": [
@@ -691,7 +683,8 @@
             "maxLength": 2000
           }
         },
-        "required": ["review_note"]
+        "required": ["review_note"],
+        "additionalProperties": false
       },
       "DeveloperTransfer": {
         "type": "object",
@@ -724,7 +717,8 @@
             "type": "string",
             "maxLength": 2000
           }
-        }
+        },
+        "additionalProperties": false
       },
       "DeveloperApproval": {
         "type": "object",
@@ -796,6 +790,41 @@
             "type": "null"
           }
         ]
+      },
+      "DeveloperInput": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["user", "organization"]
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "URL": {
+            "type": "string",
+            "maxLength": 2048,
+            "format": "uri"
+          },
+          "avatar_url": {
+            "type": "string",
+            "maxLength": 2048,
+            "format": "uri"
+          },
+          "contact_email": {
+            "type": "string",
+            "maxLength": 254,
+            "format": "email"
+          }
+        },
+        "required": ["id", "type", "name"],
+        "additionalProperties": false
       }
     },
     "parameters": {}
@@ -1474,6 +1503,7 @@
           {
             "schema": {
               "type": "string",
+              "minLength": 1,
               "maxLength": 1000
             },
             "required": false,
@@ -2420,6 +2450,7 @@
           {
             "schema": {
               "type": "string",
+              "minLength": 1,
               "maxLength": 1000
             },
             "required": false,
@@ -3127,7 +3158,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Developer"
+                "$ref": "#/components/schemas/DeveloperInput"
               }
             }
           }

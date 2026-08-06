@@ -50,6 +50,7 @@ export type {
   DeveloperApproval,
   DeveloperClaim,
   DeveloperHistoryEntry,
+  DeveloperInput,
   DeveloperProfile,
   DeveloperTransfer,
   Error,
