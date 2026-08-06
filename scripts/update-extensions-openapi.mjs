@@ -13,9 +13,20 @@ if (!response.ok) {
 
 const document = await response.json();
 const schemas = document?.components?.schemas;
+
+const resolveSchema = (schema) => {
+  const ref = schema?.$ref;
+  if (typeof ref !== 'string') return schema;
+  const prefix = '#/components/schemas/';
+  if (!ref.startsWith(prefix)) return schema;
+  return schemas?.[ref.slice(prefix.length)];
+};
+
+const paginationSchema = resolveSchema(
+  schemas?.ExtensionListResponse?.properties?.pagination,
+);
 const cursorSchemas = [
-  schemas?.ExtensionListResponse?.properties?.pagination?.properties
-    ?.next_cursor,
+  paginationSchema?.properties?.next_cursor,
   schemas?.Pagination?.properties?.next_cursor,
 ];
 

@@ -6,10 +6,7 @@ export type ClientOptions = {
 
 export type ExtensionListResponse = {
   result: Array<ExtensionListItem>;
-  pagination: {
-    next_cursor: string | null;
-    has_more: boolean;
-  };
+  pagination: Pagination;
 };
 
 export type ExtensionListItem = {
@@ -51,6 +48,11 @@ export type PublicDeveloper = {
   avatar_url?: string;
   approved: boolean;
   unclaimed: boolean;
+};
+
+export type Pagination = {
+  next_cursor: string | null;
+  has_more: boolean;
 };
 
 export type Error = {
@@ -150,11 +152,6 @@ export type Submission = {
   reviewed_at: string | null;
 };
 
-export type Pagination = {
-  next_cursor: string | null;
-  has_more: boolean;
-};
-
 export type DeveloperClaim = {
   id: string;
   developer_id: string;
@@ -237,6 +234,15 @@ export type OwnedDeveloperProfile =
       has_pending_transfer: boolean;
     })
   | null;
+
+export type DeveloperInput = {
+  id: string;
+  type: 'user' | 'organization';
+  name: string;
+  URL?: string;
+  avatar_url?: string;
+  contact_email?: string;
+};
 
 export type GetExtensionsMineData = {
   body?: never;
@@ -1465,7 +1471,7 @@ export type GetDevelopersMeResponse =
   GetDevelopersMeResponses[keyof GetDevelopersMeResponses];
 
 export type PutDevelopersMeData = {
-  body?: Developer;
+  body?: DeveloperInput;
   path?: never;
   query?: never;
   url: '/developers/me';
