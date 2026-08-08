@@ -3,20 +3,18 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
   createApiClient: vi.fn(),
   getDeveloperById: vi.fn(),
-  getExtensionById: vi.fn(),
 }));
 
 vi.mock('@/lib/api/client', () => ({
   createApiClient: mocks.createApiClient,
   getDeveloperById: mocks.getDeveloperById,
-  getExtensionById: mocks.getExtensionById,
 }));
 
 import {
   getDeveloperById,
   getDeveloperByOwner,
-  getExtensionForSubmission,
   getExtensionsByOwner,
+  getOwnedExtension,
 } from '@/lib/extensions-data';
 import type { ApplicationEnv } from '@/lib/runtime';
 
@@ -31,19 +29,77 @@ const env: ApplicationEnv = {
   assertionSigningSecret: 'assertion-secret',
 };
 
+const developer = {
+  id: 'developer',
+  type: 'organization' as const,
+  name: 'Example developer',
+  approved: true,
+  unclaimed: false,
+};
+
 beforeEach(() => {
   mocks.createApiClient.mockReset();
   mocks.getDeveloperById.mockReset();
-  mocks.getExtensionById.mockReset();
 });
 
 describe('API-backed extension data adapters', () => {
-  it('treats a failed detail read as a missing submission resource', async () => {
-    mocks.getExtensionById.mockRejectedValue(new Error('API unavailable'));
+  it('treats a failed or unauthorized owner detail read as a missing resource', async () => {
+    mocks.createApiClient.mockReturnValue({
+      getMyExtension: vi.fn().mockRejectedValue(new Error('API unavailable')),
+    });
 
-    await expect(getExtensionForSubmission(env, 'extension-id')).resolves.toBe(
-      null,
-    );
+    await expect(
+      getOwnedExtension(env, 'user-subject', 'extension-id'),
+    ).resolves.toBe(null);
+  });
+
+  it('splits the owner detail response into published/pendingRevision/lastReview', async () => {
+    mocks.createApiClient.mockReturnValue({
+      getMyExtension: vi.fn().mockResolvedValue({
+        id: 'extension-id',
+        developer,
+        published: {
+          type: 'mod',
+          name: 'Example',
+          description: 'desc',
+          releases: [],
+          website: 'https://example.test',
+          license: { name: 'MIT' },
+          readme: '# Example',
+          source: { type: 'github', repo: 'fossbilling/example' },
+          version: '1.0.0',
+          download_url: 'https://example.test/example.zip',
+        },
+        pending_revision: {
+          id: 'revision-1',
+          created_at: '2026-01-01T00:00:00Z',
+          content: { name: 'Example (edited)' },
+        },
+        last_review: {
+          revision_id: 'revision-0',
+          status: 'approved',
+          review_note: null,
+          reviewed_at: '2025-12-01T00:00:00Z',
+        },
+        created_at: '2025-01-01T00:00:00Z',
+        updated_at: '2026-01-01T00:00:00Z',
+      }),
+    });
+
+    const detail = await getOwnedExtension(env, 'user-subject', 'extension-id');
+
+    expect(detail?.published?.name).toBe('Example');
+    expect(detail?.pendingRevision).toEqual({
+      id: 'revision-1',
+      createdAt: '2026-01-01T00:00:00Z',
+      content: { name: 'Example (edited)' },
+    });
+    expect(detail?.lastReview).toEqual({
+      revisionId: 'revision-0',
+      status: 'approved',
+      reviewNote: null,
+      reviewedAt: '2025-12-01T00:00:00Z',
+    });
   });
 
   it('treats failed public developer reads as missing profiles', async () => {

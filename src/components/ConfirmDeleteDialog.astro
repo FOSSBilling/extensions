@@ -7,6 +7,7 @@ interface Props {
   description: string;
   confirmText: string;
   intentField?: { name: string; value: string };
+  formAction?: string;
   submitLabel?: string;
 }
 
@@ -16,6 +17,7 @@ const {
   description,
   confirmText,
   intentField,
+  formAction,
   submitLabel = 'Delete',
 } = Astro.props;
 ---
@@ -28,7 +30,7 @@ const {
   onclick="if (arguments[0].target === this) this.close()"
   onclose="this.querySelector('form').reset(); this.querySelector('[data-confirm-submit]').disabled = true;"
 >
-  <form method="POST">
+  <form method="POST" action={formAction}>
     {
       intentField && (
         <input

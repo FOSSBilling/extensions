@@ -33,8 +33,8 @@ let developer = await getDeveloperByOwner(env, user.sub);
 const isEdit = Boolean(developer);
 
 // Gates both the delete-profile action below and full account deletion
-// (/account/delete) — a developer profile with published extensions can't
-// be removed without orphaning them first.
+// (/account/delete) — a developer profile with any extensions attached,
+// published or not, can't be removed without orphaning them first.
 const extensions = isEdit ? await getExtensionsByOwner(env, user.sub) : [];
 
 // Drives whether "Generate"/"Re-generate" wording and the "Revoke" button
@@ -573,7 +573,7 @@ const fields = submitted ?? developer;
           <section class="space-y-3">
             {extensions.length > 0 ? (
               <p class="text-sm text-muted-foreground">
-                You have {extensions.length} published extension
+                You have {extensions.length} extension
                 {extensions.length === 1 ? '' : 's'} under this profile.
                 Transfer ownership or remove them before deleting it.
               </p>

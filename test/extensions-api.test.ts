@@ -20,11 +20,13 @@ import {
   getExtensionById,
   listExtensions,
   type Extension,
+  type ExtensionCreate,
   type ExtensionListItem,
   type ExtensionListResponse,
-  type SubmissionQueuePage,
-  type SubmissionPayload,
-  type SubmissionPage,
+  type ExtensionRevision,
+  type ModerationQueuePage,
+  type OwnedExtensionListResponse,
+  type RevisionHistoryPage,
 } from '@/lib/api/client';
 import { mintBearerAssertion } from '@/lib/assertion';
 import { isCatalogueCardPage } from '@/scripts/extension-catalogue';
@@ -95,14 +97,18 @@ function page(
   return { result, pagination: { next_cursor, has_more } };
 }
 
-function submissionPage(
+function ownedExtensionsPage(
   next_cursor: string | null,
   has_more: boolean,
-): SubmissionPage {
-  return {
-    result: [],
-    pagination: { next_cursor, has_more },
-  };
+): OwnedExtensionListResponse {
+  return { result: [], pagination: { next_cursor, has_more } };
+}
+
+function moderationPage(
+  next_cursor: string | null,
+  has_more: boolean,
+): ModerationQueuePage {
+  return { result: [], pagination: { next_cursor, has_more } };
 }
 
 function requestFrom(fetchMock: ReturnType<typeof vi.fn>, index = 0): Request {
@@ -205,10 +211,10 @@ describe('generated Extensions v2 façade', () => {
   it('keeps authenticated binding and HTTP transports request-compatible', async () => {
     const bindingFetch = vi
       .fn()
-      .mockResolvedValue(apiResponse(submissionPage(null, false)));
+      .mockResolvedValue(apiResponse(ownedExtensionsPage(null, false)));
     const httpFetch = vi
       .fn()
-      .mockResolvedValue(apiResponse(submissionPage(null, false)));
+      .mockResolvedValue(apiResponse(ownedExtensionsPage(null, false)));
     const options = { limit: 25, cursor: 'opaque-cursor' };
 
     await createApiClient(
@@ -220,7 +226,7 @@ describe('generated Extensions v2 façade', () => {
         },
       },
       'user-id',
-    ).listMySubmissions(options);
+    ).listMyExtensions(options);
     await createApiClient(
       {
         ...authenticatedEnv,
@@ -230,7 +236,7 @@ describe('generated Extensions v2 façade', () => {
         },
       },
       'user-id',
-    ).listMySubmissions(options);
+    ).listMyExtensions(options);
 
     const bindingRequest = requestFrom(bindingFetch);
     const httpRequest = requestFrom(httpFetch);
@@ -340,7 +346,7 @@ describe('generated Extensions v2 façade', () => {
     const fetchMock = vi
       .fn()
       .mockImplementation(() =>
-        Promise.resolve(apiResponse(submissionPage(null, false))),
+        Promise.resolve(apiResponse(ownedExtensionsPage(null, false))),
       );
     vi.stubGlobal('fetch', fetchMock);
     vi.mocked(mintBearerAssertion)
@@ -348,8 +354,8 @@ describe('generated Extensions v2 façade', () => {
       .mockResolvedValueOnce('token-two');
 
     const api = createApiClient(authenticatedEnv, 'user-sub');
-    await api.listMySubmissions({ limit: 100, cursor: 'opaque cursor' });
-    await api.listMySubmissions({ limit: 100 });
+    await api.listMyExtensions({ limit: 100, cursor: 'opaque cursor' });
+    await api.listMyExtensions({ limit: 100 });
 
     expect(mintBearerAssertion).toHaveBeenCalledTimes(2);
     expect(mintBearerAssertion).toHaveBeenNthCalledWith(
@@ -364,7 +370,7 @@ describe('generated Extensions v2 façade', () => {
       'Bearer token-two',
     );
     expect(requestUrl(fetchMock, 0).pathname).toBe(
-      '/extensions/v2/submissions/mine',
+      '/extensions/v2/extensions/mine',
     );
     expect(requestUrl(fetchMock, 0).searchParams.get('limit')).toBe('100');
     expect(requestUrl(fetchMock, 0).searchParams.get('cursor')).toBe(
@@ -393,54 +399,184 @@ describe('generated Extensions v2 façade', () => {
     expect(url.searchParams.has('developer_id')).toBe(false);
   });
 
-  it('serializes generated request bodies as well as paths and queries', async () => {
+  it('serializes a create payload with no developer field and reports the new revision', async () => {
     const payload = {
-      developer: {
-        id: 'fossbilling',
-        type: 'organization' as const,
-        name: 'FOSSBilling',
-      },
-      extension: {
-        id: 'body-extension',
-        type: 'mod' as const,
-        name: 'Body extension',
-        description: 'Submitted through the generated client.',
-        releases: [],
-        website: 'https://example.test/body-extension',
-        license: { name: 'MIT' },
-        readme: '# Body extension',
-        source: { type: 'github' as const, repo: 'fossbilling/body-extension' },
-        version: '1.0.0',
-        download_url: 'https://example.test/body-extension.zip',
-      },
-    } satisfies SubmissionPayload;
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValue(
-        apiResponse({ result: { id: 'submission-1', status: 'pending' } }, 201),
-      );
+      id: 'body-extension',
+      type: 'mod' as const,
+      name: 'Body extension',
+      description: 'Submitted through the generated client.',
+      releases: [],
+      website: 'https://example.test/body-extension',
+      license: { name: 'MIT' },
+      readme: '# Body extension',
+      source: { type: 'github' as const, repo: 'fossbilling/body-extension' },
+      version: '1.0.0',
+      download_url: 'https://example.test/body-extension.zip',
+    } satisfies ExtensionCreate;
+    const fetchMock = vi.fn().mockResolvedValue(
+      apiResponse(
+        {
+          result: {
+            id: 'body-extension',
+            revision_id: 'revision-1',
+            status: 'pending',
+          },
+        },
+        201,
+      ),
+    );
     vi.stubGlobal('fetch', fetchMock);
 
-    await createApiClient(authenticatedEnv, 'user-sub').submitExtension(
-      payload,
-    );
+    const result = await createApiClient(
+      authenticatedEnv,
+      'user-sub',
+    ).createExtension(payload);
 
     const request = requestFrom(fetchMock);
-    expect(new URL(request.url).pathname).toBe('/extensions/v2/submissions');
+    expect(new URL(request.url).pathname).toBe('/extensions/v2/extensions');
+    expect(request.method).toBe('POST');
     expect(request.headers.get('content-type')).toBe('application/json');
     expect(await request.json()).toEqual(payload);
+    expect(result).toEqual({
+      id: 'body-extension',
+      revision_id: 'revision-1',
+      status: 'pending',
+    });
   });
 
-  it('returns submission pagination and preserves moderation filters', async () => {
+  it('sends an edit as PUT and reads the 202 pending-revision result', async () => {
+    const payload = {
+      type: 'mod' as const,
+      name: 'Body extension',
+      description: 'Edited through the generated client.',
+      releases: [],
+      website: 'https://example.test/body-extension',
+      license: { name: 'MIT' },
+      readme: '# Body extension',
+      source: { type: 'github' as const, repo: 'fossbilling/body-extension' },
+      version: '1.1.0',
+      download_url: 'https://example.test/body-extension-1.1.0.zip',
+    };
+    const fetchMock = vi.fn().mockResolvedValue(
+      apiResponse(
+        {
+          result: {
+            id: 'body-extension',
+            revision_id: 'revision-2',
+            status: 'pending',
+          },
+        },
+        202,
+      ),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await createApiClient(
+      authenticatedEnv,
+      'user-sub',
+    ).updateExtension('body-extension', payload);
+
+    const request = requestFrom(fetchMock);
+    expect(new URL(request.url).pathname).toBe(
+      '/extensions/v2/extensions/body-extension',
+    );
+    expect(request.method).toBe('PUT');
+    expect(await request.json()).toEqual(payload);
+    expect(result.revision_id).toBe('revision-2');
+  });
+
+  it('withdraws an unpublished extension with DELETE', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      apiResponse({
+        result: { id: 'body-extension', deleted: true },
+      }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await createApiClient(
+      authenticatedEnv,
+      'user-sub',
+    ).withdrawExtension('body-extension');
+
+    const request = requestFrom(fetchMock);
+    expect(new URL(request.url).pathname).toBe(
+      '/extensions/v2/extensions/body-extension',
+    );
+    expect(request.method).toBe('DELETE');
+    expect(result).toEqual({ id: 'body-extension', deleted: true });
+  });
+
+  it('lists an extension revision history by id, oldest params preserved', async () => {
+    const historyPage: RevisionHistoryPage = {
+      result: [],
+      pagination: { next_cursor: 'history-2', has_more: true },
+    };
+    const fetchMock = vi.fn().mockResolvedValue(apiResponse(historyPage));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await createApiClient(
+      authenticatedEnv,
+      'user-sub',
+    ).listExtensionRevisions('body-extension', {
+      limit: 25,
+      cursor: 'history-cursor',
+    });
+
+    const url = requestUrl(fetchMock);
+    expect(url.pathname).toBe(
+      '/extensions/v2/extensions/body-extension/revisions',
+    );
+    expect(url.searchParams.get('limit')).toBe('25');
+    expect(url.searchParams.get('cursor')).toBe('history-cursor');
+    expect(response.pagination).toEqual(historyPage.pagination);
+  });
+
+  it('approves and rejects a revision by extension id + revision id', async () => {
+    const approveFetch = vi
+      .fn()
+      .mockResolvedValue(
+        apiResponse({ result: { id: 'r-1', status: 'approved' } }),
+      );
+    vi.stubGlobal('fetch', approveFetch);
+    await createApiClient(authenticatedEnv, 'moderator-sub').approveRevision(
+      'body-extension',
+      'r-1',
+      'looks good',
+    );
+    const approveRequest = requestFrom(approveFetch);
+    expect(new URL(approveRequest.url).pathname).toBe(
+      '/extensions/v2/extensions/body-extension/revisions/r-1/approve',
+    );
+    expect(await approveRequest.json()).toEqual({ review_note: 'looks good' });
+
+    const rejectFetch = vi
+      .fn()
+      .mockResolvedValue(
+        apiResponse({ result: { id: 'r-2', status: 'rejected' } }),
+      );
+    vi.stubGlobal('fetch', rejectFetch);
+    await createApiClient(authenticatedEnv, 'moderator-sub').rejectRevision(
+      'body-extension',
+      'r-2',
+      'needs work',
+    );
+    const rejectRequest = requestFrom(rejectFetch);
+    expect(new URL(rejectRequest.url).pathname).toBe(
+      '/extensions/v2/extensions/body-extension/revisions/r-2/reject',
+    );
+    expect(await rejectRequest.json()).toEqual({ review_note: 'needs work' });
+  });
+
+  it('returns moderation queue pagination and preserves status/cursor filters', async () => {
     const fetchMock = vi
       .fn()
-      .mockResolvedValue(apiResponse(submissionPage('next-page', true)));
+      .mockResolvedValue(apiResponse(moderationPage('next-page', true)));
     vi.stubGlobal('fetch', fetchMock);
 
     const response = await createApiClient(
       authenticatedEnv,
       'moderator-sub',
-    ).listQueue('approved', { limit: 100, cursor: 'queue-cursor' });
+    ).listModerationQueue('approved', { limit: 100, cursor: 'queue-cursor' });
 
     expect(response.pagination).toEqual({
       next_cursor: 'next-page',
@@ -521,14 +657,29 @@ describe('generated Extensions v2 façade', () => {
     >().toEqualTypeOf<true>();
   });
 
+  it('keeps every revision content field optional, unlike published Extension content', () => {
+    expectTypeOf<
+      undefined extends ExtensionRevision['content']['name'] ? true : false
+    >().toEqualTypeOf<true>();
+    expectTypeOf<
+      undefined extends ExtensionRevision['content']['readme'] ? true : false
+    >().toEqualTypeOf<true>();
+    expectTypeOf<
+      undefined extends Extension['name'] ? true : false
+    >().toEqualTypeOf<false>();
+    expectTypeOf<
+      undefined extends Extension['readme'] ? true : false
+    >().toEqualTypeOf<false>();
+  });
+
   it('keeps façade pagination and payload types tied to generated responses', () => {
-    expectTypeOf<SubmissionPage['pagination']>().toEqualTypeOf<{
+    expectTypeOf<ModerationQueuePage['pagination']>().toEqualTypeOf<{
       next_cursor: string | null;
       has_more: boolean;
     }>();
     expectTypeOf<
-      ReturnType<ReturnType<typeof createApiClient>['listQueue']>
-    >().resolves.toEqualTypeOf<SubmissionQueuePage>();
+      ReturnType<ReturnType<typeof createApiClient>['listModerationQueue']>
+    >().resolves.toEqualTypeOf<ModerationQueuePage>();
   });
 });
 

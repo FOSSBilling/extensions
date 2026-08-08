@@ -4,30 +4,46 @@ export type ClientOptions = {
   baseUrl: `${string}://${string}/extensions/v2` | (string & {});
 };
 
-export type ExtensionListResponse = {
-  result: Array<ExtensionListItem>;
+export type OwnedExtensionListResponse = {
+  result: Array<OwnedExtensionListItem>;
   pagination: Pagination;
 };
 
-export type ExtensionListItem = {
+export type OwnedExtensionListItem = {
   id: string;
-  type:
-    | 'mod'
-    | 'theme'
-    | 'payment-gateway'
-    | 'server-manager'
-    | 'domain-registrar'
-    | 'hook'
-    | 'translation';
-  name: string;
-  description: string;
-  website: string;
-  license: License;
-  icon_url?: string;
-  source: Repository;
-  version: string;
-  download_url: string;
   developer: PublicDeveloper;
+  published: {
+    type:
+      | 'mod'
+      | 'theme'
+      | 'payment-gateway'
+      | 'server-manager'
+      | 'domain-registrar'
+      | 'hook'
+      | 'translation';
+    name: string;
+    description: string;
+    website: string;
+    license: License;
+    icon_url?: string;
+    source: Repository;
+    version: string;
+    download_url: string;
+  } | null;
+  pending_revision: PendingRevisionRef;
+  last_review: RevisionReview;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PublicDeveloper = {
+  id: string;
+  type: 'user' | 'organization';
+  name: string;
+  URL?: string;
+  avatar_url?: string;
+  approved: boolean;
+  unclaimed: boolean;
 };
 
 export type License = {
@@ -40,15 +56,17 @@ export type Repository = {
   repo: string;
 };
 
-export type PublicDeveloper = {
+export type PendingRevisionRef = {
   id: string;
-  type: 'user' | 'organization';
-  name: string;
-  URL?: string;
-  avatar_url?: string;
-  approved: boolean;
-  unclaimed: boolean;
-};
+  created_at: string;
+} | null;
+
+export type RevisionReview = {
+  revision_id: string;
+  status: 'approved' | 'rejected';
+  review_note: string | null;
+  reviewed_at: string | null;
+} | null;
 
 export type Pagination = {
   next_cursor: string | null;
@@ -72,8 +90,15 @@ export type Error = {
   };
 };
 
-export type Extension = ExtensionPayload & {
-  developer: PublicDeveloper;
+export type OwnedExtension = OwnedExtensionListItem & {
+  published?: ExtensionContent &
+    ({
+      releases?: Array<Release>;
+    } | null);
+  pending_revision?: PendingRevisionRef &
+    ({
+      content: StoredExtensionContent;
+    } | null);
 };
 
 export type Release = {
@@ -84,8 +109,7 @@ export type Release = {
   min_fossbilling_version: string;
 };
 
-export type ExtensionPayload = {
-  id: string;
+export type ExtensionContent = {
   type:
     | 'mod'
     | 'theme'
@@ -104,6 +128,114 @@ export type ExtensionPayload = {
   source: Repository;
   version: string;
   download_url: string;
+};
+
+export type StoredExtensionContent = {
+  type?:
+    | 'mod'
+    | 'theme'
+    | 'payment-gateway'
+    | 'server-manager'
+    | 'domain-registrar'
+    | 'hook'
+    | 'translation';
+  name?: string;
+  description?: string;
+  releases?: Array<Release>;
+  website?: string;
+  license?: License;
+  icon_url?: string;
+  readme?: string;
+  source?: Repository;
+  version?: string;
+  download_url?: string;
+};
+
+export type ExtensionCreate = {
+  type:
+    | 'mod'
+    | 'theme'
+    | 'payment-gateway'
+    | 'server-manager'
+    | 'domain-registrar'
+    | 'hook'
+    | 'translation';
+  name: string;
+  description: string;
+  releases: Array<Release>;
+  website: string;
+  license: License;
+  icon_url?: string;
+  readme: string;
+  source: Repository;
+  version: string;
+  download_url: string;
+  id: string;
+};
+
+export type ExtensionUpdate = {
+  type:
+    | 'mod'
+    | 'theme'
+    | 'payment-gateway'
+    | 'server-manager'
+    | 'domain-registrar'
+    | 'hook'
+    | 'translation';
+  name: string;
+  description: string;
+  releases: Array<Release>;
+  website: string;
+  license: License;
+  icon_url?: string;
+  readme: string;
+  source: Repository;
+  version: string;
+  download_url: string;
+};
+
+export type ExtensionRevision = {
+  id: string;
+  extension_id: string;
+  developer_id: string;
+  submitted_by: string;
+  status: 'pending' | 'approved' | 'rejected';
+  content: StoredExtensionContent;
+  reviewer_id: string | null;
+  review_note: string | null;
+  created_at: string;
+  reviewed_at: string | null;
+};
+
+export type ExtensionListResponse = {
+  result: Array<ExtensionListItem>;
+  pagination: Pagination;
+};
+
+export type ExtensionListItem = {
+  type:
+    | 'mod'
+    | 'theme'
+    | 'payment-gateway'
+    | 'server-manager'
+    | 'domain-registrar'
+    | 'hook'
+    | 'translation';
+  name: string;
+  description: string;
+  website: string;
+  license: License;
+  icon_url?: string;
+  source: Repository;
+  version: string;
+  download_url: string;
+  id: string;
+  developer: PublicDeveloper;
+};
+
+export type Extension = ExtensionContent & {
+  id: string;
+  developer: PublicDeveloper;
 };
 
 export type User = {
@@ -125,31 +257,6 @@ export type UserIdentityInput = {
 
 export type UserProfileUpdate = {
   display_name: string | null;
-};
-
-export type SubmissionPayload = {
-  developer: SubmissionDeveloper;
-  extension: ExtensionPayload;
-};
-
-export type SubmissionDeveloper = {
-  id: string;
-  type: 'user' | 'organization';
-  name: string;
-  URL?: string;
-};
-
-export type Submission = {
-  id: string;
-  extension_id: string | null;
-  developer_id: string;
-  submitted_by: string;
-  status: 'pending' | 'approved' | 'rejected';
-  payload: SubmissionPayload;
-  reviewer_id: string | null;
-  review_note: string | null;
-  created_at: string;
-  reviewed_at: string | null;
 };
 
 export type DeveloperClaim = {
@@ -289,13 +396,60 @@ export type GetExtensionsMineError =
 
 export type GetExtensionsMineResponses = {
   /**
-   * The caller's published extensions
+   * Every extension under the caller's developer profile, each with its live content, any unreviewed edit, and the last moderator decision
    */
-  200: ExtensionListResponse;
+  200: OwnedExtensionListResponse;
 };
 
 export type GetExtensionsMineResponse =
   GetExtensionsMineResponses[keyof GetExtensionsMineResponses];
+
+export type GetExtensionsMineByIdData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/extensions/mine/{id}';
+};
+
+export type GetExtensionsMineByIdErrors = {
+  /**
+   * Missing or invalid bearer token
+   */
+  401: Error;
+  /**
+   * The account is inactive, or the caller does not own this extension
+   */
+  403: Error;
+  /**
+   * No extension with that id
+   */
+  404: Error;
+  /**
+   * id param failed validation
+   */
+  422: Error;
+  /**
+   * Database error
+   */
+  500: Error;
+};
+
+export type GetExtensionsMineByIdError =
+  GetExtensionsMineByIdErrors[keyof GetExtensionsMineByIdErrors];
+
+export type GetExtensionsMineByIdResponses = {
+  /**
+   * The extension's live content, its unreviewed edit if any, and the last moderator decision
+   */
+  200: {
+    result: OwnedExtension;
+  };
+};
+
+export type GetExtensionsMineByIdResponse =
+  GetExtensionsMineByIdResponses[keyof GetExtensionsMineByIdResponses];
 
 export type GetExtensionsData = {
   body?: never;
@@ -342,6 +496,105 @@ export type GetExtensionsResponses = {
 export type GetExtensionsResponse =
   GetExtensionsResponses[keyof GetExtensionsResponses];
 
+export type PostExtensionsData = {
+  body?: ExtensionCreate;
+  path?: never;
+  query?: never;
+  url: '/extensions';
+};
+
+export type PostExtensionsErrors = {
+  /**
+   * Missing or invalid bearer token
+   */
+  401: Error;
+  /**
+   * The account is inactive, or the caller has no developer profile to publish under
+   */
+  403: Error;
+  /**
+   * The id is taken, ownership changed, or the pending-revision limit was reached
+   */
+  409: Error;
+  /**
+   * Body failed validation
+   */
+  422: Error;
+  /**
+   * Database error
+   */
+  500: Error;
+};
+
+export type PostExtensionsError =
+  PostExtensionsErrors[keyof PostExtensionsErrors];
+
+export type PostExtensionsResponses = {
+  /**
+   * Extension created. It holds the id immediately but stays out of the public catalogue until a moderator approves the revision.
+   */
+  201: {
+    result: {
+      id: string;
+      revision_id: string;
+      status: 'pending';
+    };
+  };
+};
+
+export type PostExtensionsResponse =
+  PostExtensionsResponses[keyof PostExtensionsResponses];
+
+export type DeleteExtensionsByIdData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/extensions/{id}';
+};
+
+export type DeleteExtensionsByIdErrors = {
+  /**
+   * Missing or invalid bearer token
+   */
+  401: Error;
+  /**
+   * The account is inactive, or the caller does not own this extension
+   */
+  403: Error;
+  /**
+   * No extension with that id
+   */
+  404: Error;
+  /**
+   * The extension is published and cannot be withdrawn
+   */
+  409: Error;
+  /**
+   * Database error
+   */
+  500: Error;
+};
+
+export type DeleteExtensionsByIdError =
+  DeleteExtensionsByIdErrors[keyof DeleteExtensionsByIdErrors];
+
+export type DeleteExtensionsByIdResponses = {
+  /**
+   * Extension and its revisions deleted, and the id released
+   */
+  200: {
+    result: {
+      id: string;
+      deleted: true;
+    };
+  };
+};
+
+export type DeleteExtensionsByIdResponse =
+  DeleteExtensionsByIdResponses[keyof DeleteExtensionsByIdResponses];
+
 export type GetExtensionsByIdData = {
   body?: never;
   path: {
@@ -380,6 +633,112 @@ export type GetExtensionsByIdResponses = {
 
 export type GetExtensionsByIdResponse =
   GetExtensionsByIdResponses[keyof GetExtensionsByIdResponses];
+
+export type PutExtensionsByIdData = {
+  body?: ExtensionUpdate;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/extensions/{id}';
+};
+
+export type PutExtensionsByIdErrors = {
+  /**
+   * Missing or invalid bearer token
+   */
+  401: Error;
+  /**
+   * The account is inactive, or the caller does not own this extension
+   */
+  403: Error;
+  /**
+   * No extension with that id
+   */
+  404: Error;
+  /**
+   * An edit is already awaiting review, or the pending-revision limit was reached
+   */
+  409: Error;
+  /**
+   * Body failed validation
+   */
+  422: Error;
+  /**
+   * Database error
+   */
+  500: Error;
+};
+
+export type PutExtensionsByIdError =
+  PutExtensionsByIdErrors[keyof PutExtensionsByIdErrors];
+
+export type PutExtensionsByIdResponses = {
+  /**
+   * Edit accepted as a pending revision. The published content is unchanged until a moderator approves it.
+   */
+  202: {
+    result: {
+      id: string;
+      revision_id: string;
+      status: 'pending';
+    };
+  };
+};
+
+export type PutExtensionsByIdResponse =
+  PutExtensionsByIdResponses[keyof PutExtensionsByIdResponses];
+
+export type GetExtensionsByIdRevisionsData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: {
+    limit?: number;
+    cursor?: string;
+  };
+  url: '/extensions/{id}/revisions';
+};
+
+export type GetExtensionsByIdRevisionsErrors = {
+  /**
+   * Missing or invalid bearer token
+   */
+  401: Error;
+  /**
+   * The account is inactive, or the caller neither owns this extension nor moderates
+   */
+  403: Error;
+  /**
+   * No extension with that id
+   */
+  404: Error;
+  /**
+   * Pagination query failed validation
+   */
+  422: Error;
+  /**
+   * Database error
+   */
+  500: Error;
+};
+
+export type GetExtensionsByIdRevisionsError =
+  GetExtensionsByIdRevisionsErrors[keyof GetExtensionsByIdRevisionsErrors];
+
+export type GetExtensionsByIdRevisionsResponses = {
+  /**
+   * Every version proposed for this extension, with its review outcome
+   */
+  200: {
+    result: Array<ExtensionRevision>;
+    pagination: Pagination;
+  };
+};
+
+export type GetExtensionsByIdRevisionsResponse =
+  GetExtensionsByIdRevisionsResponses[keyof GetExtensionsByIdRevisionsResponses];
 
 export type PutUsersMeIdentityData = {
   body?: UserIdentityInput;
@@ -540,99 +899,6 @@ export type PatchUsersMeResponses = {
 
 export type PatchUsersMeResponse =
   PatchUsersMeResponses[keyof PatchUsersMeResponses];
-
-export type PostSubmissionsData = {
-  body?: SubmissionPayload;
-  path?: never;
-  query?: never;
-  url: '/submissions';
-};
-
-export type PostSubmissionsErrors = {
-  /**
-   * Missing or invalid bearer token
-   */
-  401: Error;
-  /**
-   * The account is inactive, or the caller does not own the target developer or extension
-   */
-  403: Error;
-  /**
-   * Ownership or target changed, a duplicate is pending, or the pending limit was reached
-   */
-  409: Error;
-  /**
-   * Payload failed validation
-   */
-  422: Error;
-  /**
-   * Database error
-   */
-  500: Error;
-};
-
-export type PostSubmissionsError =
-  PostSubmissionsErrors[keyof PostSubmissionsErrors];
-
-export type PostSubmissionsResponses = {
-  /**
-   * Submission created and pending moderator review
-   */
-  201: {
-    result: {
-      id: string;
-      status: 'pending';
-    };
-  };
-};
-
-export type PostSubmissionsResponse =
-  PostSubmissionsResponses[keyof PostSubmissionsResponses];
-
-export type GetSubmissionsMineData = {
-  body?: never;
-  path?: never;
-  query?: {
-    limit?: number;
-    cursor?: string;
-  };
-  url: '/submissions/mine';
-};
-
-export type GetSubmissionsMineErrors = {
-  /**
-   * Missing or invalid bearer token
-   */
-  401: Error;
-  /**
-   * The bearer is valid but the account is inactive
-   */
-  403: Error;
-  /**
-   * Pagination query failed validation
-   */
-  422: Error;
-  /**
-   * Database error
-   */
-  500: Error;
-};
-
-export type GetSubmissionsMineError =
-  GetSubmissionsMineErrors[keyof GetSubmissionsMineErrors];
-
-export type GetSubmissionsMineResponses = {
-  /**
-   * The caller's submissions
-   */
-  200: {
-    result: Array<Submission>;
-    pagination: Pagination;
-  };
-};
-
-export type GetSubmissionsMineResponse =
-  GetSubmissionsMineResponses[keyof GetSubmissionsMineResponses];
 
 export type PostDevelopersByIdClaimData = {
   body?: ClaimNote;
@@ -1061,7 +1327,7 @@ export type PostDevelopersTransfersAcceptResponses = {
 export type PostDevelopersTransfersAcceptResponse =
   PostDevelopersTransfersAcceptResponses[keyof PostDevelopersTransfersAcceptResponses];
 
-export type GetSubmissionsQueueData = {
+export type GetModerationExtensionsData = {
   body?: never;
   path?: never;
   query?: {
@@ -1069,10 +1335,10 @@ export type GetSubmissionsQueueData = {
     limit?: number;
     cursor?: string;
   };
-  url: '/submissions/queue';
+  url: '/moderation/extensions';
 };
 
-export type GetSubmissionsQueueErrors = {
+export type GetModerationExtensionsErrors = {
   /**
    * Missing or invalid bearer token
    */
@@ -1091,32 +1357,33 @@ export type GetSubmissionsQueueErrors = {
   500: Error;
 };
 
-export type GetSubmissionsQueueError =
-  GetSubmissionsQueueErrors[keyof GetSubmissionsQueueErrors];
+export type GetModerationExtensionsError =
+  GetModerationExtensionsErrors[keyof GetModerationExtensionsErrors];
 
-export type GetSubmissionsQueueResponses = {
+export type GetModerationExtensionsResponses = {
   /**
-   * Submissions matching the requested status (default: pending)
+   * Revisions matching the requested status (default: pending), oldest first
    */
   200: {
-    result: Array<Submission>;
+    result: Array<ExtensionRevision>;
     pagination: Pagination;
   };
 };
 
-export type GetSubmissionsQueueResponse =
-  GetSubmissionsQueueResponses[keyof GetSubmissionsQueueResponses];
+export type GetModerationExtensionsResponse =
+  GetModerationExtensionsResponses[keyof GetModerationExtensionsResponses];
 
-export type PostSubmissionsByIdApproveData = {
+export type PostExtensionsByIdRevisionsByRevisionIdApproveData = {
   body?: ReviewNoteOptional;
   path: {
     id: string;
+    revisionId: string;
   };
   query?: never;
-  url: '/submissions/{id}/approve';
+  url: '/extensions/{id}/revisions/{revisionId}/approve';
 };
 
-export type PostSubmissionsByIdApproveErrors = {
+export type PostExtensionsByIdRevisionsByRevisionIdApproveErrors = {
   /**
    * Missing or invalid bearer token
    */
@@ -1126,15 +1393,15 @@ export type PostSubmissionsByIdApproveErrors = {
    */
   403: Error;
   /**
-   * No submission with that id
+   * No such revision on that extension
    */
   404: Error;
   /**
-   * Submission is not pending, or ownership has changed since it was submitted
+   * Revision is not pending, or ownership has changed since it was proposed
    */
   409: Error;
   /**
-   * id param or review_note body failed validation
+   * Path params or review_note body failed validation
    */
   422: Error;
   /**
@@ -1143,12 +1410,12 @@ export type PostSubmissionsByIdApproveErrors = {
   500: Error;
 };
 
-export type PostSubmissionsByIdApproveError =
-  PostSubmissionsByIdApproveErrors[keyof PostSubmissionsByIdApproveErrors];
+export type PostExtensionsByIdRevisionsByRevisionIdApproveError =
+  PostExtensionsByIdRevisionsByRevisionIdApproveErrors[keyof PostExtensionsByIdRevisionsByRevisionIdApproveErrors];
 
-export type PostSubmissionsByIdApproveResponses = {
+export type PostExtensionsByIdRevisionsByRevisionIdApproveResponses = {
   /**
-   * Submission approved and written through to the live extension/developer
+   * Revision approved and published as the extension's live content
    */
   200: {
     result: {
@@ -1158,19 +1425,20 @@ export type PostSubmissionsByIdApproveResponses = {
   };
 };
 
-export type PostSubmissionsByIdApproveResponse =
-  PostSubmissionsByIdApproveResponses[keyof PostSubmissionsByIdApproveResponses];
+export type PostExtensionsByIdRevisionsByRevisionIdApproveResponse =
+  PostExtensionsByIdRevisionsByRevisionIdApproveResponses[keyof PostExtensionsByIdRevisionsByRevisionIdApproveResponses];
 
-export type PostSubmissionsByIdRejectData = {
+export type PostExtensionsByIdRevisionsByRevisionIdRejectData = {
   body?: ReviewNoteRequired;
   path: {
     id: string;
+    revisionId: string;
   };
   query?: never;
-  url: '/submissions/{id}/reject';
+  url: '/extensions/{id}/revisions/{revisionId}/reject';
 };
 
-export type PostSubmissionsByIdRejectErrors = {
+export type PostExtensionsByIdRevisionsByRevisionIdRejectErrors = {
   /**
    * Missing or invalid bearer token
    */
@@ -1180,11 +1448,11 @@ export type PostSubmissionsByIdRejectErrors = {
    */
   403: Error;
   /**
-   * No submission with that id
+   * No such revision on that extension
    */
   404: Error;
   /**
-   * Submission is not pending
+   * Revision is not pending
    */
   409: Error;
   /**
@@ -1197,12 +1465,12 @@ export type PostSubmissionsByIdRejectErrors = {
   500: Error;
 };
 
-export type PostSubmissionsByIdRejectError =
-  PostSubmissionsByIdRejectErrors[keyof PostSubmissionsByIdRejectErrors];
+export type PostExtensionsByIdRevisionsByRevisionIdRejectError =
+  PostExtensionsByIdRevisionsByRevisionIdRejectErrors[keyof PostExtensionsByIdRevisionsByRevisionIdRejectErrors];
 
-export type PostSubmissionsByIdRejectResponses = {
+export type PostExtensionsByIdRevisionsByRevisionIdRejectResponses = {
   /**
-   * Submission rejected
+   * Revision rejected. The extension's published content is unchanged.
    */
   200: {
     result: {
@@ -1212,8 +1480,8 @@ export type PostSubmissionsByIdRejectResponses = {
   };
 };
 
-export type PostSubmissionsByIdRejectResponse =
-  PostSubmissionsByIdRejectResponses[keyof PostSubmissionsByIdRejectResponses];
+export type PostExtensionsByIdRevisionsByRevisionIdRejectResponse =
+  PostExtensionsByIdRevisionsByRevisionIdRejectResponses[keyof PostExtensionsByIdRevisionsByRevisionIdRejectResponses];
 
 export type GetDevelopersData = {
   body?: never;
@@ -1406,7 +1674,7 @@ export type DeleteDevelopersMeErrors = {
    */
   404: Error;
   /**
-   * Profile still has published extensions, or has a pending submission awaiting review
+   * Profile still has extensions attached, published or not
    */
   409: Error;
   /**

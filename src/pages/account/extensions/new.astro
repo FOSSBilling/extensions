@@ -1,13 +1,13 @@
 ---
 import Base from '../../../layouts/Base.astro';
-import ExtensionSubmissionForm from '@/components/ExtensionSubmissionForm.astro';
+import ExtensionForm from '@/components/ExtensionForm.astro';
 import { requireUser } from '@/lib/auth-guard';
 import { createApiClient, ApiRequestError } from '@/lib/api/client';
 import { getDeveloperByOwner } from '@/lib/extensions-data';
 import {
-  buildSubmissionPayload,
-  SubmissionValidationError,
-} from '@/lib/submission-form';
+  buildExtensionCreatePayload,
+  ExtensionValidationError,
+} from '@/lib/extension-form';
 import { setFlash } from '@/lib/flash';
 
 const env = Astro.locals.env;
@@ -26,13 +26,13 @@ if (Astro.request.method === 'POST') {
   const form = await Astro.request.formData();
   const api = createApiClient(env, user.sub);
   try {
-    const payload = buildSubmissionPayload(form, developer);
-    await api.submitExtension(payload);
+    const payload = buildExtensionCreatePayload(form);
+    await api.createExtension(payload);
     setFlash(Astro.session, { title: 'Submitted for Review.' });
     return Astro.redirect('/account');
   } catch (e) {
     error =
-      e instanceof ApiRequestError || e instanceof SubmissionValidationError
+      e instanceof ApiRequestError || e instanceof ExtensionValidationError
         ? e.message
         : 'Something went wrong submitting your extension. Please try again.';
   }
@@ -46,6 +46,6 @@ if (Astro.request.method === 'POST') {
       Submissions are reviewed by a moderator before appearing in the public
       directory.
     </p>
-    <ExtensionSubmissionForm developer={developer} error={error} />
+    <ExtensionForm developer={developer} error={error} />
   </div>
 </Base>

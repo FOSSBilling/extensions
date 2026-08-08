@@ -9,17 +9,15 @@ export const POST: APIRoute = async (context) => {
   if (guard instanceof Response) return guard;
   const user = guard;
 
-  const { id } = context.params;
-  if (!id) return context.redirect('/account/moderate');
+  const { id, revisionId } = context.params;
+  if (!id || !revisionId) return context.redirect('/account/moderate');
 
   const api = createApiClient(env, user.sub);
   try {
-    await api.approveSubmission(id);
+    await api.approveRevision(id, revisionId);
   } catch (e) {
     const message =
-      e instanceof ApiRequestError
-        ? e.message
-        : 'Unable to approve submission.';
+      e instanceof ApiRequestError ? e.message : 'Unable to approve revision.';
     setFlash(context.session, { category: 'error', title: message });
   }
 

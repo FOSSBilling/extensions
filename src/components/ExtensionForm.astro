@@ -12,6 +12,10 @@ interface Props {
 
 const { developer, extension, error } = Astro.props;
 const isEdit = Boolean(extension);
+// A release is required, same as a brand new extension, whenever there's
+// nothing already published to carry through — an extension can reach this
+// form with no releases yet (rejected and never resubmitted).
+const requireRelease = !isEdit || extension!.releases.length === 0;
 ---
 
 {
@@ -250,38 +254,43 @@ const isEdit = Boolean(extension);
 
         <fieldset class="fieldset space-y-4">
           <legend>
-            {isEdit ? 'Add a new release (optional)' : 'Initial release'}
+            {
+              requireRelease
+                ? 'Initial release'
+                : 'Add a new release (optional)'
+            }
           </legend>
           <div class="field">
             <label for="version_tag">
-              Version Tag {!isEdit && <span class="text-destructive">*</span>}
+              Version Tag{' '}
+              {requireRelease && <span class="text-destructive">*</span>}
             </label>
             <input
               class="input"
               type="text"
               id="version_tag"
               name="version_tag"
-              required={!isEdit}
+              required={requireRelease}
               placeholder="1.0.0"
             />
           </div>
           <div class="field">
             <label for="release_date">
               Release Date{' '}
-              {!isEdit && <span class="text-destructive">*</span>}
+              {requireRelease && <span class="text-destructive">*</span>}
             </label>
             <input
               class="input"
               type="date"
               id="release_date"
               name="release_date"
-              required={!isEdit}
+              required={requireRelease}
             />
           </div>
           <div class="field">
             <label for="download_url">
               Download URL{' '}
-              {!isEdit && <span class="text-destructive">*</span>}
+              {requireRelease && <span class="text-destructive">*</span>}
             </label>
             <div class="input-group">
               <span data-align="start" class="text-muted-foreground">
@@ -291,7 +300,7 @@ const isEdit = Boolean(extension);
                 type="text"
                 id="download_url"
                 name="download_url"
-                required={!isEdit}
+                required={requireRelease}
               />
             </div>
           </div>
@@ -312,14 +321,14 @@ const isEdit = Boolean(extension);
           <div class="field">
             <label for="min_fossbilling_version">
               Minimum FOSSBilling Version{' '}
-              {!isEdit && <span class="text-destructive">*</span>}
+              {requireRelease && <span class="text-destructive">*</span>}
             </label>
             <input
               class="input"
               type="text"
               id="min_fossbilling_version"
               name="min_fossbilling_version"
-              required={!isEdit}
+              required={requireRelease}
               placeholder="1.0.0"
             />
           </div>
