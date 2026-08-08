@@ -33,6 +33,21 @@ function buildContent(
     );
   }
   if (newReleaseTag) {
+    // The api stores at most 100 releases, and doesn't itself reject a tag
+    // collision — since it replaces the whole array verbatim on approval, a
+    // collision would silently duplicate the entry. Catch both here instead
+    // of only one of them surfacing as a 422 from the api.
+    if (releases.some((r) => r.tag === newReleaseTag)) {
+      throw new ExtensionValidationError(
+        `A release tagged "${newReleaseTag}" already exists — use a different version tag.`,
+      );
+    }
+    if (releases.length >= 100) {
+      throw new ExtensionValidationError(
+        'This extension already has the maximum of 100 releases.',
+      );
+    }
+
     const releaseDate = str('release_date');
     const releaseDownloadUrl = withHttpsScheme(str('download_url'));
     const minVersion = str('min_fossbilling_version');

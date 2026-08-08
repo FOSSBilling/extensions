@@ -1,6 +1,7 @@
 ---
 import Base from '../../../../layouts/Base.astro';
 import ExtensionForm from '@/components/ExtensionForm.astro';
+import ConfirmDeleteDialog from '@/components/ConfirmDeleteDialog.astro';
 import { requireUser } from '@/lib/auth-guard';
 import { createApiClient, ApiRequestError } from '@/lib/api/client';
 import { getOwnedExtension } from '@/lib/extensions-data';
@@ -122,6 +123,40 @@ const title = base.name || owned.id;
             error={error}
           />
         </Fragment>
+      )
+    }
+
+    {
+      !owned.published && (
+        <div class="card">
+          <header>
+            <h2 class="font-semibold text-destructive">Withdraw Extension</h2>
+          </header>
+          <section class="space-y-3">
+            <p class="text-sm text-muted-foreground">
+              This extension has never been published, so it can still be
+              withdrawn. Permanently deletes it and its revision history, and
+              releases its id. This can't be undone.
+            </p>
+            <button
+              type="button"
+              class="btn"
+              data-size="sm"
+              data-variant="outline"
+              onclick="document.getElementById('withdraw-extension').showModal()"
+            >
+              Withdraw Extension
+            </button>
+            <ConfirmDeleteDialog
+              id="withdraw-extension"
+              title="Withdraw extension"
+              description="Permanently deletes this extension and its revision history, and releases its id for someone else to use. This can't be undone."
+              confirmText={owned.id}
+              formAction={`/account/extensions/${owned.id}/withdraw`}
+              submitLabel="Withdraw Extension"
+            />
+          </section>
+        </div>
       )
     }
   </div>

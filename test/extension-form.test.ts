@@ -129,4 +129,28 @@ describe('buildExtensionUpdatePayload', () => {
       ExtensionValidationError,
     );
   });
+
+  it('rejects a version_tag that duplicates an existing release instead of appending a second copy', () => {
+    const form = extensionForm({ version_tag: '0.9.0' });
+
+    expect(() => buildExtensionUpdatePayload(form, publishedExtension)).toThrow(
+      ExtensionValidationError,
+    );
+  });
+
+  it('rejects a new release once the extension already has 100', () => {
+    const atLimit: Extension = {
+      ...publishedExtension,
+      releases: Array.from({ length: 100 }, (_, i) => ({
+        tag: `0.${i}.0`,
+        date: '2025-01-01',
+        download_url: `https://example.test/example-0.${i}.0.zip`,
+        min_fossbilling_version: '0.5.0',
+      })),
+    };
+
+    expect(() => buildExtensionUpdatePayload(extensionForm(), atLimit)).toThrow(
+      ExtensionValidationError,
+    );
+  });
 });

@@ -328,9 +328,16 @@ const reconnectUrl = `${ISSUER}/account?callbackURL=${encodeURIComponent(
           ) : (
             <ul class="divide-y divide-border">
               {ownedExtensions.map((ext) => {
-                const rejected =
+                // last_review is just the most recent decision on an edit,
+                // independent of whether the original content is still live
+                // — a rejected edit doesn't take the extension down, so only
+                // "rejected with nothing ever published" gets the destructive
+                // treatment. Otherwise it's the older content still serving,
+                // with just the latest edit attempt rejected.
+                const rejectedEdit =
                   !ext.pending_revision &&
                   ext.last_review?.status === 'rejected';
+                const rejectedNeverPublished = rejectedEdit && !ext.published;
                 return (
                   <li class="py-3 flex items-center justify-between gap-3">
                     <div>
@@ -338,8 +345,10 @@ const reconnectUrl = `${ISSUER}/account?callbackURL=${encodeURIComponent(
                       <p class="text-sm text-muted-foreground">
                         {ext.published ? `v${ext.published.version}` : ext.id}
                       </p>
-                      {rejected && ext.last_review?.review_note && (
-                        <p class="text-sm text-destructive mt-1">
+                      {rejectedEdit && ext.last_review?.review_note && (
+                        <p
+                          class={`text-sm mt-1 ${rejectedNeverPublished ? 'text-destructive' : 'text-muted-foreground'}`}
+                        >
                           {ext.last_review.review_note}
                         </p>
                       )}
@@ -349,9 +358,13 @@ const reconnectUrl = `${ISSUER}/account?callbackURL=${encodeURIComponent(
                         <span class="badge" data-variant="secondary">
                           Awaiting review
                         </span>
-                      ) : rejected ? (
+                      ) : rejectedNeverPublished ? (
                         <span class="badge" data-variant="destructive">
                           Rejected
+                        </span>
+                      ) : rejectedEdit ? (
+                        <span class="badge" data-variant="secondary">
+                          Edit rejected
                         </span>
                       ) : null}
                       {ext.published && (
