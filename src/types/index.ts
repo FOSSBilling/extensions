@@ -1,5 +1,12 @@
 import gt from 'semver/functions/gt.js';
 import lt from 'semver/functions/lt.js';
+import SPDX_LICENSE_IDS from 'spdx-license-ids/index.json';
+
+// Current (non-deprecated) SPDX license identifiers — same package and same
+// list the api repo validates `license.spdx_id` against, so a license this
+// form offers is never rejected by the api. Not itself the source of truth;
+// re-exported so the id list only has one import site in this repo.
+export { SPDX_LICENSE_IDS };
 
 export const EXTENSION_TYPES = [
   'mod',
@@ -52,6 +59,7 @@ export type Repository = {
 
 export type License = {
   name: string;
+  spdx_id?: string;
   URL?: string;
 };
 

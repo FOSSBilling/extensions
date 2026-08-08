@@ -171,6 +171,11 @@
             "minLength": 1,
             "maxLength": 100
           },
+          "spdx_id": {
+            "type": "string",
+            "description": "A current SPDX license identifier (https://spdx.org/licenses/). Omitted for custom or proprietary licenses.",
+            "example": "MIT"
+          },
           "URL": {
             "type": "string",
             "maxLength": 2048,

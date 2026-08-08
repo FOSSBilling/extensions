@@ -48,6 +48,10 @@ export type PublicDeveloper = {
 
 export type License = {
   name: string;
+  /**
+   * A current SPDX license identifier (https://spdx.org/licenses/). Omitted for custom or proprietary licenses.
+   */
+  spdx_id?: string;
   URL?: string;
 };
 

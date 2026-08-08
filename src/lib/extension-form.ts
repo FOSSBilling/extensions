@@ -1,4 +1,4 @@
-import { isExtensionType, isSourceType } from '@/types';
+import { isExtensionType, isSourceType, SPDX_LICENSE_IDS } from '@/types';
 import type { Extension, Release } from '@/types';
 import type { ExtensionCreate, ExtensionUpdate } from '@/lib/api/client';
 import { formString } from './form';
@@ -8,6 +8,41 @@ import { withHttpsScheme } from './url-prefix';
 // user, distinct from ApiRequestError (the api rejecting an otherwise
 // well-formed payload) — see the try/catch in new.astro/edit.astro.
 export class ExtensionValidationError extends Error {}
+
+// "Other / Proprietary" is a form-only sentinel, never a real spdx_id value
+// — buildLicense() reads it back out of license_spdx_id to decide whether
+// license_name_custom (vs. the spdx_id itself) becomes license.name. The
+// single export here is what ExtensionForm.astro and edit.astro both use,
+// rather than each hand-copying the string.
+export const OTHER_LICENSE = 'other';
+
+// The License field pair: a <select> of current SPDX ids (matching the api's
+// own spdx-license-ids-backed validation) plus an "Other / Proprietary"
+// sentinel that reveals a free-text name instead. Mirrors the server: a
+// recognized id becomes both `name` and `spdx_id`; "Other" carries only a
+// custom `name`.
+function buildLicense(form: FormData) {
+  const selected = formString(form, 'license_spdx_id');
+  const url = withHttpsScheme(formString(form, 'license_url'));
+
+  if (selected === OTHER_LICENSE) {
+    const customName = formString(form, 'license_name_custom');
+    if (!customName) {
+      throw new ExtensionValidationError(
+        'Enter a name for the custom or proprietary license.',
+      );
+    }
+    return { name: customName, URL: url };
+  }
+
+  if (!SPDX_LICENSE_IDS.includes(selected)) {
+    throw new ExtensionValidationError(
+      'Choose a license, or "Other / Proprietary" for one not listed.',
+    );
+  }
+
+  return { name: selected, spdx_id: selected, URL: url };
+}
 
 // Shared by both builders below. A new release is only appended when
 // version_tag is filled — required when there are no existing releases to
@@ -83,10 +118,7 @@ function buildContent(
     description: str('description'),
     releases,
     website: withHttpsScheme(str('website')) ?? '',
-    license: {
-      name: str('license_name'),
-      URL: withHttpsScheme(str('license_url')),
-    },
+    license: buildLicense(form),
     icon_url: withHttpsScheme(str('icon_url')),
     readme: str('readme'),
     source: {
