@@ -4,17 +4,20 @@
 import {
   createApiClient,
   getDeveloperById as getDeveloperByIdFromApi,
-  getExtensionById as getExtensionByIdFromApi,
   type DeveloperProfile as ApiDeveloperProfile,
   type Extension as ApiExtension,
-  type ExtensionListItem as ApiExtensionListItem,
+  type OwnedExtensionListItem,
 } from './api/client';
 import type { PublicDeveloper } from './api/generated/extensions-v2';
 import type { ApplicationEnv } from './runtime';
 import type {
   DeveloperProfile,
   Extension,
+  ExtensionType,
+  License,
   PublicDeveloperProfile,
+  Release,
+  Repository,
 } from '@/types';
 
 export interface OwnerReadOptions {
@@ -24,6 +27,48 @@ export interface OwnerReadOptions {
    * from a user who simply has no profile or published extensions.
    */
   failSoft?: boolean;
+}
+
+// The content of a proposed revision. Revision history predates current
+// validation rules, so every field is optional here — unlike Extension,
+// which describes only published content and is always complete.
+export interface StoredExtensionFields {
+  type?: ExtensionType;
+  name?: string;
+  description?: string;
+  website?: string;
+  license?: License;
+  icon_url?: string;
+  readme?: string;
+  source?: Repository;
+  version?: string;
+  download_url?: string;
+  releases?: Release[];
+}
+
+export interface PendingRevision {
+  id: string;
+  createdAt: string;
+  content: StoredExtensionFields;
+}
+
+export interface LastReview {
+  revisionId: string;
+  status: 'approved' | 'rejected';
+  reviewNote: string | null;
+  reviewedAt: string | null;
+}
+
+// The owner's view of an extension: its live content (if any), any edit
+// awaiting review, and the last moderator decision. These three fields are
+// independent — see the Extensions v2 README's state table — so callers
+// must not collapse them into a single derived status.
+export interface OwnedExtensionDetail {
+  id: string;
+  developer: PublicDeveloperProfile;
+  published: Extension | null;
+  pendingRevision: PendingRevision | null;
+  lastReview: LastReview | null;
 }
 
 function toDeveloperProfile(
@@ -79,16 +124,45 @@ function toExtension(extension: ApiExtension): Extension {
   };
 }
 
-export async function getExtensionForSubmission(
+export async function getOwnedExtension(
   env: ApplicationEnv,
+  userId: string,
   id: string,
-): Promise<Extension | null> {
+): Promise<OwnedExtensionDetail | null> {
   try {
-    return toExtension(await getExtensionByIdFromApi(env, id));
+    const owned = await createApiClient(env, userId).getMyExtension(id);
+
+    return {
+      id: owned.id,
+      developer: toPublicDeveloper(owned.developer),
+      published: owned.published
+        ? toExtension({
+            ...owned.published,
+            id: owned.id,
+            developer: owned.developer,
+          })
+        : null,
+      pendingRevision: owned.pending_revision
+        ? {
+            id: owned.pending_revision.id,
+            createdAt: owned.pending_revision.created_at,
+            content: owned.pending_revision.content,
+          }
+        : null,
+      lastReview: owned.last_review
+        ? {
+            revisionId: owned.last_review.revision_id,
+            status: owned.last_review.status,
+            reviewNote: owned.last_review.review_note,
+            reviewedAt: owned.last_review.reviewed_at,
+          }
+        : null,
+    };
   } catch {
-    // These adapters back page reads, not authorization or writes. Preserve
-    // their fail-soft contract so a temporary API outage is rendered as a
-    // missing resource instead of an unhandled page error.
+    // 404 (no such extension) and 403 (not the owner) both resolve to "not
+    // found" here — this adapter backs an owner-only page that already
+    // redirects on a missing resource, and it must not distinguish "doesn't
+    // exist" from "isn't yours" to an unauthenticated prober.
     return null;
   }
 }
@@ -97,10 +171,10 @@ export async function getExtensionsByOwner(
   env: ApplicationEnv,
   userId: string,
   options: OwnerReadOptions = {},
-): Promise<ApiExtensionListItem[]> {
+): Promise<OwnedExtensionListItem[]> {
   try {
     const api = createApiClient(env, userId);
-    const extensions: ApiExtensionListItem[] = [];
+    const extensions: OwnedExtensionListItem[] = [];
     let cursor: string | undefined;
     do {
       const page = await api.listMyExtensions({ limit: 100, cursor });

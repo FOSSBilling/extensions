@@ -11,12 +11,10 @@ import {
   getExtensionsByOwner,
 } from '@/lib/extensions-data';
 import { ISSUER } from '@/lib/oauth';
-import type { DeveloperClaim, Submission } from '@/lib/api/client';
+import type { DeveloperClaim } from '@/lib/api/client';
 import { CircleAlert } from '@lucide/astro';
 import ProfileTrustBadge from '@/components/ProfileTrustBadge.astro';
 import DeveloperAvatar from '@/components/DeveloperAvatar.astro';
-import { formatDate } from '@/lib/format-date';
-import { cursorPageUrl } from '@/lib/pagination';
 import { getOptimizedImageUrl } from '@/lib/image-url';
 
 const env = Astro.locals.env;
@@ -50,30 +48,6 @@ const developerError =
     : null;
 
 const api = createApiClient(env, user.sub);
-let submissions: Submission[] = [];
-let submissionsNextCursor: string | null = null;
-let submissionsHasMore = false;
-let submissionsError: string | null = null;
-try {
-  const submissionsPage = await api.listMySubmissions({
-    cursor: Astro.url.searchParams.get('submissions_cursor') ?? undefined,
-  });
-  submissions = submissionsPage.result;
-  submissionsNextCursor = submissionsPage.pagination.next_cursor;
-  submissionsHasMore = submissionsPage.pagination.has_more;
-} catch (error) {
-  submissionsError =
-    error instanceof ApiRequestError
-      ? getApiErrorMessage(error)
-      : 'Unable to load your submissions right now.';
-}
-
-const nextSubmissionsUrl =
-  submissionsHasMore &&
-  submissionsNextCursor !== null &&
-  submissionsNextCursor.length > 0
-    ? cursorPageUrl(Astro.url, 'submissions_cursor', submissionsNextCursor)
-    : null;
 
 let myClaims: DeveloperClaim[] = [];
 let claimsError: string | null = null;
@@ -108,12 +82,6 @@ if (reverifyCooldownUntil <= Date.now()) {
   Astro.session?.delete('reverifyCooldownUntil');
   reverifyCooldownUntil = 0;
 }
-
-const statusBadgeVariant: Record<Submission['status'], string | undefined> = {
-  pending: 'secondary',
-  approved: undefined,
-  rejected: 'destructive',
-};
 
 // After linking GitHub, send the user back through our own OIDC login
 // (rather than stranding them on auth's own /account page) so the ID token
@@ -285,10 +253,9 @@ const reconnectUrl = `${ISSUER}/account?callbackURL=${encodeURIComponent(
                   <CircleAlert class="size-4" />
                   <section>
                     Your linked GitHub identity no longer matches this profile.
-                    This doesn't affect your submissions or ownership — it's
-                    only shown to moderators as a trust signal. Re-verify if
-                    this should still match (e.g. you rejoined the
-                    organization).
+                    This doesn't affect your extensions or ownership — it's only
+                    shown to moderators as a trust signal. Re-verify if this
+                    should still match (e.g. you rejoined the organization).
                   </section>
                 </div>
               )}
@@ -356,28 +323,47 @@ const reconnectUrl = `${ISSUER}/account?callbackURL=${encodeURIComponent(
             <p class="text-sm text-destructive">{ownedExtensionsError}</p>
           ) : ownedExtensions.length === 0 ? (
             <p class="text-muted-foreground text-sm">
-              You don't have any published extensions yet.
+              You don't have any extensions yet.
             </p>
           ) : (
             <ul class="divide-y divide-border">
               {ownedExtensions.map((ext) => {
+                const rejected =
+                  !ext.pending_revision &&
+                  ext.last_review?.status === 'rejected';
                 return (
                   <li class="py-3 flex items-center justify-between gap-3">
                     <div>
-                      <p class="font-medium">{ext.name}</p>
+                      <p class="font-medium">{ext.published?.name ?? ext.id}</p>
                       <p class="text-sm text-muted-foreground">
-                        v{ext.version}
+                        {ext.published ? `v${ext.published.version}` : ext.id}
                       </p>
+                      {rejected && ext.last_review?.review_note && (
+                        <p class="text-sm text-destructive mt-1">
+                          {ext.last_review.review_note}
+                        </p>
+                      )}
                     </div>
-                    <div class="flex gap-2">
-                      <a
-                        href={`/extension/${ext.id}`}
-                        class="btn"
-                        data-size="sm"
-                        data-variant="ghost"
-                      >
-                        View
-                      </a>
+                    <div class="flex items-center gap-2">
+                      {ext.pending_revision ? (
+                        <span class="badge" data-variant="secondary">
+                          Awaiting review
+                        </span>
+                      ) : rejected ? (
+                        <span class="badge" data-variant="destructive">
+                          Rejected
+                        </span>
+                      ) : null}
+                      {ext.published && (
+                        <a
+                          href={`/extension/${ext.id}`}
+                          class="btn"
+                          data-size="sm"
+                          data-variant="ghost"
+                        >
+                          View
+                        </a>
+                      )}
                       <a
                         href={`/account/extensions/${ext.id}/edit`}
                         class="btn"
@@ -391,55 +377,6 @@ const reconnectUrl = `${ISSUER}/account?callbackURL=${encodeURIComponent(
                 );
               })}
             </ul>
-          )
-        }
-      </section>
-    </section>
-
-    <section class="card">
-      <header>
-        <h2 class="font-semibold">Your Submissions</h2>
-      </header>
-      <section>
-        {
-          submissionsError ? (
-            <p class="text-sm text-destructive">{submissionsError}</p>
-          ) : (
-            <>
-              {submissions.length === 0 ? (
-                <p class="text-muted-foreground text-sm">No submissions yet.</p>
-              ) : (
-                <ul class="divide-y divide-border">
-                  {submissions.map((s) => (
-                    <li class="py-3 flex items-center justify-between gap-3">
-                      <div>
-                        <p class="font-medium">{s.payload.extension.name}</p>
-                        <p class="text-sm text-muted-foreground">
-                          {s.extension_id ? 'Edit' : 'New extension'} &middot;
-                          submitted {formatDate(s.created_at)}
-                        </p>
-                        {s.status === 'rejected' && s.review_note && (
-                          <p class="text-sm text-destructive mt-1">
-                            {s.review_note}
-                          </p>
-                        )}
-                      </div>
-                      <span
-                        class="badge"
-                        data-variant={statusBadgeVariant[s.status]}
-                      >
-                        {s.status}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              {nextSubmissionsUrl && (
-                <a href={nextSubmissionsUrl} class="btn mt-4">
-                  Next submissions page
-                </a>
-              )}
-            </>
           )
         }
       </section>

@@ -1,5 +1,6 @@
 import {
   deleteDevelopersMe,
+  deleteExtensionsById,
   getDevelopers,
   getDevelopersById,
   getDevelopersByIdHistory,
@@ -9,9 +10,10 @@ import {
   getDevelopersUnapproved,
   getExtensions,
   getExtensionsById,
+  getExtensionsByIdRevisions,
   getExtensionsMine,
-  getSubmissionsMine,
-  getSubmissionsQueue,
+  getExtensionsMineById,
+  getModerationExtensions,
   getUsersMe,
   patchUsersMe,
   postDevelopersByIdApprove,
@@ -23,11 +25,12 @@ import {
   postDevelopersClaimsByIdReject,
   postDevelopersMeReverify,
   postDevelopersTransfersAccept,
-  postSubmissions,
-  postSubmissionsByIdApprove,
-  postSubmissionsByIdReject,
+  postExtensions,
+  postExtensionsByIdRevisionsByRevisionIdApprove,
+  postExtensionsByIdRevisionsByRevisionIdReject,
   deleteUsersMe,
   putDevelopersMe,
+  putExtensionsById,
   putUsersMeIdentity,
   type Developer,
   type DeveloperApproval,
@@ -37,21 +40,25 @@ import {
   type DeveloperTransfer,
   type Error as ApiErrorBody,
   type Extension,
+  type ExtensionCreate,
   type ExtensionListItem,
   type ExtensionListResponse,
+  type ExtensionRevision,
+  type ExtensionUpdate,
+  type GetExtensionsByIdRevisionsData,
+  type GetExtensionsByIdRevisionsResponse,
   type GetExtensionsData,
   type GetExtensionsMineData,
-  type GetSubmissionsMineResponse,
-  type GetSubmissionsMineData,
-  type GetSubmissionsQueueData,
-  type GetSubmissionsQueueResponse,
+  type GetModerationExtensionsData,
+  type GetModerationExtensionsResponse,
   type OwnedDeveloperProfile,
+  type OwnedExtension,
+  type OwnedExtensionListItem,
+  type OwnedExtensionListResponse,
   type PendingDeveloperClaim,
   type User,
   type UserIdentityInput,
   type PutDevelopersMeData,
-  type Submission,
-  type SubmissionPayload,
 } from '@/lib/api/generated/extensions-v2';
 import {
   createClient,
@@ -66,8 +73,10 @@ export const MAX_API_PAGE_LIMIT = 100;
 
 type ExtensionListQuery = NonNullable<GetExtensionsData['query']>;
 type ExtensionMineQuery = NonNullable<GetExtensionsMineData['query']>;
-type SubmissionPageQuery = NonNullable<GetSubmissionsMineData['query']>;
-type SubmissionQueueQuery = NonNullable<GetSubmissionsQueueData['query']>;
+type RevisionHistoryQuery = NonNullable<
+  GetExtensionsByIdRevisionsData['query']
+>;
+type ModerationQueueQuery = NonNullable<GetModerationExtensionsData['query']>;
 
 export type ExtensionCatalogueFilters = Pick<
   ExtensionListQuery,
@@ -79,18 +88,20 @@ export type ExtensionMineFilters = Pick<
   'type' | 'limit' | 'cursor'
 >;
 
-export type SubmissionPageOptions = Pick<
-  SubmissionPageQuery,
+export type RevisionHistoryOptions = Pick<
+  RevisionHistoryQuery,
   'cursor' | 'limit'
 >;
 
-export type SubmissionPage = GetSubmissionsMineResponse;
-export type SubmissionQueuePage = GetSubmissionsQueueResponse;
-export type DeveloperProfileInput = NonNullable<PutDevelopersMeData['body']>;
-export type SubmissionStatus = Exclude<
-  SubmissionQueueQuery['status'],
-  undefined
+export type ModerationQueueOptions = Pick<
+  ModerationQueueQuery,
+  'cursor' | 'limit'
 >;
+
+export type RevisionHistoryPage = GetExtensionsByIdRevisionsResponse;
+export type ModerationQueuePage = GetModerationExtensionsResponse;
+export type DeveloperProfileInput = NonNullable<PutDevelopersMeData['body']>;
+export type RevisionStatus = Exclude<ModerationQueueQuery['status'], undefined>;
 
 export type AccountUser = User;
 export type IdentitySyncInput = UserIdentityInput;
@@ -104,11 +115,15 @@ export type {
   DeveloperProfile,
   DeveloperTransfer,
   Extension,
+  ExtensionCreate,
   ExtensionListItem,
   ExtensionListResponse,
+  ExtensionRevision,
+  ExtensionUpdate,
+  OwnedExtension,
+  OwnedExtensionListItem,
+  OwnedExtensionListResponse,
   PendingDeveloperClaim,
-  Submission,
-  SubmissionPayload,
 };
 
 export class ApiRequestError extends Error {
@@ -219,9 +234,9 @@ async function unwrap<T>(result: {
 }
 
 function pageQuery(
-  options: SubmissionPageOptions = {},
-): NonNullable<GetSubmissionsMineData['query']> {
-  const query: NonNullable<GetSubmissionsMineData['query']> = {
+  options: RevisionHistoryOptions | ModerationQueueOptions = {},
+): { limit: number; cursor?: string } {
+  const query: { limit: number; cursor?: string } = {
     limit: clampApiPageLimit(options.limit),
   };
 
@@ -334,7 +349,7 @@ export function createApiClient(env: ApplicationEnv, subject: string) {
 
     listMyExtensions: async (
       options: ExtensionMineFilters = {},
-    ): Promise<ExtensionListResponse> =>
+    ): Promise<OwnedExtensionListResponse> =>
       unwrap(
         await getExtensionsMine({
           client,
@@ -342,47 +357,95 @@ export function createApiClient(env: ApplicationEnv, subject: string) {
         }),
       ),
 
-    submitExtension: async (payload: SubmissionPayload) =>
-      (await unwrap(await postSubmissions({ client, body: payload }))).result,
+    getMyExtension: async (id: string): Promise<OwnedExtension> =>
+      (
+        await unwrap(
+          await getExtensionsMineById({
+            client,
+            path: { id },
+          }),
+        )
+      ).result,
 
-    listMySubmissions: async (
-      options: SubmissionPageOptions = {},
-    ): Promise<SubmissionPage> =>
+    createExtension: async (payload: ExtensionCreate) =>
+      (
+        await unwrap(
+          await postExtensions({
+            client,
+            body: payload,
+          }),
+        )
+      ).result,
+
+    updateExtension: async (id: string, payload: ExtensionUpdate) =>
+      (
+        await unwrap(
+          await putExtensionsById({
+            client,
+            path: { id },
+            body: payload,
+          }),
+        )
+      ).result,
+
+    withdrawExtension: async (id: string) =>
+      (
+        await unwrap(
+          await deleteExtensionsById({
+            client,
+            path: { id },
+          }),
+        )
+      ).result,
+
+    listExtensionRevisions: async (
+      id: string,
+      options: RevisionHistoryOptions = {},
+    ): Promise<RevisionHistoryPage> =>
       unwrap(
-        await getSubmissionsMine({
+        await getExtensionsByIdRevisions({
           client,
+          path: { id },
           query: pageQuery(options),
         }),
       ),
 
-    listQueue: async (
-      status: SubmissionStatus = 'pending',
-      options: SubmissionPageOptions = {},
-    ): Promise<SubmissionQueuePage> =>
+    listModerationQueue: async (
+      status: RevisionStatus = 'pending',
+      options: ModerationQueueOptions = {},
+    ): Promise<ModerationQueuePage> =>
       unwrap(
-        await getSubmissionsQueue({
+        await getModerationExtensions({
           client,
           query: { status, ...pageQuery(options) },
         }),
       ),
 
-    approveSubmission: async (id: string, reviewNote?: string) =>
+    approveRevision: async (
+      extensionId: string,
+      revisionId: string,
+      reviewNote?: string,
+    ) =>
       (
         await unwrap(
-          await postSubmissionsByIdApprove({
+          await postExtensionsByIdRevisionsByRevisionIdApprove({
             client,
-            path: { id },
+            path: { id: extensionId, revisionId },
             ...(reviewNote ? { body: { review_note: reviewNote } } : {}),
           }),
         )
       ).result,
 
-    rejectSubmission: async (id: string, reviewNote: string) =>
+    rejectRevision: async (
+      extensionId: string,
+      revisionId: string,
+      reviewNote: string,
+    ) =>
       (
         await unwrap(
-          await postSubmissionsByIdReject({
+          await postExtensionsByIdRevisionsByRevisionIdReject({
             client,
-            path: { id },
+            path: { id: extensionId, revisionId },
             body: { review_note: reviewNote },
           }),
         )

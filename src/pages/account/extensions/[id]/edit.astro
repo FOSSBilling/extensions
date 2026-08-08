@@ -1,17 +1,15 @@
 ---
 import Base from '../../../../layouts/Base.astro';
-import ExtensionSubmissionForm from '@/components/ExtensionSubmissionForm.astro';
+import ExtensionForm from '@/components/ExtensionForm.astro';
 import { requireUser } from '@/lib/auth-guard';
 import { createApiClient, ApiRequestError } from '@/lib/api/client';
+import { getOwnedExtension } from '@/lib/extensions-data';
 import {
-  getDeveloperByOwner,
-  getExtensionForSubmission,
-} from '@/lib/extensions-data';
-import {
-  buildSubmissionPayload,
-  SubmissionValidationError,
-} from '@/lib/submission-form';
+  buildExtensionUpdatePayload,
+  ExtensionValidationError,
+} from '@/lib/extension-form';
 import { formString } from '@/lib/form';
+import { formatDate } from '@/lib/format-date';
 import { setFlash } from '@/lib/flash';
 import type { Extension } from '@/types';
 
@@ -25,25 +23,46 @@ if (!id) {
   return Astro.redirect('/404');
 }
 
-const extension = await getExtensionForSubmission(env, id);
-if (!extension) {
+// getMyExtension enforces ownership itself (403 for anyone else), so a
+// missing result here already covers both "no such extension" and "not
+// yours" — no separate developer-ownership check is needed.
+const owned = await getOwnedExtension(env, user.sub, id);
+if (!owned) {
   return Astro.redirect('/404');
 }
 
-const developer = await getDeveloperByOwner(env, user.sub);
-if (!developer || developer.id !== extension.developer.id) {
-  return Astro.redirect('/404');
-}
+// The base to edit: the current published content, or — for an extension
+// that's never been published (rejected and not yet resubmitted) — a blank
+// starting point carrying only the fixed id and developer.
+const base: Extension =
+  owned.published ??
+  ({
+    id: owned.id,
+    type: 'mod',
+    name: '',
+    description: '',
+    releases: [],
+    website: '',
+    license: { name: '' },
+    readme: '',
+    source: { type: 'github', repo: '' },
+    version: '',
+    download_url: '',
+    developer: owned.developer,
+  } satisfies Extension);
 
 let error: string | null = null;
 // Falls back to the just-submitted values on a rejected edit, so the form
-// doesn't reset to the currently-published extension and discard the edit.
+// doesn't reset to the previous content and discard the edit.
 let submitted: Extension | null = null;
 
-if (Astro.request.method === 'POST') {
+// Only one revision may be unreviewed at a time — the api rejects a second
+// edit with 409 while one is pending, so this page doesn't even offer the
+// form in that state (see the pendingRevision branch below).
+if (!owned.pendingRevision && Astro.request.method === 'POST') {
   const form = await Astro.request.formData();
   submitted = {
-    ...extension,
+    ...base,
     type: formString(form, 'type') as Extension['type'],
     name: formString(form, 'name'),
     description: formString(form, 'description'),
@@ -62,33 +81,48 @@ if (Astro.request.method === 'POST') {
 
   const api = createApiClient(env, user.sub);
   try {
-    const payload = buildSubmissionPayload(form, developer, extension);
-    await api.submitExtension(payload);
+    const payload = buildExtensionUpdatePayload(form, owned.published);
+    await api.updateExtension(owned.id, payload);
     setFlash(Astro.session, { title: 'Submitted for Review.' });
     return Astro.redirect('/account');
   } catch (e) {
     error =
-      e instanceof ApiRequestError || e instanceof SubmissionValidationError
+      e instanceof ApiRequestError || e instanceof ExtensionValidationError
         ? e.message
         : 'Something went wrong submitting your edit. Please try again.';
   }
 }
 
-const fields = submitted ?? extension;
+const fields = submitted ?? base;
+const title = base.name || owned.id;
 ---
 
-<Base title={`Edit ${extension.name} — FOSSBilling Extensions`}>
+<Base title={`Edit ${title} — FOSSBilling Extensions`}>
   <div class="max-w-2xl mx-auto space-y-6">
-    <h1 class="text-2xl font-semibold tracking-tight">
-      Edit {extension.name}
-    </h1>
-    <p class="text-muted-foreground text-sm">
-      Edits are reviewed by a moderator before replacing the published listing.
-    </p>
-    <ExtensionSubmissionForm
-      developer={developer}
-      extension={fields}
-      error={error}
-    />
+    <h1 class="text-2xl font-semibold tracking-tight">Edit {title}</h1>
+
+    {
+      owned.pendingRevision ? (
+        <div class="alert">
+          <section>
+            An edit submitted {formatDate(owned.pendingRevision.createdAt)} is
+            still awaiting review. You can submit another edit once a moderator
+            has reviewed this one.
+          </section>
+        </div>
+      ) : (
+        <Fragment>
+          <p class="text-muted-foreground text-sm">
+            Edits are reviewed by a moderator before replacing the published
+            listing.
+          </p>
+          <ExtensionForm
+            developer={owned.developer}
+            extension={fields}
+            error={error}
+          />
+        </Fragment>
+      )
+    }
   </div>
 </Base>

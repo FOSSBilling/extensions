@@ -3,7 +3,7 @@
   "info": {
     "title": "FOSSBilling Extensions API (v2)",
     "version": "2.0.0",
-    "description": "Self-service extension submission, ownership, moderation, and public browsing. v1 (/extensions/v1) remains available for existing integrations."
+    "description": "Self-service extension publishing, ownership, moderation, and public browsing. v1 (/extensions/v1) remains available for existing integrations."
   },
   "servers": [
     {
@@ -18,13 +18,13 @@
       }
     },
     "schemas": {
-      "ExtensionListResponse": {
+      "OwnedExtensionListResponse": {
         "type": "object",
         "properties": {
           "result": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/ExtensionListItem"
+              "$ref": "#/components/schemas/OwnedExtensionListItem"
             }
           },
           "pagination": {
@@ -33,111 +33,100 @@
         },
         "required": ["result", "pagination"]
       },
-      "ExtensionListItem": {
+      "OwnedExtensionListItem": {
         "type": "object",
         "properties": {
           "id": {
-            "type": "string",
-            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
-          },
-          "type": {
-            "type": "string",
-            "enum": [
-              "mod",
-              "theme",
-              "payment-gateway",
-              "server-manager",
-              "domain-registrar",
-              "hook",
-              "translation"
-            ]
-          },
-          "name": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 120
-          },
-          "description": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 4000
-          },
-          "website": {
-            "type": "string",
-            "maxLength": 2048,
-            "format": "uri"
-          },
-          "license": {
-            "$ref": "#/components/schemas/License"
-          },
-          "icon_url": {
-            "type": "string",
-            "maxLength": 2048,
-            "format": "uri"
-          },
-          "source": {
-            "$ref": "#/components/schemas/Repository"
-          },
-          "version": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 100
-          },
-          "download_url": {
-            "type": "string",
-            "maxLength": 2048,
-            "format": "uri"
+            "type": "string"
           },
           "developer": {
             "$ref": "#/components/schemas/PublicDeveloper"
+          },
+          "published": {
+            "type": ["object", "null"],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "mod",
+                  "theme",
+                  "payment-gateway",
+                  "server-manager",
+                  "domain-registrar",
+                  "hook",
+                  "translation"
+                ]
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 120
+              },
+              "description": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 4000
+              },
+              "website": {
+                "type": "string",
+                "maxLength": 2048,
+                "format": "uri"
+              },
+              "license": {
+                "$ref": "#/components/schemas/License"
+              },
+              "icon_url": {
+                "type": "string",
+                "maxLength": 2048,
+                "format": "uri"
+              },
+              "source": {
+                "$ref": "#/components/schemas/Repository"
+              },
+              "version": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100
+              },
+              "download_url": {
+                "type": "string",
+                "maxLength": 2048,
+                "format": "uri"
+              }
+            },
+            "required": [
+              "type",
+              "name",
+              "description",
+              "website",
+              "license",
+              "source",
+              "version",
+              "download_url"
+            ]
+          },
+          "pending_revision": {
+            "$ref": "#/components/schemas/PendingRevisionRef"
+          },
+          "last_review": {
+            "$ref": "#/components/schemas/RevisionReview"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
           }
         },
         "required": [
           "id",
-          "type",
-          "name",
-          "description",
-          "website",
-          "license",
-          "source",
-          "version",
-          "download_url",
-          "developer"
-        ],
-        "additionalProperties": false
-      },
-      "License": {
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 100
-          },
-          "URL": {
-            "type": "string",
-            "maxLength": 2048,
-            "format": "uri"
-          }
-        },
-        "required": ["name"],
-        "additionalProperties": false
-      },
-      "Repository": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "enum": ["github", "gitlab", "custom"]
-          },
-          "repo": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 500
-          }
-        },
-        "required": ["type", "repo"],
-        "additionalProperties": false
+          "developer",
+          "published",
+          "pending_revision",
+          "last_review",
+          "created_at",
+          "updated_at"
+        ]
       },
       "PublicDeveloper": {
         "type": "object",
@@ -173,6 +162,70 @@
           }
         },
         "required": ["id", "type", "name", "approved", "unclaimed"]
+      },
+      "License": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "URL": {
+            "type": "string",
+            "maxLength": 2048,
+            "format": "uri"
+          }
+        },
+        "required": ["name"],
+        "additionalProperties": false
+      },
+      "Repository": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["github", "gitlab", "custom"]
+          },
+          "repo": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          }
+        },
+        "required": ["type", "repo"],
+        "additionalProperties": false
+      },
+      "PendingRevisionRef": {
+        "type": ["object", "null"],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          }
+        },
+        "required": ["id", "created_at"]
+      },
+      "RevisionReview": {
+        "type": ["object", "null"],
+        "properties": {
+          "revision_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["approved", "rejected"]
+          },
+          "review_note": {
+            "type": ["string", "null"]
+          },
+          "reviewed_at": {
+            "type": ["string", "null"]
+          }
+        },
+        "required": ["revision_id", "status", "review_note", "reviewed_at"]
       },
       "Pagination": {
         "type": "object",
@@ -217,20 +270,50 @@
         },
         "required": ["error"]
       },
-      "Extension": {
+      "OwnedExtension": {
         "allOf": [
           {
-            "$ref": "#/components/schemas/ExtensionPayload"
+            "$ref": "#/components/schemas/OwnedExtensionListItem"
           },
           {
             "type": "object",
             "properties": {
-              "developer": {
-                "$ref": "#/components/schemas/PublicDeveloper"
+              "published": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/ExtensionContent"
+                  },
+                  {
+                    "type": ["object", "null"],
+                    "properties": {
+                      "releases": {
+                        "type": "array",
+                        "items": {
+                          "$ref": "#/components/schemas/Release"
+                        },
+                        "maxItems": 100
+                      }
+                    }
+                  }
+                ]
+              },
+              "pending_revision": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/PendingRevisionRef"
+                  },
+                  {
+                    "type": ["object", "null"],
+                    "properties": {
+                      "content": {
+                        "$ref": "#/components/schemas/StoredExtensionContent"
+                      }
+                    },
+                    "required": ["content"]
+                  }
+                ]
               }
-            },
-            "required": ["developer"],
-            "additionalProperties": false
+            }
           }
         ]
       },
@@ -266,13 +349,9 @@
         "required": ["tag", "date", "download_url", "min_fossbilling_version"],
         "additionalProperties": false
       },
-      "ExtensionPayload": {
+      "ExtensionContent": {
         "type": "object",
         "properties": {
-          "id": {
-            "type": "string",
-            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
-          },
           "type": {
             "type": "string",
             "enum": [
@@ -336,7 +415,233 @@
           }
         },
         "required": [
-          "id",
+          "type",
+          "name",
+          "description",
+          "releases",
+          "website",
+          "license",
+          "readme",
+          "source",
+          "version",
+          "download_url"
+        ]
+      },
+      "StoredExtensionContent": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "mod",
+              "theme",
+              "payment-gateway",
+              "server-manager",
+              "domain-registrar",
+              "hook",
+              "translation"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          },
+          "releases": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Release"
+            },
+            "maxItems": 100
+          },
+          "website": {
+            "type": "string",
+            "maxLength": 2048,
+            "format": "uri"
+          },
+          "license": {
+            "$ref": "#/components/schemas/License"
+          },
+          "icon_url": {
+            "type": "string",
+            "maxLength": 2048,
+            "format": "uri"
+          },
+          "readme": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100000
+          },
+          "source": {
+            "$ref": "#/components/schemas/Repository"
+          },
+          "version": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "download_url": {
+            "type": "string",
+            "maxLength": 2048,
+            "format": "uri"
+          }
+        }
+      },
+      "ExtensionCreate": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "mod",
+              "theme",
+              "payment-gateway",
+              "server-manager",
+              "domain-registrar",
+              "hook",
+              "translation"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          },
+          "releases": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Release"
+            },
+            "minItems": 1,
+            "maxItems": 100
+          },
+          "website": {
+            "type": "string",
+            "maxLength": 2048,
+            "format": "uri"
+          },
+          "license": {
+            "$ref": "#/components/schemas/License"
+          },
+          "icon_url": {
+            "type": "string",
+            "maxLength": 2048,
+            "format": "uri"
+          },
+          "readme": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100000
+          },
+          "source": {
+            "$ref": "#/components/schemas/Repository"
+          },
+          "version": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "download_url": {
+            "type": "string",
+            "maxLength": 2048,
+            "format": "uri"
+          },
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+          }
+        },
+        "required": [
+          "type",
+          "name",
+          "description",
+          "releases",
+          "website",
+          "license",
+          "readme",
+          "source",
+          "version",
+          "download_url",
+          "id"
+        ],
+        "additionalProperties": false
+      },
+      "ExtensionUpdate": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "mod",
+              "theme",
+              "payment-gateway",
+              "server-manager",
+              "domain-registrar",
+              "hook",
+              "translation"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          },
+          "releases": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Release"
+            },
+            "minItems": 1,
+            "maxItems": 100
+          },
+          "website": {
+            "type": "string",
+            "maxLength": 2048,
+            "format": "uri"
+          },
+          "license": {
+            "$ref": "#/components/schemas/License"
+          },
+          "icon_url": {
+            "type": "string",
+            "maxLength": 2048,
+            "format": "uri"
+          },
+          "readme": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100000
+          },
+          "source": {
+            "$ref": "#/components/schemas/Repository"
+          },
+          "version": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "download_url": {
+            "type": "string",
+            "maxLength": 2048,
+            "format": "uri"
+          }
+        },
+        "required": [
           "type",
           "name",
           "description",
@@ -349,6 +654,159 @@
           "download_url"
         ],
         "additionalProperties": false
+      },
+      "ExtensionRevision": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "extension_id": {
+            "type": "string"
+          },
+          "developer_id": {
+            "type": "string"
+          },
+          "submitted_by": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "approved", "rejected"]
+          },
+          "content": {
+            "$ref": "#/components/schemas/StoredExtensionContent"
+          },
+          "reviewer_id": {
+            "type": ["string", "null"]
+          },
+          "review_note": {
+            "type": ["string", "null"]
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "reviewed_at": {
+            "type": ["string", "null"]
+          }
+        },
+        "required": [
+          "id",
+          "extension_id",
+          "developer_id",
+          "submitted_by",
+          "status",
+          "content",
+          "reviewer_id",
+          "review_note",
+          "created_at",
+          "reviewed_at"
+        ]
+      },
+      "ExtensionListResponse": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExtensionListItem"
+            }
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/Pagination"
+          }
+        },
+        "required": ["result", "pagination"]
+      },
+      "ExtensionListItem": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "mod",
+              "theme",
+              "payment-gateway",
+              "server-manager",
+              "domain-registrar",
+              "hook",
+              "translation"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          },
+          "website": {
+            "type": "string",
+            "maxLength": 2048,
+            "format": "uri"
+          },
+          "license": {
+            "$ref": "#/components/schemas/License"
+          },
+          "icon_url": {
+            "type": "string",
+            "maxLength": 2048,
+            "format": "uri"
+          },
+          "source": {
+            "$ref": "#/components/schemas/Repository"
+          },
+          "version": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "download_url": {
+            "type": "string",
+            "maxLength": 2048,
+            "format": "uri"
+          },
+          "id": {
+            "type": "string"
+          },
+          "developer": {
+            "$ref": "#/components/schemas/PublicDeveloper"
+          }
+        },
+        "required": [
+          "type",
+          "name",
+          "description",
+          "website",
+          "license",
+          "source",
+          "version",
+          "download_url",
+          "id",
+          "developer"
+        ]
+      },
+      "Extension": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ExtensionContent"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "developer": {
+                "$ref": "#/components/schemas/PublicDeveloper"
+              }
+            },
+            "required": ["id", "developer"]
+          }
+        ]
       },
       "User": {
         "type": "object",
@@ -425,92 +883,6 @@
         },
         "required": ["display_name"],
         "additionalProperties": false
-      },
-      "SubmissionPayload": {
-        "type": "object",
-        "properties": {
-          "developer": {
-            "$ref": "#/components/schemas/SubmissionDeveloper"
-          },
-          "extension": {
-            "$ref": "#/components/schemas/ExtensionPayload"
-          }
-        },
-        "required": ["developer", "extension"],
-        "additionalProperties": false
-      },
-      "SubmissionDeveloper": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
-          },
-          "type": {
-            "type": "string",
-            "enum": ["user", "organization"]
-          },
-          "name": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 120
-          },
-          "URL": {
-            "type": "string",
-            "maxLength": 2048,
-            "format": "uri"
-          }
-        },
-        "required": ["id", "type", "name"],
-        "additionalProperties": false
-      },
-      "Submission": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "extension_id": {
-            "type": ["string", "null"]
-          },
-          "developer_id": {
-            "type": "string"
-          },
-          "submitted_by": {
-            "type": "string"
-          },
-          "status": {
-            "type": "string",
-            "enum": ["pending", "approved", "rejected"]
-          },
-          "payload": {
-            "$ref": "#/components/schemas/SubmissionPayload"
-          },
-          "reviewer_id": {
-            "type": ["string", "null"]
-          },
-          "review_note": {
-            "type": ["string", "null"]
-          },
-          "created_at": {
-            "type": "string"
-          },
-          "reviewed_at": {
-            "type": ["string", "null"]
-          }
-        },
-        "required": [
-          "id",
-          "extension_id",
-          "developer_id",
-          "submitted_by",
-          "status",
-          "payload",
-          "reviewer_id",
-          "review_note",
-          "created_at",
-          "reviewed_at"
-        ]
       },
       "DeveloperClaim": {
         "type": "object",
@@ -833,7 +1205,7 @@
     "/extensions/mine": {
       "get": {
         "tags": ["Extensions"],
-        "summary": "List extensions published under the caller's developer profile",
+        "summary": "List the caller's extensions, published or not",
         "security": [
           {
             "Bearer": []
@@ -883,11 +1255,11 @@
         ],
         "responses": {
           "200": {
-            "description": "The caller's published extensions",
+            "description": "Every extension under the caller's developer profile, each with its live content, any unreviewed edit, and the last moderator decision",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ExtensionListResponse"
+                  "$ref": "#/components/schemas/OwnedExtensionListResponse"
                 }
               }
             }
@@ -935,7 +1307,196 @@
         }
       }
     },
+    "/extensions/mine/{id}": {
+      "get": {
+        "tags": ["Extensions"],
+        "summary": "Get one of the caller's extensions, published or not",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "b6e2c9c4-3f1a-4e9b-9c3a-2e4b1a2f9d10"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The extension's live content, its unreviewed edit if any, and the last moderator decision",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "$ref": "#/components/schemas/OwnedExtension"
+                    }
+                  },
+                  "required": ["result"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The account is inactive, or the caller does not own this extension",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No extension with that id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "id param failed validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Database error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/extensions": {
+      "post": {
+        "tags": ["Extensions"],
+        "summary": "Create an extension and submit its first version for review",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExtensionCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Extension created. It holds the id immediately but stays out of the public catalogue until a moderator approves the revision.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "revision_id": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": ["pending"]
+                        }
+                      },
+                      "required": ["id", "revision_id", "status"]
+                    }
+                  },
+                  "required": ["result"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The account is inactive, or the caller has no developer profile to publish under",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The id is taken, ownership changed, or the pending-revision limit was reached",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Body failed validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Database error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
       "get": {
         "tags": ["Extensions"],
         "summary": "List published extensions",
@@ -1024,6 +1585,224 @@
       }
     },
     "/extensions/{id}": {
+      "put": {
+        "tags": ["Extensions"],
+        "summary": "Submit an edit to an extension the caller owns",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "b6e2c9c4-3f1a-4e9b-9c3a-2e4b1a2f9d10"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExtensionUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Edit accepted as a pending revision. The published content is unchanged until a moderator approves it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "revision_id": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": ["pending"]
+                        }
+                      },
+                      "required": ["id", "revision_id", "status"]
+                    }
+                  },
+                  "required": ["result"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The account is inactive, or the caller does not own this extension",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No extension with that id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "An edit is already awaiting review, or the pending-revision limit was reached",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Body failed validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Database error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Extensions"],
+        "summary": "Withdraw an extension that has never been published",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "b6e2c9c4-3f1a-4e9b-9c3a-2e4b1a2f9d10"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Extension and its revisions deleted, and the id released",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "deleted": {
+                          "type": "boolean",
+                          "enum": [true]
+                        }
+                      },
+                      "required": ["id", "deleted"]
+                    }
+                  },
+                  "required": ["result"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The account is inactive, or the caller does not own this extension",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No extension with that id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The extension is published and cannot be withdrawn",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Database error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
       "get": {
         "tags": ["Extensions"],
         "summary": "Get a single published extension",
@@ -1067,6 +1846,123 @@
           },
           "422": {
             "description": "id param failed validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Database error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/extensions/{id}/revisions": {
+      "get": {
+        "tags": ["Extensions"],
+        "summary": "List an extension's revisions, newest first",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "b6e2c9c4-3f1a-4e9b-9c3a-2e4b1a2f9d10"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1000
+            },
+            "required": false,
+            "name": "cursor",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Every version proposed for this extension, with its review outcome",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ExtensionRevision"
+                      }
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/Pagination"
+                    }
+                  },
+                  "required": ["result", "pagination"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The account is inactive, or the caller neither owns this extension nor moderates",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No extension with that id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Pagination query failed validation",
             "content": {
               "application/json": {
                 "schema": {
@@ -1360,202 +2256,6 @@
           },
           "409": {
             "description": "Account still owns protected domain records",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Database error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/submissions": {
-      "post": {
-        "tags": ["Submissions"],
-        "summary": "Submit a new extension, or an edit to one you own",
-        "security": [
-          {
-            "Bearer": []
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SubmissionPayload"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Submission created and pending moderator review",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "result": {
-                      "type": "object",
-                      "properties": {
-                        "id": {
-                          "type": "string"
-                        },
-                        "status": {
-                          "type": "string",
-                          "enum": ["pending"]
-                        }
-                      },
-                      "required": ["id", "status"]
-                    }
-                  },
-                  "required": ["result"]
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Missing or invalid bearer token",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "The account is inactive, or the caller does not own the target developer or extension",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Ownership or target changed, a duplicate is pending, or the pending limit was reached",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Payload failed validation",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Database error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/submissions/mine": {
-      "get": {
-        "tags": ["Submissions"],
-        "summary": "List the caller's own submissions, in any status",
-        "security": [
-          {
-            "Bearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 100,
-              "default": 50
-            },
-            "required": false,
-            "name": "limit",
-            "in": "query"
-          },
-          {
-            "schema": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 1000
-            },
-            "required": false,
-            "name": "cursor",
-            "in": "query"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "The caller's submissions",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "result": {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/components/schemas/Submission"
-                      }
-                    },
-                    "pagination": {
-                      "$ref": "#/components/schemas/Pagination"
-                    }
-                  },
-                  "required": ["result", "pagination"]
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Missing or invalid bearer token",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "The bearer is valid but the account is inactive",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Pagination query failed validation",
             "content": {
               "application/json": {
                 "schema": {
@@ -2417,10 +3117,10 @@
         }
       }
     },
-    "/submissions/queue": {
+    "/moderation/extensions": {
       "get": {
         "tags": ["Moderation"],
-        "summary": "List submissions in the moderation queue",
+        "summary": "List extension revisions awaiting review",
         "security": [
           {
             "Bearer": []
@@ -2460,7 +3160,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Submissions matching the requested status (default: pending)",
+            "description": "Revisions matching the requested status (default: pending), oldest first",
             "content": {
               "application/json": {
                 "schema": {
@@ -2469,7 +3169,7 @@
                     "result": {
                       "type": "array",
                       "items": {
-                        "$ref": "#/components/schemas/Submission"
+                        "$ref": "#/components/schemas/ExtensionRevision"
                       }
                     },
                     "pagination": {
@@ -2524,10 +3224,10 @@
         }
       }
     },
-    "/submissions/{id}/approve": {
+    "/extensions/{id}/revisions/{revisionId}/approve": {
       "post": {
         "tags": ["Moderation"],
-        "summary": "Approve a pending submission",
+        "summary": "Approve a pending revision and publish it",
         "security": [
           {
             "Bearer": []
@@ -2537,10 +3237,19 @@
           {
             "schema": {
               "type": "string",
-              "example": "b6e2c9c4-3f1a-4e9b-9c3a-2e4b1a2f9d10"
+              "example": "acme-gateway"
             },
             "required": true,
             "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "example": "b6e2c9c4-3f1a-4e9b-9c3a-2e4b1a2f9d10"
+            },
+            "required": true,
+            "name": "revisionId",
             "in": "path"
           }
         ],
@@ -2555,7 +3264,7 @@
         },
         "responses": {
           "200": {
-            "description": "Submission approved and written through to the live extension/developer",
+            "description": "Revision approved and published as the extension's live content",
             "content": {
               "application/json": {
                 "schema": {
@@ -2601,7 +3310,7 @@
             }
           },
           "404": {
-            "description": "No submission with that id",
+            "description": "No such revision on that extension",
             "content": {
               "application/json": {
                 "schema": {
@@ -2611,7 +3320,7 @@
             }
           },
           "409": {
-            "description": "Submission is not pending, or ownership has changed since it was submitted",
+            "description": "Revision is not pending, or ownership has changed since it was proposed",
             "content": {
               "application/json": {
                 "schema": {
@@ -2621,7 +3330,7 @@
             }
           },
           "422": {
-            "description": "id param or review_note body failed validation",
+            "description": "Path params or review_note body failed validation",
             "content": {
               "application/json": {
                 "schema": {
@@ -2643,10 +3352,10 @@
         }
       }
     },
-    "/submissions/{id}/reject": {
+    "/extensions/{id}/revisions/{revisionId}/reject": {
       "post": {
         "tags": ["Moderation"],
-        "summary": "Reject a pending submission",
+        "summary": "Reject a pending revision",
         "security": [
           {
             "Bearer": []
@@ -2656,10 +3365,19 @@
           {
             "schema": {
               "type": "string",
-              "example": "b6e2c9c4-3f1a-4e9b-9c3a-2e4b1a2f9d10"
+              "example": "acme-gateway"
             },
             "required": true,
             "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "example": "b6e2c9c4-3f1a-4e9b-9c3a-2e4b1a2f9d10"
+            },
+            "required": true,
+            "name": "revisionId",
             "in": "path"
           }
         ],
@@ -2674,7 +3392,7 @@
         },
         "responses": {
           "200": {
-            "description": "Submission rejected",
+            "description": "Revision rejected. The extension's published content is unchanged.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2720,7 +3438,7 @@
             }
           },
           "404": {
-            "description": "No submission with that id",
+            "description": "No such revision on that extension",
             "content": {
               "application/json": {
                 "schema": {
@@ -2730,7 +3448,7 @@
             }
           },
           "409": {
-            "description": "Submission is not pending",
+            "description": "Revision is not pending",
             "content": {
               "application/json": {
                 "schema": {
@@ -3318,7 +4036,7 @@
             }
           },
           "409": {
-            "description": "Profile still has published extensions, or has a pending submission awaiting review",
+            "description": "Profile still has extensions attached, published or not",
             "content": {
               "application/json": {
                 "schema": {

@@ -12,6 +12,9 @@ import type {
   DeleteDevelopersMeData,
   DeleteDevelopersMeErrors,
   DeleteDevelopersMeResponses,
+  DeleteExtensionsByIdData,
+  DeleteExtensionsByIdErrors,
+  DeleteExtensionsByIdResponses,
   DeleteUsersMeData,
   DeleteUsersMeErrors,
   DeleteUsersMeResponses,
@@ -39,18 +42,21 @@ import type {
   GetExtensionsByIdData,
   GetExtensionsByIdErrors,
   GetExtensionsByIdResponses,
+  GetExtensionsByIdRevisionsData,
+  GetExtensionsByIdRevisionsErrors,
+  GetExtensionsByIdRevisionsResponses,
   GetExtensionsData,
   GetExtensionsErrors,
+  GetExtensionsMineByIdData,
+  GetExtensionsMineByIdErrors,
+  GetExtensionsMineByIdResponses,
   GetExtensionsMineData,
   GetExtensionsMineErrors,
   GetExtensionsMineResponses,
   GetExtensionsResponses,
-  GetSubmissionsMineData,
-  GetSubmissionsMineErrors,
-  GetSubmissionsMineResponses,
-  GetSubmissionsQueueData,
-  GetSubmissionsQueueErrors,
-  GetSubmissionsQueueResponses,
+  GetModerationExtensionsData,
+  GetModerationExtensionsErrors,
+  GetModerationExtensionsResponses,
   GetUsersMeData,
   GetUsersMeErrors,
   GetUsersMeResponses,
@@ -84,18 +90,21 @@ import type {
   PostDevelopersTransfersAcceptData,
   PostDevelopersTransfersAcceptErrors,
   PostDevelopersTransfersAcceptResponses,
-  PostSubmissionsByIdApproveData,
-  PostSubmissionsByIdApproveErrors,
-  PostSubmissionsByIdApproveResponses,
-  PostSubmissionsByIdRejectData,
-  PostSubmissionsByIdRejectErrors,
-  PostSubmissionsByIdRejectResponses,
-  PostSubmissionsData,
-  PostSubmissionsErrors,
-  PostSubmissionsResponses,
+  PostExtensionsByIdRevisionsByRevisionIdApproveData,
+  PostExtensionsByIdRevisionsByRevisionIdApproveErrors,
+  PostExtensionsByIdRevisionsByRevisionIdApproveResponses,
+  PostExtensionsByIdRevisionsByRevisionIdRejectData,
+  PostExtensionsByIdRevisionsByRevisionIdRejectErrors,
+  PostExtensionsByIdRevisionsByRevisionIdRejectResponses,
+  PostExtensionsData,
+  PostExtensionsErrors,
+  PostExtensionsResponses,
   PutDevelopersMeData,
   PutDevelopersMeErrors,
   PutDevelopersMeResponses,
+  PutExtensionsByIdData,
+  PutExtensionsByIdErrors,
+  PutExtensionsByIdResponses,
   PutUsersMeIdentityData,
   PutUsersMeIdentityErrors,
   PutUsersMeIdentityResponses,
@@ -120,7 +129,7 @@ export type Options<
 };
 
 /**
- * List extensions published under the caller's developer profile
+ * List the caller's extensions, published or not
  */
 export const getExtensionsMine = <ThrowOnError extends boolean = false>(
   options?: Options<GetExtensionsMineData, ThrowOnError>,
@@ -140,6 +149,26 @@ export const getExtensionsMine = <ThrowOnError extends boolean = false>(
   });
 
 /**
+ * Get one of the caller's extensions, published or not
+ */
+export const getExtensionsMineById = <ThrowOnError extends boolean = false>(
+  options: Options<GetExtensionsMineByIdData, ThrowOnError>,
+): RequestResult<
+  GetExtensionsMineByIdResponses,
+  GetExtensionsMineByIdErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    GetExtensionsMineByIdResponses,
+    GetExtensionsMineByIdErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/extensions/mine/{id}',
+    ...options,
+  });
+
+/**
  * List published extensions
  */
 export const getExtensions = <ThrowOnError extends boolean = false>(
@@ -150,6 +179,46 @@ export const getExtensions = <ThrowOnError extends boolean = false>(
     GetExtensionsErrors,
     ThrowOnError
   >({ url: '/extensions', ...options });
+
+/**
+ * Create an extension and submit its first version for review
+ */
+export const postExtensions = <ThrowOnError extends boolean = false>(
+  options?: Options<PostExtensionsData, ThrowOnError>,
+): RequestResult<PostExtensionsResponses, PostExtensionsErrors, ThrowOnError> =>
+  (options?.client ?? client).post<
+    PostExtensionsResponses,
+    PostExtensionsErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/extensions',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options?.headers,
+    },
+  });
+
+/**
+ * Withdraw an extension that has never been published
+ */
+export const deleteExtensionsById = <ThrowOnError extends boolean = false>(
+  options: Options<DeleteExtensionsByIdData, ThrowOnError>,
+): RequestResult<
+  DeleteExtensionsByIdResponses,
+  DeleteExtensionsByIdErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).delete<
+    DeleteExtensionsByIdResponses,
+    DeleteExtensionsByIdErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/extensions/{id}',
+    ...options,
+  });
 
 /**
  * Get a single published extension
@@ -166,6 +235,52 @@ export const getExtensionsById = <ThrowOnError extends boolean = false>(
     GetExtensionsByIdErrors,
     ThrowOnError
   >({ url: '/extensions/{id}', ...options });
+
+/**
+ * Submit an edit to an extension the caller owns
+ */
+export const putExtensionsById = <ThrowOnError extends boolean = false>(
+  options: Options<PutExtensionsByIdData, ThrowOnError>,
+): RequestResult<
+  PutExtensionsByIdResponses,
+  PutExtensionsByIdErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).put<
+    PutExtensionsByIdResponses,
+    PutExtensionsByIdErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/extensions/{id}',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+
+/**
+ * List an extension's revisions, newest first
+ */
+export const getExtensionsByIdRevisions = <
+  ThrowOnError extends boolean = false,
+>(
+  options: Options<GetExtensionsByIdRevisionsData, ThrowOnError>,
+): RequestResult<
+  GetExtensionsByIdRevisionsResponses,
+  GetExtensionsByIdRevisionsErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    GetExtensionsByIdRevisionsResponses,
+    GetExtensionsByIdRevisionsErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/extensions/{id}/revisions',
+    ...options,
+  });
 
 /**
  * Synchronize the caller's OIDC identity projection
@@ -241,50 +356,6 @@ export const patchUsersMe = <ThrowOnError extends boolean = false>(
       'Content-Type': 'application/json',
       ...options?.headers,
     },
-  });
-
-/**
- * Submit a new extension, or an edit to one you own
- */
-export const postSubmissions = <ThrowOnError extends boolean = false>(
-  options?: Options<PostSubmissionsData, ThrowOnError>,
-): RequestResult<
-  PostSubmissionsResponses,
-  PostSubmissionsErrors,
-  ThrowOnError
-> =>
-  (options?.client ?? client).post<
-    PostSubmissionsResponses,
-    PostSubmissionsErrors,
-    ThrowOnError
-  >({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/submissions',
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options?.headers,
-    },
-  });
-
-/**
- * List the caller's own submissions, in any status
- */
-export const getSubmissionsMine = <ThrowOnError extends boolean = false>(
-  options?: Options<GetSubmissionsMineData, ThrowOnError>,
-): RequestResult<
-  GetSubmissionsMineResponses,
-  GetSubmissionsMineErrors,
-  ThrowOnError
-> =>
-  (options?.client ?? client).get<
-    GetSubmissionsMineResponses,
-    GetSubmissionsMineErrors,
-    ThrowOnError
-  >({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/submissions/mine',
-    ...options,
   });
 
 /**
@@ -492,44 +563,47 @@ export const postDevelopersTransfersAccept = <
   });
 
 /**
- * List submissions in the moderation queue
+ * List extension revisions awaiting review
  */
-export const getSubmissionsQueue = <ThrowOnError extends boolean = false>(
-  options?: Options<GetSubmissionsQueueData, ThrowOnError>,
+export const getModerationExtensions = <ThrowOnError extends boolean = false>(
+  options?: Options<GetModerationExtensionsData, ThrowOnError>,
 ): RequestResult<
-  GetSubmissionsQueueResponses,
-  GetSubmissionsQueueErrors,
+  GetModerationExtensionsResponses,
+  GetModerationExtensionsErrors,
   ThrowOnError
 > =>
   (options?.client ?? client).get<
-    GetSubmissionsQueueResponses,
-    GetSubmissionsQueueErrors,
+    GetModerationExtensionsResponses,
+    GetModerationExtensionsErrors,
     ThrowOnError
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/submissions/queue',
+    url: '/moderation/extensions',
     ...options,
   });
 
 /**
- * Approve a pending submission
+ * Approve a pending revision and publish it
  */
-export const postSubmissionsByIdApprove = <
+export const postExtensionsByIdRevisionsByRevisionIdApprove = <
   ThrowOnError extends boolean = false,
 >(
-  options: Options<PostSubmissionsByIdApproveData, ThrowOnError>,
+  options: Options<
+    PostExtensionsByIdRevisionsByRevisionIdApproveData,
+    ThrowOnError
+  >,
 ): RequestResult<
-  PostSubmissionsByIdApproveResponses,
-  PostSubmissionsByIdApproveErrors,
+  PostExtensionsByIdRevisionsByRevisionIdApproveResponses,
+  PostExtensionsByIdRevisionsByRevisionIdApproveErrors,
   ThrowOnError
 > =>
   (options.client ?? client).post<
-    PostSubmissionsByIdApproveResponses,
-    PostSubmissionsByIdApproveErrors,
+    PostExtensionsByIdRevisionsByRevisionIdApproveResponses,
+    PostExtensionsByIdRevisionsByRevisionIdApproveErrors,
     ThrowOnError
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/submissions/{id}/approve',
+    url: '/extensions/{id}/revisions/{revisionId}/approve',
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -538,22 +612,27 @@ export const postSubmissionsByIdApprove = <
   });
 
 /**
- * Reject a pending submission
+ * Reject a pending revision
  */
-export const postSubmissionsByIdReject = <ThrowOnError extends boolean = false>(
-  options: Options<PostSubmissionsByIdRejectData, ThrowOnError>,
+export const postExtensionsByIdRevisionsByRevisionIdReject = <
+  ThrowOnError extends boolean = false,
+>(
+  options: Options<
+    PostExtensionsByIdRevisionsByRevisionIdRejectData,
+    ThrowOnError
+  >,
 ): RequestResult<
-  PostSubmissionsByIdRejectResponses,
-  PostSubmissionsByIdRejectErrors,
+  PostExtensionsByIdRevisionsByRevisionIdRejectResponses,
+  PostExtensionsByIdRevisionsByRevisionIdRejectErrors,
   ThrowOnError
 > =>
   (options.client ?? client).post<
-    PostSubmissionsByIdRejectResponses,
-    PostSubmissionsByIdRejectErrors,
+    PostExtensionsByIdRevisionsByRevisionIdRejectResponses,
+    PostExtensionsByIdRevisionsByRevisionIdRejectErrors,
     ThrowOnError
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/submissions/{id}/reject',
+    url: '/extensions/{id}/revisions/{revisionId}/reject',
     ...options,
     headers: {
       'Content-Type': 'application/json',

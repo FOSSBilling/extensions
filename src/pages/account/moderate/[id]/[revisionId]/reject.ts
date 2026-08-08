@@ -10,8 +10,8 @@ export const POST: APIRoute = async (context) => {
   if (guard instanceof Response) return guard;
   const user = guard;
 
-  const { id } = context.params;
-  if (!id) return context.redirect('/account/moderate');
+  const { id, revisionId } = context.params;
+  if (!id || !revisionId) return context.redirect('/account/moderate');
 
   let form: FormData;
   try {
@@ -27,17 +27,17 @@ export const POST: APIRoute = async (context) => {
   if (!reviewNote) {
     setFlash(context.session, {
       category: 'error',
-      title: 'A reason is required to reject a submission.',
+      title: 'A reason is required to reject a revision.',
     });
     return context.redirect('/account/moderate');
   }
 
   const api = createApiClient(env, user.sub);
   try {
-    await api.rejectSubmission(id, reviewNote);
+    await api.rejectRevision(id, revisionId, reviewNote);
   } catch (e) {
     const message =
-      e instanceof ApiRequestError ? e.message : 'Unable to reject submission.';
+      e instanceof ApiRequestError ? e.message : 'Unable to reject revision.';
     setFlash(context.session, { category: 'error', title: message });
   }
 
