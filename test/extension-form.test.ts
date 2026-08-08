@@ -13,7 +13,7 @@ function extensionForm(overrides: Record<string, string> = {}): FormData {
   form.set('name', 'Example');
   form.set('description', 'An example extension.');
   form.set('website', 'example.test');
-  form.set('license_name', 'MIT');
+  form.set('license_spdx_id', 'MIT');
   form.set('license_url', 'https://example.test/license');
   form.set('readme', '# Example');
   form.set('source_type', 'github');
@@ -42,7 +42,7 @@ const publishedExtension: Extension = {
     },
   ],
   website: 'https://example.test',
-  license: { name: 'MIT' },
+  license: { name: 'MIT', spdx_id: 'MIT' },
   readme: '# Example',
   source: { type: 'github', repo: 'fossbilling/example' },
   version: '0.9.0',
@@ -85,6 +85,48 @@ describe('buildExtensionCreatePayload', () => {
     form.delete('release_date');
     form.delete('download_url');
     form.delete('min_fossbilling_version');
+
+    expect(() => buildExtensionCreatePayload(form)).toThrow(
+      ExtensionValidationError,
+    );
+  });
+
+  it('sets both name and spdx_id for a recognized license', () => {
+    const payload = buildExtensionCreatePayload(
+      extensionForm({ license_spdx_id: 'Apache-2.0' }),
+    );
+
+    expect(payload.license).toEqual({
+      name: 'Apache-2.0',
+      spdx_id: 'Apache-2.0',
+      URL: 'https://example.test/license',
+    });
+  });
+
+  it('rejects a license_spdx_id that is not a real SPDX identifier', () => {
+    const form = extensionForm({ license_spdx_id: 'not-a-real-license' });
+
+    expect(() => buildExtensionCreatePayload(form)).toThrow(
+      ExtensionValidationError,
+    );
+  });
+
+  it('uses the custom name with no spdx_id for Other / Proprietary', () => {
+    const payload = buildExtensionCreatePayload(
+      extensionForm({
+        license_spdx_id: 'other',
+        license_name_custom: 'Acme Proprietary License',
+      }),
+    );
+
+    expect(payload.license).toEqual({
+      name: 'Acme Proprietary License',
+      URL: 'https://example.test/license',
+    });
+  });
+
+  it('requires a custom name when Other / Proprietary is selected', () => {
+    const form = extensionForm({ license_spdx_id: 'other' });
 
     expect(() => buildExtensionCreatePayload(form)).toThrow(
       ExtensionValidationError,

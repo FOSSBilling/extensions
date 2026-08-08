@@ -1,8 +1,9 @@
 ---
-import { EXTENSION_TYPES, SOURCE_TYPES } from '@/types';
+import { EXTENSION_TYPES, SOURCE_TYPES, SPDX_LICENSE_IDS } from '@/types';
 import type { Developer, Extension } from '@/types';
-import { CircleAlert } from '@lucide/astro';
+import { CircleAlert, SquarePen } from '@lucide/astro';
 import { stripUrlScheme } from '@/lib/url-prefix';
+import { OTHER_LICENSE } from '@/lib/extension-form';
 
 interface Props {
   developer: Developer;
@@ -16,6 +17,38 @@ const isEdit = Boolean(extension);
 // nothing already published to carry through — an extension can reach this
 // form with no releases yet (rejected and never resubmitted).
 const requireRelease = !isEdit || extension!.releases.length === 0;
+
+const existingSpdxId = extension?.license.spdx_id;
+// An existing license only lands in the custom bucket when it truly isn't
+// one of the ids this form offers — covers both genuinely custom/proprietary
+// licenses and (defensively) a stored spdx_id this deployed list doesn't
+// recognize, e.g. after a downgrade.
+const isCustomLicense =
+  isEdit && (!existingSpdxId || !SPDX_LICENSE_IDS.includes(existingSpdxId));
+const licenseSelectValue = isCustomLicense
+  ? OTHER_LICENSE
+  : (existingSpdxId ?? '');
+
+// Surfaced first in the license combobox as a "Popular Licenses" group so
+// the common case doesn't need typing to find — a presentational shortcut
+// only. Every id here still comes from SPDX_LICENSE_IDS below; nothing
+// restricts submission to this set, and the full list remains searchable
+// underneath it.
+const POPULAR_SPDX_IDS = [
+  'MIT',
+  'Apache-2.0',
+  'GPL-2.0-only',
+  'GPL-3.0-only',
+  'AGPL-3.0-only',
+  'LGPL-3.0-only',
+  'MPL-2.0',
+  'BSD-2-Clause',
+  'BSD-3-Clause',
+  'ISC',
+  'Unlicense',
+] as const;
+const popularSpdxIds = new Set<string>(POPULAR_SPDX_IDS);
+const otherSpdxIds = SPDX_LICENSE_IDS.filter((id) => !popularSpdxIds.has(id));
 ---
 
 {
@@ -33,9 +66,20 @@ const requireRelease = !isEdit || extension!.releases.length === 0;
       <div role="group" aria-label="Extension fields" class="fieldset">
         <fieldset class="fieldset space-y-4">
           <legend>Publisher</legend>
-          <p>
-            Publishing as <strong>{developer.name}</strong> ({developer.id}).
-            <a href="/account/developer">Edit Developer Profile</a>
+          <p class="flex items-center gap-1">
+            <span>
+              Publishing as <strong>{developer.name}</strong> ({developer.id}).
+            </span>
+            <a
+              href="/account/developer"
+              class="btn"
+              data-variant="ghost"
+              data-size="icon-xs"
+              aria-label="Edit Developer Profile"
+              title="Edit Developer Profile"
+            >
+              <SquarePen class="size-4" />
+            </a>
           </p>
         </fieldset>
 
@@ -45,6 +89,19 @@ const requireRelease = !isEdit || extension!.releases.length === 0;
 
         <fieldset class="fieldset space-y-4">
           <legend>Extension</legend>
+          <div class="field">
+            <label for="name">
+              Name <span class="text-destructive">*</span>
+            </label>
+            <input
+              class="input"
+              type="text"
+              id="name"
+              name="name"
+              required
+              value={extension?.name}
+            />
+          </div>
           <div class="field">
             <label for="extension_id">
               Extension ID <span class="text-destructive">*</span>
@@ -59,13 +116,22 @@ const requireRelease = !isEdit || extension!.releases.length === 0;
               value={extension?.id}
               disabled={isEdit}
             />
-            {isEdit && <p>The ID can't be changed after submission.</p>}
+            {
+              isEdit ? (
+                <p>The ID can't be changed after submission.</p>
+              ) : (
+                <p class="text-muted-foreground">
+                  Suggested from the name above — edit if you'd like something
+                  different.
+                </p>
+              )
+            }
           </div>
           <div class="field">
             <label for="type">
               Type <span class="text-destructive">*</span>
             </label>
-            <select class="select" id="type" name="type" required>
+            <select class="select w-full" id="type" name="type" required>
               {
                 EXTENSION_TYPES.map((t) => (
                   <option value={t} selected={extension?.type === t}>
@@ -74,19 +140,6 @@ const requireRelease = !isEdit || extension!.releases.length === 0;
                 ))
               }
             </select>
-          </div>
-          <div class="field">
-            <label for="name">
-              Name <span class="text-destructive">*</span>
-            </label>
-            <input
-              class="input"
-              type="text"
-              id="name"
-              name="name"
-              required
-              value={extension?.name}
-            />
           </div>
           <div class="field">
             <label for="description">
@@ -159,16 +212,108 @@ const requireRelease = !isEdit || extension!.releases.length === 0;
         <fieldset class="fieldset space-y-4">
           <legend>License</legend>
           <div class="field">
-            <label for="license_name">
-              License Name <span class="text-destructive">*</span>
+            <label for="license-search">
+              License <span class="text-destructive">*</span>
+            </label>
+            <div
+              id="license-combobox"
+              class="combobox w-full"
+              data-auto-highlight="true"
+            >
+              <input
+                type="text"
+                role="combobox"
+                id="license-search"
+                placeholder="Search SPDX licenses…"
+                autocomplete="off"
+                autocorrect="off"
+                spellcheck="false"
+                required
+                aria-autocomplete="list"
+                aria-expanded="false"
+                aria-controls="license-combobox-listbox"
+              />
+              <svg
+                aria-hidden="true"
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="combobox-trigger-icon"
+              >
+                <path d="m6 9 6 6 6-6"></path>
+              </svg>
+              <div
+                id="license-combobox-popover"
+                data-popover
+                aria-hidden="true"
+              >
+                <div
+                  role="listbox"
+                  id="license-combobox-listbox"
+                  class="scrollbar-sm max-h-70 overflow-y-auto"
+                  aria-orientation="vertical"
+                  data-empty="No matching license found."
+                >
+                  <div role="group" aria-labelledby="license-group-popular">
+                    <div role="heading" id="license-group-popular">
+                      Popular Licenses
+                    </div>
+                    {
+                      POPULAR_SPDX_IDS.map((id) => (
+                        <div role="option" data-value={id}>
+                          {id}
+                        </div>
+                      ))
+                    }
+                  </div>
+                  <hr role="separator" />
+                  <div role="group" aria-labelledby="license-group-all">
+                    <div role="heading" id="license-group-all">
+                      All Licenses (A–Z)
+                    </div>
+                    {
+                      otherSpdxIds.map((id) => (
+                        <div role="option" data-value={id}>
+                          {id}
+                        </div>
+                      ))
+                    }
+                  </div>
+                  <hr role="separator" />
+                  <div role="option" data-value={OTHER_LICENSE}>
+                    Other / Proprietary
+                  </div>
+                </div>
+              </div>
+              <input
+                type="hidden"
+                id="license_spdx_id"
+                name="license_spdx_id"
+                value={licenseSelectValue}
+              />
+            </div>
+          </div>
+          <div
+            class="field"
+            data-license-custom-field
+            hidden={!isCustomLicense}
+          >
+            <label for="license_name_custom">
+              Custom License Name <span class="text-destructive">*</span>
             </label>
             <input
               class="input"
               type="text"
-              id="license_name"
-              name="license_name"
-              required
-              value={extension?.license.name}
+              id="license_name_custom"
+              name="license_name_custom"
+              required={isCustomLicense}
+              value={isCustomLicense ? extension?.license.name : undefined}
             />
           </div>
           <div class="field">
@@ -200,7 +345,7 @@ const requireRelease = !isEdit || extension!.releases.length === 0;
           <legend>Source</legend>
           <div class="field">
             <label for="source_type">Repository Host</label>
-            <select class="select" id="source_type" name="source_type">
+            <select class="select w-full" id="source_type" name="source_type">
               {
                 SOURCE_TYPES.map((t) => (
                   <option value={t} selected={extension?.source.type === t}>
@@ -344,3 +489,76 @@ const requireRelease = !isEdit || extension!.releases.length === 0;
     </form>
   </section>
 </div>
+
+<script>
+  // Suggests an Extension ID from the Name field, matching the server's
+  // `[a-z0-9]+(-[a-z0-9]+)*` pattern. Stops once the user edits the ID
+  // directly, same as the slug-from-title pattern elsewhere (WordPress,
+  // GitHub repo creation, etc.) — a manual edit always wins. Only wired up
+  // for new extensions; the edit form disables this field entirely.
+  const nameInput = document.querySelector<HTMLInputElement>('#name');
+  const idInput = document.querySelector<HTMLInputElement>('#extension_id');
+
+  if (nameInput && idInput && !idInput.disabled) {
+    const slugify = (value: string) =>
+      value
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+
+    let idEditedByUser = false;
+    idInput.addEventListener('input', () => {
+      idEditedByUser = true;
+    });
+    nameInput.addEventListener('input', () => {
+      if (!idEditedByUser) {
+        idInput.value = slugify(nameInput.value);
+      }
+    });
+  }
+</script>
+
+<script>
+  import { OTHER_LICENSE } from '@/lib/extension-form';
+
+  // Reveals the custom-name field only for "Other / Proprietary", and
+  // suggests each recognized license's canonical spdx.org page as the
+  // License URL — stops once the user edits that field directly, same
+  // override-wins rule as the ID slug above. The combobox (basecoat-css)
+  // submits through its own hidden #license_spdx_id input and reports
+  // picks via a `change` CustomEvent on the `.combobox` root rather than
+  // a native `change` on that input — see basecoat-css/dist/js/combobox.js.
+  const licenseCombobox =
+    document.querySelector<HTMLElement>('#license-combobox');
+  const customField = document.querySelector<HTMLElement>(
+    '[data-license-custom-field]',
+  );
+  const customInput = document.querySelector<HTMLInputElement>(
+    '#license_name_custom',
+  );
+  const urlInput = document.querySelector<HTMLInputElement>('#license_url');
+
+  if (licenseCombobox && customField && customInput) {
+    let urlEditedByUser = false;
+    urlInput?.addEventListener('input', () => {
+      urlEditedByUser = true;
+    });
+
+    licenseCombobox.addEventListener('change', (event) => {
+      // A native `change` from #license-search (e.g. typing then tabbing
+      // away without picking an option) bubbles up to this same element —
+      // only the combobox's own CustomEvent carries a real selection.
+      if (!(event instanceof CustomEvent)) return;
+
+      const value = (event as CustomEvent<{ value: string }>).detail.value;
+      const isOther = value === OTHER_LICENSE;
+      customField.hidden = !isOther;
+      customInput.required = isOther;
+
+      if (urlInput && !urlEditedByUser) {
+        urlInput.value =
+          !isOther && value ? `spdx.org/licenses/${value}.html` : '';
+      }
+    });
+  }
+</script>

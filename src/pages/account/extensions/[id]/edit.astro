@@ -8,10 +8,12 @@ import { getOwnedExtension } from '@/lib/extensions-data';
 import {
   buildExtensionUpdatePayload,
   ExtensionValidationError,
+  OTHER_LICENSE,
 } from '@/lib/extension-form';
 import { formString } from '@/lib/form';
 import { formatDate } from '@/lib/format-date';
 import { setFlash } from '@/lib/flash';
+import { SPDX_LICENSE_IDS } from '@/types';
 import type { Extension } from '@/types';
 
 const env = Astro.locals.env;
@@ -62,6 +64,14 @@ let submitted: Extension | null = null;
 // form in that state (see the pendingRevision branch below).
 if (!owned.pendingRevision && Astro.request.method === 'POST') {
   const form = await Astro.request.formData();
+  // Mirrors buildLicense() in extension-form.ts, minus the validation —
+  // this is a best-effort echo of what the user submitted, not the
+  // payload itself, so an incomplete choice here is fine to redisplay
+  // as-is rather than reject.
+  const selectedLicenseId = formString(form, 'license_spdx_id');
+  const isRecognizedLicense =
+    selectedLicenseId !== OTHER_LICENSE &&
+    SPDX_LICENSE_IDS.includes(selectedLicenseId);
   submitted = {
     ...base,
     type: formString(form, 'type') as Extension['type'],
@@ -70,10 +80,16 @@ if (!owned.pendingRevision && Astro.request.method === 'POST') {
     website: formString(form, 'website'),
     icon_url: formString(form, 'icon_url') || undefined,
     readme: formString(form, 'readme'),
-    license: {
-      name: formString(form, 'license_name'),
-      URL: formString(form, 'license_url') || undefined,
-    },
+    license: isRecognizedLicense
+      ? {
+          name: selectedLicenseId,
+          spdx_id: selectedLicenseId,
+          URL: formString(form, 'license_url') || undefined,
+        }
+      : {
+          name: formString(form, 'license_name_custom'),
+          URL: formString(form, 'license_url') || undefined,
+        },
     source: {
       type: formString(form, 'source_type') as Extension['source']['type'],
       repo: formString(form, 'source_repo'),
