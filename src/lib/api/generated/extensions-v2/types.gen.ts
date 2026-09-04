@@ -32,6 +32,7 @@ export type OwnedExtensionListItem = {
   } | null;
   pending_revision: PendingRevisionRef;
   last_review: RevisionReview;
+  delisted: DelistedInfo;
   created_at: string;
   updated_at: string;
 };
@@ -70,6 +71,11 @@ export type RevisionReview = {
   status: 'approved' | 'rejected';
   review_note: string | null;
   reviewed_at: string | null;
+} | null;
+
+export type DelistedInfo = {
+  reason: string;
+  at: string;
 } | null;
 
 export type Pagination = {
@@ -324,6 +330,10 @@ export type TransferAcceptance = {
 
 export type ReviewNoteOptional = {
   review_note?: string;
+};
+
+export type DelistReason = {
+  reason: string;
 };
 
 export type DeveloperApproval = {
@@ -1377,6 +1387,53 @@ export type GetModerationExtensionsResponses = {
 export type GetModerationExtensionsResponse =
   GetModerationExtensionsResponses[keyof GetModerationExtensionsResponses];
 
+export type GetModerationExtensionsByIdData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/moderation/extensions/{id}';
+};
+
+export type GetModerationExtensionsByIdErrors = {
+  /**
+   * Missing or invalid bearer token
+   */
+  401: Error;
+  /**
+   * The account is inactive or the caller is not a moderator
+   */
+  403: Error;
+  /**
+   * No such extension
+   */
+  404: Error;
+  /**
+   * id param failed validation
+   */
+  422: Error;
+  /**
+   * Database error
+   */
+  500: Error;
+};
+
+export type GetModerationExtensionsByIdError =
+  GetModerationExtensionsByIdErrors[keyof GetModerationExtensionsByIdErrors];
+
+export type GetModerationExtensionsByIdResponses = {
+  /**
+   * The extension's live content, its unreviewed edit if any, the last moderator decision, and its delist state
+   */
+  200: {
+    result: OwnedExtension;
+  };
+};
+
+export type GetModerationExtensionsByIdResponse =
+  GetModerationExtensionsByIdResponses[keyof GetModerationExtensionsByIdResponses];
+
 export type PostExtensionsByIdRevisionsByRevisionIdApproveData = {
   body?: ReviewNoteOptional;
   path: {
@@ -1486,6 +1543,60 @@ export type PostExtensionsByIdRevisionsByRevisionIdRejectResponses = {
 
 export type PostExtensionsByIdRevisionsByRevisionIdRejectResponse =
   PostExtensionsByIdRevisionsByRevisionIdRejectResponses[keyof PostExtensionsByIdRevisionsByRevisionIdRejectResponses];
+
+export type PostExtensionsByIdDelistData = {
+  body?: DelistReason;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/extensions/{id}/delist';
+};
+
+export type PostExtensionsByIdDelistErrors = {
+  /**
+   * Missing or invalid bearer token
+   */
+  401: Error;
+  /**
+   * The account is inactive or the caller is not a moderator
+   */
+  403: Error;
+  /**
+   * No such extension
+   */
+  404: Error;
+  /**
+   * Extension is not published, or is already delisted
+   */
+  409: Error;
+  /**
+   * Path params or reason body failed validation
+   */
+  422: Error;
+  /**
+   * Database error
+   */
+  500: Error;
+};
+
+export type PostExtensionsByIdDelistError =
+  PostExtensionsByIdDelistErrors[keyof PostExtensionsByIdDelistErrors];
+
+export type PostExtensionsByIdDelistResponses = {
+  /**
+   * Extension removed from the public catalogue. Its content and history are kept, and its owner can still see and edit it.
+   */
+  200: {
+    result: {
+      id: string;
+      status: 'delisted';
+    };
+  };
+};
+
+export type PostExtensionsByIdDelistResponse =
+  PostExtensionsByIdDelistResponses[keyof PostExtensionsByIdDelistResponses];
 
 export type GetDevelopersData = {
   body?: never;

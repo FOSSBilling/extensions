@@ -14,6 +14,7 @@ import {
   getExtensionsMine,
   getExtensionsMineById,
   getModerationExtensions,
+  getModerationExtensionsById,
   getUsersMe,
   patchUsersMe,
   postDevelopersByIdApprove,
@@ -26,6 +27,7 @@ import {
   postDevelopersMeReverify,
   postDevelopersTransfersAccept,
   postExtensions,
+  postExtensionsByIdDelist,
   postExtensionsByIdRevisionsByRevisionIdApprove,
   postExtensionsByIdRevisionsByRevisionIdReject,
   deleteUsersMe,
@@ -421,6 +423,16 @@ export function createApiClient(env: ApplicationEnv, subject: string) {
         }),
       ),
 
+    getModerationExtension: async (id: string): Promise<OwnedExtension> =>
+      (
+        await unwrap(
+          await getModerationExtensionsById({
+            client,
+            path: { id },
+          }),
+        )
+      ).result,
+
     approveRevision: async (
       extensionId: string,
       revisionId: string,
@@ -447,6 +459,17 @@ export function createApiClient(env: ApplicationEnv, subject: string) {
             client,
             path: { id: extensionId, revisionId },
             body: { review_note: reviewNote },
+          }),
+        )
+      ).result,
+
+    delistExtension: async (extensionId: string, reason: string) =>
+      (
+        await unwrap(
+          await postExtensionsByIdDelist({
+            client,
+            path: { id: extensionId },
+            body: { reason },
           }),
         )
       ).result,

@@ -54,6 +54,9 @@ import type {
   GetExtensionsMineErrors,
   GetExtensionsMineResponses,
   GetExtensionsResponses,
+  GetModerationExtensionsByIdData,
+  GetModerationExtensionsByIdErrors,
+  GetModerationExtensionsByIdResponses,
   GetModerationExtensionsData,
   GetModerationExtensionsErrors,
   GetModerationExtensionsResponses,
@@ -90,6 +93,9 @@ import type {
   PostDevelopersTransfersAcceptData,
   PostDevelopersTransfersAcceptErrors,
   PostDevelopersTransfersAcceptResponses,
+  PostExtensionsByIdDelistData,
+  PostExtensionsByIdDelistErrors,
+  PostExtensionsByIdDelistResponses,
   PostExtensionsByIdRevisionsByRevisionIdApproveData,
   PostExtensionsByIdRevisionsByRevisionIdApproveErrors,
   PostExtensionsByIdRevisionsByRevisionIdApproveResponses,
@@ -583,6 +589,28 @@ export const getModerationExtensions = <ThrowOnError extends boolean = false>(
   });
 
 /**
+ * Get any extension's full record, including a delisted one
+ */
+export const getModerationExtensionsById = <
+  ThrowOnError extends boolean = false,
+>(
+  options: Options<GetModerationExtensionsByIdData, ThrowOnError>,
+): RequestResult<
+  GetModerationExtensionsByIdResponses,
+  GetModerationExtensionsByIdErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    GetModerationExtensionsByIdResponses,
+    GetModerationExtensionsByIdErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/moderation/extensions/{id}',
+    ...options,
+  });
+
+/**
  * Approve a pending revision and publish it
  */
 export const postExtensionsByIdRevisionsByRevisionIdApprove = <
@@ -633,6 +661,30 @@ export const postExtensionsByIdRevisionsByRevisionIdReject = <
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/extensions/{id}/revisions/{revisionId}/reject',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+
+/**
+ * Remove a published extension from the public catalogue
+ */
+export const postExtensionsByIdDelist = <ThrowOnError extends boolean = false>(
+  options: Options<PostExtensionsByIdDelistData, ThrowOnError>,
+): RequestResult<
+  PostExtensionsByIdDelistResponses,
+  PostExtensionsByIdDelistErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).post<
+    PostExtensionsByIdDelistResponses,
+    PostExtensionsByIdDelistErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/extensions/{id}/delist',
     ...options,
     headers: {
       'Content-Type': 'application/json',
