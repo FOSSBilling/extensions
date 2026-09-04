@@ -26,6 +26,7 @@ import {
   postDevelopersMeReverify,
   postDevelopersTransfersAccept,
   postExtensions,
+  postExtensionsByIdDelist,
   postExtensionsByIdRevisionsByRevisionIdApprove,
   postExtensionsByIdRevisionsByRevisionIdReject,
   deleteUsersMe,
@@ -447,6 +448,21 @@ export function createApiClient(env: ApplicationEnv, subject: string) {
             client,
             path: { id: extensionId, revisionId },
             body: { review_note: reviewNote },
+          }),
+        )
+      ).result,
+
+    // Removes an already-published extension from the public catalogue.
+    // Distinct from rejectRevision: this acts on the extension itself, not a
+    // pending edit, and there is no owner-facing equivalent — see the
+    // extensions-v2 service README's "Extension Lifecycle" section.
+    delistExtension: async (extensionId: string, reason: string) =>
+      (
+        await unwrap(
+          await postExtensionsByIdDelist({
+            client,
+            path: { id: extensionId },
+            body: { reason },
           }),
         )
       ).result,

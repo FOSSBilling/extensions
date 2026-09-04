@@ -90,6 +90,9 @@ import type {
   PostDevelopersTransfersAcceptData,
   PostDevelopersTransfersAcceptErrors,
   PostDevelopersTransfersAcceptResponses,
+  PostExtensionsByIdDelistData,
+  PostExtensionsByIdDelistErrors,
+  PostExtensionsByIdDelistResponses,
   PostExtensionsByIdRevisionsByRevisionIdApproveData,
   PostExtensionsByIdRevisionsByRevisionIdApproveErrors,
   PostExtensionsByIdRevisionsByRevisionIdApproveResponses,
@@ -633,6 +636,30 @@ export const postExtensionsByIdRevisionsByRevisionIdReject = <
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/extensions/{id}/revisions/{revisionId}/reject',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+
+/**
+ * Remove a published extension from the public catalogue
+ */
+export const postExtensionsByIdDelist = <ThrowOnError extends boolean = false>(
+  options: Options<PostExtensionsByIdDelistData, ThrowOnError>,
+): RequestResult<
+  PostExtensionsByIdDelistResponses,
+  PostExtensionsByIdDelistErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).post<
+    PostExtensionsByIdDelistResponses,
+    PostExtensionsByIdDelistErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/extensions/{id}/delist',
     ...options,
     headers: {
       'Content-Type': 'application/json',

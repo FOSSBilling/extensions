@@ -56,6 +56,52 @@ const nextPageUrl =
       </a>
     </div>
 
+    <details class="card">
+      <summary class="p-4 cursor-pointer font-semibold">
+        Delist a published extension
+      </summary>
+      <div class="p-4 pt-0">
+        <p class="text-sm text-muted-foreground mb-3">
+          Removes an already-published extension from the public catalogue — for
+          a broken or abandoned listing, not a pending edit. Its content and
+          history are kept, and its owner can still see why.
+        </p>
+        <form
+          method="POST"
+          action="/account/moderate/delist"
+          class="flex flex-col gap-3"
+        >
+          <div class="field">
+            <label for="delist-id">Extension id</label>
+            <input
+              class="input"
+              type="text"
+              id="delist-id"
+              name="id"
+              placeholder="e.g. paygate"
+              required
+            />
+          </div>
+          <div class="field">
+            <label for="delist-reason">Reason</label>
+            <textarea
+              class="textarea"
+              id="delist-reason"
+              name="reason"
+              placeholder="Why is this being removed? The owner will see this."
+              required></textarea>
+          </div>
+          <button
+            type="submit"
+            class="btn self-start"
+            data-variant="destructive"
+          >
+            Delist
+          </button>
+        </form>
+      </div>
+    </details>
+
     <nav class="flex gap-2">
       {
         (['pending', 'approved', 'rejected'] as const).map((s) => (
