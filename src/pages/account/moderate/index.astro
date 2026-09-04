@@ -7,23 +7,83 @@ import {
   createApiClient,
   getApiErrorMessage,
 } from '@/lib/api/client';
-import type { ExtensionRevision, RevisionStatus } from '@/lib/api/client';
+import type {
+  ExtensionRevision,
+  ModerationExtensionStatus,
+  OwnedExtensionListItem,
+  RevisionStatus,
+} from '@/lib/api/client';
 import RejectDialog from '@/components/RejectDialog.astro';
 import { formatDate } from '@/lib/format-date';
-import { cursorPageUrl } from '@/lib/pagination';
+import {
+  cursorPageUrl,
+  filterPageUrl,
+  prevCursorPageUrl,
+} from '@/lib/pagination';
 
 const env = Astro.locals.env;
 const guard = await requireModerator(Astro, env);
 if (guard instanceof Response) return guard;
 const user = guard;
 
+const api = createApiClient(env, user.sub);
+
+// Extensions — defaults to "published" since that's what a moderator checks
+// most often; "all" is one tab away rather than the landing view.
+const EXTENSION_STATUS_TABS = [
+  'all',
+  'published',
+  'delisted',
+  'unpublished',
+] as const;
+const extStatusParam = Astro.url.searchParams.get('extStatus');
+const extStatusTab: (typeof EXTENSION_STATUS_TABS)[number] =
+  EXTENSION_STATUS_TABS.find((s) => s === extStatusParam) ?? 'published';
+const extStatus: ModerationExtensionStatus | undefined =
+  extStatusTab === 'all' ? undefined : extStatusTab;
+const extQuery = Astro.url.searchParams.get('q')?.trim() || undefined;
+
+let extensions: OwnedExtensionListItem[] = [];
+let extNextCursor: string | null = null;
+let extHasMore = false;
+let extError: string | null = null;
+try {
+  const page = await api.listAllExtensions({
+    status: extStatus,
+    q: extQuery,
+    cursor: Astro.url.searchParams.get('extCursor') ?? undefined,
+  });
+  extensions = page.result;
+  extNextCursor = page.pagination.next_cursor;
+  extHasMore = page.pagination.has_more;
+} catch (error) {
+  extError =
+    error instanceof ApiRequestError
+      ? getApiErrorMessage(error)
+      : 'Unable to load extensions right now.';
+}
+const extNextPageUrl =
+  extHasMore && extNextCursor !== null && extNextCursor.length > 0
+    ? cursorPageUrl(Astro.url, 'extCursor', 'extCursors', extNextCursor)
+    : null;
+const extPrevPageUrl = prevCursorPageUrl(Astro.url, 'extCursor', 'extCursors');
+
+function extensionStatusBadge(ext: OwnedExtensionListItem): {
+  label: string;
+  variant: 'secondary' | 'destructive' | undefined;
+} {
+  if (ext.delisted) return { label: 'Delisted', variant: 'destructive' };
+  if (ext.published) return { label: 'Published', variant: undefined };
+  return { label: 'Never published', variant: 'secondary' };
+}
+
+// Revision queue
 const statusParam = Astro.url.searchParams.get('status');
 const status: RevisionStatus =
   statusParam === 'approved' || statusParam === 'rejected'
     ? statusParam
     : 'pending';
 
-const api = createApiClient(env, user.sub);
 let revisions: ExtensionRevision[] = [];
 let nextCursor: string | null = null;
 let hasMore = false;
@@ -44,8 +104,9 @@ try {
 
 const nextPageUrl =
   hasMore && nextCursor !== null && nextCursor.length > 0
-    ? cursorPageUrl(Astro.url, 'cursor', nextCursor)
+    ? cursorPageUrl(Astro.url, 'cursor', 'cursors', nextCursor)
     : null;
+const prevPageUrl = prevCursorPageUrl(Astro.url, 'cursor', 'cursors');
 ---
 
 <Base title="Moderation Queue — FOSSBilling Extensions">
@@ -57,67 +118,131 @@ const nextPageUrl =
       </a>
     </div>
 
-    <details class="card">
-      <summary class="p-4 cursor-pointer font-semibold">
-        View an extension
-      </summary>
-      <div class="p-4 pt-0">
-        <p class="text-sm text-muted-foreground mb-3">
-          Look up any extension by id — published, delisted, or never published
-          — including why, if it was delisted.
-        </p>
-        <form id="view-extension-form" class="flex gap-3">
+    <section class="space-y-3">
+      <h2 class="font-semibold">Extensions</h2>
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <nav class="flex gap-2">
+          {
+            EXTENSION_STATUS_TABS.map((s) => (
+              <a
+                href={filterPageUrl(Astro.url, 'extStatus', s, [
+                  'extCursor',
+                  'extCursors',
+                ])}
+                class="btn"
+                data-size="sm"
+                data-variant={s === extStatusTab ? 'primary' : 'outline'}
+              >
+                {s === 'unpublished' ? 'never published' : s}
+              </a>
+            ))
+          }
+        </nav>
+        <form id="extension-search-form" class="flex gap-2">
           <input
             class="input"
             type="text"
-            id="view-extension-id"
-            placeholder="e.g. paygate"
-            required
+            id="extension-search-input"
+            name="q"
+            placeholder="Search by id…"
+            value={extQuery ?? ''}
           />
-          <button type="submit" class="btn">View</button>
-        </form>
-      </div>
-    </details>
-
-    <details class="card">
-      <summary class="p-4 cursor-pointer font-semibold">
-        Delist a published extension
-      </summary>
-      <div class="p-4 pt-0">
-        <p class="text-sm text-muted-foreground mb-3">
-          Removes an already-published extension from the public catalogue — for
-          a broken or abandoned listing, not a pending edit. Its content and
-          history are kept, and its owner can still see why.
-        </p>
-        <form id="delist-form" class="flex flex-col gap-3">
-          <div class="field">
-            <label for="delist-id">Extension id</label>
-            <input
-              class="input"
-              type="text"
-              id="delist-id"
-              placeholder="e.g. paygate"
-              required
-            />
-          </div>
-          <div class="field">
-            <label for="delist-reason">Reason</label>
-            <textarea
-              class="textarea"
-              id="delist-reason"
-              placeholder="Why is this being removed? The owner will see this."
-              required></textarea>
-          </div>
           <button
             type="submit"
-            class="btn self-start"
-            data-variant="destructive"
+            class="btn"
+            data-size="sm"
+            data-variant="outline"
           >
-            Delist
+            Search
           </button>
         </form>
       </div>
-    </details>
+      {
+        extQuery && (
+          <p class="text-sm text-muted-foreground">
+            Showing results for "{extQuery}" ·{' '}
+            <a
+              href={filterPageUrl(Astro.url, 'q', null, [
+                'extCursor',
+                'extCursors',
+              ])}
+            >
+              Clear
+            </a>
+          </p>
+        )
+      }
+
+      {
+        extError ? (
+          <p class="text-sm text-destructive">{extError}</p>
+        ) : extensions.length === 0 ? (
+          <p class="text-muted-foreground text-sm">No matching extensions.</p>
+        ) : (
+          <ul class="divide-y divide-border card px-4">
+            {extensions.map((ext) => {
+              const badge = extensionStatusBadge(ext);
+              return (
+                <li class="py-3 flex items-center justify-between gap-3">
+                  <div>
+                    <p class="font-medium">
+                      <a href={`/account/moderate/extensions/${ext.id}`}>
+                        {ext.published?.name ?? ext.id}
+                      </a>
+                    </p>
+                    <p class="text-sm text-muted-foreground">
+                      {ext.id} by {ext.developer.name}
+                      {ext.pending_revision ? ' · pending edit' : ''}
+                    </p>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <span class="badge" data-variant={badge.variant}>
+                      {badge.label}
+                    </span>
+                    <a
+                      href={`/account/moderate/extensions/${ext.id}`}
+                      class="btn"
+                      data-size="sm"
+                      data-variant="ghost"
+                    >
+                      View
+                    </a>
+                    {ext.published && !ext.delisted && (
+                      <button
+                        type="button"
+                        class="btn"
+                        data-size="sm"
+                        data-variant="destructive"
+                        data-delist-id={ext.id}
+                        data-delist-name={ext.published.name}
+                      >
+                        Delist
+                      </button>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )
+      }
+      {
+        (extPrevPageUrl || extNextPageUrl) && (
+          <div class="flex gap-2">
+            {extPrevPageUrl && (
+              <a href={extPrevPageUrl} class="btn" data-variant="outline">
+                Previous page
+              </a>
+            )}
+            {extNextPageUrl && (
+              <a href={extNextPageUrl} class="btn" data-variant="outline">
+                Next page
+              </a>
+            )}
+          </div>
+        )
+      }
+    </section>
 
     <dialog
       id="delist-confirm-dialog"
@@ -136,6 +261,17 @@ const nextPageUrl =
             can still see it, and why, in their dashboard.
           </p>
         </header>
+        <section>
+          <div class="field">
+            <label for="delist-confirm-reason">Reason</label>
+            <textarea
+              class="textarea"
+              id="delist-confirm-reason"
+              name="reason"
+              placeholder="Why is this being removed? The owner will see this."
+              required></textarea>
+          </div>
+        </section>
         <footer>
           <button
             type="button"
@@ -150,7 +286,6 @@ const nextPageUrl =
           </button>
         </footer>
         <input type="hidden" name="id" id="delist-hidden-id" />
-        <input type="hidden" name="reason" id="delist-hidden-reason" />
         <button
           type="button"
           class="btn"
@@ -164,152 +299,176 @@ const nextPageUrl =
       </form>
     </dialog>
 
-    <nav class="flex gap-2">
-      {
-        (['pending', 'approved', 'rejected'] as const).map((s) => (
-          <a
-            href={`/account/moderate?status=${s}`}
-            class="btn"
-            data-size="sm"
-            data-variant={s === status ? 'primary' : 'outline'}
-          >
-            {s}
-          </a>
-        ))
-      }
-    </nav>
-
-    {
-      loadError ? (
-        <p class="text-sm text-destructive">{loadError}</p>
-      ) : (
-        <>
-          {revisions.length === 0 ? (
-            <p class="text-muted-foreground text-sm">No {status} revisions.</p>
-          ) : (
-            <ul class="space-y-4">
-              {revisions.map((r) => (
-                <li class="card">
-                  <header class="flex items-start justify-between gap-4">
-                    <div>
-                      <h2 class="font-semibold">
-                        {r.content.name ?? r.extension_id}
-                      </h2>
-                      <p class="text-sm text-muted-foreground">
-                        <a
-                          href={`/account/moderate/extensions/${r.extension_id}`}
-                        >
-                          {r.extension_id}
-                        </a>{' '}
-                        by {r.developer_id} &middot; submitted{' '}
-                        {formatDate(r.created_at)}
-                      </p>
-                    </div>
-                    {r.content.type && (
-                      <span class="badge" data-variant="secondary">
-                        {r.content.type}
-                      </span>
-                    )}
-                  </header>
-                  <section>
-                    {r.content.description && (
-                      <p class="text-sm">{r.content.description}</p>
-                    )}
-                    <details class="mt-2">
-                      <summary class="text-sm text-muted-foreground cursor-pointer">
-                        Full Content
-                      </summary>
-                      <pre class="text-xs mt-2 overflow-x-auto bg-muted rounded-md p-3">
-                        {JSON.stringify(r.content, null, 2)}
-                      </pre>
-                    </details>
-                    {r.status === 'pending' && (
-                      <div class="flex items-center gap-3 mt-4">
-                        <form
-                          method="POST"
-                          action={`/account/moderate/${r.extension_id}/${r.id}/approve`}
-                        >
-                          <button type="submit" class="btn" data-size="sm">
-                            Approve
-                          </button>
-                        </form>
-                        <button
-                          type="button"
-                          class="btn"
-                          data-size="sm"
-                          data-variant="destructive"
-                          onclick={`document.getElementById('reject-revision-${r.id}').showModal()`}
-                        >
-                          Reject
-                        </button>
-                      </div>
-                    )}
-
-                    {r.status === 'pending' && (
-                      <RejectDialog
-                        id={`reject-revision-${r.id}`}
-                        title={`Reject "${r.content.name ?? r.extension_id}"?`}
-                        description="The submitter will see this reason."
-                        formAction={`/account/moderate/${r.extension_id}/${r.id}/reject`}
-                        reasonPlaceholder="Reason for rejection"
-                      />
-                    )}
-                    {r.status !== 'pending' && r.review_note && (
-                      <p class="text-sm text-muted-foreground mt-2">
-                        Note: {r.review_note}
-                      </p>
-                    )}
-                  </section>
-                </li>
-              ))}
-            </ul>
-          )}
-          {nextPageUrl && (
-            <a href={nextPageUrl} class="btn mt-4">
-              Next queue page
+    <section class="space-y-3">
+      <h2 class="font-semibold">Revision Queue</h2>
+      <nav class="flex gap-2">
+        {
+          (['pending', 'approved', 'rejected'] as const).map((s) => (
+            <a
+              href={filterPageUrl(Astro.url, 'status', s, [
+                'cursor',
+                'cursors',
+              ])}
+              class="btn"
+              data-size="sm"
+              data-variant={s === status ? 'primary' : 'outline'}
+            >
+              {s}
             </a>
-          )}
-        </>
-      )
-    }
+          ))
+        }
+      </nav>
+
+      {
+        loadError ? (
+          <p class="text-sm text-destructive">{loadError}</p>
+        ) : (
+          <>
+            {revisions.length === 0 ? (
+              <p class="text-muted-foreground text-sm">
+                No {status} revisions.
+              </p>
+            ) : (
+              <ul class="space-y-4">
+                {revisions.map((r) => (
+                  <li class="card">
+                    <header class="flex items-start justify-between gap-4">
+                      <div>
+                        <h3 class="font-semibold">
+                          {r.content.name ?? r.extension_id}
+                        </h3>
+                        <p class="text-sm text-muted-foreground">
+                          <a
+                            href={`/account/moderate/extensions/${r.extension_id}`}
+                          >
+                            {r.extension_id}
+                          </a>{' '}
+                          by {r.developer_id} &middot; submitted{' '}
+                          {formatDate(r.created_at)}
+                        </p>
+                      </div>
+                      {r.content.type && (
+                        <span class="badge" data-variant="secondary">
+                          {r.content.type}
+                        </span>
+                      )}
+                    </header>
+                    <section>
+                      {r.content.description && (
+                        <p class="text-sm">{r.content.description}</p>
+                      )}
+                      <details class="mt-2">
+                        <summary class="text-sm text-muted-foreground cursor-pointer">
+                          Full Content
+                        </summary>
+                        <pre class="text-xs mt-2 overflow-x-auto bg-muted rounded-md p-3">
+                          {JSON.stringify(r.content, null, 2)}
+                        </pre>
+                      </details>
+                      {r.status === 'pending' && (
+                        <div class="flex items-center gap-3 mt-4">
+                          <form
+                            method="POST"
+                            action={`/account/moderate/${r.extension_id}/${r.id}/approve`}
+                          >
+                            <button type="submit" class="btn" data-size="sm">
+                              Approve
+                            </button>
+                          </form>
+                          <button
+                            type="button"
+                            class="btn"
+                            data-size="sm"
+                            data-variant="destructive"
+                            onclick={`document.getElementById('reject-revision-${r.id}').showModal()`}
+                          >
+                            Reject
+                          </button>
+                        </div>
+                      )}
+
+                      {r.status === 'pending' && (
+                        <RejectDialog
+                          id={`reject-revision-${r.id}`}
+                          title={`Reject "${r.content.name ?? r.extension_id}"?`}
+                          description="The submitter will see this reason."
+                          formAction={`/account/moderate/${r.extension_id}/${r.id}/reject`}
+                          reasonPlaceholder="Reason for rejection"
+                        />
+                      )}
+                      {r.status !== 'pending' && r.review_note && (
+                        <p class="text-sm text-muted-foreground mt-2">
+                          Note: {r.review_note}
+                        </p>
+                      )}
+                    </section>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {(prevPageUrl || nextPageUrl) && (
+              <div class="flex gap-2 mt-4">
+                {prevPageUrl && (
+                  <a href={prevPageUrl} class="btn" data-variant="outline">
+                    Previous queue page
+                  </a>
+                )}
+                {nextPageUrl && (
+                  <a href={nextPageUrl} class="btn" data-variant="outline">
+                    Next queue page
+                  </a>
+                )}
+              </div>
+            )}
+          </>
+        )
+      }
+    </section>
   </div>
 </Base>
 
 <script>
-  const viewForm = document.querySelector<HTMLFormElement>(
-    '#view-extension-form',
-  );
-  const viewIdInput =
-    document.querySelector<HTMLInputElement>('#view-extension-id');
-
-  viewForm?.addEventListener('submit', (event) => {
-    event.preventDefault();
-    if (!viewIdInput?.value) return;
-    window.location.href = `/account/moderate/extensions/${encodeURIComponent(viewIdInput.value)}`;
-  });
-
-  const form = document.querySelector<HTMLFormElement>('#delist-form');
   const dialog = document.querySelector<HTMLDialogElement>(
     '#delist-confirm-dialog',
   );
-  const idInput = document.querySelector<HTMLInputElement>('#delist-id');
-  const reasonInput =
-    document.querySelector<HTMLTextAreaElement>('#delist-reason');
   const confirmId = document.querySelector('#delist-confirm-id');
   const hiddenId =
     document.querySelector<HTMLInputElement>('#delist-hidden-id');
-  const hiddenReason = document.querySelector<HTMLInputElement>(
-    '#delist-hidden-reason',
+  const reasonInput = document.querySelector<HTMLTextAreaElement>(
+    '#delist-confirm-reason',
   );
 
-  form?.addEventListener('submit', (event) => {
-    event.preventDefault();
-    if (!idInput || !reasonInput || !dialog || !hiddenId || !hiddenReason) {
-      return;
-    }
-    if (confirmId) confirmId.textContent = idInput.value;
-    hiddenId.value = idInput.value;
-    hiddenReason.value = reasonInput.value;
+  document.addEventListener('click', (event) => {
+    const button = (event.target as HTMLElement)?.closest<HTMLButtonElement>(
+      'button[data-delist-id]',
+    );
+    if (!button || !dialog || !hiddenId) return;
+
+    const id = button.dataset.delistId ?? '';
+    if (confirmId) confirmId.textContent = button.dataset.delistName ?? id;
+    hiddenId.value = id;
+    if (reasonInput) reasonInput.value = '';
     dialog.showModal();
+  });
+
+  const searchForm = document.querySelector<HTMLFormElement>(
+    '#extension-search-form',
+  );
+  const searchInput = document.querySelector<HTMLInputElement>(
+    '#extension-search-input',
+  );
+
+  searchForm?.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const url = new URL(window.location.href);
+    const value = searchInput?.value.trim();
+    if (value) {
+      url.searchParams.set('q', value);
+    } else {
+      url.searchParams.delete('q');
+    }
+    url.searchParams.delete('extCursor');
+    url.searchParams.delete('extCursors');
+    window.location.href = url.pathname + url.search;
   });
 </script>
