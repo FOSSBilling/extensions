@@ -937,13 +937,33 @@ describe('server-rendered cursor links', () => {
   // wouldn't have this gap (see the pop-until-null case above), so this is
   // deliberately different behaviour, not a bug in prevCursorPageUrl itself.
   it('reaches page 1 without stopping on an evicted page, once the stack is capped', () => {
-    expect(
-      prevCursorPageUrl(
-        new URL('https://example.test/account/moderate?cursor=page-3'),
-        'cursor',
-        'cursors',
-      ),
-    ).toBe('/account/moderate');
+    // Reproduce exactly what cursorPageUrl leaves behind once the back-stack
+    // is capped: page-0's cursor was dropped, so `cursors` holds page-1
+    // through page-20 while viewing page-21 (see the "caps the back-stack
+    // depth" test above for how this state is produced).
+    const cappedStack = Array.from(
+      { length: 20 },
+      (_, i) => `page-${i + 1}`,
+    ).join(',');
+    let url = new URL(
+      `https://example.test/account/moderate?cursor=page-21&cursors=${cappedStack}`,
+    );
+
+    // Walk Previous all the way back through the capped stack. Each step
+    // should land on the expected preceding page - the cap doesn't corrupt
+    // the still-present entries.
+    for (let page = 20; page >= 1; page--) {
+      const href = prevCursorPageUrl(url, 'cursor', 'cursors');
+      expect(href).not.toBeNull();
+      url = new URL(href as string, url);
+      expect(url.searchParams.get('cursor')).toBe(`page-${page}`);
+    }
+
+    // page-0's cursor was evicted, so the final step from page-1 lands
+    // directly on the first page instead of stopping on page-0 first.
+    expect(prevCursorPageUrl(url, 'cursor', 'cursors')).toBe(
+      '/account/moderate',
+    );
   });
 
   it('pops the back-stack to build the previous page, or null on the first page', () => {
