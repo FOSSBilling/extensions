@@ -112,9 +112,13 @@ try {
                 <div class="flex gap-2">
                   <dt class="text-muted-foreground w-28 shrink-0">Source</dt>
                   <dd>
-                    <a href={repositoryURL(ext.published.source)}>
-                      {ext.published.source.repo}
-                    </a>
+                    {isSafeHttpUrl(repositoryURL(ext.published.source)) ? (
+                      <a href={repositoryURL(ext.published.source)}>
+                        {ext.published.source.repo}
+                      </a>
+                    ) : (
+                      ext.published.source.repo
+                    )}
                   </dd>
                 </div>
                 <div class="flex gap-2">
