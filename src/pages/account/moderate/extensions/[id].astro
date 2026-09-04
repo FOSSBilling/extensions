@@ -1,0 +1,175 @@
+---
+import Base from '../../../../layouts/Base.astro';
+import { requireModerator } from '@/lib/auth-guard';
+import { createApiClient, ApiRequestError } from '@/lib/api/client';
+import { isSafeHttpUrl } from '@/lib/safe-url';
+import { repositoryURL } from '@/types';
+import type { OwnedExtension } from '@/lib/api/client';
+import { CircleAlert } from '@lucide/astro';
+import { formatDateTime } from '@/lib/format-date';
+
+const env = Astro.locals.env;
+const guard = await requireModerator(Astro, env);
+if (guard instanceof Response) return guard;
+const user = guard;
+
+const { id } = Astro.params;
+if (!id) {
+  return Astro.redirect('/404');
+}
+
+const api = createApiClient(env, user.sub);
+let ext: OwnedExtension | null = null;
+let loadError: string | null = null;
+try {
+  ext = await api.getModerationExtension(id);
+} catch (e) {
+  loadError =
+    e instanceof ApiRequestError && e.status === 404
+      ? `No extension found with id "${id}".`
+      : e instanceof ApiRequestError
+        ? e.message
+        : 'Unable to load this extension.';
+}
+---
+
+<Base title={`Extension: ${id} — FOSSBilling Extensions`}>
+  <div class="max-w-2xl mx-auto space-y-6">
+    <div class="flex items-center justify-between gap-4">
+      <h1 class="text-2xl font-semibold tracking-tight">
+        <code>{id}</code>
+      </h1>
+      <a href="/account/moderate" class="btn" data-variant="outline">
+        Back to Moderation
+      </a>
+    </div>
+
+    {
+      loadError && (
+        <div class="alert" data-variant="destructive">
+          <CircleAlert class="size-4" />
+          <section>{loadError}</section>
+        </div>
+      )
+    }
+
+    {
+      ext && (
+        <div class="space-y-6">
+          {ext.delisted && (
+            <div class="alert" data-variant="destructive">
+              <CircleAlert class="size-4" />
+              <section>
+                <p class="font-medium">
+                  Delisted {formatDateTime(ext.delisted.at)}
+                </p>
+                <p>{ext.delisted.reason}</p>
+              </section>
+            </div>
+          )}
+
+          <div class="card p-4 space-y-3">
+            <header class="flex items-center justify-between gap-4">
+              <p class="font-medium">
+                {ext.developer.name}
+                <span class="text-muted-foreground text-sm ml-2">
+                  ({ext.developer.id})
+                </span>
+              </p>
+              {!ext.published && (
+                <span class="badge" data-variant="secondary">
+                  Never published
+                </span>
+              )}
+            </header>
+
+            {ext.published ? (
+              <dl class="text-sm space-y-1">
+                <div class="flex gap-2">
+                  <dt class="text-muted-foreground w-28 shrink-0">Name</dt>
+                  <dd>{ext.published.name}</dd>
+                </div>
+                <div class="flex gap-2">
+                  <dt class="text-muted-foreground w-28 shrink-0">Type</dt>
+                  <dd>{ext.published.type}</dd>
+                </div>
+                <div class="flex gap-2">
+                  <dt class="text-muted-foreground w-28 shrink-0">Version</dt>
+                  <dd>{ext.published.version}</dd>
+                </div>
+                <div class="flex gap-2">
+                  <dt class="text-muted-foreground w-28 shrink-0">Website</dt>
+                  <dd>
+                    {isSafeHttpUrl(ext.published.website) ? (
+                      <a href={ext.published.website}>
+                        {ext.published.website}
+                      </a>
+                    ) : (
+                      ext.published.website
+                    )}
+                  </dd>
+                </div>
+                <div class="flex gap-2">
+                  <dt class="text-muted-foreground w-28 shrink-0">Source</dt>
+                  <dd>
+                    <a href={repositoryURL(ext.published.source)}>
+                      {ext.published.source.repo}
+                    </a>
+                  </dd>
+                </div>
+                <div class="flex gap-2">
+                  <dt class="text-muted-foreground w-28 shrink-0">License</dt>
+                  <dd>{ext.published.license.name}</dd>
+                </div>
+              </dl>
+            ) : (
+              <p class="text-sm text-muted-foreground">
+                Not published — no content to show.
+              </p>
+            )}
+          </div>
+
+          {ext.pending_revision && (
+            <div class="card p-4">
+              <p class="font-medium text-sm">Edit awaiting review</p>
+              <p class="text-sm text-muted-foreground">
+                Submitted {formatDateTime(ext.pending_revision.created_at)}
+              </p>
+            </div>
+          )}
+
+          {ext.last_review && (
+            <div class="card p-4">
+              <p class="font-medium text-sm">
+                Last review:{' '}
+                <span
+                  class="badge"
+                  data-variant={
+                    ext.last_review.status === 'approved'
+                      ? 'secondary'
+                      : 'destructive'
+                  }
+                >
+                  {ext.last_review.status}
+                </span>
+              </p>
+              {ext.last_review.reviewed_at && (
+                <p class="text-sm text-muted-foreground">
+                  {formatDateTime(ext.last_review.reviewed_at)}
+                </p>
+              )}
+              {ext.last_review.review_note && (
+                <p class="text-sm mt-1">{ext.last_review.review_note}</p>
+              )}
+            </div>
+          )}
+
+          <p class="text-xs text-muted-foreground">
+            Created {formatDateTime(ext.created_at)} &middot; updated{' '}
+            {formatDateTime(ext.updated_at)}
+          </p>
+        </div>
+      )
+    }
+  </div>
+</Base>

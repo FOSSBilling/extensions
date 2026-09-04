@@ -1387,6 +1387,53 @@ export type GetModerationExtensionsResponses = {
 export type GetModerationExtensionsResponse =
   GetModerationExtensionsResponses[keyof GetModerationExtensionsResponses];
 
+export type GetModerationExtensionsByIdData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/moderation/extensions/{id}';
+};
+
+export type GetModerationExtensionsByIdErrors = {
+  /**
+   * Missing or invalid bearer token
+   */
+  401: Error;
+  /**
+   * The account is inactive or the caller is not a moderator
+   */
+  403: Error;
+  /**
+   * No such extension
+   */
+  404: Error;
+  /**
+   * id param failed validation
+   */
+  422: Error;
+  /**
+   * Database error
+   */
+  500: Error;
+};
+
+export type GetModerationExtensionsByIdError =
+  GetModerationExtensionsByIdErrors[keyof GetModerationExtensionsByIdErrors];
+
+export type GetModerationExtensionsByIdResponses = {
+  /**
+   * The extension's live content, its unreviewed edit if any, the last moderator decision, and its delist state
+   */
+  200: {
+    result: OwnedExtension;
+  };
+};
+
+export type GetModerationExtensionsByIdResponse =
+  GetModerationExtensionsByIdResponses[keyof GetModerationExtensionsByIdResponses];
+
 export type PostExtensionsByIdRevisionsByRevisionIdApproveData = {
   body?: ReviewNoteOptional;
   path: {

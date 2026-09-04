@@ -14,6 +14,7 @@ import {
   getExtensionsMine,
   getExtensionsMineById,
   getModerationExtensions,
+  getModerationExtensionsById,
   getUsersMe,
   patchUsersMe,
   postDevelopersByIdApprove,
@@ -421,6 +422,16 @@ export function createApiClient(env: ApplicationEnv, subject: string) {
           query: { status, ...pageQuery(options) },
         }),
       ),
+
+    getModerationExtension: async (id: string): Promise<OwnedExtension> =>
+      (
+        await unwrap(
+          await getModerationExtensionsById({
+            client,
+            path: { id },
+          }),
+        )
+      ).result,
 
     approveRevision: async (
       extensionId: string,

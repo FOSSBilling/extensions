@@ -54,6 +54,9 @@ import type {
   GetExtensionsMineErrors,
   GetExtensionsMineResponses,
   GetExtensionsResponses,
+  GetModerationExtensionsByIdData,
+  GetModerationExtensionsByIdErrors,
+  GetModerationExtensionsByIdResponses,
   GetModerationExtensionsData,
   GetModerationExtensionsErrors,
   GetModerationExtensionsResponses,
@@ -582,6 +585,28 @@ export const getModerationExtensions = <ThrowOnError extends boolean = false>(
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/moderation/extensions',
+    ...options,
+  });
+
+/**
+ * Get any extension's full record, including a delisted one
+ */
+export const getModerationExtensionsById = <
+  ThrowOnError extends boolean = false,
+>(
+  options: Options<GetModerationExtensionsByIdData, ThrowOnError>,
+): RequestResult<
+  GetModerationExtensionsByIdResponses,
+  GetModerationExtensionsByIdErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    GetModerationExtensionsByIdResponses,
+    GetModerationExtensionsByIdErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/moderation/extensions/{id}',
     ...options,
   });
 

@@ -59,6 +59,28 @@ const nextPageUrl =
 
     <details class="card">
       <summary class="p-4 cursor-pointer font-semibold">
+        View an extension
+      </summary>
+      <div class="p-4 pt-0">
+        <p class="text-sm text-muted-foreground mb-3">
+          Look up any extension by id — published, delisted, or never published
+          — including why, if it was delisted.
+        </p>
+        <form id="view-extension-form" class="flex gap-3">
+          <input
+            class="input"
+            type="text"
+            id="view-extension-id"
+            placeholder="e.g. paygate"
+            required
+          />
+          <button type="submit" class="btn">View</button>
+        </form>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary class="p-4 cursor-pointer font-semibold">
         Delist a published extension
       </summary>
       <div class="p-4 pt-0">
@@ -174,7 +196,12 @@ const nextPageUrl =
                         {r.content.name ?? r.extension_id}
                       </h2>
                       <p class="text-sm text-muted-foreground">
-                        {r.extension_id} by {r.developer_id} &middot; submitted{' '}
+                        <a
+                          href={`/account/moderate/extensions/${r.extension_id}`}
+                        >
+                          {r.extension_id}
+                        </a>{' '}
+                        by {r.developer_id} &middot; submitted{' '}
                         {formatDate(r.created_at)}
                       </p>
                     </div>
@@ -249,6 +276,18 @@ const nextPageUrl =
 </Base>
 
 <script>
+  const viewForm = document.querySelector<HTMLFormElement>(
+    '#view-extension-form',
+  );
+  const viewIdInput =
+    document.querySelector<HTMLInputElement>('#view-extension-id');
+
+  viewForm?.addEventListener('submit', (event) => {
+    event.preventDefault();
+    if (!viewIdInput?.value) return;
+    window.location.href = `/account/moderate/extensions/${encodeURIComponent(viewIdInput.value)}`;
+  });
+
   const form = document.querySelector<HTMLFormElement>('#delist-form');
   const dialog = document.querySelector<HTMLDialogElement>(
     '#delist-confirm-dialog',
