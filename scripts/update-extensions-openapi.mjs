@@ -2,7 +2,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 
 const sourceUrl =
   process.env.EXTENSIONS_API_OPENAPI_URL ??
-  'https://api.fossbilling.net/extensions/v2/openapi.json';
+  'https://api.fossbilling.net/extensions/v2/docs/openapi.json';
 
 const response = await fetch(sourceUrl);
 if (!response.ok) {
