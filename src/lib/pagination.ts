@@ -1,4 +1,10 @@
 const STACK_SEPARATOR = ',';
+// Bounds how many prior cursors accumulate in the URL as someone pages
+// forward. Older entries are dropped first (from the front) once this is
+// exceeded; beyond this depth "Previous" can no longer reach all the way
+// back to page 1, but that's a better trade-off than letting the URL grow
+// without bound over a long paging session.
+const MAX_STACK_DEPTH = 20;
 
 // Builds the URL for the next page. `nextCursor` becomes the new cursor, and
 // the current one (if any) is pushed onto `stackParam` so prevCursorPageUrl
@@ -15,6 +21,7 @@ export function cursorPageUrl(
   const currentCursor = current.searchParams.get(cursorParam);
   const stack = readStack(current, stackParam);
   if (currentCursor) stack.push(currentCursor);
+  while (stack.length > MAX_STACK_DEPTH) stack.shift();
 
   next.searchParams.set(cursorParam, nextCursor);
   writeStack(next, stackParam, stack);

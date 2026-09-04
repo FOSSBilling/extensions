@@ -909,6 +909,27 @@ describe('server-rendered cursor links', () => {
     ).toBe('/account/moderate?cursor=page-3&cursors=page-1%2Cpage-2');
   });
 
+  it('caps the back-stack depth, dropping the oldest cursor first', () => {
+    const fullStack = Array.from({ length: 20 }, (_, i) => `page-${i}`).join(
+      ',',
+    );
+
+    expect(
+      cursorPageUrl(
+        new URL(
+          `https://example.test/account/moderate?cursor=page-20&cursors=${fullStack}`,
+        ),
+        'cursor',
+        'cursors',
+        'page-21',
+      ),
+    ).toBe(
+      `/account/moderate?cursor=page-21&cursors=${encodeURIComponent(
+        Array.from({ length: 20 }, (_, i) => `page-${i + 1}`).join(','),
+      )}`,
+    );
+  });
+
   it('pops the back-stack to build the previous page, or null on the first page', () => {
     expect(
       prevCursorPageUrl(
