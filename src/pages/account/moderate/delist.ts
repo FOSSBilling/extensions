@@ -4,10 +4,6 @@ import { createApiClient, ApiRequestError } from '@/lib/api/client';
 import { formString } from '@/lib/form';
 import { setFlash } from '@/lib/flash';
 
-// Unlike approve/reject, which act on a queue entry the moderator is already
-// looking at, delist targets an arbitrary published extension by id typed
-// into the form below — so the id travels in the form body rather than the
-// URL path.
 export const POST: APIRoute = async (context) => {
   const env = context.locals.env;
   const guard = await requireModerator(context, env);
