@@ -1,4 +1,5 @@
 ---
+import { X } from '@lucide/astro';
 import Base from '../../../layouts/Base.astro';
 import { requireModerator } from '@/lib/auth-guard';
 import {
@@ -66,18 +67,13 @@ const nextPageUrl =
           a broken or abandoned listing, not a pending edit. Its content and
           history are kept, and its owner can still see why.
         </p>
-        <form
-          method="POST"
-          action="/account/moderate/delist"
-          class="flex flex-col gap-3"
-        >
+        <form id="delist-form" class="flex flex-col gap-3">
           <div class="field">
             <label for="delist-id">Extension id</label>
             <input
               class="input"
               type="text"
               id="delist-id"
-              name="id"
               placeholder="e.g. paygate"
               required
             />
@@ -87,7 +83,6 @@ const nextPageUrl =
             <textarea
               class="textarea"
               id="delist-reason"
-              name="reason"
               placeholder="Why is this being removed? The owner will see this."
               required></textarea>
           </div>
@@ -101,6 +96,51 @@ const nextPageUrl =
         </form>
       </div>
     </details>
+
+    <dialog
+      id="delist-confirm-dialog"
+      class="dialog"
+      aria-labelledby="delist-confirm-title"
+      aria-describedby="delist-confirm-description"
+      onclick="if (arguments[0].target === this) this.close()"
+    >
+      <form method="POST" action="/account/moderate/delist">
+        <header>
+          <h2 id="delist-confirm-title">
+            Delist "<span id="delist-confirm-id"></span>"?
+          </h2>
+          <p id="delist-confirm-description">
+            It will be removed from the public catalogue immediately. The owner
+            can still see it, and why, in their dashboard.
+          </p>
+        </header>
+        <footer>
+          <button
+            type="button"
+            class="btn"
+            data-variant="outline"
+            onclick="this.closest('dialog').close()"
+          >
+            Cancel
+          </button>
+          <button type="submit" class="btn" data-variant="destructive">
+            Delist
+          </button>
+        </footer>
+        <input type="hidden" name="id" id="delist-hidden-id" />
+        <input type="hidden" name="reason" id="delist-hidden-reason" />
+        <button
+          type="button"
+          class="btn"
+          data-variant="ghost"
+          data-size="icon-sm"
+          aria-label="Close dialog"
+          onclick="this.closest('dialog').close()"
+        >
+          <X class="size-4" />
+        </button>
+      </form>
+    </dialog>
 
     <nav class="flex gap-2">
       {
@@ -207,3 +247,30 @@ const nextPageUrl =
     }
   </div>
 </Base>
+
+<script>
+  const form = document.querySelector<HTMLFormElement>('#delist-form');
+  const dialog = document.querySelector<HTMLDialogElement>(
+    '#delist-confirm-dialog',
+  );
+  const idInput = document.querySelector<HTMLInputElement>('#delist-id');
+  const reasonInput =
+    document.querySelector<HTMLTextAreaElement>('#delist-reason');
+  const confirmId = document.querySelector('#delist-confirm-id');
+  const hiddenId =
+    document.querySelector<HTMLInputElement>('#delist-hidden-id');
+  const hiddenReason = document.querySelector<HTMLInputElement>(
+    '#delist-hidden-reason',
+  );
+
+  form?.addEventListener('submit', (event) => {
+    event.preventDefault();
+    if (!idInput || !reasonInput || !dialog || !hiddenId || !hiddenReason) {
+      return;
+    }
+    if (confirmId) confirmId.textContent = idInput.value;
+    hiddenId.value = idInput.value;
+    hiddenReason.value = reasonInput.value;
+    dialog.showModal();
+  });
+</script>
