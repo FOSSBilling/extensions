@@ -13,6 +13,7 @@ import {
   getExtensionsByIdRevisions,
   getExtensionsMine,
   getExtensionsMineById,
+  getModerationAllExtensions,
   getModerationExtensions,
   getModerationExtensionsById,
   getUsersMe,
@@ -51,6 +52,7 @@ import {
   type GetExtensionsByIdRevisionsResponse,
   type GetExtensionsData,
   type GetExtensionsMineData,
+  type GetModerationAllExtensionsData,
   type GetModerationExtensionsData,
   type GetModerationExtensionsResponse,
   type OwnedDeveloperProfile,
@@ -79,6 +81,9 @@ type RevisionHistoryQuery = NonNullable<
   GetExtensionsByIdRevisionsData['query']
 >;
 type ModerationQueueQuery = NonNullable<GetModerationExtensionsData['query']>;
+type ModerationExtensionsQuery = NonNullable<
+  GetModerationAllExtensionsData['query']
+>;
 
 export type ExtensionCatalogueFilters = Pick<
   ExtensionListQuery,
@@ -98,6 +103,16 @@ export type RevisionHistoryOptions = Pick<
 export type ModerationQueueOptions = Pick<
   ModerationQueueQuery,
   'cursor' | 'limit'
+>;
+
+export type ModerationExtensionFilters = Pick<
+  ModerationExtensionsQuery,
+  'status' | 'type' | 'q' | 'limit' | 'cursor'
+>;
+
+export type ModerationExtensionStatus = Exclude<
+  ModerationExtensionsQuery['status'],
+  undefined
 >;
 
 export type RevisionHistoryPage = GetExtensionsByIdRevisionsResponse;
@@ -286,6 +301,29 @@ function mineExtensionQuery(
   return query;
 }
 
+function moderationExtensionQuery(
+  filters: ModerationExtensionFilters = {},
+): ModerationExtensionsQuery {
+  const query: ModerationExtensionsQuery = {
+    limit: clampApiPageLimit(filters.limit),
+  };
+
+  if (filters.status !== undefined) {
+    query.status = filters.status;
+  }
+  if (filters.type !== undefined) {
+    query.type = filters.type;
+  }
+  if (filters.q !== undefined) {
+    query.q = filters.q;
+  }
+  if (filters.cursor !== undefined) {
+    query.cursor = filters.cursor;
+  }
+
+  return query;
+}
+
 export async function listExtensions(
   env: ApplicationEnv,
   filters: ExtensionCatalogueFilters = {},
@@ -432,6 +470,16 @@ export function createApiClient(env: ApplicationEnv, subject: string) {
           }),
         )
       ).result,
+
+    listAllExtensions: async (
+      options: ModerationExtensionFilters = {},
+    ): Promise<OwnedExtensionListResponse> =>
+      unwrap(
+        await getModerationAllExtensions({
+          client,
+          query: moderationExtensionQuery(options),
+        }),
+      ),
 
     approveRevision: async (
       extensionId: string,

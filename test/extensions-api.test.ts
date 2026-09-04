@@ -42,7 +42,11 @@ import {
   stateFromPage,
   type CataloguePageRequest,
 } from '@/lib/cataloguePagination';
-import { cursorPageUrl } from '@/lib/pagination';
+import {
+  cursorPageUrl,
+  filterPageUrl,
+  prevCursorPageUrl,
+} from '@/lib/pagination';
 import type { ApplicationEnv } from '@/lib/runtime';
 
 const publicEnv: ApplicationEnv = {
@@ -875,10 +879,87 @@ describe('server-rendered cursor links', () => {
           'https://example.test/account/moderate?status=approved&view=queue',
         ),
         'cursor',
+        'cursors',
         'cursor/with?opaque=characters',
       ),
     ).toBe(
       '/account/moderate?status=approved&view=queue&cursor=cursor%2Fwith%3Fopaque%3Dcharacters',
     );
+  });
+
+  it('pushes the current cursor onto the back-stack when moving forward', () => {
+    expect(
+      cursorPageUrl(
+        new URL('https://example.test/account/moderate?cursor=page-2'),
+        'cursor',
+        'cursors',
+        'page-3',
+      ),
+    ).toBe('/account/moderate?cursor=page-3&cursors=page-2');
+
+    expect(
+      cursorPageUrl(
+        new URL(
+          'https://example.test/account/moderate?cursor=page-2&cursors=page-1',
+        ),
+        'cursor',
+        'cursors',
+        'page-3',
+      ),
+    ).toBe('/account/moderate?cursor=page-3&cursors=page-1%2Cpage-2');
+  });
+
+  it('pops the back-stack to build the previous page, or null on the first page', () => {
+    expect(
+      prevCursorPageUrl(
+        new URL('https://example.test/account/moderate'),
+        'cursor',
+        'cursors',
+      ),
+    ).toBeNull();
+
+    expect(
+      prevCursorPageUrl(
+        new URL(
+          'https://example.test/account/moderate?cursor=page-3&cursors=page-1%2Cpage-2',
+        ),
+        'cursor',
+        'cursors',
+      ),
+    ).toBe('/account/moderate?cursor=page-2&cursors=page-1');
+
+    // Popping the last stacked cursor returns to the first page: no cursor
+    // param at all, not an empty one.
+    expect(
+      prevCursorPageUrl(
+        new URL('https://example.test/account/moderate?cursor=page-2'),
+        'cursor',
+        'cursors',
+      ),
+    ).toBe('/account/moderate');
+  });
+
+  it('drops the cursor and its back-stack when a filter changes', () => {
+    expect(
+      filterPageUrl(
+        new URL(
+          'https://example.test/account/moderate?extStatus=published&extCursor=page-2&extCursors=page-1',
+        ),
+        'extStatus',
+        'delisted',
+        ['extCursor', 'extCursors'],
+      ),
+    ).toBe('/account/moderate?extStatus=delisted');
+
+    expect(
+      filterPageUrl(
+        new URL(
+          'https://example.test/account/moderate?extStatus=delisted&extCursor=page-2',
+        ),
+        'extStatus',
+        null,
+        ['extCursor', 'extCursors'],
+      ),
+    ).toBe('/account/moderate');
   });
 });

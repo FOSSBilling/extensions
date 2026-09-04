@@ -54,6 +54,9 @@ import type {
   GetExtensionsMineErrors,
   GetExtensionsMineResponses,
   GetExtensionsResponses,
+  GetModerationAllExtensionsData,
+  GetModerationAllExtensionsErrors,
+  GetModerationAllExtensionsResponses,
   GetModerationExtensionsByIdData,
   GetModerationExtensionsByIdErrors,
   GetModerationExtensionsByIdResponses,
@@ -585,6 +588,28 @@ export const getModerationExtensions = <ThrowOnError extends boolean = false>(
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/moderation/extensions',
+    ...options,
+  });
+
+/**
+ * List every extension regardless of status
+ */
+export const getModerationAllExtensions = <
+  ThrowOnError extends boolean = false,
+>(
+  options?: Options<GetModerationAllExtensionsData, ThrowOnError>,
+): RequestResult<
+  GetModerationAllExtensionsResponses,
+  GetModerationAllExtensionsErrors,
+  ThrowOnError
+> =>
+  (options?.client ?? client).get<
+    GetModerationAllExtensionsResponses,
+    GetModerationAllExtensionsErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/moderation/all-extensions',
     ...options,
   });
 

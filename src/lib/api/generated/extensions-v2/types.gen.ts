@@ -1387,6 +1387,64 @@ export type GetModerationExtensionsResponses = {
 export type GetModerationExtensionsResponse =
   GetModerationExtensionsResponses[keyof GetModerationExtensionsResponses];
 
+export type GetModerationAllExtensionsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    type?:
+      | 'mod'
+      | 'theme'
+      | 'payment-gateway'
+      | 'server-manager'
+      | 'domain-registrar'
+      | 'hook'
+      | 'translation';
+    limit?: number;
+    /**
+     * Opaque cursor returned by the previous page
+     */
+    cursor?: string;
+    status?: 'published' | 'delisted' | 'unpublished';
+    /**
+     * Case-insensitive substring match on the extension id
+     */
+    q?: string;
+  };
+  url: '/moderation/all-extensions';
+};
+
+export type GetModerationAllExtensionsErrors = {
+  /**
+   * Missing or invalid bearer token
+   */
+  401: Error;
+  /**
+   * The account is inactive or the caller is not a moderator
+   */
+  403: Error;
+  /**
+   * Query params failed validation
+   */
+  422: Error;
+  /**
+   * Database error
+   */
+  500: Error;
+};
+
+export type GetModerationAllExtensionsError =
+  GetModerationAllExtensionsErrors[keyof GetModerationAllExtensionsErrors];
+
+export type GetModerationAllExtensionsResponses = {
+  /**
+   * Extensions matching the requested status (default: all), alphabetical by id
+   */
+  200: OwnedExtensionListResponse;
+};
+
+export type GetModerationAllExtensionsResponse =
+  GetModerationAllExtensionsResponses[keyof GetModerationAllExtensionsResponses];
+
 export type GetModerationExtensionsByIdData = {
   body?: never;
   path: {
