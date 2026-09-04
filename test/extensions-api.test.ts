@@ -930,6 +930,22 @@ describe('server-rendered cursor links', () => {
     );
   });
 
+  // Documents the accepted trade-off from capping: once an early cursor has
+  // been evicted, walking Previous all the way back lands on page 1 without
+  // stopping on the page whose cursor was dropped - it doesn't error or
+  // strand the viewer, it just skips one page. A stack that isn't capped
+  // wouldn't have this gap (see the pop-until-null case above), so this is
+  // deliberately different behaviour, not a bug in prevCursorPageUrl itself.
+  it('reaches page 1 without stopping on an evicted page, once the stack is capped', () => {
+    expect(
+      prevCursorPageUrl(
+        new URL('https://example.test/account/moderate?cursor=page-3'),
+        'cursor',
+        'cursors',
+      ),
+    ).toBe('/account/moderate');
+  });
+
   it('pops the back-stack to build the previous page, or null on the first page', () => {
     expect(
       prevCursorPageUrl(
