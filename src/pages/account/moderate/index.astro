@@ -285,6 +285,7 @@ const prevPageUrl = prevCursorPageUrl(Astro.url, 'cursor', 'cursors');
               id="delist-confirm-notify"
               name="notify"
               checked
+              aria-label="Email the author"
             />
           </div>
         </section>
@@ -388,6 +389,11 @@ const prevPageUrl = prevCursorPageUrl(Astro.url, 'cursor', 'cursors');
                             action={`/account/moderate/${r.extension_id}/${r.id}/approve`}
                             class="flex items-center gap-3"
                           >
+                            <input
+                              type="hidden"
+                              name="intent"
+                              value="approve"
+                            />
                             <label
                               class="flex items-center gap-1.5 text-sm text-muted-foreground"
                               title="Uncheck to skip emailing the author"

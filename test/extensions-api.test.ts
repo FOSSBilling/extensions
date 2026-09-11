@@ -601,6 +601,19 @@ describe('generated Extensions v2 façade', () => {
       3,
     );
     expect(requestUrl(approveFetch).searchParams.get('notify')).toBeNull();
+
+    const optOutFetch = vi.fn().mockResolvedValue(
+      apiResponse({
+        result: { id: 'dev-1', approved: true, notified: false },
+      }),
+    );
+    vi.stubGlobal('fetch', optOutFetch);
+    await createApiClient(authenticatedEnv, 'moderator-sub').approveDeveloper(
+      'dev-1',
+      3,
+      false,
+    );
+    expect(requestUrl(optOutFetch).searchParams.get('notify')).toBe('false');
   });
 
   it('returns moderation queue pagination and preserves status/cursor filters', async () => {

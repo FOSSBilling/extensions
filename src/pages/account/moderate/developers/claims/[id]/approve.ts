@@ -1,7 +1,7 @@
 import type { APIRoute } from 'astro';
 import { requireModerator } from '@/lib/auth-guard';
 import { createApiClient, ApiRequestError } from '@/lib/api/client';
-import { formFlag } from '@/lib/form';
+import { formFlag, formString } from '@/lib/form';
 import { setFlash } from '@/lib/flash';
 
 export const POST: APIRoute = async (context) => {
@@ -13,11 +13,16 @@ export const POST: APIRoute = async (context) => {
   const { id } = context.params;
   if (!id) return context.redirect('/account/moderate/developers/claims');
 
-  // The approve form carries only the notify checkbox; a bodyless POST from
-  // anywhere else still defaults to notifying.
+  // The approve form carries only the notify checkbox plus an intent marker;
+  // a POST from anywhere else — bodyless, or an empty form that parses with
+  // no fields — keeps the notifying default instead of reading the absent
+  // checkbox as an opt-out.
   let notify = true;
   try {
-    notify = formFlag(await context.request.formData(), 'notify');
+    const form = await context.request.formData();
+    if (formString(form, 'intent') === 'approve') {
+      notify = formFlag(form, 'notify');
+    }
   } catch {
     // No readable body — keep the default.
   }
