@@ -7,3 +7,10 @@ export function formString(form: FormData, name: string): string {
   const value = form.get(name);
   return typeof value === 'string' ? value.trim() : '';
 }
+
+// Checkboxes submit name=on when checked and are absent when unchecked, so
+// presence is the signal. A File under the name counts as present; our forms
+// never file-upload a flag field.
+export function formFlag(form: FormData, name: string): boolean {
+  return form.get(name) !== null;
+}

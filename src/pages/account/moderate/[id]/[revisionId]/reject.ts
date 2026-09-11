@@ -1,7 +1,7 @@
 import type { APIRoute } from 'astro';
 import { requireModerator } from '@/lib/auth-guard';
 import { createApiClient, ApiRequestError } from '@/lib/api/client';
-import { formString } from '@/lib/form';
+import { formFlag, formString } from '@/lib/form';
 import { setFlash } from '@/lib/flash';
 
 export const POST: APIRoute = async (context) => {
@@ -33,8 +33,15 @@ export const POST: APIRoute = async (context) => {
   }
 
   const api = createApiClient(env, user.sub);
+  const notify = formFlag(form, 'notify');
   try {
-    await api.rejectRevision(id, revisionId, reviewNote);
+    const result = await api.rejectRevision(id, revisionId, reviewNote, notify);
+    if (notify && !result.notified) {
+      setFlash(context.session, {
+        category: 'warning',
+        title: 'Revision rejected, but the author could not be emailed.',
+      });
+    }
   } catch (e) {
     const message =
       e instanceof ApiRequestError ? e.message : 'Unable to reject revision.';
