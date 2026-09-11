@@ -264,6 +264,12 @@ function pageQuery(
   return query;
 }
 
+// Moderation writes email the author unless the moderator opts out. The API
+// defaults to sending, so only the opt-out travels as ?notify=false.
+function notifyQuery(notify: boolean): { query?: { notify: 'false' } } {
+  return notify ? {} : { query: { notify: 'false' } };
+}
+
 function extensionQuery(
   filters: ExtensionCatalogueFilters = {},
 ): ExtensionListQuery {
@@ -485,12 +491,14 @@ export function createApiClient(env: ApplicationEnv, subject: string) {
       extensionId: string,
       revisionId: string,
       reviewNote?: string,
+      notify = true,
     ) =>
       (
         await unwrap(
           await postExtensionsByIdRevisionsByRevisionIdApprove({
             client,
             path: { id: extensionId, revisionId },
+            ...notifyQuery(notify),
             ...(reviewNote ? { body: { review_note: reviewNote } } : {}),
           }),
         )
@@ -500,23 +508,30 @@ export function createApiClient(env: ApplicationEnv, subject: string) {
       extensionId: string,
       revisionId: string,
       reviewNote: string,
+      notify = true,
     ) =>
       (
         await unwrap(
           await postExtensionsByIdRevisionsByRevisionIdReject({
             client,
             path: { id: extensionId, revisionId },
+            ...notifyQuery(notify),
             body: { review_note: reviewNote },
           }),
         )
       ).result,
 
-    delistExtension: async (extensionId: string, reason: string) =>
+    delistExtension: async (
+      extensionId: string,
+      reason: string,
+      notify = true,
+    ) =>
       (
         await unwrap(
           await postExtensionsByIdDelist({
             client,
             path: { id: extensionId },
+            ...notifyQuery(notify),
             body: { reason },
           }),
         )
@@ -569,12 +584,17 @@ export function createApiClient(env: ApplicationEnv, subject: string) {
         )
       ).result,
 
-    approveDeveloper: async (id: string, expectedRevision: number) =>
+    approveDeveloper: async (
+      id: string,
+      expectedRevision: number,
+      notify = true,
+    ) =>
       (
         await unwrap(
           await postDevelopersByIdApprove({
             client,
             path: { id },
+            ...notifyQuery(notify),
             body: {
               expected_revision: expectedRevision,
             } satisfies DeveloperApproval,
@@ -661,22 +681,24 @@ export function createApiClient(env: ApplicationEnv, subject: string) {
         )
       ).result,
 
-    approveClaim: async (id: string) =>
+    approveClaim: async (id: string, notify = true) =>
       (
         await unwrap(
           await postDevelopersClaimsByIdApprove({
             client,
             path: { id },
+            ...notifyQuery(notify),
           }),
         )
       ).result,
 
-    rejectClaim: async (id: string, reviewNote: string) =>
+    rejectClaim: async (id: string, reviewNote: string, notify = true) =>
       (
         await unwrap(
           await postDevelopersClaimsByIdReject({
             client,
             path: { id },
+            ...notifyQuery(notify),
             body: { review_note: reviewNote },
           }),
         )

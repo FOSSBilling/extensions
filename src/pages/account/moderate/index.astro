@@ -271,6 +271,23 @@ const prevPageUrl = prevCursorPageUrl(Astro.url, 'cursor', 'cursors');
               placeholder="Why is this being removed? The owner will see this."
               required></textarea>
           </div>
+          <div role="group" class="field" data-orientation="horizontal">
+            <section>
+              <h3>Email the author</h3>
+              <p>
+                Uses the contact email on file, falling back to the account
+                email.
+              </p>
+            </section>
+            <input
+              class="input"
+              type="checkbox"
+              id="delist-confirm-notify"
+              name="notify"
+              checked
+              aria-label="Email the author"
+            />
+          </div>
         </section>
         <footer>
           <button
@@ -370,7 +387,25 @@ const prevPageUrl = prevCursorPageUrl(Astro.url, 'cursor', 'cursors');
                           <form
                             method="POST"
                             action={`/account/moderate/${r.extension_id}/${r.id}/approve`}
+                            class="flex items-center gap-3"
                           >
+                            <input
+                              type="hidden"
+                              name="intent"
+                              value="approve"
+                            />
+                            <label
+                              class="flex items-center gap-1.5 text-sm text-muted-foreground"
+                              title="Uncheck to skip emailing the author"
+                            >
+                              <input
+                                class="input"
+                                type="checkbox"
+                                name="notify"
+                                checked
+                              />
+                              Email author
+                            </label>
                             <button type="submit" class="btn" data-size="sm">
                               Approve
                             </button>
@@ -437,6 +472,9 @@ const prevPageUrl = prevCursorPageUrl(Astro.url, 'cursor', 'cursors');
   const reasonInput = document.querySelector<HTMLTextAreaElement>(
     '#delist-confirm-reason',
   );
+  const notifyInput = document.querySelector<HTMLInputElement>(
+    '#delist-confirm-notify',
+  );
 
   document.addEventListener('click', (event) => {
     const button = (event.target as HTMLElement)?.closest<HTMLButtonElement>(
@@ -448,6 +486,7 @@ const prevPageUrl = prevCursorPageUrl(Astro.url, 'cursor', 'cursors');
     if (confirmId) confirmId.textContent = button.dataset.delistName ?? id;
     hiddenId.value = id;
     if (reasonInput) reasonInput.value = '';
+    if (notifyInput) notifyInput.checked = true;
     dialog.showModal();
   });
 

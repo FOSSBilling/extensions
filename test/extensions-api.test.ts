@@ -571,6 +571,51 @@ describe('generated Extensions v2 façade', () => {
     expect(await rejectRequest.json()).toEqual({ review_note: 'needs work' });
   });
 
+  it('skips the author email on moderation writes when asked', async () => {
+    const delistFetch = vi.fn().mockResolvedValue(
+      apiResponse({
+        result: { id: 'body-extension', status: 'delisted', notified: false },
+      }),
+    );
+    vi.stubGlobal('fetch', delistFetch);
+    const delisted = await createApiClient(
+      authenticatedEnv,
+      'moderator-sub',
+    ).delistExtension('body-extension', 'gone', false);
+    expect(delistFetch).toHaveBeenCalledOnce();
+    expect(requestUrl(delistFetch).searchParams.get('notify')).toBe('false');
+    expect(delisted).toEqual({
+      id: 'body-extension',
+      status: 'delisted',
+      notified: false,
+    });
+
+    const approveFetch = vi.fn().mockResolvedValue(
+      apiResponse({
+        result: { id: 'dev-1', approved: true, notified: true },
+      }),
+    );
+    vi.stubGlobal('fetch', approveFetch);
+    await createApiClient(authenticatedEnv, 'moderator-sub').approveDeveloper(
+      'dev-1',
+      3,
+    );
+    expect(requestUrl(approveFetch).searchParams.get('notify')).toBeNull();
+
+    const optOutFetch = vi.fn().mockResolvedValue(
+      apiResponse({
+        result: { id: 'dev-1', approved: true, notified: false },
+      }),
+    );
+    vi.stubGlobal('fetch', optOutFetch);
+    await createApiClient(authenticatedEnv, 'moderator-sub').approveDeveloper(
+      'dev-1',
+      3,
+      false,
+    );
+    expect(requestUrl(optOutFetch).searchParams.get('notify')).toBe('false');
+  });
+
   it('returns moderation queue pagination and preserves status/cursor filters', async () => {
     const fetchMock = vi
       .fn()

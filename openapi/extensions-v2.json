@@ -2681,6 +2681,17 @@
             "required": true,
             "name": "id",
             "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": ["true", "false"],
+              "description": "Set to false to skip the author notification email for this action"
+            },
+            "required": false,
+            "description": "Set to false to skip the author notification email for this action",
+            "name": "notify",
+            "in": "query"
           }
         ],
         "responses": {
@@ -2692,7 +2703,20 @@
                   "type": "object",
                   "properties": {
                     "result": {
-                      "$ref": "#/components/schemas/DeveloperProfile"
+                      "allOf": [
+                        {
+                          "$ref": "#/components/schemas/DeveloperProfile"
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "notified": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": ["notified"]
+                        }
+                      ]
                     }
                   },
                   "required": ["result"]
@@ -2741,7 +2765,7 @@
             }
           },
           "422": {
-            "description": "id param failed validation",
+            "description": "id param or notify query failed validation",
             "content": {
               "application/json": {
                 "schema": {
@@ -2781,6 +2805,17 @@
             "required": true,
             "name": "id",
             "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": ["true", "false"],
+              "description": "Set to false to skip the author notification email for this action"
+            },
+            "required": false,
+            "description": "Set to false to skip the author notification email for this action",
+            "name": "notify",
+            "in": "query"
           }
         ],
         "requestBody": {
@@ -2801,7 +2836,20 @@
                   "type": "object",
                   "properties": {
                     "result": {
-                      "$ref": "#/components/schemas/DeveloperClaim"
+                      "allOf": [
+                        {
+                          "$ref": "#/components/schemas/DeveloperClaim"
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "notified": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": ["notified"]
+                        }
+                      ]
                     }
                   },
                   "required": ["result"]
@@ -2840,7 +2888,7 @@
             }
           },
           "422": {
-            "description": "id param or review_note body failed validation",
+            "description": "id param, review_note body, or notify query failed validation",
             "content": {
               "application/json": {
                 "schema": {
@@ -3500,6 +3548,17 @@
             "required": true,
             "name": "revisionId",
             "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": ["true", "false"],
+              "description": "Set to false to skip the author notification email for this action"
+            },
+            "required": false,
+            "description": "Set to false to skip the author notification email for this action",
+            "name": "notify",
+            "in": "query"
           }
         ],
         "requestBody": {
@@ -3528,9 +3587,12 @@
                         "status": {
                           "type": "string",
                           "enum": ["approved"]
+                        },
+                        "notified": {
+                          "type": "boolean"
                         }
                       },
-                      "required": ["id", "status"]
+                      "required": ["id", "status", "notified"]
                     }
                   },
                   "required": ["result"]
@@ -3579,7 +3641,7 @@
             }
           },
           "422": {
-            "description": "Path params or review_note body failed validation",
+            "description": "Path params, review_note body, or notify query failed validation",
             "content": {
               "application/json": {
                 "schema": {
@@ -3628,6 +3690,17 @@
             "required": true,
             "name": "revisionId",
             "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": ["true", "false"],
+              "description": "Set to false to skip the author notification email for this action"
+            },
+            "required": false,
+            "description": "Set to false to skip the author notification email for this action",
+            "name": "notify",
+            "in": "query"
           }
         ],
         "requestBody": {
@@ -3656,9 +3729,12 @@
                         "status": {
                           "type": "string",
                           "enum": ["rejected"]
+                        },
+                        "notified": {
+                          "type": "boolean"
                         }
                       },
-                      "required": ["id", "status"]
+                      "required": ["id", "status", "notified"]
                     }
                   },
                   "required": ["result"]
@@ -3707,7 +3783,7 @@
             }
           },
           "422": {
-            "description": "review_note is required",
+            "description": "review_note body or notify query failed validation",
             "content": {
               "application/json": {
                 "schema": {
@@ -3747,6 +3823,17 @@
             "required": true,
             "name": "id",
             "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": ["true", "false"],
+              "description": "Set to false to skip the author notification email for this action"
+            },
+            "required": false,
+            "description": "Set to false to skip the author notification email for this action",
+            "name": "notify",
+            "in": "query"
           }
         ],
         "requestBody": {
@@ -3775,9 +3862,12 @@
                         "status": {
                           "type": "string",
                           "enum": ["delisted"]
+                        },
+                        "notified": {
+                          "type": "boolean"
                         }
                       },
-                      "required": ["id", "status"]
+                      "required": ["id", "status", "notified"]
                     }
                   },
                   "required": ["result"]
@@ -3826,7 +3916,7 @@
             }
           },
           "422": {
-            "description": "Path params or reason body failed validation",
+            "description": "Path params, reason body, or notify query failed validation",
             "content": {
               "application/json": {
                 "schema": {
@@ -3990,6 +4080,17 @@
             "required": true,
             "name": "id",
             "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": ["true", "false"],
+              "description": "Set to false to skip the author notification email for this action"
+            },
+            "required": false,
+            "description": "Set to false to skip the author notification email for this action",
+            "name": "notify",
+            "in": "query"
           }
         ],
         "requestBody": {
@@ -4018,9 +4119,12 @@
                         "approved": {
                           "type": "boolean",
                           "enum": [true]
+                        },
+                        "notified": {
+                          "type": "boolean"
                         }
                       },
-                      "required": ["id", "approved"]
+                      "required": ["id", "approved", "notified"]
                     }
                   },
                   "required": ["result"]
@@ -4069,7 +4173,7 @@
             }
           },
           "422": {
-            "description": "id param failed validation",
+            "description": "id param or notify query failed validation",
             "content": {
               "application/json": {
                 "schema": {

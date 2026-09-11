@@ -158,12 +158,25 @@ try {
                     <form
                       method="POST"
                       action={`/account/moderate/developers/${d.id}/approve`}
+                      class="flex items-center gap-2"
                     >
                       <input
                         type="hidden"
                         name="expected_revision"
                         value={d.content_revision}
                       />
+                      <label
+                        class="flex items-center gap-1.5 text-sm text-muted-foreground"
+                        title="Uncheck to skip emailing the owner"
+                      >
+                        <input
+                          class="input"
+                          type="checkbox"
+                          name="notify"
+                          checked
+                        />
+                        Email owner
+                      </label>
                       <button type="submit" class="btn" data-size="sm">
                         Approve
                       </button>

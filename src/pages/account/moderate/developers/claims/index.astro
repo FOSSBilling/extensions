@@ -81,7 +81,21 @@ try {
                 <form
                   method="POST"
                   action={`/account/moderate/developers/claims/${c.id}/approve`}
+                  class="flex items-center gap-2"
                 >
+                  <input type="hidden" name="intent" value="approve" />
+                  <label
+                    class="flex items-center gap-1.5 text-sm text-muted-foreground"
+                    title="Uncheck to skip emailing the claimant"
+                  >
+                    <input
+                      class="input"
+                      type="checkbox"
+                      name="notify"
+                      checked
+                    />
+                    Email claimant
+                  </label>
                   <button type="submit" class="btn" data-size="sm">
                     Approve
                   </button>

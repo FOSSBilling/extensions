@@ -1102,7 +1102,12 @@ export type PostDevelopersClaimsByIdApproveData = {
   path: {
     id: string;
   };
-  query?: never;
+  query?: {
+    /**
+     * Set to false to skip the author notification email for this action
+     */
+    notify?: 'true' | 'false';
+  };
   url: '/developers/claims/{id}/approve';
 };
 
@@ -1124,7 +1129,7 @@ export type PostDevelopersClaimsByIdApproveErrors = {
    */
   409: Error;
   /**
-   * id param failed validation
+   * id param or notify query failed validation
    */
   422: Error;
   /**
@@ -1141,7 +1146,9 @@ export type PostDevelopersClaimsByIdApproveResponses = {
    * Claim approved; profile ownership transferred to the claimant
    */
   200: {
-    result: DeveloperProfile;
+    result: DeveloperProfile & {
+      notified: boolean;
+    };
   };
 };
 
@@ -1153,7 +1160,12 @@ export type PostDevelopersClaimsByIdRejectData = {
   path: {
     id: string;
   };
-  query?: never;
+  query?: {
+    /**
+     * Set to false to skip the author notification email for this action
+     */
+    notify?: 'true' | 'false';
+  };
   url: '/developers/claims/{id}/reject';
 };
 
@@ -1171,7 +1183,7 @@ export type PostDevelopersClaimsByIdRejectErrors = {
    */
   404: Error;
   /**
-   * id param or review_note body failed validation
+   * id param, review_note body, or notify query failed validation
    */
   422: Error;
   /**
@@ -1188,7 +1200,9 @@ export type PostDevelopersClaimsByIdRejectResponses = {
    * Claim rejected
    */
   200: {
-    result: DeveloperClaim;
+    result: DeveloperClaim & {
+      notified: boolean;
+    };
   };
 };
 
@@ -1498,7 +1512,12 @@ export type PostExtensionsByIdRevisionsByRevisionIdApproveData = {
     id: string;
     revisionId: string;
   };
-  query?: never;
+  query?: {
+    /**
+     * Set to false to skip the author notification email for this action
+     */
+    notify?: 'true' | 'false';
+  };
   url: '/extensions/{id}/revisions/{revisionId}/approve';
 };
 
@@ -1520,7 +1539,7 @@ export type PostExtensionsByIdRevisionsByRevisionIdApproveErrors = {
    */
   409: Error;
   /**
-   * Path params or review_note body failed validation
+   * Path params, review_note body, or notify query failed validation
    */
   422: Error;
   /**
@@ -1540,6 +1559,7 @@ export type PostExtensionsByIdRevisionsByRevisionIdApproveResponses = {
     result: {
       id: string;
       status: 'approved';
+      notified: boolean;
     };
   };
 };
@@ -1553,7 +1573,12 @@ export type PostExtensionsByIdRevisionsByRevisionIdRejectData = {
     id: string;
     revisionId: string;
   };
-  query?: never;
+  query?: {
+    /**
+     * Set to false to skip the author notification email for this action
+     */
+    notify?: 'true' | 'false';
+  };
   url: '/extensions/{id}/revisions/{revisionId}/reject';
 };
 
@@ -1575,7 +1600,7 @@ export type PostExtensionsByIdRevisionsByRevisionIdRejectErrors = {
    */
   409: Error;
   /**
-   * review_note is required
+   * review_note body or notify query failed validation
    */
   422: Error;
   /**
@@ -1595,6 +1620,7 @@ export type PostExtensionsByIdRevisionsByRevisionIdRejectResponses = {
     result: {
       id: string;
       status: 'rejected';
+      notified: boolean;
     };
   };
 };
@@ -1607,7 +1633,12 @@ export type PostExtensionsByIdDelistData = {
   path: {
     id: string;
   };
-  query?: never;
+  query?: {
+    /**
+     * Set to false to skip the author notification email for this action
+     */
+    notify?: 'true' | 'false';
+  };
   url: '/extensions/{id}/delist';
 };
 
@@ -1629,7 +1660,7 @@ export type PostExtensionsByIdDelistErrors = {
    */
   409: Error;
   /**
-   * Path params or reason body failed validation
+   * Path params, reason body, or notify query failed validation
    */
   422: Error;
   /**
@@ -1649,6 +1680,7 @@ export type PostExtensionsByIdDelistResponses = {
     result: {
       id: string;
       status: 'delisted';
+      notified: boolean;
     };
   };
 };
@@ -1734,7 +1766,12 @@ export type PostDevelopersByIdApproveData = {
   path: {
     id: string;
   };
-  query?: never;
+  query?: {
+    /**
+     * Set to false to skip the author notification email for this action
+     */
+    notify?: 'true' | 'false';
+  };
   url: '/developers/{id}/approve';
 };
 
@@ -1756,7 +1793,7 @@ export type PostDevelopersByIdApproveErrors = {
    */
   409: Error;
   /**
-   * id param failed validation
+   * id param or notify query failed validation
    */
   422: Error;
   /**
@@ -1776,6 +1813,7 @@ export type PostDevelopersByIdApproveResponses = {
     result: {
       id: string;
       approved: true;
+      notified: boolean;
     };
   };
 };
