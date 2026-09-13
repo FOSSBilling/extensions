@@ -15,25 +15,23 @@ const imageUrl = getOptimizedImageUrl(avatarUrl, 'avatar');
 ---
 
 <span class={`avatar ${dimension}`}>
-  {
-    imageUrl ? (
-      <img
-        src={imageUrl}
-        width={size === 'lg' ? 64 : 56}
-        height={size === 'lg' ? 64 : 56}
-        class="object-contain"
-        alt=""
-        loading="lazy"
-        decoding="async"
-      />
-    ) : (
-      <span>
-        {type === 'organization' ? (
-          <Building2 class={iconSize} />
-        ) : (
-          <CircleUserRound class={iconSize} />
-        )}
-      </span>
-    )
-  }
+  {imageUrl ? (
+    <img
+      src={imageUrl}
+      width={size === 'lg' ? 64 : 56}
+      height={size === 'lg' ? 64 : 56}
+      class="object-contain"
+      alt=""
+      loading="lazy"
+      decoding="async"
+    />
+  ) : (
+    <span>
+      {type === 'organization' ? (
+        <Building2 class={iconSize} />
+      ) : (
+        <CircleUserRound class={iconSize} />
+      )}
+    </span>
+  )}
 </span>

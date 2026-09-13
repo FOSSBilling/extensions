@@ -69,67 +69,64 @@ const { flash } = Astro.locals;
     <title>{title}</title>
   </head>
   <body class="bg-background">
-    <header
-      class="border-b border-border sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60"
-    >
+    <header class="border-b border-border sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <Container class="flex h-18 items-center justify-between">
         <div class="flex items-center">
           <a href="/" aria-label="FOSSBilling Extensions Home">
             <LogoLight class="h-8 w-auto dark:hidden" />
             <LogoDark class="h-8 w-auto hidden dark:block" />
           </a>
-          <span
-            class="ml-3 pl-3 border-s text-sm font-semibold uppercase tracking-wider"
-            >Extensions</span
-          >
-          <span class="ml-2 badge" data-variant="secondary">beta</span>
+          <span class="ml-3 pl-3 border-s text-sm font-semibold uppercase tracking-wider">
+            Extensions
+          </span>
+          <span class="ml-2 badge" data-variant="secondary">
+            beta
+          </span>
         </div>
         <div class="flex items-center gap-3">
-          {
-            user ? (
-              <>
-                <a
-                  href="/account"
-                  aria-label={`Account — ${user.name}`}
-                  data-tooltip={`Account — ${user.name}`}
-                  data-side="bottom"
-                  data-align="end"
-                  class="btn"
-                  data-size="icon-sm"
-                  data-variant="outline"
-                >
-                  <CircleUser class="w-5 h-5" aria-hidden="true" />
-                </a>
-                <form method="POST" action="/auth/logout">
-                  <button
-                    type="submit"
-                    aria-label="Sign Out"
-                    data-tooltip="Sign Out"
-                    data-side="bottom"
-                    data-align="end"
-                    class="btn"
-                    data-size="icon-sm"
-                    data-variant="outline"
-                  >
-                    <LogOut class="w-5 h-5" aria-hidden="true" />
-                  </button>
-                </form>
-              </>
-            ) : (
+          {user ? (
+            <>
               <a
-                href="/auth/login"
-                aria-label="Developer sign-in"
-                data-tooltip="Developer sign-in"
+                href="/account"
+                aria-label={`Account — ${user.name}`}
+                data-tooltip={`Account — ${user.name}`}
                 data-side="bottom"
                 data-align="end"
                 class="btn"
                 data-size="icon-sm"
                 data-variant="outline"
               >
-                <LogIn class="w-5 h-5" aria-hidden="true" />
+                <CircleUser class="w-5 h-5" aria-hidden="true" />
               </a>
-            )
-          }
+              <form method="POST" action="/auth/logout">
+                <button
+                  type="submit"
+                  aria-label="Sign Out"
+                  data-tooltip="Sign Out"
+                  data-side="bottom"
+                  data-align="end"
+                  class="btn"
+                  data-size="icon-sm"
+                  data-variant="outline"
+                >
+                  <LogOut class="w-5 h-5" aria-hidden="true" />
+                </button>
+              </form>
+            </>
+          ) : (
+            <a
+              href="/auth/login"
+              aria-label="Developer sign-in"
+              data-tooltip="Developer sign-in"
+              data-side="bottom"
+              data-align="end"
+              class="btn"
+              data-size="icon-sm"
+              data-variant="outline"
+            >
+              <LogIn class="w-5 h-5" aria-hidden="true" />
+            </a>
+          )}
           <button
             type="button"
             aria-label="Toggle Dark Mode"
@@ -154,15 +151,13 @@ const { flash } = Astro.locals;
       aria-live="polite"
       aria-label="Notifications"
     >
-      {
-        flash && (
-          <Toast
-            category={flash.category}
-            title={flash.title}
-            description={flash.description}
-          />
-        )
-      }
+      {flash && (
+        <Toast
+          category={flash.category}
+          title={flash.title}
+          description={flash.description}
+        />
+      )}
     </div>
     <main>
       <Container class="py-6 sm:py-10">

@@ -15,49 +15,45 @@ const latestThree = ext ? sortReleasesDescending(ext.releases).slice(0, 3) : [];
 ---
 
 <article class="card">
-  {
-    latest ? (
-      <>
-        <header>
-          <div class="flex items-center justify-between">
-            <h2>Latest Release</h2>
-            <a
-              href={latest.download_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              class="badge gap-1 cursor-pointer"
-            >
-              <Download class="w-4 h-4" />v{latest.tag}
-            </a>
-          </div>
-          <p class="text-sm text-muted-foreground mt-1">
-            <time datetime={latest.date}>
-              {formatRelativeTime(latest.date)}
-            </time>
-          </p>
-        </header>
-        <section>
-          <ul class="space-y-2">
-            {latestThree.map((release) => (
-              <li
-                id={`recent-${release.tag}`}
-                class="flex justify-between text-sm"
-              >
-                <span>v{release.tag}</span>
-                <span class="text-muted-foreground">
-                  <time datetime={release.date}>
-                    {formatRelativeTime(release.date)}
-                  </time>
-                </span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      </>
-    ) : (
+  {latest ? (
+    <>
       <header>
-        <h2>Latest Release</h2>
+        <div class="flex items-center justify-between">
+          <h2>Latest Release</h2>
+          <a
+            href={latest.download_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="badge gap-1 cursor-pointer"
+          >
+            <Download class="w-4 h-4" />v{latest.tag}
+          </a>
+        </div>
+        <p class="text-sm text-muted-foreground mt-1">
+          <time datetime={latest.date}>{formatRelativeTime(latest.date)}</time>
+        </p>
       </header>
-    )
-  }
+      <section>
+        <ul class="space-y-2">
+          {latestThree.map((release) => (
+            <li
+              id={`recent-${release.tag}`}
+              class="flex justify-between text-sm"
+            >
+              <span>v{release.tag}</span>
+              <span class="text-muted-foreground">
+                <time datetime={release.date}>
+                  {formatRelativeTime(release.date)}
+                </time>
+              </span>
+            </li>
+          ))}
+        </ul>
+      </section>
+    </>
+  ) : (
+    <header>
+      <h2>Latest Release</h2>
+    </header>
+  )}
 </article>

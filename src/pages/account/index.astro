@@ -97,20 +97,18 @@ const reconnectUrl = `${ISSUER}/account?callbackURL=${encodeURIComponent(
   <div class="max-w-3xl mx-auto space-y-8">
     <header class="flex items-center justify-between gap-4">
       <div class="flex items-center gap-4">
-        {
-          userPictureUrl && (
-            <span class="avatar w-12 h-12">
-              <img
-                src={userPictureUrl}
-                width="48"
-                height="48"
-                class="object-contain"
-                alt=""
-                decoding="async"
-              />
-            </span>
-          )
-        }
+        {userPictureUrl && (
+          <span class="avatar w-12 h-12">
+            <img
+              src={userPictureUrl}
+              width="48"
+              height="48"
+              class="object-contain"
+              alt=""
+              decoding="async"
+            />
+          </span>
+        )}
         <div>
           <h1 class="text-2xl font-semibold tracking-tight">{user.name}</h1>
           <p class="text-muted-foreground text-sm">{user.email}</p>
@@ -120,37 +118,33 @@ const reconnectUrl = `${ISSUER}/account?callbackURL=${encodeURIComponent(
         <a href="/account/profile" class="btn" data-variant="outline">
           Your Profile
         </a>
-        {
-          moderator && (
-            <a href="/account/moderate" class="btn" data-variant="outline">
-              Moderation Queue
-            </a>
-          )
-        }
+        {moderator && (
+          <a href="/account/moderate" class="btn" data-variant="outline">
+            Moderation Queue
+          </a>
+        )}
       </div>
     </header>
 
-    {
-      !githubLinked && (
-        <div class="alert">
-          <h2>Reconnect GitHub</h2>
-          <section>
-            Grant GitHub organization access so profile claims can be verified
-            automatically.
-          </section>
-          <footer>
-            <a
-              href={reconnectUrl}
-              class="btn"
-              data-size="sm"
-              data-variant="outline"
-            >
-              Reconnect GitHub
-            </a>
-          </footer>
-        </div>
-      )
-    }
+    {!githubLinked && (
+      <div class="alert">
+        <h2>Reconnect GitHub</h2>
+        <section>
+          Grant GitHub organization access so profile claims can be verified
+          automatically.
+        </section>
+        <footer>
+          <a
+            href={reconnectUrl}
+            class="btn"
+            data-size="sm"
+            data-variant="outline"
+          >
+            Reconnect GitHub
+          </a>
+        </footer>
+      </div>
+    )}
 
     <!-- overflow-visible: basecoat's .card sets overflow-hidden (to clip a
          first/last-child image to its rounded corners, not relevant here)
@@ -158,155 +152,151 @@ const reconnectUrl = `${ISSUER}/account?callbackURL=${encodeURIComponent(
     <section class="card overflow-visible">
       <header class="flex items-center justify-between">
         <h2 class="font-semibold">Developer Profile</h2>
-        {
-          developerError || claimsError ? null : developer ? (
+        {developerError || claimsError ? null : developer ? (
+          <a
+            href="/account/developer"
+            class="btn"
+            data-size="sm"
+            data-variant="outline"
+          >
+            Edit
+          </a>
+        ) : (
+          !pendingClaim && (
             <a
               href="/account/developer"
               class="btn"
               data-size="sm"
               data-variant="outline"
             >
-              Edit
+              Create
             </a>
-          ) : (
-            !pendingClaim && (
-              <a
-                href="/account/developer"
-                class="btn"
-                data-size="sm"
-                data-variant="outline"
-              >
-                Create
-              </a>
-            )
           )
-        }
+        )}
       </header>
       <section>
-        {
-          developerError ? (
-            <p class="text-sm text-destructive">{developerError}</p>
-          ) : claimsError ? (
-            <p class="text-sm text-destructive">{claimsError}</p>
-          ) : developer ? (
-            <div class="space-y-3">
-              <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <div class="flex items-center gap-4">
-                  <DeveloperAvatar
-                    avatarUrl={developer.avatar_url}
-                    type={developer.type}
-                  />
-                  <div class="flex-1">
-                    <p class="font-medium flex items-center gap-2">
-                      {developer.name}
-                      <ProfileTrustBadge
-                        approved={developer.approved}
-                        githubOrgVerified={developer.github_org_verified}
-                        githubVerifiedAt={developer.github_verified_at}
-                      />
-                    </p>
-                    <p class="text-sm text-muted-foreground">{developer.id}</p>
-                  </div>
-                </div>
-                <div class="flex items-center gap-2">
-                  <a
-                    href={`/developer/${developer.id}`}
-                    class="btn"
-                    data-size="sm"
-                    data-variant="outline"
-                  >
-                    View Public Profile
-                  </a>
-                  <form
-                    method="POST"
-                    action="/account/developer/reverify"
-                    data-reverify-form
-                    data-cooldown-until={reverifyCooldownUntil || undefined}
-                  >
-                    <button
-                      type="submit"
-                      class="btn"
-                      disabled={reverifyCooldownUntil > 0}
-                      aria-label={
-                        reverifyCooldownUntil > 0
-                          ? 'Re-verify unavailable temporarily'
-                          : 'Re-verify'
-                      }
-                      data-size="sm"
-                      data-variant={
-                        developer.github_org_verified === false
-                          ? 'primary'
-                          : 'ghost'
-                      }
-                      data-tooltip="Check GitHub verification now"
-                      data-side="bottom"
-                    >
-                      {reverifyCooldownUntil > 0
-                        ? 'Try again shortly'
-                        : 'Re-verify'}
-                    </button>
-                  </form>
+        {developerError ? (
+          <p class="text-sm text-destructive">{developerError}</p>
+        ) : claimsError ? (
+          <p class="text-sm text-destructive">{claimsError}</p>
+        ) : developer ? (
+          <div class="space-y-3">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div class="flex items-center gap-4">
+                <DeveloperAvatar
+                  avatarUrl={developer.avatar_url}
+                  type={developer.type}
+                />
+                <div class="flex-1">
+                  <p class="font-medium flex items-center gap-2">
+                    {developer.name}
+                    <ProfileTrustBadge
+                      approved={developer.approved}
+                      githubOrgVerified={developer.github_org_verified}
+                      githubVerifiedAt={developer.github_verified_at}
+                    />
+                  </p>
+                  <p class="text-sm text-muted-foreground">{developer.id}</p>
                 </div>
               </div>
-              {developer.github_org_verified === false && (
-                <div class="alert" data-variant="destructive">
-                  <CircleAlert class="size-4" />
-                  <section>
-                    Your linked GitHub identity no longer matches this profile.
-                    This doesn't affect your extensions or ownership — it's only
-                    shown to moderators as a trust signal. Re-verify if this
-                    should still match (e.g. you rejoined the organization).
-                  </section>
-                </div>
-              )}
-            </div>
-          ) : displayClaim ? (
-            <div class="space-y-2">
-              <p class="text-sm flex items-center gap-2">
-                Claim on <strong>{displayClaim.developer_id}</strong>
-                {displayClaim.status === 'pending' && (
-                  <span class="badge" data-variant="secondary">
-                    Pending Review
-                  </span>
-                )}
-                {displayClaim.status === 'rejected' && (
-                  <span class="badge" data-variant="destructive">
-                    Rejected
-                    {displayClaim.review_note
-                      ? `: ${displayClaim.review_note}`
-                      : ''}
-                  </span>
-                )}
-              </p>
-              {displayClaim.status === 'pending' && (
-                <div class="flex items-center gap-2">
-                  <p class="text-muted-foreground text-sm">
-                    You can't create a separate profile while this claim is
-                    pending.
-                  </p>
-                  <form
-                    method="POST"
-                    action={`/account/claims/${displayClaim.id}/cancel`}
+              <div class="flex items-center gap-2">
+                <a
+                  href={`/developer/${developer.id}`}
+                  class="btn"
+                  data-size="sm"
+                  data-variant="outline"
+                >
+                  View Public Profile
+                </a>
+                <form
+                  method="POST"
+                  action="/account/developer/reverify"
+                  data-reverify-form
+                  data-cooldown-until={reverifyCooldownUntil || undefined}
+                >
+                  <button
+                    type="submit"
+                    class="btn"
+                    disabled={reverifyCooldownUntil > 0}
+                    aria-label={
+                      reverifyCooldownUntil > 0
+                        ? 'Re-verify unavailable temporarily'
+                        : 'Re-verify'
+                    }
+                    data-size="sm"
+                    data-variant={
+                      developer.github_org_verified === false
+                        ? 'primary'
+                        : 'ghost'
+                    }
+                    data-tooltip="Check GitHub verification now"
+                    data-side="bottom"
                   >
-                    <button
-                      type="submit"
-                      class="btn"
-                      data-size="sm"
-                      data-variant="ghost"
-                    >
-                      Cancel Claim
-                    </button>
-                  </form>
-                </div>
-              )}
+                    {reverifyCooldownUntil > 0
+                      ? 'Try again shortly'
+                      : 'Re-verify'}
+                  </button>
+                </form>
+              </div>
             </div>
-          ) : (
-            <p class="text-muted-foreground text-sm">
-              You don't have a developer profile yet — create one before
-              submitting an extension.
+            {developer.github_org_verified === false && (
+              <div class="alert" data-variant="destructive">
+                <CircleAlert class="size-4" />
+                <section>
+                  Your linked GitHub identity no longer matches this profile.
+                  This doesn't affect your extensions or ownership — it's only
+                  shown to moderators as a trust signal. Re-verify if this
+                  should still match (e.g. you rejoined the organization).
+                </section>
+              </div>
+            )}
+          </div>
+        ) : displayClaim ? (
+          <div class="space-y-2">
+            <p class="text-sm flex items-center gap-2">
+              Claim on <strong>{displayClaim.developer_id}</strong>
+              {displayClaim.status === 'pending' && (
+                <span class="badge" data-variant="secondary">
+                  Pending Review
+                </span>
+              )}
+              {displayClaim.status === 'rejected' && (
+                <span class="badge" data-variant="destructive">
+                  Rejected
+                  {displayClaim.review_note
+                    ? `: ${displayClaim.review_note}`
+                    : ''}
+                </span>
+              )}
             </p>
-          )
-        }
+            {displayClaim.status === 'pending' && (
+              <div class="flex items-center gap-2">
+                <p class="text-muted-foreground text-sm">
+                  You can't create a separate profile while this claim is
+                  pending.
+                </p>
+                <form
+                  method="POST"
+                  action={`/account/claims/${displayClaim.id}/cancel`}
+                >
+                  <button
+                    type="submit"
+                    class="btn"
+                    data-size="sm"
+                    data-variant="ghost"
+                  >
+                    Cancel Claim
+                  </button>
+                </form>
+              </div>
+            )}
+          </div>
+        ) : (
+          <p class="text-muted-foreground text-sm">
+            You don't have a developer profile yet — create one before
+            submitting an extension.
+          </p>
+        )}
       </section>
     </section>
 
@@ -318,80 +308,77 @@ const reconnectUrl = `${ISSUER}/account?callbackURL=${encodeURIComponent(
         </a>
       </header>
       <section>
-        {
-          ownedExtensionsError ? (
-            <p class="text-sm text-destructive">{ownedExtensionsError}</p>
-          ) : ownedExtensions.length === 0 ? (
-            <p class="text-muted-foreground text-sm">
-              You don't have any extensions yet.
-            </p>
-          ) : (
-            <ul class="divide-y divide-border">
-              {ownedExtensions.map((ext) => {
-                // last_review is just the most recent decision on an edit,
-                // independent of whether the original content is still live
-                // — a rejected edit doesn't take the extension down, so only
-                // "rejected with nothing ever published" gets the destructive
-                // treatment. Otherwise it's the older content still serving,
-                // with just the latest edit attempt rejected.
-                const rejectedEdit =
-                  !ext.pending_revision &&
-                  ext.last_review?.status === 'rejected';
-                const rejectedNeverPublished = rejectedEdit && !ext.published;
-                return (
-                  <li class="py-3 flex items-center justify-between gap-3">
-                    <div>
-                      <p class="font-medium">{ext.published?.name ?? ext.id}</p>
-                      <p class="text-sm text-muted-foreground">
-                        {ext.published ? `v${ext.published.version}` : ext.id}
+        {ownedExtensionsError ? (
+          <p class="text-sm text-destructive">{ownedExtensionsError}</p>
+        ) : ownedExtensions.length === 0 ? (
+          <p class="text-muted-foreground text-sm">
+            You don't have any extensions yet.
+          </p>
+        ) : (
+          <ul class="divide-y divide-border">
+            {ownedExtensions.map((ext) => {
+              // last_review is just the most recent decision on an edit,
+              // independent of whether the original content is still live
+              // — a rejected edit doesn't take the extension down, so only
+              // "rejected with nothing ever published" gets the destructive
+              // treatment. Otherwise it's the older content still serving,
+              // with just the latest edit attempt rejected.
+              const rejectedEdit =
+                !ext.pending_revision && ext.last_review?.status === 'rejected';
+              const rejectedNeverPublished = rejectedEdit && !ext.published;
+              return (
+                <li class="py-3 flex items-center justify-between gap-3">
+                  <div>
+                    <p class="font-medium">{ext.published?.name ?? ext.id}</p>
+                    <p class="text-sm text-muted-foreground">
+                      {ext.published ? `v${ext.published.version}` : ext.id}
+                    </p>
+                    {rejectedEdit && ext.last_review?.review_note && (
+                      <p
+                        class={`text-sm mt-1 ${rejectedNeverPublished ? 'text-destructive' : 'text-muted-foreground'}`}
+                      >
+                        {ext.last_review.review_note}
                       </p>
-                      {rejectedEdit && ext.last_review?.review_note && (
-                        <p
-                          class={`text-sm mt-1 ${rejectedNeverPublished ? 'text-destructive' : 'text-muted-foreground'}`}
-                        >
-                          {ext.last_review.review_note}
-                        </p>
-                      )}
-                    </div>
-                    <div class="flex items-center gap-2">
-                      {ext.pending_revision ? (
-                        <span class="badge" data-variant="secondary">
-                          Awaiting review
-                        </span>
-                      ) : rejectedNeverPublished ? (
-                        <span class="badge" data-variant="destructive">
-                          Rejected
-                        </span>
-                      ) : rejectedEdit ? (
-                        <span class="badge" data-variant="secondary">
-                          Edit rejected
-                        </span>
-                      ) : null}
-                      {ext.published && (
-                        <a
-                          href={`/extension/${ext.id}`}
-                          class="btn"
-                          data-size="sm"
-                          data-variant="ghost"
-                        >
-                          View
-                        </a>
-                      )}
+                    )}
+                  </div>
+                  <div class="flex items-center gap-2">
+                    {ext.pending_revision ? (
+                      <span class="badge" data-variant="secondary">
+                        Awaiting review
+                      </span>
+                    ) : rejectedNeverPublished ? (
+                      <span class="badge" data-variant="destructive">
+                        Rejected
+                      </span>
+                    ) : rejectedEdit ? (
+                      <span class="badge" data-variant="secondary">
+                        Edit rejected
+                      </span>
+                    ) : null}
+                    {ext.published && (
                       <a
-                        href={`/account/extensions/${ext.id}/edit`}
+                        href={`/extension/${ext.id}`}
                         class="btn"
                         data-size="sm"
-                        data-variant="outline"
+                        data-variant="ghost"
                       >
-                        Edit
+                        View
                       </a>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          )
-        }
+                    )}
+                    <a
+                      href={`/account/extensions/${ext.id}/edit`}
+                      class="btn"
+                      data-size="sm"
+                      data-variant="outline"
+                    >
+                      Edit
+                    </a>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </section>
     </section>
 

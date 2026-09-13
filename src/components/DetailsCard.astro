@@ -92,44 +92,42 @@ const details: DetailsItem[] = [
   </header>
   <section>
     <ul class="space-y-2">
-      {
-        details.map((detail) => (
-          <li
-            id={`detail-${detail.name.toLowerCase().replace(/\s+/g, '-')}`}
-            class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
-          >
-            <div class="flex items-center space-x-3">
-              <span class={`p-2 rounded-lg ${iconBgClasses[detail.color]}`}>
-                <detail.icon class="w-4 h-4" aria-hidden="true" />
+      {details.map((detail) => (
+        <li
+          id={`detail-${detail.name.toLowerCase().replace(/\s+/g, '-')}`}
+          class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
+        >
+          <div class="flex items-center space-x-3">
+            <span class={`p-2 rounded-lg ${iconBgClasses[detail.color]}`}>
+              <detail.icon class="w-4 h-4" aria-hidden="true" />
+            </span>
+            <div>
+              <p class="font-medium text-sm">{detail.name}</p>
+            </div>
+          </div>
+          <div class="flex items-center">
+            {detail.link ? (
+              <a
+                href={detail.link}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="btn"
+                data-size="sm"
+                data-variant="outline"
+              >
+                {detail.text}
+              </a>
+            ) : (
+              <span
+                class={`badge text-xs ${badgeColorClasses[detail.color]}`}
+                data-variant="outline"
+              >
+                {detail.text}
               </span>
-              <div>
-                <p class="font-medium text-sm">{detail.name}</p>
-              </div>
-            </div>
-            <div class="flex items-center">
-              {detail.link ? (
-                <a
-                  href={detail.link}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="btn"
-                  data-size="sm"
-                  data-variant="outline"
-                >
-                  {detail.text}
-                </a>
-              ) : (
-                <span
-                  class={`badge text-xs ${badgeColorClasses[detail.color]}`}
-                  data-variant="outline"
-                >
-                  {detail.text}
-                </span>
-              )}
-            </div>
-          </li>
-        ))
-      }
+            )}
+          </div>
+        </li>
+      ))}
     </ul>
   </section>
 </div>

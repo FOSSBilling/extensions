@@ -40,87 +40,80 @@ try {
       profile's public page) to judge legitimacy yourself.
     </p>
 
-    {
-      loadError ? (
-        <p class="text-sm text-destructive">
-          Unable to load pending claims right now.
-        </p>
-      ) : claims.length === 0 ? (
-        <p class="text-muted-foreground text-sm">
-          No profile claims awaiting review.
-        </p>
-      ) : (
-        <ul class="space-y-4">
-          {claims.map((c) => (
-            <li class="card space-y-3">
-              <header>
-                <h2 class="font-semibold flex items-center gap-2">
-                  {c.developer_name} ({c.developer_id})
-                  {c.github_org_verified && (
-                    <span class="badge">GitHub verified</span>
-                  )}
-                </h2>
-                <p class="text-sm text-muted-foreground">
-                  {c.developer_type} &middot; claimed by{' '}
-                  <strong>{c.claimant_name ?? c.claimant_id}</strong>
-                  {c.claimant_github_login && (
-                    <>
-                      {' '}
-                      (
-                      <a href={`https://github.com/${c.claimant_github_login}`}>
-                        @{c.claimant_github_login}
-                      </a>
-                      )
-                    </>
-                  )}{' '}
-                  on {formatDate(c.created_at)}
-                </p>
-                {c.note && <p class="text-sm mt-1">&ldquo;{c.note}&rdquo;</p>}
-              </header>
-              <footer class="flex items-center gap-3 flex-wrap">
-                <form
-                  method="POST"
-                  action={`/account/moderate/developers/claims/${c.id}/approve`}
-                  class="flex items-center gap-2"
+    {loadError ? (
+      <p class="text-sm text-destructive">
+        Unable to load pending claims right now.
+      </p>
+    ) : claims.length === 0 ? (
+      <p class="text-muted-foreground text-sm">
+        No profile claims awaiting review.
+      </p>
+    ) : (
+      <ul class="space-y-4">
+        {claims.map((c) => (
+          <li class="card space-y-3">
+            <header>
+              <h2 class="font-semibold flex items-center gap-2">
+                {c.developer_name} ({c.developer_id})
+                {c.github_org_verified && (
+                  <span class="badge">GitHub verified</span>
+                )}
+              </h2>
+              <p class="text-sm text-muted-foreground">
+                {c.developer_type} &middot; claimed by{' '}
+                <strong>{c.claimant_name ?? c.claimant_id}</strong>
+                {c.claimant_github_login && (
+                  <>
+                    {' '}
+                    (
+                    <a href={`https://github.com/${c.claimant_github_login}`}>
+                      @{c.claimant_github_login}
+                    </a>
+                    )
+                  </>
+                )}{' '}
+                on {formatDate(c.created_at)}
+              </p>
+              {c.note && <p class="text-sm mt-1">&ldquo;{c.note}&rdquo;</p>}
+            </header>
+            <footer class="flex items-center gap-3 flex-wrap">
+              <form
+                method="POST"
+                action={`/account/moderate/developers/claims/${c.id}/approve`}
+                class="flex items-center gap-2"
+              >
+                <input type="hidden" name="intent" value="approve" />
+                <label
+                  class="flex items-center gap-1.5 text-sm text-muted-foreground"
+                  title="Uncheck to skip emailing the claimant"
                 >
-                  <input type="hidden" name="intent" value="approve" />
-                  <label
-                    class="flex items-center gap-1.5 text-sm text-muted-foreground"
-                    title="Uncheck to skip emailing the claimant"
-                  >
-                    <input
-                      class="input"
-                      type="checkbox"
-                      name="notify"
-                      checked
-                    />
-                    Email claimant
-                  </label>
-                  <button type="submit" class="btn" data-size="sm">
-                    Approve
-                  </button>
-                </form>
-                <button
-                  type="button"
-                  class="btn"
-                  data-size="sm"
-                  data-variant="destructive"
-                  onclick={`document.getElementById('reject-claim-${c.id}').showModal()`}
-                >
-                  Reject
+                  <input class="input" type="checkbox" name="notify" checked />
+                  Email claimant
+                </label>
+                <button type="submit" class="btn" data-size="sm">
+                  Approve
                 </button>
-              </footer>
+              </form>
+              <button
+                type="button"
+                class="btn"
+                data-size="sm"
+                data-variant="destructive"
+                onclick={`document.getElementById('reject-claim-${c.id}').showModal()`}
+              >
+                Reject
+              </button>
+            </footer>
 
-              <RejectDialog
-                id={`reject-claim-${c.id}`}
-                title={`Reject claim on "${c.developer_id}"?`}
-                description="The claimant will see this reason."
-                formAction={`/account/moderate/developers/claims/${c.id}/reject`}
-              />
-            </li>
-          ))}
-        </ul>
-      )
-    }
+            <RejectDialog
+              id={`reject-claim-${c.id}`}
+              title={`Reject claim on "${c.developer_id}"?`}
+              description="The claimant will see this reason."
+              formAction={`/account/moderate/developers/claims/${c.id}/reject`}
+            />
+          </li>
+        ))}
+      </ul>
+    )}
   </div>
 </Base>

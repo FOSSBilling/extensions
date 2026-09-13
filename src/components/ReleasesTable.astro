@@ -15,12 +15,14 @@ const releases = sortReleasesDescending(ext.releases);
 <div>
   <div class="flex items-center justify-between">
     <h2 class="text-xl font-semibold">Releases</h2>
-    <span class="badge" data-variant="secondary">{releases.length}</span>
+    <span class="badge" data-variant="secondary">
+      {releases.length}
+    </span>
   </div>
 
   <div class="table-container mt-6">
     <table class="table">
-      <caption class="sr-only">Releases for {ext.name}</caption>
+      <caption class="sr-only">Releases for{ext.name}</caption>
       <thead>
         <tr>
           <th class="text-left">Tag</th>
@@ -29,40 +31,38 @@ const releases = sortReleasesDescending(ext.releases);
         </tr>
       </thead>
       <tbody>
-        {
-          releases.map((release) => (
-            <tr id={`release-${release.tag}`}>
-              <td class="font-mono">v{release.tag}</td>
-              <td>
-                <time datetime={release.date}>{formatDate(release.date)}</time>
-              </td>
-              <td>
-                <div class="flex items-center space-x-2">
+        {releases.map((release) => (
+          <tr id={`release-${release.tag}`}>
+            <td class="font-mono">v{release.tag}</td>
+            <td>
+              <time datetime={release.date}>{formatDate(release.date)}</time>
+            </td>
+            <td>
+              <div class="flex items-center space-x-2">
+                <a
+                  href={release.download_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Download the release"
+                  class="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <Download class="w-4 h-4" />
+                </a>
+                {release.changelog_url ? (
                   <a
-                    href={release.download_url}
+                    href={release.changelog_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    aria-label="Download the release"
+                    aria-label="View the changelog for the release"
                     class="text-muted-foreground hover:text-foreground transition-colors"
                   >
-                    <Download class="w-4 h-4" />
+                    <List class="w-4 h-4" />
                   </a>
-                  {release.changelog_url ? (
-                    <a
-                      href={release.changelog_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      aria-label="View the changelog for the release"
-                      class="text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      <List class="w-4 h-4" />
-                    </a>
-                  ) : null}
-                </div>
-              </td>
-            </tr>
-          ))
-        }
+                ) : null}
+              </div>
+            </td>
+          </tr>
+        ))}
       </tbody>
     </table>
   </div>

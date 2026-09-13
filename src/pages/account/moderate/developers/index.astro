@@ -53,18 +53,16 @@ try {
     </div>
 
     <nav class="flex gap-2">
-      {
-        (['unapproved', 'all'] as const).map((v) => (
-          <a
-            href={`/account/moderate/developers?view=${v}`}
-            class="btn"
-            data-size="sm"
-            data-variant={v === view ? 'primary' : 'outline'}
-          >
-            {v === 'unapproved' ? 'Awaiting Review' : 'All Profiles'}
-          </a>
-        ))
-      }
+      {(['unapproved', 'all'] as const).map((v) => (
+        <a
+          href={`/account/moderate/developers?view=${v}`}
+          class="btn"
+          data-size="sm"
+          data-variant={v === view ? 'primary' : 'outline'}
+        >
+          {v === 'unapproved' ? 'Awaiting Review' : 'All Profiles'}
+        </a>
+      ))}
     </nav>
 
     <p class="text-sm text-muted-foreground">
@@ -73,121 +71,117 @@ try {
       reviewed here, unless the profile is currently GitHub verified.
     </p>
 
-    {
-      loadError ? (
-        <p class="text-sm text-destructive">
-          Unable to load developer profiles right now.
-        </p>
-      ) : developers.length === 0 ? (
-        <p class="text-muted-foreground text-sm">
-          {view === 'unapproved'
-            ? 'No developer profiles awaiting review.'
-            : 'No developer profiles yet.'}
-        </p>
-      ) : (
-        <ul class="space-y-4">
-          {developers.map((d) => (
-            // overflow-visible: basecoat's .card sets overflow-hidden (to
-            // clip a first/last-child image to its rounded corners, not
-            // relevant here) which otherwise clips ProfileTrustBadge's
-            // tooltip — see the same fix on /account.
-            <li class="card overflow-visible">
-              <header class="flex items-start justify-between gap-4">
-                <div>
-                  <h2 class="font-semibold flex items-center gap-2">
-                    {d.name} ({d.id})
-                    <ProfileTrustBadge
-                      approved={d.approved}
-                      githubOrgVerified={d.github_org_verified}
-                      githubVerifiedAt={d.github_verified_at}
-                    />
-                    {d.unclaimed && (
-                      <span class="badge" data-variant="secondary">
-                        Unclaimed
-                      </span>
-                    )}
-                  </h2>
+    {loadError ? (
+      <p class="text-sm text-destructive">
+        Unable to load developer profiles right now.
+      </p>
+    ) : developers.length === 0 ? (
+      <p class="text-muted-foreground text-sm">
+        {view === 'unapproved'
+          ? 'No developer profiles awaiting review.'
+          : 'No developer profiles yet.'}
+      </p>
+    ) : (
+      <ul class="space-y-4">
+        {developers.map((d) => (
+          // overflow-visible: basecoat's .card sets overflow-hidden (to
+          // clip a first/last-child image to its rounded corners, not
+          // relevant here) which otherwise clips ProfileTrustBadge's
+          // tooltip — see the same fix on /account.
+          <li class="card overflow-visible">
+            <header class="flex items-start justify-between gap-4">
+              <div>
+                <h2 class="font-semibold flex items-center gap-2">
+                  {d.name} ({d.id})
+                  <ProfileTrustBadge
+                    approved={d.approved}
+                    githubOrgVerified={d.github_org_verified}
+                    githubVerifiedAt={d.github_verified_at}
+                  />
+                  {d.unclaimed && (
+                    <span class="badge" data-variant="secondary">
+                      Unclaimed
+                    </span>
+                  )}
+                </h2>
+                <p class="text-sm text-muted-foreground">
+                  {d.type}
+                  {d.URL && (
+                    <>
+                      {' '}
+                      &middot;{' '}
+                      {isSafeHttpUrl(d.URL) ? (
+                        <a href={d.URL}>{d.URL}</a>
+                      ) : (
+                        d.URL
+                      )}
+                      {d.github_url_verified && (
+                        <CircleCheck
+                          class="size-3.5 inline text-primary align-text-bottom"
+                          title="Matches GitHub's on-file website"
+                        />
+                      )}
+                    </>
+                  )}
+                </p>
+                {d.owner_name && (
                   <p class="text-sm text-muted-foreground">
-                    {d.type}
-                    {d.URL && (
+                    Owned by <strong>{d.owner_name}</strong>
+                    {d.owner_github_login && (
                       <>
                         {' '}
-                        &middot;{' '}
-                        {isSafeHttpUrl(d.URL) ? (
-                          <a href={d.URL}>{d.URL}</a>
-                        ) : (
-                          d.URL
-                        )}
-                        {d.github_url_verified && (
-                          <CircleCheck
-                            class="size-3.5 inline text-primary align-text-bottom"
-                            title="Matches GitHub's on-file website"
-                          />
-                        )}
+                        (
+                        <a href={`https://github.com/${d.owner_github_login}`}>
+                          @{d.owner_github_login}
+                        </a>
+                        )
                       </>
                     )}
                   </p>
-                  {d.owner_name && (
-                    <p class="text-sm text-muted-foreground">
-                      Owned by <strong>{d.owner_name}</strong>
-                      {d.owner_github_login && (
-                        <>
-                          {' '}
-                          (
-                          <a
-                            href={`https://github.com/${d.owner_github_login}`}
-                          >
-                            @{d.owner_github_login}
-                          </a>
-                          )
-                        </>
-                      )}
-                    </p>
-                  )}
-                </div>
-                <div class="flex items-center gap-2">
-                  <a
-                    href={`/account/moderate/developers/${d.id}/history`}
-                    class="btn"
-                    data-size="sm"
-                    data-variant="outline"
+                )}
+              </div>
+              <div class="flex items-center gap-2">
+                <a
+                  href={`/account/moderate/developers/${d.id}/history`}
+                  class="btn"
+                  data-size="sm"
+                  data-variant="outline"
+                >
+                  History
+                </a>
+                {!d.approved && (
+                  <form
+                    method="POST"
+                    action={`/account/moderate/developers/${d.id}/approve`}
+                    class="flex items-center gap-2"
                   >
-                    History
-                  </a>
-                  {!d.approved && (
-                    <form
-                      method="POST"
-                      action={`/account/moderate/developers/${d.id}/approve`}
-                      class="flex items-center gap-2"
+                    <input
+                      type="hidden"
+                      name="expected_revision"
+                      value={d.content_revision}
+                    />
+                    <label
+                      class="flex items-center gap-1.5 text-sm text-muted-foreground"
+                      title="Uncheck to skip emailing the owner"
                     >
                       <input
-                        type="hidden"
-                        name="expected_revision"
-                        value={d.content_revision}
+                        class="input"
+                        type="checkbox"
+                        name="notify"
+                        checked
                       />
-                      <label
-                        class="flex items-center gap-1.5 text-sm text-muted-foreground"
-                        title="Uncheck to skip emailing the owner"
-                      >
-                        <input
-                          class="input"
-                          type="checkbox"
-                          name="notify"
-                          checked
-                        />
-                        Email owner
-                      </label>
-                      <button type="submit" class="btn" data-size="sm">
-                        Approve
-                      </button>
-                    </form>
-                  )}
-                </div>
-              </header>
-            </li>
-          ))}
-        </ul>
-      )
-    }
+                      Email owner
+                    </label>
+                    <button type="submit" class="btn" data-size="sm">
+                      Approve
+                    </button>
+                  </form>
+                )}
+              </div>
+            </header>
+          </li>
+        ))}
+      </ul>
+    )}
   </div>
 </Base>
