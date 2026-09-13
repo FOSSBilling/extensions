@@ -51,64 +51,59 @@ if (Astro.request.method === 'POST' && extensions.length === 0) {
       Delete Account
     </h1>
 
-    {
-      error && (
-        <div class="alert" data-variant="destructive">
-          <CircleAlert class="size-4" />
-          <section>{error}</section>
-        </div>
-      )
-    }
+    {error && (
+      <div class="alert" data-variant="destructive">
+        <CircleAlert class="size-4" />
+        <section>{error}</section>
+      </div>
+    )}
 
-    {
-      extensions.length > 0 ? (
-        <p class="text-sm text-muted-foreground">
-          You have {extensions.length} extension
-          {extensions.length === 1 ? '' : 's'} under your developer profile.
-          Transfer ownership or remove them from{' '}
-          <a href="/account/developer">your developer profile</a> before
-          deleting your account.
-        </p>
-      ) : (
-        <div class="card">
-          <section class="space-y-4">
-            <p class="text-sm text-muted-foreground">
-              This permanently deletes your account
-              {developer && ' and your developer profile'}. This can't be
-              undone.
-            </p>
-            <ul class="text-sm text-muted-foreground list-disc pl-5 space-y-1">
-              <li>Your personal profile (display name) is removed.</li>
-              {developer && (
-                <li>
-                  Your developer profile ({developer.name}) and its public page
-                  are removed; the ID may be used by someone else afterward.
-                </li>
-              )}
-            </ul>
-            <div class="flex justify-end gap-3">
-              <a href="/account" class="btn" data-variant="ghost">
-                Cancel
-              </a>
-              <button
-                type="button"
-                class="btn"
-                data-variant="destructive"
-                onclick="document.getElementById('delete-account').showModal()"
-              >
-                Permanently Delete My Account
-              </button>
-            </div>
-            <ConfirmDeleteDialog
-              id="delete-account"
-              title="Delete account"
-              description={`This permanently deletes your account${developer ? ' and your developer profile' : ''}. This can't be undone.`}
-              confirmText="DELETE"
-              submitLabel="Permanently Delete My Account"
-            />
-          </section>
-        </div>
-      )
-    }
+    {extensions.length > 0 ? (
+      <p class="text-sm text-muted-foreground">
+        You have {extensions.length} extension
+        {extensions.length === 1 ? '' : 's'} under your developer profile.
+        Transfer ownership or remove them from{' '}
+        <a href="/account/developer">your developer profile</a> before deleting
+        your account.
+      </p>
+    ) : (
+      <div class="card">
+        <section class="space-y-4">
+          <p class="text-sm text-muted-foreground">
+            This permanently deletes your account
+            {developer && ' and your developer profile'}. This can't be undone.
+          </p>
+          <ul class="text-sm text-muted-foreground list-disc pl-5 space-y-1">
+            <li>Your personal profile (display name) is removed.</li>
+            {developer && (
+              <li>
+                Your developer profile ({developer.name}) and its public page
+                are removed; the ID may be used by someone else afterward.
+              </li>
+            )}
+          </ul>
+          <div class="flex justify-end gap-3">
+            <a href="/account" class="btn" data-variant="ghost">
+              Cancel
+            </a>
+            <button
+              type="button"
+              class="btn"
+              data-variant="destructive"
+              onclick="document.getElementById('delete-account').showModal()"
+            >
+              Permanently Delete My Account
+            </button>
+          </div>
+          <ConfirmDeleteDialog
+            id="delete-account"
+            title="Delete account"
+            description={`This permanently deletes your account${developer ? ' and your developer profile' : ''}. This can't be undone.`}
+            confirmText="DELETE"
+            submitLabel="Permanently Delete My Account"
+          />
+        </section>
+      </div>
+    )}
   </div>
 </Base>

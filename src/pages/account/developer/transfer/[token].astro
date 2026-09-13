@@ -46,20 +46,22 @@ if (Astro.request.method === 'POST') {
       and clears its approved badge until a moderator reviews it again.
     </p>
 
-    {
-      error && (
-        <div class="alert" data-variant="destructive">
-          <CircleAlert class="size-4" />
-          <section>{error}</section>
-        </div>
-      )
-    }
+    {error && (
+      <div class="alert" data-variant="destructive">
+        <CircleAlert class="size-4" />
+        <section>{error}</section>
+      </div>
+    )}
 
     <div class="card">
       <section>
         <form method="POST" class="flex gap-3">
-          <button type="submit" class="btn">Accept Transfer</button>
-          <a href="/account" class="btn" data-variant="ghost">Cancel</a>
+          <button type="submit" class="btn">
+            Accept Transfer
+          </button>
+          <a href="/account" class="btn" data-variant="ghost">
+            Cancel
+          </a>
         </form>
       </section>
     </div>

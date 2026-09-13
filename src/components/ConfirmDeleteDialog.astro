@@ -31,15 +31,9 @@ const {
   onclose="this.querySelector('form').reset(); this.querySelector('[data-confirm-submit]').disabled = true;"
 >
   <form method="POST" action={formAction}>
-    {
-      intentField && (
-        <input
-          type="hidden"
-          name={intentField.name}
-          value={intentField.value}
-        />
-      )
-    }
+    {intentField && (
+      <input type="hidden" name={intentField.name} value={intentField.value} />
+    )}
     <header>
       <h2 id={`${id}-title`}>{title}</h2>
       <p id={`${id}-description`}>{description}</p>

@@ -118,62 +118,58 @@ const title = base.name || owned.id;
   <div class="max-w-2xl mx-auto space-y-6">
     <h1 class="text-2xl font-semibold tracking-tight">Edit {title}</h1>
 
-    {
-      owned.pendingRevision ? (
-        <div class="alert">
-          <section>
-            An edit submitted {formatDate(owned.pendingRevision.createdAt)} is
-            still awaiting review. You can submit another edit once a moderator
-            has reviewed this one.
-          </section>
-        </div>
-      ) : (
-        <Fragment>
-          <p class="text-muted-foreground text-sm">
-            Edits are reviewed by a moderator before replacing the published
-            listing.
-          </p>
-          <ExtensionForm
-            developer={owned.developer}
-            extension={fields}
-            error={error}
-          />
-        </Fragment>
-      )
-    }
+    {owned.pendingRevision ? (
+      <div class="alert">
+        <section>
+          An edit submitted {formatDate(owned.pendingRevision.createdAt)} is
+          still awaiting review. You can submit another edit once a moderator
+          has reviewed this one.
+        </section>
+      </div>
+    ) : (
+      <Fragment>
+        <p class="text-muted-foreground text-sm">
+          Edits are reviewed by a moderator before replacing the published
+          listing.
+        </p>
+        <ExtensionForm
+          developer={owned.developer}
+          extension={fields}
+          error={error}
+        />
+      </Fragment>
+    )}
 
-    {
-      !owned.published && (
-        <div class="card">
-          <header>
-            <h2 class="font-semibold text-destructive">Withdraw Extension</h2>
-          </header>
-          <section class="space-y-3">
-            <p class="text-sm text-muted-foreground">
-              This extension has never been published, so it can still be
-              withdrawn. Permanently deletes it and its revision history, and
-              releases its id. This can't be undone.
-            </p>
-            <button
-              type="button"
-              class="btn"
-              data-size="sm"
-              data-variant="outline"
-              onclick="document.getElementById('withdraw-extension').showModal()"
-            >
-              Withdraw Extension
-            </button>
-            <ConfirmDeleteDialog
-              id="withdraw-extension"
-              title="Withdraw extension"
-              description="Permanently deletes this extension and its revision history, and releases its id for someone else to use. This can't be undone."
-              confirmText={owned.id}
-              formAction={`/account/extensions/${owned.id}/withdraw`}
-              submitLabel="Withdraw Extension"
-            />
-          </section>
-        </div>
-      )
-    }
+    {!owned.published && (
+      <div class="card">
+        <header>
+          <h2 class="font-semibold text-destructive">Withdraw Extension</h2>
+        </header>
+        <section class="space-y-3">
+          <p class="text-sm text-muted-foreground">
+            This extension has never been published, so it can still be
+            withdrawn. Permanently deletes it and its revision history, and
+            releases its id. This can't be undone.
+          </p>
+          <button
+            type="button"
+            class="btn"
+            data-size="sm"
+            data-variant="outline"
+            onclick="document.getElementById('withdraw-extension').showModal()"
+          >
+            Withdraw Extension
+          </button>
+          <ConfirmDeleteDialog
+            id="withdraw-extension"
+            title="Withdraw extension"
+            description="Permanently deletes this extension and its revision history, and releases its id for someone else to use. This can't be undone."
+            confirmText={owned.id}
+            formAction={`/account/extensions/${owned.id}/withdraw`}
+            submitLabel="Withdraw Extension"
+          />
+        </section>
+      </div>
+    )}
   </div>
 </Base>

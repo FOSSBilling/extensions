@@ -88,98 +88,92 @@ const hasNextPage = Boolean(
       <div class="flex items-center gap-2 flex-wrap">
         <h1 class="text-2xl font-semibold tracking-tight">{developer.name}</h1>
         <ProfileTrustBadge approved={developer.approved} publicView />
-        {
-          developer.unclaimed && (
-            <span class="badge" data-variant="secondary">
-              Unclaimed
-            </span>
-          )
-        }
+        {developer.unclaimed && (
+          <span class="badge" data-variant="secondary">
+            Unclaimed
+          </span>
+        )}
       </div>
-      {
-        developer.URL && isSafeHttpUrl(developer.URL) ? (
-          <a
-            href={developer.URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            class="btn mt-2"
-            data-size="sm"
-            data-variant="outline"
-          >
-            {developer.URL}
-          </a>
-        ) : (
-          developer.URL && (
-            <p class="text-sm text-muted-foreground mt-2">{developer.URL}</p>
-          )
+      {developer.URL && isSafeHttpUrl(developer.URL) ? (
+        <a
+          href={developer.URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="btn mt-2"
+          data-size="sm"
+          data-variant="outline"
+        >
+          {developer.URL}
+        </a>
+      ) : (
+        developer.URL && (
+          <p class="text-sm text-muted-foreground mt-2">{developer.URL}</p>
         )
-      }
+      )}
     </div>
   </div>
 
-  {
-    developer.unclaimed && (
-      <div class="card mb-8">
-        <header>
-          <h2 class="font-semibold">
-            This profile hasn't been linked to an account
-          </h2>
-        </header>
-        <section class="space-y-3">
-          {claimSubmitted ? (
+  {developer.unclaimed && (
+    <div class="card mb-8">
+      <header>
+        <h2 class="font-semibold">
+          This profile hasn't been linked to an account
+        </h2>
+      </header>
+      <section class="space-y-3">
+        {claimSubmitted ? (
+          <p class="text-sm text-muted-foreground">
+            Your claim has been submitted for moderator review. You can check
+            its status on your{' '}
+            <a href="/account/developer">developer profile page</a>.
+          </p>
+        ) : (
+          <>
             <p class="text-sm text-muted-foreground">
-              Your claim has been submitted for moderator review. You can check
-              its status on your{' '}
-              <a href="/account/developer">developer profile page</a>.
+              If this is you, you can request to claim it. A moderator reviews
+              every claim before ownership changes.
             </p>
-          ) : (
-            <>
-              <p class="text-sm text-muted-foreground">
-                If this is you, you can request to claim it. A moderator reviews
-                every claim before ownership changes.
-              </p>
-              {claimError && (
-                <div class="alert" data-variant="destructive">
-                  <CircleAlert class="size-4" />
-                  <section>{claimError}</section>
+            {claimError && (
+              <div class="alert" data-variant="destructive">
+                <CircleAlert class="size-4" />
+                <section>{claimError}</section>
+              </div>
+            )}
+            {currentUser ? (
+              <form method="POST" class="space-y-3">
+                <div class="field">
+                  <label for="note">
+                    Note for the moderator reviewing this (optional)
+                  </label>
+                  <input
+                    class="input"
+                    type="text"
+                    id="note"
+                    name="note"
+                    value={submittedNote}
+                    maxlength="500"
+                    placeholder="e.g. I'm the maintainer, see github.com/..."
+                  />
                 </div>
-              )}
-              {currentUser ? (
-                <form method="POST" class="space-y-3">
-                  <div class="field">
-                    <label for="note">
-                      Note for the moderator reviewing this (optional)
-                    </label>
-                    <input
-                      class="input"
-                      type="text"
-                      id="note"
-                      name="note"
-                      value={submittedNote}
-                      maxlength="500"
-                      placeholder="e.g. I'm the maintainer, see github.com/..."
-                    />
-                  </div>
-                  <button type="submit" class="btn" data-size="sm">
-                    Claim this profile
-                  </button>
-                </form>
-              ) : (
-                <a
-                  href={`/auth/login?redirect=${encodeURIComponent(Astro.url.pathname)}`}
-                  class="btn"
-                  data-size="sm"
-                  data-variant="outline"
-                >
-                  Sign In to Claim This Profile
-                </a>
-              )}
-            </>
-          )}
-        </section>
-      </div>
-    )
-  }
+                <button type="submit" class="btn" data-size="sm">
+                  Claim this profile
+                </button>
+              </form>
+            ) : (
+              <a
+                href={`/auth/login?redirect=${encodeURIComponent(Astro.url.pathname)}`}
+                class="btn"
+                data-size="sm"
+                data-variant="outline"
+              >
+                Sign In to Claim This Profile
+              </a>
+            )}
+          </>
+        )}
+      </section>
+    </div>
+  )}
 
   <h2 class="font-semibold mb-4">Extensions by {developer.name}</h2>
   <div
@@ -189,51 +183,47 @@ const hasNextPage = Boolean(
     data-developer-id={developer.id}
     data-has-more={hasNextPage}
   >
-    {
-      extensionsError ? (
-        <div class="card" role="alert">
-          <p class="text-muted-foreground">{extensionsError}</p>
+    {extensionsError ? (
+      <div class="card" role="alert">
+        <p class="text-muted-foreground">{extensionsError}</p>
+      </div>
+    ) : (
+      <>
+        <div
+          data-extension-grid
+          class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+        >
+          {extensions.map((ext) => (
+            <ExtensionCard ext={ext} />
+          ))}
         </div>
-      ) : (
-        <>
-          <div
-            data-extension-grid
-            class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
-          >
-            {extensions.map((ext) => (
-              <ExtensionCard ext={ext} />
-            ))}
-          </div>
-          {extensions.length === 0 ? (
-            <p class="text-muted-foreground text-sm">
-              No published extensions yet.
-            </p>
+        {extensions.length === 0 ? (
+          <p class="text-muted-foreground text-sm">
+            No published extensions yet.
+          </p>
+        ) : null}
+        <div class="mt-8 flex flex-col items-center gap-3">
+          {hasNextPage ? (
+            <button
+              type="button"
+              class="btn"
+              data-variant="outline"
+              data-load-more
+              data-next-cursor={extensionsPage?.pagination.next_cursor}
+            >
+              Load more extensions
+            </button>
+          ) : extensions.length > 0 ? (
+            <p class="text-sm text-muted-foreground">All extensions loaded.</p>
           ) : null}
-          <div class="mt-8 flex flex-col items-center gap-3">
-            {hasNextPage ? (
-              <button
-                type="button"
-                class="btn"
-                data-variant="outline"
-                data-load-more
-                data-next-cursor={extensionsPage?.pagination.next_cursor}
-              >
-                Load more extensions
-              </button>
-            ) : extensions.length > 0 ? (
-              <p class="text-sm text-muted-foreground">
-                All extensions loaded.
-              </p>
-            ) : null}
-            <p
-              data-catalogue-status
-              class="text-sm text-muted-foreground"
-              aria-live="polite"
-            />
-          </div>
-        </>
-      )
-    }
+          <p
+            data-catalogue-status
+            class="text-sm text-muted-foreground"
+            aria-live="polite"
+          />
+        </div>
+      </>
+    )}
   </div>
 </Base>
 

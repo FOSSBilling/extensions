@@ -49,47 +49,43 @@ try {
       Your personal profile, separate from any developer/publisher identity.
     </p>
 
-    {
-      error && (
-        <div class="alert" data-variant="destructive">
-          {error}
-        </div>
-      )
-    }
+    {error && (
+      <div class="alert" data-variant="destructive">
+        {error}
+      </div>
+    )}
 
-    {
-      profile ? (
-        <div class="card">
-          <section>
-            <form method="POST" class="space-y-6">
-              <div class="field">
-                <label for="display_name">Display Name</label>
-                <input
-                  class="input"
-                  type="text"
-                  id="display_name"
-                  name="display_name"
-                  placeholder={user.name}
-                  value={profile.display_name ?? ''}
-                />
-                <p class="text-sm text-muted-foreground">
-                  Defaults to "{user.name}" from your sign-in provider if left
-                  blank.
-                </p>
-              </div>
+    {profile ? (
+      <div class="card">
+        <section>
+          <form method="POST" class="space-y-6">
+            <div class="field">
+              <label for="display_name">Display Name</label>
+              <input
+                class="input"
+                type="text"
+                id="display_name"
+                name="display_name"
+                placeholder={user.name}
+                value={profile.display_name ?? ''}
+              />
+              <p class="text-sm text-muted-foreground">
+                Defaults to "{user.name}" from your sign-in provider if left
+                blank.
+              </p>
+            </div>
 
-              <div class="flex gap-3">
-                <button type="submit" class="btn">
-                  Save
-                </button>
-                <a href="/account" class="btn" data-variant="ghost">
-                  Cancel
-                </a>
-              </div>
-            </form>
-          </section>
-        </div>
-      ) : null
-    }
+            <div class="flex gap-3">
+              <button type="submit" class="btn">
+                Save
+              </button>
+              <a href="/account" class="btn" data-variant="ghost">
+                Cancel
+              </a>
+            </div>
+          </form>
+        </section>
+      </div>
+    ) : null}
   </div>
 </Base>

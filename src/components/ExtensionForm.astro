@@ -51,14 +51,12 @@ const popularSpdxIds = new Set<string>(POPULAR_SPDX_IDS);
 const otherSpdxIds = SPDX_LICENSE_IDS.filter((id) => !popularSpdxIds.has(id));
 ---
 
-{
-  error && (
-    <div class="alert" data-variant="destructive">
-      <CircleAlert class="size-4" />
-      <section>{error}</section>
-    </div>
-  )
-}
+{error && (
+  <div class="alert" data-variant="destructive">
+    <CircleAlert class="size-4" />
+    <section>{error}</section>
+  </div>
+)}
 
 <div class="card">
   <section>
@@ -116,29 +114,25 @@ const otherSpdxIds = SPDX_LICENSE_IDS.filter((id) => !popularSpdxIds.has(id));
               value={extension?.id}
               disabled={isEdit}
             />
-            {
-              isEdit ? (
-                <p>The ID can't be changed after submission.</p>
-              ) : (
-                <p class="text-muted-foreground">
-                  Suggested from the name above — edit if you'd like something
-                  different.
-                </p>
-              )
-            }
+            {isEdit ? (
+              <p>The ID can't be changed after submission.</p>
+            ) : (
+              <p class="text-muted-foreground">
+                Suggested from the name above — edit if you'd like something
+                different.
+              </p>
+            )}
           </div>
           <div class="field">
             <label for="type">
               Type <span class="text-destructive">*</span>
             </label>
             <select class="select w-full" id="type" name="type" required>
-              {
-                EXTENSION_TYPES.map((t) => (
-                  <option value={t} selected={extension?.type === t}>
-                    {t}
-                  </option>
-                ))
-              }
+              {EXTENSION_TYPES.map((t) => (
+                <option value={t} selected={extension?.type === t}>
+                  {t}
+                </option>
+              ))}
             </select>
           </div>
           <div class="field">
@@ -201,7 +195,7 @@ const otherSpdxIds = SPDX_LICENSE_IDS.filter((id) => !popularSpdxIds.has(id));
               required
               rows="8"
               set:text={extension?.readme}
-            />
+            ></textarea>
           </div>
         </fieldset>
 
@@ -264,26 +258,22 @@ const otherSpdxIds = SPDX_LICENSE_IDS.filter((id) => !popularSpdxIds.has(id));
                     <div role="heading" id="license-group-popular">
                       Popular Licenses
                     </div>
-                    {
-                      POPULAR_SPDX_IDS.map((id) => (
-                        <div role="option" data-value={id}>
-                          {id}
-                        </div>
-                      ))
-                    }
+                    {POPULAR_SPDX_IDS.map((id) => (
+                      <div role="option" data-value={id}>
+                        {id}
+                      </div>
+                    ))}
                   </div>
                   <hr role="separator" />
                   <div role="group" aria-labelledby="license-group-all">
                     <div role="heading" id="license-group-all">
                       All Licenses (A–Z)
                     </div>
-                    {
-                      otherSpdxIds.map((id) => (
-                        <div role="option" data-value={id}>
-                          {id}
-                        </div>
-                      ))
-                    }
+                    {otherSpdxIds.map((id) => (
+                      <div role="option" data-value={id}>
+                        {id}
+                      </div>
+                    ))}
                   </div>
                   <hr role="separator" />
                   <div role="option" data-value={OTHER_LICENSE}>
@@ -346,13 +336,11 @@ const otherSpdxIds = SPDX_LICENSE_IDS.filter((id) => !popularSpdxIds.has(id));
           <div class="field">
             <label for="source_type">Repository Host</label>
             <select class="select w-full" id="source_type" name="source_type">
-              {
-                SOURCE_TYPES.map((t) => (
-                  <option value={t} selected={extension?.source.type === t}>
-                    {t}
-                  </option>
-                ))
-              }
+              {SOURCE_TYPES.map((t) => (
+                <option value={t} selected={extension?.source.type === t}>
+                  {t}
+                </option>
+              ))}
             </select>
           </div>
           <div class="field">
@@ -375,35 +363,31 @@ const otherSpdxIds = SPDX_LICENSE_IDS.filter((id) => !popularSpdxIds.has(id));
           <hr role="separator" />
         </div>
 
-        {
-          isEdit && extension && extension.releases.length > 0 && (
-            <Fragment>
-              <fieldset class="fieldset space-y-2">
-                <legend>Existing Releases</legend>
-                <ul class="text-sm text-muted-foreground space-y-1">
-                  {extension.releases.map((r) => (
-                    <li>
-                      v{r.tag} &middot; {r.date} &middot; FOSSBilling{' '}
-                      {r.min_fossbilling_version}+
-                    </li>
-                  ))}
-                </ul>
-              </fieldset>
+        {isEdit && extension && extension.releases.length > 0 && (
+          <Fragment>
+            <fieldset class="fieldset space-y-2">
+              <legend>Existing Releases</legend>
+              <ul class="text-sm text-muted-foreground space-y-1">
+                {extension.releases.map((r) => (
+                  <li>
+                    v{r.tag} &middot; {r.date} &middot; FOSSBilling{' '}
+                    {r.min_fossbilling_version}+
+                  </li>
+                ))}
+              </ul>
+            </fieldset>
 
-              <div class="field-separator">
-                <hr role="separator" />
-              </div>
-            </Fragment>
-          )
-        }
+            <div class="field-separator">
+              <hr role="separator" />
+            </div>
+          </Fragment>
+        )}
 
         <fieldset class="fieldset space-y-4">
           <legend>
-            {
-              requireRelease
-                ? 'Initial release'
-                : 'Add a new release (optional)'
-            }
+            {requireRelease
+              ? 'Initial release'
+              : 'Add a new release (optional)'}
           </legend>
           <div class="field">
             <label for="version_tag">
@@ -484,7 +468,10 @@ const otherSpdxIds = SPDX_LICENSE_IDS.filter((id) => !popularSpdxIds.has(id));
         <button type="submit" class="btn">
           {isEdit ? 'Submit Edit for Review' : 'Submit for Review'}
         </button>
-        <a href="/account" class="btn" data-variant="ghost"> Cancel </a>
+        <a href="/account" class="btn" data-variant="ghost">
+          {' '}
+          Cancel{' '}
+        </a>
       </div>
     </form>
   </section>
