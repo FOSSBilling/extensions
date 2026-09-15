@@ -158,4 +158,48 @@ describe('GET /auth/callback', () => {
 
     expect(result.headers.get('location')).toBe('/');
   });
+
+  it('redirects with a flash when the provider returns an error', async () => {
+    const ctx = context({
+      url: 'https://extensions.example.test/auth/callback?error=access_denied',
+    });
+
+    const result = await GET(ctx);
+
+    expect(result.status).toBe(302);
+    expect(result.headers.get('location')).toBe('/');
+    expect(mocks.setFlash).toHaveBeenCalledOnce();
+    expect(mocks.exchangeCodeForToken).not.toHaveBeenCalled();
+  });
+
+  it('redirects with a flash on CSRF state mismatch', async () => {
+    const ctx = context({
+      url: 'https://extensions.example.test/auth/callback?code=code&state=wrong',
+    });
+
+    const result = await GET(ctx);
+
+    expect(result.status).toBe(302);
+    expect(result.headers.get('location')).toBe('/');
+    expect(mocks.setFlash).toHaveBeenCalledOnce();
+    expect(mocks.exchangeCodeForToken).not.toHaveBeenCalled();
+  });
+
+  it('still signs in when opportunistic re-verification fails', async () => {
+    mocks.getDeveloperByOwner.mockResolvedValue({
+      github_verified_at: '2020-01-01T00:00:00Z',
+    });
+    mocks.reverifyDeveloper.mockRejectedValue(new Error('api down'));
+    const ctx = context({ redirectTo: '/account' });
+
+    const result = await GET(ctx);
+
+    expect(mocks.reverifyDeveloper).toHaveBeenCalledOnce();
+    expect(ctx.cookies.set).toHaveBeenCalledWith(
+      'fb_session',
+      'session-value',
+      expect.objectContaining({ httpOnly: true, path: '/' }),
+    );
+    expect(result.headers.get('location')).toBe('/account');
+  });
 });
