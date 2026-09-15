@@ -38,21 +38,24 @@ export const GET: APIRoute = async ({
   cookies.delete(OAUTH_STATE_COOKIE, { path: '/' });
   cookies.delete(OAUTH_REDIRECT_COOKIE, { path: '/' });
 
-  if (url.searchParams.get('error')) {
+  const code = url.searchParams.get('code');
+  const state = url.searchParams.get('state');
+  const oauthError = url.searchParams.get('error');
+
+  // CSRF check comes first: never act on a callback — including a provider
+  // error response, which echoes state per RFC 6749 section 4.1.2.1 — without
+  // valid state.
+  if (!state || !verifier || !expectedState || state !== expectedState) {
     setFlash(session, AUTH_ERROR_FLASH);
     return redirect('/');
   }
 
-  const code = url.searchParams.get('code');
-  const state = url.searchParams.get('state');
+  if (oauthError) {
+    setFlash(session, AUTH_ERROR_FLASH);
+    return redirect('/');
+  }
 
-  if (
-    !code ||
-    !state ||
-    !verifier ||
-    !expectedState ||
-    state !== expectedState
-  ) {
+  if (!code) {
     setFlash(session, AUTH_ERROR_FLASH);
     return redirect('/');
   }
@@ -69,7 +72,8 @@ export const GET: APIRoute = async ({
       clientSecret: env.authClientSecret,
     });
     userInfo = await fetchUserInfo(token.access_token);
-  } catch {
+  } catch (e) {
+    console.error('[auth/callback] token/userinfo failed', e);
     setFlash(session, AUTH_ERROR_FLASH);
     return redirect('/');
   }
@@ -79,7 +83,8 @@ export const GET: APIRoute = async ({
   // the freshly signed-in user would immediately fail every account guard.
   try {
     await upsertUser(env, userInfo);
-  } catch {
+  } catch (e) {
+    console.error('[auth/callback] identity-sync failed', e);
     setFlash(session, AUTH_ERROR_FLASH);
     return redirect('/');
   }
@@ -103,15 +108,22 @@ export const GET: APIRoute = async ({
   } catch {}
 
   const secure = url.protocol === 'https:';
-  const sessionValue = await createSessionCookieValue(
-    {
-      sub: userInfo.sub,
-      name: userInfo.name ?? '',
-      email: userInfo.email ?? '',
-      picture: userInfo.picture,
-    },
-    env.sessionSecret,
-  );
+  let sessionValue: string;
+  try {
+    sessionValue = await createSessionCookieValue(
+      {
+        sub: userInfo.sub,
+        name: userInfo.name ?? '',
+        email: userInfo.email ?? '',
+        picture: userInfo.picture,
+      },
+      env.sessionSecret,
+    );
+  } catch (e) {
+    console.error('[auth/callback] session-mint failed', e);
+    setFlash(session, AUTH_ERROR_FLASH);
+    return redirect('/');
+  }
 
   cookies.set(SESSION_COOKIE, sessionValue, {
     httpOnly: true,
