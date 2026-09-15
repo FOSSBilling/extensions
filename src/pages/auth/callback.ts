@@ -38,21 +38,24 @@ export const GET: APIRoute = async ({
   cookies.delete(OAUTH_STATE_COOKIE, { path: '/' });
   cookies.delete(OAUTH_REDIRECT_COOKIE, { path: '/' });
 
-  if (url.searchParams.get('error')) {
+  const code = url.searchParams.get('code');
+  const state = url.searchParams.get('state');
+  const oauthError = url.searchParams.get('error');
+
+  // CSRF check comes first: never act on a callback — including a provider
+  // error response, which echoes state per RFC 6749 section 4.1.2.1 — without
+  // valid state.
+  if (!state || !verifier || !expectedState || state !== expectedState) {
     setFlash(session, AUTH_ERROR_FLASH);
     return redirect('/');
   }
 
-  const code = url.searchParams.get('code');
-  const state = url.searchParams.get('state');
+  if (oauthError) {
+    setFlash(session, AUTH_ERROR_FLASH);
+    return redirect('/');
+  }
 
-  if (
-    !code ||
-    !state ||
-    !verifier ||
-    !expectedState ||
-    state !== expectedState
-  ) {
+  if (!code) {
     setFlash(session, AUTH_ERROR_FLASH);
     return redirect('/');
   }

@@ -161,7 +161,20 @@ describe('GET /auth/callback', () => {
 
   it('redirects with a flash when the provider returns an error', async () => {
     const ctx = context({
-      url: 'https://extensions.example.test/auth/callback?error=access_denied',
+      url: 'https://extensions.example.test/auth/callback?error=access_denied&state=state',
+    });
+
+    const result = await GET(ctx);
+
+    expect(result.status).toBe(302);
+    expect(result.headers.get('location')).toBe('/');
+    expect(mocks.setFlash).toHaveBeenCalledOnce();
+    expect(mocks.exchangeCodeForToken).not.toHaveBeenCalled();
+  });
+
+  it('rejects a provider error without valid state', async () => {
+    const ctx = context({
+      url: 'https://extensions.example.test/auth/callback?error=access_denied&state=wrong',
     });
 
     const result = await GET(ctx);
