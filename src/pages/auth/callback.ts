@@ -69,7 +69,8 @@ export const GET: APIRoute = async ({
       clientSecret: env.authClientSecret,
     });
     userInfo = await fetchUserInfo(token.access_token);
-  } catch {
+  } catch (e) {
+    console.error('[auth/callback] token/userinfo failed', e);
     setFlash(session, AUTH_ERROR_FLASH);
     return redirect('/');
   }
@@ -79,7 +80,8 @@ export const GET: APIRoute = async ({
   // the freshly signed-in user would immediately fail every account guard.
   try {
     await upsertUser(env, userInfo);
-  } catch {
+  } catch (e) {
+    console.error('[auth/callback] identity-sync failed', e);
     setFlash(session, AUTH_ERROR_FLASH);
     return redirect('/');
   }
@@ -103,15 +105,22 @@ export const GET: APIRoute = async ({
   } catch {}
 
   const secure = url.protocol === 'https:';
-  const sessionValue = await createSessionCookieValue(
-    {
-      sub: userInfo.sub,
-      name: userInfo.name ?? '',
-      email: userInfo.email ?? '',
-      picture: userInfo.picture,
-    },
-    env.sessionSecret,
-  );
+  let sessionValue: string;
+  try {
+    sessionValue = await createSessionCookieValue(
+      {
+        sub: userInfo.sub,
+        name: userInfo.name ?? '',
+        email: userInfo.email ?? '',
+        picture: userInfo.picture,
+      },
+      env.sessionSecret,
+    );
+  } catch (e) {
+    console.error('[auth/callback] session-mint failed', e);
+    setFlash(session, AUTH_ERROR_FLASH);
+    return redirect('/');
+  }
 
   cookies.set(SESSION_COOKIE, sessionValue, {
     httpOnly: true,
