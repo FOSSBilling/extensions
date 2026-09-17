@@ -1,5 +1,4 @@
 ---
-import { X } from '@lucide/astro';
 import Base from '../../../layouts/Base.astro';
 import { requireModerator } from '@/lib/auth-guard';
 import {
@@ -15,6 +14,7 @@ import type {
 } from '@/lib/api/client';
 import RejectDialog from '@/components/RejectDialog.astro';
 import ApproveDialog from '@/components/ApproveDialog.astro';
+import DialogShell from '@/components/DialogShell.astro';
 import NotifyField from '@/components/NotifyField.astro';
 import { formatDate } from '@/lib/format-date';
 import {
@@ -238,63 +238,29 @@ const prevPageUrl = prevCursorPageUrl(Astro.url, 'cursor', 'cursors');
       )}
     </section>
 
-    <dialog
+    <DialogShell
       id="delist-confirm-dialog"
-      class="dialog"
-      aria-labelledby="delist-confirm-title"
-      aria-describedby="delist-confirm-description"
-      onclick="if (arguments[0].target === this) this.close()"
-      onclose="this.querySelector('form').reset()"
+      description="It will be removed from the public catalogue immediately. The owner can still see it, and why, in their dashboard."
+      formAction="/account/moderate/delist"
+      submitLabel="Delist"
+      submitVariant="destructive"
     >
-      <form method="POST" action="/account/moderate/delist">
-        <header>
-          <h2 id="delist-confirm-title">
-            Delist "<span id="delist-confirm-id"></span>"?
-          </h2>
-          <p id="delist-confirm-description">
-            It will be removed from the public catalogue immediately. The owner
-            can still see it, and why, in their dashboard.
-          </p>
-        </header>
-        <section>
-          <div class="field">
-            <label for="delist-confirm-reason">Reason</label>
-            <textarea
-              class="textarea"
-              id="delist-confirm-reason"
-              name="reason"
-              placeholder="Why is this being removed? The owner will see this."
-              required
-            ></textarea>
-          </div>
-          <NotifyField id="delist-confirm-notify" recipient="author" />
-        </section>
-        <footer>
-          <button
-            type="button"
-            class="btn"
-            data-variant="outline"
-            onclick="this.closest('dialog').close()"
-          >
-            Cancel
-          </button>
-          <button type="submit" class="btn" data-variant="destructive">
-            Delist
-          </button>
-        </footer>
-        <input type="hidden" name="id" id="delist-hidden-id" />
-        <button
-          type="button"
-          class="btn"
-          data-variant="ghost"
-          data-size="icon-sm"
-          aria-label="Close dialog"
-          onclick="this.closest('dialog').close()"
-        >
-          <X class="size-4" />
-        </button>
-      </form>
-    </dialog>
+      <span slot="title">
+        Delist "<span id="delist-confirm-id"></span>"?
+      </span>
+      <div class="field">
+        <label for="delist-confirm-reason">Reason</label>
+        <textarea
+          class="textarea"
+          id="delist-confirm-reason"
+          name="reason"
+          placeholder="Why is this being removed? The owner will see this."
+          required
+        ></textarea>
+      </div>
+      <NotifyField id="delist-confirm-notify" recipient="author" />
+      <input type="hidden" name="id" id="delist-hidden-id" slot="extra" />
+    </DialogShell>
 
     <section class="space-y-3">
       <h2 class="font-semibold">Revision Queue</h2>

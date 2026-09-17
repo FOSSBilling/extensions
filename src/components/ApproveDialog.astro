@@ -1,5 +1,5 @@
 ---
-import { X } from '@lucide/astro';
+import DialogShell from '@/components/DialogShell.astro';
 import NotifyField from '@/components/NotifyField.astro';
 
 interface Props {
@@ -21,47 +21,15 @@ const {
 } = Astro.props;
 ---
 
-<dialog
+<DialogShell
   id={id}
-  class="dialog"
-  aria-labelledby={`${id}-title`}
-  aria-describedby={`${id}-description`}
-  onclick="if (arguments[0].target === this) this.close()"
-  onclose="this.querySelector('form').reset()"
+  title={title}
+  description={description}
+  formAction={formAction}
+  submitLabel="Approve"
 >
-  <form method="POST" action={formAction}>
-    <header>
-      <h2 id={`${id}-title`}>{title}</h2>
-      <p id={`${id}-description`}>{description}</p>
-    </header>
-    <section>
-      {hiddenFields.map((field) => (
-        <input type="hidden" name={field.name} value={field.value} />
-      ))}
-      <NotifyField id={`${id}-notify`} recipient={notifyRecipient} />
-    </section>
-    <footer>
-      <button
-        type="button"
-        class="btn"
-        data-variant="outline"
-        onclick="this.closest('dialog').close()"
-      >
-        Cancel
-      </button>
-      <button type="submit" class="btn">
-        Approve
-      </button>
-    </footer>
-    <button
-      type="button"
-      class="btn"
-      data-variant="ghost"
-      data-size="icon-sm"
-      aria-label="Close dialog"
-      onclick="this.closest('dialog').close()"
-    >
-      <X class="size-4" />
-    </button>
-  </form>
-</dialog>
+  {hiddenFields.map((field) => (
+    <input type="hidden" name={field.name} value={field.value} />
+  ))}
+  <NotifyField id={`${id}-notify`} recipient={notifyRecipient} />
+</DialogShell>
