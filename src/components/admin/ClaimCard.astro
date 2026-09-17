@@ -44,7 +44,7 @@ const Title = titleTag;
       type="button"
       class="btn"
       data-size="sm"
-      onclick={`document.getElementById('approve-claim-${c.id}').showModal()`}
+      data-claim-dialog={`approve-claim-${c.id}`}
     >
       Approve
     </button>
@@ -53,7 +53,7 @@ const Title = titleTag;
       class="btn"
       data-size="sm"
       data-variant="destructive"
-      onclick={`document.getElementById('reject-claim-${c.id}').showModal()`}
+      data-claim-dialog={`reject-claim-${c.id}`}
     >
       Reject
     </button>

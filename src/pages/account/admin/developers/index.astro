@@ -171,6 +171,9 @@ const pageDescription = isClaims
 </Admin>
 
 <script>
+  import { initClaimDialogs } from '@/lib/claim-dialogs-client';
+  initClaimDialogs();
+
   // Single shared approve dialog for the profiles table: each row button
   // carries its developer on data attributes (same pattern as the delist
   // confirm on /account/admin/extensions).

@@ -188,7 +188,9 @@ const stats = [
 
 <script>
   import { initRevisionQueue } from '@/lib/admin-revisions-client';
+  import { initClaimDialogs } from '@/lib/claim-dialogs-client';
   initRevisionQueue();
+  initClaimDialogs();
 
   // Single shared approve dialog for the developers table above: each row
   // button carries its developer on data attributes (same as

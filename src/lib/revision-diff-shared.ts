@@ -91,7 +91,7 @@ export function licenseCompareKey(license?: DiffLicense | null): string | null {
   const parts = [license.name, license.spdx_id, license.URL].filter(
     (part): part is string => typeof part === 'string' && part.length > 0,
   );
-  return parts.length > 0 ? parts.join('|') : null;
+  return parts.length > 0 ? JSON.stringify(parts) : null;
 }
 
 export function sourceLabel(source?: DiffSource | null): string | null {
@@ -103,8 +103,8 @@ export function sourceCompareKey(source?: DiffSource | null): string | null {
   if (!source || typeof source.repo !== 'string' || source.repo.length === 0)
     return null;
   return typeof source.type === 'string' && source.type.length > 0
-    ? `${source.type}|${source.repo}`
-    : source.repo;
+    ? JSON.stringify([source.type, source.repo])
+    : JSON.stringify([source.repo]);
 }
 
 // Same mapping as repositoryURL (@/types), reimplemented here so the

@@ -131,4 +131,13 @@ describe('diffRevisionContent', () => {
     );
     expect(removed.find((r) => r.field === 'source')?.newUrl).toBeNull();
   });
+
+  it('does not let delimiter text in values collide comparison keys', () => {
+    const rows = diffRevisionContent(
+      { ...published, license: { name: 'A|B' } },
+      { ...published, license: { name: 'A', spdx_id: 'B' } },
+    );
+    const byField = Object.fromEntries(rows.map((r) => [r.field, r]));
+    expect(byField.license.changed).toBe(true);
+  });
 });
