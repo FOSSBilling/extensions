@@ -12,7 +12,6 @@ import {
   fieldCompareKey,
   fieldDisplay,
   fieldUrl,
-  type DiffField,
 } from '@/lib/revision-diff-shared';
 
 type PublishedContent = {
@@ -31,13 +30,6 @@ type PublishedContent = {
 
 interface RevisionDetailResult {
   published: PublishedContent | null;
-}
-
-function fieldValue(
-  field: DiffField,
-  obj: PublishedContent | null,
-): string | null {
-  return fieldDisplay(field, obj);
 }
 
 const TRUNCATE_AT = 400;
@@ -123,8 +115,8 @@ function renderDiff(
   let changed = 0;
   for (const field of DIFF_FIELDS) {
     const label = FIELD_LABELS[field];
-    const oldValue = fieldValue(field, published);
-    const newValue = fieldValue(field, revision);
+    const oldValue = fieldDisplay(field, published);
+    const newValue = fieldDisplay(field, revision);
     const isChanged = isNew
       ? newValue !== null
       : fieldCompareKey(field, published) !==
