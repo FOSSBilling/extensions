@@ -1,0 +1,130 @@
+---
+import { formatDateTime } from '@/lib/format-date';
+import type { ExtensionRevision } from '@/lib/api/client';
+import StatusBadge from './StatusBadge.astro';
+
+// Work-queue view for pending revisions: dense summary rows carrying every
+// action (Show Changes toggle plus Approve/Reject into the shared dialogs),
+// with an expandable full-width detail row holding the description and the
+// on-demand Live/Proposed diff. Wired by the shared queue client script:
+// [data-compare] toggles + fetches, [data-open-approve]/[data-open-reject]
+// feed the shared dialogs.
+interface Props {
+  revisions: ExtensionRevision[];
+}
+
+const { revisions } = Astro.props;
+const DETAIL_COLUMNS = 4;
+---
+
+<div class="card overflow-x-auto p-0">
+  <table class="w-full text-sm table-fixed">
+    <thead>
+      <tr class="text-left text-muted-foreground border-b border-border">
+        <th class="px-4 py-2 font-medium">Extension</th>
+        <th class="px-4 py-2 font-medium whitespace-nowrap w-28">Version</th>
+        <th class="px-4 py-2 font-medium whitespace-nowrap w-28">Status</th>
+        <th class="px-4 py-2 font-medium whitespace-nowrap w-[309px]">Actions</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-border">
+      {revisions.map((r) => {
+        const title = r.content.name ?? r.extension_id;
+        const version = r.content.version?.trim() || null;
+        const description = r.content.description?.trim() || null;
+        return (
+          <>
+            <tr
+              data-pending-row
+              data-extension-id={r.extension_id}
+              data-revision-id={r.id}
+              data-revision-json={JSON.stringify(r.content)}
+            >
+              <td class="px-4 py-2">
+                <p class="font-medium">
+                  <a href={`/account/admin/extensions/${r.extension_id}`}>
+                    {title}
+                  </a>
+                </p>
+                <p class="text-xs text-muted-foreground">{r.extension_id}</p>
+              </td>
+              <td class="px-4 py-2 text-muted-foreground whitespace-nowrap">
+                {version ?? '—'}
+              </td>
+              <td class="px-4 py-2 whitespace-nowrap">
+                <span title={`Submitted on ${formatDateTime(r.created_at)}.`}>
+                  <StatusBadge status="pending" />
+                </span>
+              </td>
+              <td class="px-4 py-2 whitespace-nowrap">
+                <div class="flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    class="btn"
+                    data-size="sm"
+                    data-variant="outline"
+                    data-compare
+                  >
+                    Show Changes
+                  </button>
+                  <button
+                    type="button"
+                    class="btn"
+                    data-size="sm"
+                    data-open-approve={r.id}
+                    data-extension-id={r.extension_id}
+                    data-revision-id={r.id}
+                    data-title={title}
+                  >
+                    Approve
+                  </button>
+                  <button
+                    type="button"
+                    class="btn"
+                    data-size="sm"
+                    data-variant="destructive"
+                    data-open-reject={r.id}
+                    data-extension-id={r.extension_id}
+                    data-revision-id={r.id}
+                    data-title={title}
+                  >
+                    Reject
+                  </button>
+                </div>
+              </td>
+            </tr>
+            <tr data-diff-table-wrap hidden>
+              <td colspan={DETAIL_COLUMNS} class="px-4 py-3 bg-muted/30">
+                <div class="space-y-2">
+                  {description && <p class="text-sm">{description}</p>}
+                  <p
+                    class="text-sm text-muted-foreground"
+                    data-diff-hint
+                    hidden
+                  ></p>
+                  <p
+                    class="text-sm text-destructive"
+                    data-diff-error
+                    hidden
+                  ></p>
+                  <div class="overflow-x-auto">
+                    <table class="w-full text-sm table-fixed">
+                      <thead>
+                        <tr class="text-left text-muted-foreground">
+                          <th class="py-1 pr-3 font-medium w-32">Field</th>
+                          <th class="py-1 pr-3 font-medium min-w-40">Live</th>
+                          <th class="py-1 font-medium">Proposed</th>
+                        </tr>
+                      </thead>
+                      <tbody data-diff-body></tbody>
+                    </table>
+                  </div>
+                </div>
+              </td>
+            </tr>
+          </>
+        );
+      })}
+    </tbody>
+  </table>
+</div>

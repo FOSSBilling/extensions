@@ -1,6 +1,6 @@
 // Client-side behaviour for /account/admin/revisions: on-demand
-// "compare with live" (one GET /api/admin/revision-detail per expanded card,
-// cached per extension id) plus wiring the card buttons to the single shared
+// "compare with live" (one GET /api/admin/revision-detail per expanded row,
+// cached per extension id) plus wiring the row buttons to the single shared
 // approve/reject dialog pair. Kept in a module (rather than inline in the
 // .astro file) so it gets full TypeScript checking like any other lib file.
 
@@ -183,21 +183,11 @@ function valueCell(
 }
 
 function renderDiff(
-  card: HTMLElement,
+  body: Element,
+  hint: HTMLElement | null,
+  revision: PublishedContent,
   published: PublishedContent | null,
 ): void {
-  const body = card.querySelector('[data-diff-body]');
-  const wrap = card.querySelector('[data-diff-table-wrap]');
-  const hint = card.querySelector<HTMLElement>('[data-diff-hint]');
-  if (!body || !wrap) return;
-  let revision: PublishedContent = {};
-  try {
-    revision = JSON.parse(
-      card.dataset.revisionJson ?? '{}',
-    ) as PublishedContent;
-  } catch {
-    revision = {};
-  }
   body.innerHTML = '';
   const isNew = !published;
   let changed = 0;
@@ -247,7 +237,6 @@ function renderDiff(
     tr.appendChild(tdNew);
     body.appendChild(tr);
   }
-  (wrap as HTMLElement).hidden = false;
   if (hint) {
     hint.textContent = isNew
       ? 'New Extension — No Live Version to Compare Against'
@@ -262,17 +251,13 @@ export function initRevisionQueue(): void {
   document.addEventListener('click', (event: MouseEvent) => {
     const target = event.target as HTMLElement | null;
 
-    // Frozen content is server-rendered — this just toggles it, with no fetch
-    // involved (unlike [data-compare] below). Works in two shapes: queue
-    // cards (wrap inside the card scope) and audit table rows (wrap is the
-    // next sibling row). Labels come from data-show/data-hide.
+    // Frozen content is server-rendered — this just toggles the next sibling
+    // detail row, with no fetch involved (unlike [data-compare] below).
+    // Labels come from data-show/data-hide.
     const frozenBtn = target?.closest<HTMLButtonElement>('[data-frozen]');
     if (frozenBtn) {
-      const cardScope = frozenBtn.closest('[data-revision-card]');
-      const rowScope = cardScope ?? frozenBtn.closest('tr');
-      const wrap = cardScope
-        ? rowScope?.querySelector('[data-frozen-wrap]')
-        : rowScope?.nextElementSibling;
+      const row = frozenBtn.closest('tr');
+      const wrap = row?.nextElementSibling;
       if (
         !(wrap instanceof HTMLElement) ||
         !wrap.hasAttribute('data-frozen-wrap')
@@ -287,14 +272,34 @@ export function initRevisionQueue(): void {
       return;
     }
 
+    // Pending rows: the button lives in the summary row; the detail row
+    // itself is the wrap (verified by attribute). Revision content travels
+    // on the summary row's dataset; only the published side is fetched.
     const compareBtn = target?.closest<HTMLButtonElement>('[data-compare]');
     if (compareBtn) {
-      const card = compareBtn.closest<HTMLElement>('[data-revision-card]');
-      if (!card) return;
-      const extensionId = card.dataset.extensionId ?? '';
-      const errorEl = card.querySelector<HTMLElement>('[data-diff-error]');
-      const wrap = card.querySelector<HTMLElement>('[data-diff-table-wrap]');
-      if (wrap && !wrap.hidden) {
+      const row = compareBtn.closest('tr');
+      const wrap = row?.nextElementSibling;
+      if (
+        !(wrap instanceof HTMLElement) ||
+        !wrap.hasAttribute('data-diff-table-wrap')
+      ) {
+        return;
+      }
+      const body = wrap.querySelector('[data-diff-body]');
+      const hint = wrap.querySelector<HTMLElement>('[data-diff-hint]');
+      const errorEl = wrap.querySelector<HTMLElement>('[data-diff-error]');
+      const host = row as HTMLElement | null;
+      const extensionId = host?.dataset.extensionId ?? '';
+      let revision: PublishedContent = {};
+      try {
+        revision = JSON.parse(
+          host?.dataset.revisionJson ?? '{}',
+        ) as PublishedContent;
+      } catch {
+        revision = {};
+      }
+      if (!body) return;
+      if (!wrap.hidden) {
         wrap.hidden = true;
         compareBtn.textContent = 'Show Changes';
         return;
@@ -319,7 +324,13 @@ export function initRevisionQueue(): void {
             }
             detailCache.set(extensionId, json.result?.published ?? null);
           }
-          renderDiff(card, detailCache.get(extensionId) ?? null);
+          renderDiff(
+            body,
+            hint,
+            revision,
+            detailCache.get(extensionId) ?? null,
+          );
+          wrap.hidden = false;
           compareBtn.textContent = 'Hide Changes';
         } catch (err) {
           if (errorEl) {

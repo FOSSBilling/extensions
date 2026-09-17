@@ -11,7 +11,7 @@ import ApproveDialog from '@/components/ApproveDialog.astro';
 import RejectDialog from '@/components/RejectDialog.astro';
 import DecidedRevisionsTable from '@/components/admin/DecidedRevisionsTable.astro';
 import EmptyState from '@/components/admin/EmptyState.astro';
-import RevisionReviewCard from '@/components/admin/RevisionReviewCard.astro';
+import PendingRevisionsTable from '@/components/admin/PendingRevisionsTable.astro';
 import {
   cursorPageUrl,
   filterPageUrl,
@@ -61,7 +61,7 @@ const prevPageUrl = prevCursorPageUrl(Astro.url, 'cursor', 'cursors');
 <Admin
   title="Revision Queue — FOSSBilling Extensions"
   active="revisions"
-  description="Approve or reject extension submissions and edits. Published content loads only when you expand a card."
+  description="Approve or reject extension submissions and edits. Published content loads only when you expand a row."
 >
   <nav class="flex gap-2" aria-label="Revision status">
     {(['pending', 'approved', 'rejected'] as const).map((s) => (
@@ -91,13 +91,9 @@ const prevPageUrl = prevCursorPageUrl(Astro.url, 'cursor', 'cursors');
   ) : (
     <>
       {status === 'pending' ? (
-        <ul class="space-y-3">
-          {revisions.map((r) => (
-            <RevisionReviewCard revision={r} />
-          ))}
-        </ul>
+        <PendingRevisionsTable revisions={revisions} />
       ) : (
-        <DecidedRevisionsTable revisions={revisions} />
+        <DecidedRevisionsTable revisions={revisions} status={status} />
       )}
       {(prevPageUrl || nextPageUrl) && (
         <div class="flex gap-2">

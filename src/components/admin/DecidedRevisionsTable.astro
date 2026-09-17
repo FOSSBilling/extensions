@@ -27,21 +27,29 @@ function decisionTitle(
 // queue client script via [data-frozen] (labels from data-show/data-hide).
 interface Props {
   revisions: ExtensionRevision[];
+  status: 'approved' | 'rejected';
 }
 
-const { revisions } = Astro.props;
-const DETAIL_COLUMNS = 5;
+const { revisions, status } = Astro.props;
+// Approvals never carry a note (the approve form has no note field — only
+// rejections require one), so the Note column only exists on Rejected. A
+// note set directly via the API still surfaces inside the expanded detail
+// row, so dropping the column never hides information.
+const showNote = status === 'rejected';
+const DETAIL_COLUMNS = showNote ? 5 : 4;
 ---
 
 <div class="card overflow-x-auto p-0">
-  <table class="w-full text-sm">
+  <table class="w-full text-sm table-fixed">
     <thead>
       <tr class="text-left text-muted-foreground border-b border-border">
         <th class="px-4 py-2 font-medium">Extension</th>
-        <th class="px-4 py-2 font-medium">Version</th>
-        <th class="px-4 py-2 font-medium">Decision</th>
-        <th class="px-4 py-2 font-medium">Note</th>
-        <th class="px-4 py-2 font-medium">Actions</th>
+        <th class="px-4 py-2 font-medium whitespace-nowrap w-28">Version</th>
+        <th class="px-4 py-2 font-medium whitespace-nowrap w-28">Status</th>
+        {showNote && <th class="px-4 py-2 font-medium">Note</th>}
+        <th class="px-4 py-2 font-medium whitespace-nowrap w-[192px]">
+          Actions
+        </th>
       </tr>
     </thead>
     <tbody class="divide-y divide-border">
@@ -76,16 +84,18 @@ const DETAIL_COLUMNS = 5;
                   />
                 </span>
               </td>
-              <td
-                class="px-4 py-2 text-muted-foreground max-w-64 truncate"
-                title={r.review_note ?? undefined}
-              >
-                {r.review_note ?? '—'}
-              </td>
+              {showNote && (
+                <td
+                  class="px-4 py-2 text-muted-foreground max-w-64 truncate"
+                  title={r.review_note ?? undefined}
+                >
+                  {r.review_note ?? '—'}
+                </td>
+              )}
               <td class="px-4 py-2 whitespace-nowrap">
                 <button
                   type="button"
-                  class="btn px-0 w-full justify-start"
+                  class="btn px-0"
                   data-size="sm"
                   data-variant="ghost"
                   data-frozen
@@ -98,7 +108,14 @@ const DETAIL_COLUMNS = 5;
             </tr>
             <tr data-frozen-wrap hidden>
               <td colspan={DETAIL_COLUMNS} class="px-4 py-3 bg-muted/30">
-                <FrozenContentTable rows={rows} />
+                <div class="space-y-2">
+                  {r.review_note && (
+                    <p class="text-sm text-muted-foreground">
+                      Note: {r.review_note}
+                    </p>
+                  )}
+                  <FrozenContentTable rows={rows} />
+                </div>
               </td>
             </tr>
           </>
