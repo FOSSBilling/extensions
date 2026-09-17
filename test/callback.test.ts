@@ -87,7 +87,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocks.exchangeCodeForToken.mockResolvedValue({ access_token: 'at' });
   mocks.fetchUserInfo.mockResolvedValue(userInfo);
-  mocks.upsertUser.mockResolvedValue(undefined);
+  mocks.upsertUser.mockResolvedValue({ is_moderator: false });
   mocks.getDeveloperByOwner.mockResolvedValue(null);
   mocks.createSessionCookieValue.mockResolvedValue('session-value');
   vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -149,6 +149,30 @@ describe('GET /auth/callback', () => {
       expect.objectContaining({ httpOnly: true, path: '/' }),
     );
     expect(result.headers.get('location')).toBe('/account');
+  });
+
+  it('mints the moderator flag from the synced account projection', async () => {
+    mocks.upsertUser.mockResolvedValue({ is_moderator: true });
+    const ctx = context({ redirectTo: '/account/admin' });
+
+    const result = await GET(ctx);
+
+    expect(mocks.createSessionCookieValue).toHaveBeenCalledWith(
+      expect.objectContaining({ sub: 'user-subject', is_moderator: true }),
+      'session-secret',
+    );
+    expect(result.headers.get('location')).toBe('/account/admin');
+  });
+
+  it('mints a non-moderator session when the account is not flagged', async () => {
+    const ctx = context({ redirectTo: '/account' });
+
+    await GET(ctx);
+
+    expect(mocks.createSessionCookieValue).toHaveBeenCalledWith(
+      expect.objectContaining({ sub: 'user-subject', is_moderator: false }),
+      'session-secret',
+    );
   });
 
   it('falls back to / for an unsafe redirect target', async () => {

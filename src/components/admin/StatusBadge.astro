@@ -1,0 +1,39 @@
+---
+interface Props {
+  status:
+    | 'published'
+    | 'delisted'
+    | 'never-published'
+    | 'pending'
+    | 'approved'
+    | 'rejected'
+    | 'new';
+  label?: string;
+}
+
+const { status, label } = Astro.props;
+
+const variant: Record<Props['status'], string | undefined> = {
+  published: undefined,
+  delisted: 'destructive',
+  'never-published': 'secondary',
+  pending: 'secondary',
+  approved: undefined,
+  rejected: 'destructive',
+  new: undefined,
+};
+
+const fallback: Record<Props['status'], string> = {
+  published: 'Published',
+  delisted: 'Delisted',
+  'never-published': 'Never Published',
+  pending: 'Pending',
+  approved: 'Approved',
+  rejected: 'Rejected',
+  new: 'New',
+};
+---
+
+<span class="badge" data-variant={variant[status]}>
+  {label ?? fallback[status]}
+</span>

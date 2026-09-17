@@ -1,0 +1,161 @@
+---
+import Admin from '../../../../layouts/Admin.astro';
+import { requireModerator } from '@/lib/auth-guard';
+import { createApiClient } from '@/lib/api/client';
+import { isSafeHttpUrl } from '@/lib/safe-url';
+import type { DeveloperProfile } from '@/lib/api/client';
+import { CircleCheck } from '@lucide/astro';
+import ProfileTrustBadge from '@/components/ProfileTrustBadge.astro';
+import ApproveDialog from '@/components/ApproveDialog.astro';
+import EmptyState from '@/components/admin/EmptyState.astro';
+
+const env = Astro.locals.env;
+const guard = await requireModerator(Astro, env);
+if (guard instanceof Response) return guard;
+const user = guard;
+
+const view =
+  Astro.url.searchParams.get('view') === 'all' ? 'all' : 'unapproved';
+
+const api = createApiClient(env, user.sub);
+let developers: DeveloperProfile[] = [];
+let loadError = false;
+try {
+  developers =
+    view === 'all'
+      ? await api.listAllDevelopers()
+      : await api.listUnapprovedDevelopers();
+} catch {
+  loadError = true;
+}
+---
+
+<Admin
+  title="Developer Profiles — FOSSBilling Extensions"
+  active="developers"
+  description="These profiles are already live — approval is a trust badge, not a publish gate. An edit to an approved profile clears its badge again until reviewed here, unless GitHub verified."
+>
+  <div slot="actions">
+    <a
+      href="/account/admin/developers/claims"
+      class="btn"
+      data-size="sm"
+      data-variant="outline"
+    >
+      Claims Queue
+    </a>
+  </div>
+
+  <nav class="flex gap-2" aria-label="Developer filter">
+    {(['unapproved', 'all'] as const).map((v) => (
+      <a
+        href={`/account/admin/developers?view=${v}`}
+        class="btn"
+        data-size="sm"
+        data-variant={v === view ? 'primary' : 'outline'}
+        aria-current={v === view ? 'page' : undefined}
+      >
+        {v === 'unapproved' ? 'Awaiting Review' : 'All Profiles'}
+      </a>
+    ))}
+  </nav>
+
+  {loadError ? (
+    <p class="text-sm text-destructive">
+      Unable to load developer profiles right now.
+    </p>
+  ) : developers.length === 0 ? (
+    <EmptyState
+      title={
+        view === 'unapproved'
+          ? 'No Profiles Awaiting Review'
+          : 'No Developer Profiles Yet'
+      }
+    />
+  ) : (
+    <ul class="space-y-4">
+      {developers.map((d) => (
+        <li class="card overflow-visible py-4">
+          <header class="flex items-start justify-between gap-4">
+            <div class="min-w-0">
+              <h2 class="font-semibold flex flex-wrap items-center gap-2">
+                {d.name} ({d.id})
+                <ProfileTrustBadge
+                  approved={d.approved}
+                  githubOrgVerified={d.github_org_verified}
+                  githubVerifiedAt={d.github_verified_at}
+                />
+                {d.unclaimed && (
+                  <span class="badge" data-variant="secondary">
+                    Unclaimed
+                  </span>
+                )}
+              </h2>
+              <p class="text-sm text-muted-foreground">
+                {d.type}
+                {d.URL && (
+                  <>
+                    {' '}
+                    ·{' '}
+                    {isSafeHttpUrl(d.URL) ? <a href={d.URL}>{d.URL}</a> : d.URL}
+                    {d.github_url_verified && (
+                      <CircleCheck
+                        class="size-3.5 inline text-primary align-text-bottom"
+                        title="Matches GitHub's on-file website"
+                      />
+                    )}
+                  </>
+                )}
+              </p>
+              {d.owner_name && (
+                <p class="text-sm text-muted-foreground">
+                  Owned by <strong>{d.owner_name}</strong>
+                  {d.owner_github_login && (
+                    <>
+                      {' '}
+                      <a href={`https://github.com/${d.owner_github_login}`}>
+                        @{d.owner_github_login}
+                      </a>
+                    </>
+                  )}
+                </p>
+              )}
+            </div>
+            <div class="flex shrink-0 items-center gap-2">
+              <a
+                href={`/account/admin/developers/${d.id}/history`}
+                class="btn"
+                data-size="sm"
+                data-variant="outline"
+              >
+                History
+              </a>
+              {!d.approved && (
+                <>
+                  <button
+                    type="button"
+                    class="btn"
+                    data-size="sm"
+                    onclick={`document.getElementById('approve-developer-${d.id}').showModal()`}
+                  >
+                    Approve
+                  </button>
+                  <ApproveDialog
+                    id={`approve-developer-${d.id}`}
+                    title={`Approve "${d.name}"?`}
+                    description="The owner will see the trust badge on their live profile."
+                    formAction={`/account/admin/developers/${d.id}/approve`}
+                    notifyRecipient="owner"
+                    hiddenFields={[
+                      { name: 'expected_revision', value: d.content_revision },
+                    ]}
+                  />
+                </>
+              )}
+            </div>
+          </header>
+        </li>
+      ))}
+    </ul>
+  )}
+</Admin>

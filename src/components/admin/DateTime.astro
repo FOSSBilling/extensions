@@ -1,0 +1,15 @@
+---
+import { formatShortDate, formatDateTime } from '@/lib/format-date';
+
+// Dates read cleaner without the time; the exact moment stays one hover
+// away via the native tooltip. <time> keeps it machine-readable.
+interface Props {
+  value: string;
+}
+
+const { value } = Astro.props;
+---
+
+<time datetime={value} title={formatDateTime(value)}>
+  {formatShortDate(value)}
+</time>

@@ -1,0 +1,152 @@
+---
+import type { ExtensionRevision } from '@/lib/api/client';
+import { diffRevisionContent } from '@/lib/revision-diff';
+import DateTime from './DateTime.astro';
+import FrozenContentTable from './FrozenContentTable.astro';
+import StatusBadge from './StatusBadge.astro';
+
+interface Props {
+  revision: ExtensionRevision;
+}
+
+const { revision: r } = Astro.props;
+const title = r.content.name ?? r.extension_id;
+const description = r.content.description?.trim() || null;
+const version = r.content.version?.trim() || null;
+// Embedded for the page-level compare script — avoids an extra fetch for
+// the revision side; only the published side loads on demand.
+//
+// Spacing note: basecoat's .card brings a 24px flex gap, 24px vertical
+// padding, and a horizontal inset on <header> only — so the card sets its
+// own rhythm (gap-4/p-5), neutralises the header inset (px-0) to align both
+// blocks, and carries no mt-3 on the section that used to stack on top of
+// the flex gap.
+const revisionJson = JSON.stringify(r.content);
+// Decided revisions can't be compared against live: an approved revision's
+// content IS live now (or has been superseded since), so a live diff would
+// show a bogus empty/drifted delta. Instead they show their frozen content
+// — exactly what was reviewed — rendered server-side with no fetch.
+const frozen =
+  r.status === 'pending' ? null : diffRevisionContent(null, r.content);
+---
+
+<li
+  class="card gap-4 p-5"
+  data-revision-card
+  data-extension-id={r.extension_id}
+  data-revision-id={r.id}
+  data-revision-json={revisionJson}
+>
+  <header class="flex items-start justify-between gap-4 px-0">
+    <div class="min-w-0">
+      <h3 class="font-semibold truncate">{title}</h3>
+      <p class="text-sm text-muted-foreground">
+        <a href={`/account/admin/extensions/${r.extension_id}`}>
+          {r.extension_id}
+        </a>{' '}
+        · submitted <DateTime value={r.created_at} />
+      </p>
+      <p class="text-sm text-muted-foreground">
+        version {version ?? '—'}
+        {r.content.type && ` · ${r.content.type}`}
+      </p>
+    </div>
+    <div class="flex shrink-0 items-center gap-2">
+      {r.status === 'pending' ? (
+        <StatusBadge status="pending" />
+      ) : r.status === 'approved' ? (
+        <StatusBadge status="approved" />
+      ) : (
+        <StatusBadge status="rejected" />
+      )}
+    </div>
+  </header>
+
+  <section class="space-y-2">
+    {description && <p class="text-sm">{description}</p>}
+
+    {frozen ? (
+      <div data-frozen-root class="space-y-2">
+        <button
+          type="button"
+          class="btn"
+          data-size="sm"
+          data-variant="outline"
+          data-frozen
+          data-show="Show Reviewed Content"
+          data-hide="Hide Reviewed Content"
+        >
+          Show Reviewed Content
+        </button>
+        <div data-frozen-wrap hidden>
+          <FrozenContentTable rows={frozen} />
+        </div>
+      </div>
+    ) : (
+      <div data-diff-root class="space-y-2">
+        <button
+          type="button"
+          class="btn"
+          data-size="sm"
+          data-variant="outline"
+          data-compare
+        >
+          Show Changes
+        </button>
+        <p class="text-sm text-muted-foreground" data-diff-hint hidden></p>
+        <p class="text-sm text-destructive" data-diff-error hidden></p>
+        <div class="overflow-x-auto" data-diff-table-wrap hidden>
+          <table class="w-full text-sm table-fixed">
+            <thead>
+              <tr class="text-left text-muted-foreground">
+                <th class="py-1 pr-3 font-medium w-32">Field</th>
+                <th class="py-1 pr-3 font-medium min-w-40">Live</th>
+                <th class="py-1 font-medium">Proposed</th>
+              </tr>
+            </thead>
+            <tbody data-diff-body></tbody>
+          </table>
+        </div>
+      </div>
+    )}
+
+    {r.status === 'pending' ? (
+      <div class="flex items-center gap-2">
+        <button
+          type="button"
+          class="btn"
+          data-size="sm"
+          data-open-approve={r.id}
+          data-extension-id={r.extension_id}
+          data-revision-id={r.id}
+          data-title={title}
+        >
+          Approve
+        </button>
+        <button
+          type="button"
+          class="btn"
+          data-size="sm"
+          data-variant="destructive"
+          data-open-reject={r.id}
+          data-extension-id={r.extension_id}
+          data-revision-id={r.id}
+          data-title={title}
+        >
+          Reject
+        </button>
+      </div>
+    ) : (
+      <div class="space-y-1">
+        {r.reviewed_at && (
+          <p class="text-sm text-muted-foreground">
+            Reviewed <DateTime value={r.reviewed_at} />
+          </p>
+        )}
+        {r.review_note && (
+          <p class="text-sm text-muted-foreground">Note: {r.review_note}</p>
+        )}
+      </div>
+    )}
+  </section>
+</li>

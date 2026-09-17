@@ -1,0 +1,182 @@
+---
+import Admin from '../../../layouts/Admin.astro';
+import { requireModerator } from '@/lib/auth-guard';
+import { createApiClient } from '@/lib/api/client';
+import DateTime from '@/components/admin/DateTime.astro';
+import EmptyState from '@/components/admin/EmptyState.astro';
+
+const env = Astro.locals.env;
+const guard = await requireModerator(Astro, env);
+if (guard instanceof Response) return guard;
+const user = guard;
+
+const api = createApiClient(env, user.sub);
+
+// Overview stays cheap: small pages per queue, no detail fan-out. Cards
+// link into the filtered tab where the full paginated list lives.
+const [revisionsResult, extensionsResult, developersResult, claimsResult] =
+  await Promise.allSettled([
+    api.listModerationQueue('pending', { limit: 5 }),
+    api.listAllExtensions({ status: 'published', limit: 1 }),
+    api.listUnapprovedDevelopers(),
+    api.listPendingClaims(),
+  ]);
+
+const pendingRevisions =
+  revisionsResult.status === 'fulfilled' ? revisionsResult.value.result : [];
+const revisionsError =
+  revisionsResult.status === 'rejected'
+    ? 'Unable to load revision queue.'
+    : null;
+const revisionsHasMore =
+  revisionsResult.status === 'fulfilled' &&
+  revisionsResult.value.pagination.has_more;
+
+const unapprovedDevelopers =
+  developersResult.status === 'fulfilled' ? developersResult.value : [];
+const developersError =
+  developersResult.status === 'rejected' ? 'Unable to load developers.' : null;
+
+const pendingClaims =
+  claimsResult.status === 'fulfilled' ? claimsResult.value : [];
+const claimsError =
+  claimsResult.status === 'rejected' ? 'Unable to load claims.' : null;
+
+const extensionsError =
+  extensionsResult.status === 'rejected' ? 'Unable to load extensions.' : null;
+
+const stats = [
+  {
+    label: 'Pending Revisions',
+    value: revisionsError
+      ? '!'
+      : `${pendingRevisions.length}${revisionsHasMore ? '+' : ''}`,
+    href: '/account/admin/revisions',
+    hint: 'Extension Edits Awaiting Review',
+  },
+  {
+    label: 'Developers Awaiting Review',
+    value: developersError ? '!' : `${unapprovedDevelopers.length}`,
+    href: '/account/admin/developers',
+    hint: 'Trust-Badge Approvals',
+  },
+  {
+    label: 'Profile Claims',
+    value: claimsError ? '!' : `${pendingClaims.length}`,
+    href: '/account/admin/developers/claims',
+    hint: 'Ownership Transfers to Judge',
+  },
+];
+---
+
+<Admin
+  title="Overview — FOSSBilling Extensions"
+  active="overview"
+  description="Pending work across revisions, extensions, developers and claims. Open a section to review."
+>
+  <div class="grid gap-4 sm:grid-cols-3">
+    {stats.map((s) => (
+      <a
+        href={s.href}
+        class="card p-4 space-y-1 hover:border-primary transition-colors"
+      >
+        <p class="text-sm text-muted-foreground">{s.label}</p>
+        <p class="text-3xl font-semibold tracking-tight">{s.value}</p>
+        <p class="text-xs text-muted-foreground">{s.hint}</p>
+      </a>
+    ))}
+  </div>
+
+  {(revisionsError ?? extensionsError ?? developersError ?? claimsError) && (
+    <p class="text-sm text-destructive">
+      {[revisionsError, extensionsError, developersError, claimsError]
+        .filter(Boolean)
+        .join(' ')}
+    </p>
+  )}
+
+  <section class="space-y-3">
+    <div class="flex items-center justify-between gap-3">
+      <h2 class="font-semibold">Oldest Pending Revisions</h2>
+      <a
+        href="/account/admin/revisions"
+        class="btn"
+        data-size="sm"
+        data-variant="outline"
+      >
+        Open Revision Queue
+      </a>
+    </div>
+    {pendingRevisions.length === 0 ? (
+      <EmptyState
+        title="Revision Queue Is Clear"
+        description="New extension submissions and edits will appear here."
+      />
+    ) : (
+      <ul class="divide-y divide-border card px-4">
+        {pendingRevisions.map((r) => (
+          <li class="py-3 flex items-center justify-between gap-3">
+            <div class="min-w-0">
+              <p class="font-medium truncate">
+                {r.content.name ?? r.extension_id}
+              </p>
+              <p class="text-sm text-muted-foreground">
+                {r.extension_id} · submitted <DateTime value={r.created_at} />
+              </p>
+            </div>
+            <a
+              href={`/account/admin/extensions/${r.extension_id}`}
+              class="btn shrink-0"
+              data-size="sm"
+              data-variant="ghost"
+            >
+              Review
+            </a>
+          </li>
+        ))}
+      </ul>
+    )}
+  </section>
+
+  <section class="space-y-3">
+    <div class="flex items-center justify-between gap-3">
+      <h2 class="font-semibold">Needs a Decision</h2>
+    </div>
+    <div class="grid gap-4 md:grid-cols-2">
+      <div class="card p-4 space-y-2">
+        <p class="font-medium text-sm">Developers Awaiting Review</p>
+        {unapprovedDevelopers.length === 0 ? (
+          <p class="text-sm text-muted-foreground">
+            No Profiles Awaiting Review
+          </p>
+        ) : (
+          <ul class="text-sm space-y-1">
+            {unapprovedDevelopers.slice(0, 5).map((d) => (
+              <li>
+                <a href="/account/admin/developers">
+                  {d.name} ({d.id})
+                </a>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+      <div class="card p-4 space-y-2">
+        <p class="font-medium text-sm">Profile Claims Awaiting Review</p>
+        {pendingClaims.length === 0 ? (
+          <p class="text-sm text-muted-foreground">No Claims Awaiting Review</p>
+        ) : (
+          <ul class="text-sm space-y-1">
+            {pendingClaims.slice(0, 5).map((c) => (
+              <li>
+                <a href="/account/admin/developers/claims">
+                  {c.developer_name} ({c.developer_id})
+                </a>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  </section>
+</Admin>

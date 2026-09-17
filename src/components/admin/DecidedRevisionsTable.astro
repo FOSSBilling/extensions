@@ -1,0 +1,109 @@
+---
+import { formatDateTime } from '@/lib/format-date';
+import type { ExtensionRevision } from '@/lib/api/client';
+import { diffRevisionContent } from '@/lib/revision-diff';
+import FrozenContentTable from './FrozenContentTable.astro';
+import StatusBadge from './StatusBadge.astro';
+
+// Tooltip for the decision badge: "Approved on <date>." today, expanding to
+// "Approved on <date>, by <user>." once reviewer names are exposed (the API
+// already records reviewer_id on every decision).
+function decisionTitle(
+  status: 'approved' | 'rejected',
+  reviewedAt: string | null,
+  reviewerName: string | null = null,
+): string | undefined {
+  if (!reviewedAt) return undefined;
+  const verb = status === 'approved' ? 'Approved' : 'Rejected';
+  const when = `on ${formatDateTime(reviewedAt)}`;
+  return reviewerName
+    ? `${verb} ${when}, by ${reviewerName}.`
+    : `${verb} ${when}.`;
+}
+
+// Audit view for decided (approved/rejected) revisions: dense rows with the
+// decision, dates, and note at a glance, plus an expandable frozen-content
+// row showing exactly what was reviewed. The toggle is wired by the shared
+// queue client script via [data-frozen] (labels from data-show/data-hide).
+interface Props {
+  revisions: ExtensionRevision[];
+}
+
+const { revisions } = Astro.props;
+const DETAIL_COLUMNS = 5;
+---
+
+<div class="card overflow-x-auto p-0">
+  <table class="w-full text-sm">
+    <thead>
+      <tr class="text-left text-muted-foreground border-b border-border">
+        <th class="px-4 py-2 font-medium">Extension</th>
+        <th class="px-4 py-2 font-medium">Version</th>
+        <th class="px-4 py-2 font-medium">Decision</th>
+        <th class="px-4 py-2 font-medium">Note</th>
+        <th class="px-4 py-2 font-medium">Actions</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-border">
+      {revisions.map((r) => {
+        const rows = diffRevisionContent(null, r.content);
+        return (
+          <>
+            <tr>
+              <td class="px-4 py-2">
+                <p class="font-medium">
+                  <a
+                    href={`/account/admin/extensions/${r.extension_id}`}
+                    title={`Submitted on ${formatDateTime(r.created_at)}.`}
+                  >
+                    {r.content.name ?? r.extension_id}
+                  </a>
+                </p>
+                <p class="text-xs text-muted-foreground">{r.extension_id}</p>
+              </td>
+              <td class="px-4 py-2 text-muted-foreground whitespace-nowrap">
+                {r.content.version?.trim() || '—'}
+              </td>
+              <td class="px-4 py-2 whitespace-nowrap">
+                <span
+                  title={decisionTitle(
+                    r.status === 'approved' ? 'approved' : 'rejected',
+                    r.reviewed_at,
+                  )}
+                >
+                  <StatusBadge
+                    status={r.status === 'approved' ? 'approved' : 'rejected'}
+                  />
+                </span>
+              </td>
+              <td
+                class="px-4 py-2 text-muted-foreground max-w-64 truncate"
+                title={r.review_note ?? undefined}
+              >
+                {r.review_note ?? '—'}
+              </td>
+              <td class="px-4 py-2 whitespace-nowrap">
+                <button
+                  type="button"
+                  class="btn px-0 w-full justify-start"
+                  data-size="sm"
+                  data-variant="ghost"
+                  data-frozen
+                  data-show="Show Reviewed Content"
+                  data-hide="Hide Reviewed Content"
+                >
+                  Show Reviewed Content
+                </button>
+              </td>
+            </tr>
+            <tr data-frozen-wrap hidden>
+              <td colspan={DETAIL_COLUMNS} class="px-4 py-3 bg-muted/30">
+                <FrozenContentTable rows={rows} />
+              </td>
+            </tr>
+          </>
+        );
+      })}
+    </tbody>
+  </table>
+</div>

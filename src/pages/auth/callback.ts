@@ -81,8 +81,11 @@ export const GET: APIRoute = async ({
   // The API projection is the account's domain-side authorization anchor.
   // Do not issue a local session until this identity sync succeeds; otherwise
   // the freshly signed-in user would immediately fail every account guard.
+  // The returned projection also carries the moderator flag minted into the
+  // session below for the site chrome's Admin menu.
+  let account;
   try {
-    await upsertUser(env, userInfo);
+    account = await upsertUser(env, userInfo);
   } catch (e) {
     console.error('[auth/callback] identity-sync failed', e);
     setFlash(session, AUTH_ERROR_FLASH);
@@ -116,6 +119,7 @@ export const GET: APIRoute = async ({
         name: userInfo.name ?? '',
         email: userInfo.email ?? '',
         picture: userInfo.picture,
+        is_moderator: account.is_moderator,
       },
       env.sessionSecret,
     );

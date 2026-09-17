@@ -63,6 +63,7 @@ const { flash } = Astro.locals;
     <script>
       import 'basecoat-css/basecoat';
       import 'basecoat-css/combobox';
+      import 'basecoat-css/dropdown-menu';
       import 'basecoat-css/tabs';
       import 'basecoat-css/toast';
     </script>
@@ -86,18 +87,48 @@ const { flash } = Astro.locals;
         <div class="flex items-center gap-3">
           {user ? (
             <>
-              <a
-                href="/account"
-                aria-label={`Account — ${user.name}`}
-                data-tooltip={`Account — ${user.name}`}
-                data-side="bottom"
-                data-align="end"
-                class="btn"
-                data-size="icon-sm"
-                data-variant="outline"
-              >
-                <CircleUser class="w-5 h-5" aria-hidden="true" />
-              </a>
+              <div class="dropdown-menu" id="account-menu">
+                <button
+                  type="button"
+                  id="account-menu-trigger"
+                  aria-haspopup="menu"
+                  aria-controls="account-menu-items"
+                  aria-expanded="false"
+                  aria-label={`Account — ${user.name}`}
+                  data-tooltip={`Account — ${user.name}`}
+                  data-side="bottom"
+                  data-align="end"
+                  class="btn"
+                  data-size="icon-sm"
+                  data-variant="outline"
+                >
+                  <CircleUser class="w-5 h-5" aria-hidden="true" />
+                </button>
+                <div id="account-menu-popover" data-popover aria-hidden="true">
+                  <div
+                    role="menu"
+                    id="account-menu-items"
+                    aria-labelledby="account-menu-trigger"
+                  >
+                    <a
+                      id="account-menu-items-1"
+                      role="menuitem"
+                      href="/account"
+                    >
+                      Account
+                    </a>
+                    {user.is_moderator && (
+                      <a
+                        id="account-menu-items-2"
+                        role="menuitem"
+                        href="/account/admin"
+                      >
+                        Admin
+                      </a>
+                    )}
+                  </div>
+                </div>
+              </div>
               <form method="POST" action="/auth/logout">
                 <button
                   type="submit"

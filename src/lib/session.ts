@@ -14,6 +14,12 @@ export type SessionUser = {
   name: string;
   email: string;
   picture?: string;
+  // Domain-side moderator flag, minted at login so the site chrome can offer
+  // the Admin menu without an API round-trip on every page. Navigation-only:
+  // the moderator guards re-check the live account and stay authoritative.
+  // Optional so sessions minted before this field existed keep verifying —
+  // they simply don't offer the Admin menu until the next login.
+  is_moderator?: boolean;
 };
 
 type SessionPayload = SessionUser & { exp: number };
@@ -85,6 +91,7 @@ async function verifySessionCookieValue(
     name: payload.name,
     email: payload.email,
     picture: payload.picture,
+    is_moderator: payload.is_moderator,
   };
 }
 

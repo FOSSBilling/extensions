@@ -1,0 +1,106 @@
+---
+import Base from './Base.astro';
+import {
+  Inbox,
+  LayoutDashboard,
+  Package,
+  UserCheck,
+  Users,
+} from '@lucide/astro';
+
+interface Props {
+  title: string;
+  active: 'overview' | 'revisions' | 'extensions' | 'developers' | 'claims';
+  description?: string;
+}
+
+const { title, active, description } = Astro.props;
+
+// Browser tab reads "<page> — Admin — FOSSBilling Extensions" while the
+// on-page H1 (derived from `title` below) stays just "<page>", since the
+// ADMIN eyebrow above it already provides the context.
+const docTitle = title.replace(
+  ' — FOSSBilling Extensions',
+  ' — Admin — FOSSBilling Extensions',
+);
+
+const NAV = [
+  {
+    id: 'overview',
+    label: 'Overview',
+    href: '/account/admin',
+    Icon: LayoutDashboard,
+  },
+  {
+    id: 'revisions',
+    label: 'Revisions',
+    href: '/account/admin/revisions',
+    Icon: Inbox,
+  },
+  {
+    id: 'extensions',
+    label: 'Extensions',
+    href: '/account/admin/extensions',
+    Icon: Package,
+  },
+  {
+    id: 'developers',
+    label: 'Developers',
+    href: '/account/admin/developers',
+    Icon: Users,
+  },
+  {
+    id: 'claims',
+    label: 'Claims',
+    href: '/account/admin/developers/claims',
+    Icon: UserCheck,
+  },
+] as const;
+---
+
+<Base title={docTitle}>
+  <div class="space-y-6">
+    <div class="flex flex-wrap items-end justify-between gap-3">
+      <div class="space-y-1">
+        <p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          Admin
+        </p>
+        <h1 class="text-2xl font-semibold tracking-tight">
+          <slot name="title">
+            {title.replace(' — FOSSBilling Extensions', '')}
+          </slot>
+        </h1>
+        {description && (
+          <p class="text-sm text-muted-foreground max-w-2xl">{description}</p>
+        )}
+      </div>
+      <div class="flex items-center gap-2">
+        <slot name="actions" />
+      </div>
+    </div>
+
+    <div class="lg:grid lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-8 lg:items-start">
+      <nav
+        aria-label="Admin sections"
+        class="flex gap-2 overflow-x-auto pb-1 lg:flex-col lg:overflow-visible lg:pb-0 lg:sticky lg:top-24"
+      >
+        {NAV.map((item) => (
+          <a
+            href={item.href}
+            class="btn shrink-0 lg:w-full lg:justify-start"
+            data-size="sm"
+            data-variant={item.id === active ? 'primary' : 'ghost'}
+            aria-current={item.id === active ? 'page' : undefined}
+          >
+            <item.Icon class="size-4" aria-hidden="true" />
+            {item.label}
+          </a>
+        ))}
+      </nav>
+
+      <div class="min-w-0 space-y-6 pt-6 lg:pt-0">
+        <slot />
+      </div>
+    </div>
+  </div>
+</Base>

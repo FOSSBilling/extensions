@@ -1,0 +1,113 @@
+---
+import Admin from '../../../../../layouts/Admin.astro';
+import { requireModerator } from '@/lib/auth-guard';
+import { createApiClient } from '@/lib/api/client';
+import type { PendingDeveloperClaim } from '@/lib/api/client';
+import RejectDialog from '@/components/RejectDialog.astro';
+import ApproveDialog from '@/components/ApproveDialog.astro';
+import EmptyState from '@/components/admin/EmptyState.astro';
+import { formatDate } from '@/lib/format-date';
+
+const env = Astro.locals.env;
+const guard = await requireModerator(Astro, env);
+if (guard instanceof Response) return guard;
+const user = guard;
+
+const api = createApiClient(env, user.sub);
+let claims: PendingDeveloperClaim[] = [];
+let loadError = false;
+try {
+  claims = await api.listPendingClaims();
+} catch {
+  loadError = true;
+}
+---
+
+<Admin
+  title="Profile Claims — FOSSBilling Extensions"
+  active="claims"
+  description="These profiles have no linked account. Approving gives the claimant ownership immediately. A “GitHub Verified” badge means the claimant's own linked GitHub account was automatically confirmed to match — otherwise, use the note below (and the profile's public page) to judge legitimacy yourself."
+>
+  <div slot="actions">
+    <a
+      href="/account/admin/developers"
+      class="btn"
+      data-size="sm"
+      data-variant="outline"
+    >
+      Developer Profiles
+    </a>
+  </div>
+
+  {loadError ? (
+    <p class="text-sm text-destructive">
+      Unable to load pending claims right now.
+    </p>
+  ) : claims.length === 0 ? (
+    <EmptyState title="No Profile Claims Awaiting Review" />
+  ) : (
+    <ul class="space-y-4">
+      {claims.map((c) => (
+        <li class="card gap-4 p-5">
+          <header class="px-0">
+            <h2 class="font-semibold flex flex-wrap items-center gap-2">
+              {c.developer_name} ({c.developer_id})
+              {c.github_org_verified && (
+                <span class="badge">GitHub Verified</span>
+              )}
+            </h2>
+            <p class="text-sm text-muted-foreground">
+              {c.developer_type} · claimed by{' '}
+              <strong>{c.claimant_name ?? c.claimant_id}</strong>
+              {c.claimant_github_login && (
+                <>
+                  {' '}
+                  <a href={`https://github.com/${c.claimant_github_login}`}>
+                    @{c.claimant_github_login}
+                  </a>
+                </>
+              )}{' '}
+              on {formatDate(c.created_at)}
+            </p>
+            {c.note && <p class="text-sm mt-1">&ldquo;{c.note}&rdquo;</p>}
+          </header>
+          <footer class="flex items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              class="btn"
+              data-size="sm"
+              onclick={`document.getElementById('approve-claim-${c.id}').showModal()`}
+            >
+              Approve
+            </button>
+            <button
+              type="button"
+              class="btn"
+              data-size="sm"
+              data-variant="destructive"
+              onclick={`document.getElementById('reject-claim-${c.id}').showModal()`}
+            >
+              Reject
+            </button>
+          </footer>
+
+          <ApproveDialog
+            id={`approve-claim-${c.id}`}
+            title={`Approve claim on "${c.developer_id}"?`}
+            description="The claimant will gain ownership of this profile immediately."
+            formAction={`/account/admin/developers/claims/${c.id}/approve`}
+            notifyRecipient="claimant"
+            hiddenFields={[{ name: 'intent', value: 'approve' }]}
+          />
+          <RejectDialog
+            id={`reject-claim-${c.id}`}
+            title={`Reject claim on "${c.developer_id}"?`}
+            description="The claimant will see this reason."
+            formAction={`/account/admin/developers/claims/${c.id}/reject`}
+            notifyRecipient="claimant"
+          />
+        </li>
+      ))}
+    </ul>
+  )}
+</Admin>

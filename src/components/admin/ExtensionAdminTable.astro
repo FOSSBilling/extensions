@@ -1,0 +1,90 @@
+---
+import { formatDate } from '@/lib/format-date';
+import type { OwnedExtensionListItem } from '@/lib/api/client';
+import StatusBadge from './StatusBadge.astro';
+
+interface Props {
+  extensions: OwnedExtensionListItem[];
+}
+
+const { extensions } = Astro.props;
+
+function statusOf(ext: OwnedExtensionListItem) {
+  if (ext.delisted) return 'delisted' as const;
+  if (ext.published) return 'published' as const;
+  return 'never-published' as const;
+}
+---
+
+<div class="card overflow-x-auto p-0">
+  <table class="w-full text-sm">
+    <thead>
+      <tr class="text-left text-muted-foreground border-b border-border">
+        <th class="px-4 py-2 font-medium">Extension</th>
+        <th class="px-4 py-2 font-medium">Developer</th>
+        <th class="px-4 py-2 font-medium">Status</th>
+        <th class="px-4 py-2 font-medium">Version</th>
+        <th class="px-4 py-2 font-medium">Review</th>
+        <th class="px-4 py-2 font-medium">Updated</th>
+        <th class="px-4 py-2 font-medium text-right">Actions</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-border">
+      {extensions.map((ext) => (
+        <tr class="align-top">
+          <td class="px-4 py-2">
+            <p class="font-medium">
+              <a href={`/account/admin/extensions/${ext.id}`}>
+                {ext.published?.name ?? ext.id}
+              </a>
+            </p>
+            <p class="text-xs text-muted-foreground">{ext.id}</p>
+          </td>
+          <td class="px-4 py-2 text-muted-foreground">{ext.developer.name}</td>
+          <td class="px-4 py-2">
+            <StatusBadge status={statusOf(ext)} />
+          </td>
+          <td class="px-4 py-2 text-muted-foreground">
+            {ext.published ? `v${ext.published.version}` : '—'}
+          </td>
+          <td class="px-4 py-2">
+            {ext.pending_revision ? (
+              <StatusBadge status="pending" label="Pending Edit" />
+            ) : ext.last_review?.status === 'rejected' ? (
+              <StatusBadge status="rejected" label="Edit Rejected" />
+            ) : (
+              <span class="text-muted-foreground">—</span>
+            )}
+          </td>
+          <td class="px-4 py-2 text-muted-foreground whitespace-nowrap">
+            {formatDate(ext.updated_at)}
+          </td>
+          <td class="px-4 py-2">
+            <div class="flex justify-end items-center gap-2">
+              <a
+                href={`/account/admin/extensions/${ext.id}`}
+                class="btn"
+                data-size="sm"
+                data-variant="ghost"
+              >
+                View
+              </a>
+              {ext.published && !ext.delisted && (
+                <button
+                  type="button"
+                  class="btn"
+                  data-size="sm"
+                  data-variant="destructive"
+                  data-delist-id={ext.id}
+                  data-delist-name={ext.published.name}
+                >
+                  Delist
+                </button>
+              )}
+            </div>
+          </td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+</div>

@@ -1,0 +1,36 @@
+---
+import MarkdownValue from './MarkdownValue.astro';
+import TruncatedText from './TruncatedText.astro';
+import { isSafeHttpUrl } from '@/lib/safe-url';
+
+// Renders one side of a revision diff row according to its field type:
+// readme as rendered markdown, URL fields and explicit hrefs (e.g. the
+// source row's repository URL) as clickable links, everything else as
+// (possibly truncated) plain text. Link targets are scheme-validated — an
+// unsafe href falls back to plain text, never to a link.
+interface Props {
+  field: string;
+  value: string | null;
+  emptyLabel?: string;
+  href?: string | null;
+}
+
+const { field, value, emptyLabel = '—', href = null } = Astro.props;
+const URL_FIELDS = new Set(['website', 'download_url', 'icon_url']);
+const link =
+  href && isSafeHttpUrl(href)
+    ? href
+    : URL_FIELDS.has(field) && value !== null && isSafeHttpUrl(value)
+      ? value
+      : null;
+---
+
+{value === null ? (
+  emptyLabel
+) : field === 'readme' ? (
+  <MarkdownValue value={value} />
+) : link ? (
+  <a href={link}>{value}</a>
+) : (
+  <TruncatedText value={value} />
+)}

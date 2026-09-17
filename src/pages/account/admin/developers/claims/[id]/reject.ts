@@ -11,7 +11,7 @@ export const POST: APIRoute = async (context) => {
   const user = guard;
 
   const { id } = context.params;
-  if (!id) return context.redirect('/account/moderate/developers');
+  if (!id) return context.redirect('/account/admin/developers/claims');
 
   let form: FormData;
   try {
@@ -21,32 +21,32 @@ export const POST: APIRoute = async (context) => {
       category: 'error',
       title: 'Malformed request.',
     });
-    return context.redirect('/account/moderate/developers');
+    return context.redirect('/account/admin/developers/claims');
   }
-  const expectedRevision = Number(formString(form, 'expected_revision'));
-  if (!Number.isInteger(expectedRevision) || expectedRevision < 1) {
+  const reviewNote = formString(form, 'review_note');
+  if (!reviewNote) {
     setFlash(context.session, {
       category: 'error',
-      title: 'Missing or invalid profile revision.',
+      title: 'A reason is required to reject a claim.',
     });
-    return context.redirect('/account/moderate/developers');
+    return context.redirect('/account/admin/developers/claims');
   }
 
   const api = createApiClient(env, user.sub);
   const notify = formFlag(form, 'notify');
   try {
-    const result = await api.approveDeveloper(id, expectedRevision, notify);
+    const result = await api.rejectClaim(id, reviewNote, notify);
     if (notify && !result.notified) {
       setFlash(context.session, {
         category: 'warning',
-        title: 'Profile approved, but the owner could not be emailed.',
+        title: 'Claim rejected, but the claimant could not be emailed.',
       });
     }
   } catch (e) {
     const message =
-      e instanceof ApiRequestError ? e.message : 'Unable to approve profile.';
+      e instanceof ApiRequestError ? e.message : 'Unable to reject claim.';
     setFlash(context.session, { category: 'error', title: message });
   }
 
-  return context.redirect('/account/moderate/developers');
+  return context.redirect('/account/admin/developers/claims');
 };

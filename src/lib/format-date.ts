@@ -27,6 +27,11 @@ const defaultDateFormatter = new Intl.DateTimeFormat(
   'en-GB',
   DATE_FORMAT_OPTIONS,
 );
+const shortDateFormatter = new Intl.DateTimeFormat('en-GB', {
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+});
 const defaultTimeFormatter = new Intl.DateTimeFormat(
   'en-GB',
   TIME_FORMAT_OPTIONS,
@@ -133,6 +138,13 @@ function formatTimePart(date: Date, timeZone?: string): string {
 // convention. Matches ReleasesTable's existing release date format.
 export function formatDate(value: string | Date): string {
   return formatDatePart(toDate(value));
+}
+
+// Compact sibling of formatDate for dense admin views ("17 Sept 2026") —
+// still day-first with a named month, so it keeps the unambiguous,
+// locale-independent ordering without the full month name's width.
+export function formatShortDate(value: string | Date): string {
+  return shortDateFormatter.format(toDate(value));
 }
 
 // Same as formatDate, plus a 24-hour time — only for cases where the exact

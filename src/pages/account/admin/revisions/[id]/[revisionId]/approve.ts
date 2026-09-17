@@ -11,12 +11,8 @@ export const POST: APIRoute = async (context) => {
   const user = guard;
 
   const { id, revisionId } = context.params;
-  if (!id || !revisionId) return context.redirect('/account/moderate');
+  if (!id || !revisionId) return context.redirect('/account/admin/revisions');
 
-  // The approve form carries only the notify checkbox plus an intent marker;
-  // a POST from anywhere else — bodyless, or an empty form that parses with
-  // no fields — keeps the notifying default instead of reading the absent
-  // checkbox as an opt-out.
   let notify = true;
   try {
     const form = await context.request.formData();
@@ -42,5 +38,5 @@ export const POST: APIRoute = async (context) => {
     setFlash(context.session, { category: 'error', title: message });
   }
 
-  return context.redirect('/account/moderate');
+  return context.redirect('/account/admin/revisions');
 };
