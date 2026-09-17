@@ -121,102 +121,102 @@ const stats = [
   <section class="space-y-3">
     <div class="flex items-center justify-between gap-3">
       <h2 class="font-semibold">Pending Developers</h2>
-        <a
-          href="/account/admin/developers"
-          class="btn"
-          data-size="sm"
-          data-variant="outline"
-        >
-          View All
-        </a>
-      </div>
-      {unapprovedDevelopers.length === 0 ? (
-        <p class="text-sm text-muted-foreground">No Pending Profiles</p>
-      ) : (
-        <DeveloperProfilesTable
-          developers={unapprovedDevelopers.slice(0, 5)}
-        />
-      )}
-    </section>
-    <section class="space-y-3">
-      <div class="flex items-center justify-between gap-3">
-        <h2 class="font-semibold">Pending Claims</h2>
-        <a
-          href="/account/admin/developers?view=claims"
-          class="btn"
-          data-size="sm"
-          data-variant="outline"
-        >
-          View All
-        </a>
-      </div>
-      {pendingClaims.length === 0 ? (
-        <p class="text-sm text-muted-foreground">No Claims Awaiting Review</p>
-      ) : (
-        <ul class="space-y-4">
-          {pendingClaims.slice(0, 5).map((c) => (
-            <li class="card gap-4 p-5 scroll-mt-24" id={`claim-${c.id}`}>
-              <header class="px-0">
-                <h3 class="font-semibold flex flex-wrap items-center gap-2">
-                  {c.developer_name} ({c.developer_id})
-                  {c.github_org_verified && (
-                    <span class="badge">GitHub Verified</span>
-                  )}
-                </h3>
-                <p class="text-sm text-muted-foreground">
-                  {c.developer_type} · claimed by{' '}
-                  <strong>{c.claimant_name ?? c.claimant_id}</strong>
-                  {c.claimant_github_login && (
-                    <>
-                      {' '}
-                      <a href={`https://github.com/${c.claimant_github_login}`}>
-                        @{c.claimant_github_login}
-                      </a>
-                    </>
-                  )}
-                </p>
-                {c.note && <p class="text-sm mt-1">&ldquo;{c.note}&rdquo;</p>}
-              </header>
-              <footer class="flex items-center gap-2 flex-wrap">
-                <button
-                  type="button"
-                  class="btn"
-                  data-size="sm"
-                  onclick={`document.getElementById('approve-claim-${c.id}').showModal()`}
-                >
-                  Approve
-                </button>
-                <button
-                  type="button"
-                  class="btn"
-                  data-size="sm"
-                  data-variant="destructive"
-                  onclick={`document.getElementById('reject-claim-${c.id}').showModal()`}
-                >
-                  Reject
-                </button>
-              </footer>
+      <a
+        href="/account/admin/developers"
+        class="btn"
+        data-size="sm"
+        data-variant="outline"
+      >
+        View All
+      </a>
+    </div>
+    {unapprovedDevelopers.length === 0 ? (
+      <p class="text-sm text-muted-foreground">No Pending Profiles</p>
+    ) : (
+      <DeveloperProfilesTable
+        developers={unapprovedDevelopers.slice(0, 5)}
+      />
+    )}
+  </section>
+  <section class="space-y-3">
+    <div class="flex items-center justify-between gap-3">
+      <h2 class="font-semibold">Pending Claims</h2>
+      <a
+        href="/account/admin/developers?view=claims"
+        class="btn"
+        data-size="sm"
+        data-variant="outline"
+      >
+        View All
+      </a>
+    </div>
+    {pendingClaims.length === 0 ? (
+      <p class="text-sm text-muted-foreground">No Claims Awaiting Review</p>
+    ) : (
+      <ul class="space-y-4">
+        {pendingClaims.slice(0, 5).map((c) => (
+          <li class="card gap-4 p-5 scroll-mt-24" id={`claim-${c.id}`}>
+            <header class="px-0">
+              <h3 class="font-semibold flex flex-wrap items-center gap-2">
+                {c.developer_name} ({c.developer_id})
+                {c.github_org_verified && (
+                  <span class="badge">GitHub Verified</span>
+                )}
+              </h3>
+              <p class="text-sm text-muted-foreground">
+                {c.developer_type} · claimed by{' '}
+                <strong>{c.claimant_name ?? c.claimant_id}</strong>
+                {c.claimant_github_login && (
+                  <>
+                    {' '}
+                    <a href={`https://github.com/${c.claimant_github_login}`}>
+                      @{c.claimant_github_login}
+                    </a>
+                  </>
+                )}
+              </p>
+              {c.note && <p class="text-sm mt-1">&ldquo;{c.note}&rdquo;</p>}
+            </header>
+            <footer class="flex items-center gap-2 flex-wrap">
+              <button
+                type="button"
+                class="btn"
+                data-size="sm"
+                onclick={`document.getElementById('approve-claim-${c.id}').showModal()`}
+              >
+                Approve
+              </button>
+              <button
+                type="button"
+                class="btn"
+                data-size="sm"
+                data-variant="destructive"
+                onclick={`document.getElementById('reject-claim-${c.id}').showModal()`}
+              >
+                Reject
+              </button>
+            </footer>
 
-              <ApproveDialog
-                id={`approve-claim-${c.id}`}
-                title={`Approve claim on "${c.developer_id}"?`}
-                description="The claimant will gain ownership of this profile immediately."
-                formAction={`/account/admin/developers/claims/${c.id}/approve`}
-                notifyRecipient="claimant"
-                hiddenFields={[{ name: 'intent', value: 'approve' }]}
-              />
-              <RejectDialog
-                id={`reject-claim-${c.id}`}
-                title={`Reject claim on "${c.developer_id}"?`}
-                description="The claimant will see this reason."
-                formAction={`/account/admin/developers/claims/${c.id}/reject`}
-                notifyRecipient="claimant"
-              />
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
+            <ApproveDialog
+              id={`approve-claim-${c.id}`}
+              title={`Approve claim on "${c.developer_id}"?`}
+              description="The claimant will gain ownership of this profile immediately."
+              formAction={`/account/admin/developers/claims/${c.id}/approve`}
+              notifyRecipient="claimant"
+              hiddenFields={[{ name: 'intent', value: 'approve' }]}
+            />
+            <RejectDialog
+              id={`reject-claim-${c.id}`}
+              title={`Reject claim on "${c.developer_id}"?`}
+              description="The claimant will see this reason."
+              formAction={`/account/admin/developers/claims/${c.id}/reject`}
+              notifyRecipient="claimant"
+            />
+          </li>
+        ))}
+      </ul>
+    )}
+  </section>
 
   <!-- Single shared pair of dialogs for the pending table above: row buttons
        set formAction + titles via data attributes (see script below), same as
