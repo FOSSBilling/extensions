@@ -86,8 +86,8 @@ const pageTitle = isClaims
   ? 'Profile Claims — FOSSBilling Extensions'
   : 'Developer Profiles — FOSSBilling Extensions';
 const pageDescription = isClaims
-  ? 'These profiles have no linked account. Approving gives the claimant ownership immediately. A “GitHub Verified” badge means the claimant’s own linked GitHub account was automatically confirmed to match — otherwise, use the note below (and the profile’s public page) to judge legitimacy yourself.'
-  : 'These profiles are already live — approval is a trust badge, not a publish gate. An edit to an approved profile clears its badge again until reviewed here, unless GitHub verified.';
+  ? 'These profiles have no linked account — approving hands ownership to the claimant immediately. Without a “GitHub Verified” badge, judge legitimacy from the note and the public profile.'
+  : 'Approval is a trust badge, not a publish gate — profiles are live either way. An edit clears the badge until re-reviewed, unless still GitHub verified.';
 ---
 
 <Admin title={pageTitle} active="developers" description={pageDescription}>

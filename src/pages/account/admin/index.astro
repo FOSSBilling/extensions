@@ -71,7 +71,7 @@ const stats = [
 <Admin
   title="Overview — FOSSBilling Extensions"
   active="overview"
-  description="Pending work across revisions, developers and claims. Open a section to review."
+  description="Every queue awaiting a decision. Work it here, or open a section for the full list."
 >
   <div class="grid gap-4 sm:grid-cols-3">
     {stats.map((s) => (
@@ -217,6 +217,33 @@ const stats = [
         </ul>
       )}
     </section>
+
+  <!-- Single shared pair of dialogs for the pending table above: row buttons
+       set formAction + titles via data attributes (see script below), same as
+       /account/admin/revisions. Acting here lands on the full queue, since
+       the POST handlers redirect there. -->
+  <ApproveDialog
+    id="admin-approve-revision"
+    title="Approve Revision?"
+    description="The new revision will go live immediately."
+    formAction="/account/admin/revisions/placeholder/placeholder/approve"
+    notifyRecipient="author"
+    hiddenFields={[{ name: 'intent', value: 'approve' }]}
+  />
+  <RejectDialog
+    id="admin-reject-revision"
+    title="Reject Revision?"
+    description="The submitter will see this reason."
+    formAction="/account/admin/revisions/placeholder/placeholder/reject"
+  />
+  <ApproveDialog
+    id="admin-approve-developer"
+    title="Approve Developer?"
+    description="The owner will see the trust badge on their live profile."
+    formAction="/account/admin/developers/placeholder/approve"
+    notifyRecipient="owner"
+    hiddenFields={[{ name: 'expected_revision', value: '' }]}
+  />
 </Admin>
 
 <script>
