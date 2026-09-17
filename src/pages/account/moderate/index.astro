@@ -1,5 +1,4 @@
 ---
-import { X } from '@lucide/astro';
 import Base from '../../../layouts/Base.astro';
 import { requireModerator } from '@/lib/auth-guard';
 import {
@@ -14,6 +13,9 @@ import type {
   RevisionStatus,
 } from '@/lib/api/client';
 import RejectDialog from '@/components/RejectDialog.astro';
+import ApproveDialog from '@/components/ApproveDialog.astro';
+import DialogShell from '@/components/DialogShell.astro';
+import NotifyField from '@/components/NotifyField.astro';
 import { formatDate } from '@/lib/format-date';
 import {
   cursorPageUrl,
@@ -236,78 +238,29 @@ const prevPageUrl = prevCursorPageUrl(Astro.url, 'cursor', 'cursors');
       )}
     </section>
 
-    <dialog
+    <DialogShell
       id="delist-confirm-dialog"
-      class="dialog"
-      aria-labelledby="delist-confirm-title"
-      aria-describedby="delist-confirm-description"
-      onclick="if (arguments[0].target === this) this.close()"
+      description="It will be removed from the public catalogue immediately. The owner can still see it, and why, in their dashboard."
+      formAction="/account/moderate/delist"
+      submitLabel="Delist"
+      submitVariant="destructive"
     >
-      <form method="POST" action="/account/moderate/delist">
-        <header>
-          <h2 id="delist-confirm-title">
-            Delist "<span id="delist-confirm-id"></span>"?
-          </h2>
-          <p id="delist-confirm-description">
-            It will be removed from the public catalogue immediately. The owner
-            can still see it, and why, in their dashboard.
-          </p>
-        </header>
-        <section>
-          <div class="field">
-            <label for="delist-confirm-reason">Reason</label>
-            <textarea
-              class="textarea"
-              id="delist-confirm-reason"
-              name="reason"
-              placeholder="Why is this being removed? The owner will see this."
-              required
-            ></textarea>
-          </div>
-          <div role="group" class="field" data-orientation="horizontal">
-            <section>
-              <h3>Email the author</h3>
-              <p>
-                Uses the contact email on file, falling back to the account
-                email.
-              </p>
-            </section>
-            <input
-              class="input"
-              type="checkbox"
-              id="delist-confirm-notify"
-              name="notify"
-              checked
-              aria-label="Email the author"
-            />
-          </div>
-        </section>
-        <footer>
-          <button
-            type="button"
-            class="btn"
-            data-variant="outline"
-            onclick="this.closest('dialog').close()"
-          >
-            Cancel
-          </button>
-          <button type="submit" class="btn" data-variant="destructive">
-            Delist
-          </button>
-        </footer>
-        <input type="hidden" name="id" id="delist-hidden-id" />
-        <button
-          type="button"
-          class="btn"
-          data-variant="ghost"
-          data-size="icon-sm"
-          aria-label="Close dialog"
-          onclick="this.closest('dialog').close()"
-        >
-          <X class="size-4" />
-        </button>
-      </form>
-    </dialog>
+      <span slot="title">
+        Delist "<span id="delist-confirm-id"></span>"?
+      </span>
+      <div class="field">
+        <label for="delist-confirm-reason">Reason</label>
+        <textarea
+          class="textarea"
+          id="delist-confirm-reason"
+          name="reason"
+          placeholder="Why is this being removed? The owner will see this."
+          required
+        ></textarea>
+      </div>
+      <NotifyField id="delist-confirm-notify" recipient="author" />
+      <input type="hidden" name="id" id="delist-hidden-id" slot="extra" />
+    </DialogShell>
 
     <section class="space-y-3">
       <h2 class="font-semibold">Revision Queue</h2>
@@ -369,28 +322,14 @@ const prevPageUrl = prevCursorPageUrl(Astro.url, 'cursor', 'cursors');
                     </details>
                     {r.status === 'pending' && (
                       <div class="flex items-center gap-3 mt-4">
-                        <form
-                          method="POST"
-                          action={`/account/moderate/${r.extension_id}/${r.id}/approve`}
-                          class="flex items-center gap-3"
+                        <button
+                          type="button"
+                          class="btn"
+                          data-size="sm"
+                          onclick={`document.getElementById('approve-revision-${r.id}').showModal()`}
                         >
-                          <input type="hidden" name="intent" value="approve" />
-                          <label
-                            class="flex items-center gap-1.5 text-sm text-muted-foreground"
-                            title="Uncheck to skip emailing the author"
-                          >
-                            <input
-                              class="input"
-                              type="checkbox"
-                              name="notify"
-                              checked
-                            />
-                            Email author
-                          </label>
-                          <button type="submit" class="btn" data-size="sm">
-                            Approve
-                          </button>
-                        </form>
+                          Approve
+                        </button>
                         <button
                           type="button"
                           class="btn"
@@ -404,13 +343,23 @@ const prevPageUrl = prevCursorPageUrl(Astro.url, 'cursor', 'cursors');
                     )}
 
                     {r.status === 'pending' && (
-                      <RejectDialog
-                        id={`reject-revision-${r.id}`}
-                        title={`Reject "${r.content.name ?? r.extension_id}"?`}
-                        description="The submitter will see this reason."
-                        formAction={`/account/moderate/${r.extension_id}/${r.id}/reject`}
-                        reasonPlaceholder="Reason for rejection"
-                      />
+                      <>
+                        <ApproveDialog
+                          id={`approve-revision-${r.id}`}
+                          title={`Approve "${r.content.name ?? r.extension_id}"?`}
+                          description="The new revision will go live immediately."
+                          formAction={`/account/moderate/${r.extension_id}/${r.id}/approve`}
+                          notifyRecipient="author"
+                          hiddenFields={[{ name: 'intent', value: 'approve' }]}
+                        />
+                        <RejectDialog
+                          id={`reject-revision-${r.id}`}
+                          title={`Reject "${r.content.name ?? r.extension_id}"?`}
+                          description="The submitter will see this reason."
+                          formAction={`/account/moderate/${r.extension_id}/${r.id}/reject`}
+                          reasonPlaceholder="Reason for rejection"
+                        />
+                      </>
                     )}
                     {r.status !== 'pending' && r.review_note && (
                       <p class="text-sm text-muted-foreground mt-2">

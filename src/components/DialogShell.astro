@@ -1,0 +1,60 @@
+---
+import { X } from '@lucide/astro';
+
+interface Props {
+  id: string;
+  title?: string;
+  description: string;
+  formAction: string;
+  submitLabel: string;
+  submitVariant?: 'destructive';
+}
+
+const { id, title, description, formAction, submitLabel, submitVariant } =
+  Astro.props;
+---
+
+<dialog
+  id={id}
+  class="dialog"
+  aria-labelledby={`${id}-title`}
+  aria-describedby={`${id}-description`}
+  onclick="if (arguments[0].target === this) this.close()"
+  onclose="this.querySelector('form').reset()"
+>
+  <form method="POST" action={formAction}>
+    <header>
+      <h2 id={`${id}-title`}>
+        <slot name="title">{title}</slot>
+      </h2>
+      <p id={`${id}-description`}>{description}</p>
+    </header>
+    <section>
+      <slot />
+    </section>
+    <footer>
+      <button
+        type="button"
+        class="btn"
+        data-variant="outline"
+        onclick="this.closest('dialog').close()"
+      >
+        Cancel
+      </button>
+      <button type="submit" class="btn" data-variant={submitVariant}>
+        {submitLabel}
+      </button>
+    </footer>
+    <slot name="extra" />
+    <button
+      type="button"
+      class="btn"
+      data-variant="ghost"
+      data-size="icon-sm"
+      aria-label="Close dialog"
+      onclick="this.closest('dialog').close()"
+    >
+      <X class="size-4" />
+    </button>
+  </form>
+</dialog>
