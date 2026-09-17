@@ -47,6 +47,8 @@ Issues and pull requests are welcome. Useful contributions include bug reports, 
 
 For broader discussion, join the FOSSBilling community on [Discord](https://fossbilling.org/discord).
 
+Agent worktrees under `.claude/worktrees/` are local scratch checkouts. They are ignored by git and are never part of the build, tests, or review — work from the main checkout instead.
+
 ## Local Development
 
 Install dependencies:

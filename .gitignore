@@ -17,6 +17,9 @@ pnpm-debug.log*
 .env
 .env.production
 
+# agent worktrees (local scratch checkouts, never committed)
+.claude/worktrees/
+
 # macOS-specific files
 .DS_Store
 
