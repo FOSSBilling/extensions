@@ -4,7 +4,7 @@ import LogoLight from '@/assets/logo-light.svg';
 import LogoDark from '@/assets/logo-dark.svg';
 import Container from '@/components/Container.astro';
 import Toast from '@/components/Toast.astro';
-import { Sun, Moon, LogIn, LogOut, CircleUser } from '@lucide/astro';
+import { Sun, Moon, LogIn, LogOut, CircleUser, User, ShieldUser } from '@lucide/astro';
 import { getSessionUser } from '@/lib/session';
 
 interface Props {
@@ -114,7 +114,9 @@ const { flash } = Astro.locals;
                       id="account-menu-items-1"
                       role="menuitem"
                       href="/account"
+                      class="gap-2"
                     >
+                      <User class="size-4" aria-hidden="true" />
                       Account
                     </a>
                     {user.is_moderator && (
@@ -122,27 +124,31 @@ const { flash } = Astro.locals;
                         id="account-menu-items-2"
                         role="menuitem"
                         href="/account/admin"
+                        class="gap-2"
                       >
+                        <ShieldUser class="size-4" aria-hidden="true" />
                         Admin
                       </a>
                     )}
+                    <div role="separator"></div>
+                    <form
+                      method="POST"
+                      action="/auth/logout"
+                      class="contents"
+                    >
+                      <button
+                        id="account-menu-items-3"
+                        role="menuitem"
+                        type="submit"
+                        class="gap-2"
+                      >
+                        <LogOut class="size-4" aria-hidden="true" />
+                        Sign Out
+                      </button>
+                    </form>
                   </div>
                 </div>
               </div>
-              <form method="POST" action="/auth/logout">
-                <button
-                  type="submit"
-                  aria-label="Sign Out"
-                  data-tooltip="Sign Out"
-                  data-side="bottom"
-                  data-align="end"
-                  class="btn"
-                  data-size="icon-sm"
-                  data-variant="outline"
-                >
-                  <LogOut class="w-5 h-5" aria-hidden="true" />
-                </button>
-              </form>
             </>
           ) : (
             <a
