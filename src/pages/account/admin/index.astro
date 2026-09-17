@@ -5,6 +5,7 @@ import { createApiClient } from '@/lib/api/client';
 import ApproveDialog from '@/components/ApproveDialog.astro';
 import RejectDialog from '@/components/RejectDialog.astro';
 import EmptyState from '@/components/admin/EmptyState.astro';
+import DeveloperProfilesTable from '@/components/admin/DeveloperProfilesTable.astro';
 import PendingRevisionsTable from '@/components/admin/PendingRevisionsTable.astro';
 
 const env = Astro.locals.env;
@@ -18,7 +19,7 @@ const api = createApiClient(env, user.sub);
 // link into the filtered tab where the full paginated list lives.
 const [revisionsResult, developersResult, claimsResult] =
   await Promise.allSettled([
-    api.listModerationQueue('pending', { limit: 3 }),
+    api.listModerationQueue('pending', { limit: 5 }),
     api.listUnapprovedDevelopers(),
     api.listPendingClaims(),
   ]);
@@ -119,76 +120,135 @@ const stats = [
 
   <section class="space-y-3">
     <div class="flex items-center justify-between gap-3">
-      <h2 class="font-semibold">Needs a Decision</h2>
-    </div>
-    {unapprovedDevelopers.length === 0 && pendingClaims.length === 0 ? (
-      <EmptyState
-        title="Nothing Needs a Decision"
-        description="New profiles and claims will appear here."
-      />
-    ) : (
-      <div class="grid gap-4 md:grid-cols-2">
-        <div class="card p-4 space-y-2">
-          <p class="font-medium text-sm">Developers Awaiting Review</p>
-          {unapprovedDevelopers.length === 0 ? (
-            <p class="text-sm text-muted-foreground">No Pending Profiles</p>
-          ) : (
-            <ul class="text-sm space-y-1">
-              {unapprovedDevelopers.slice(0, 5).map((d) => (
-                <li>
-                  <a href={`/account/admin/developers/${d.id}/history`}>
-                    {d.name} ({d.id})
-                  </a>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-        <div class="card p-4 space-y-2">
-          <p class="font-medium text-sm">Profile Claims Awaiting Review</p>
-          {pendingClaims.length === 0 ? (
-            <p class="text-sm text-muted-foreground">
-              No Claims Awaiting Review
-            </p>
-          ) : (
-            <ul class="text-sm space-y-1">
-              {pendingClaims.slice(0, 5).map((c) => (
-                <li>
-                  <a
-                    href={`/account/admin/developers?view=claims#claim-${c.id}`}
-                  >
-                    {c.developer_name} ({c.developer_id})
-                  </a>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+      <h2 class="font-semibold">Pending Developers</h2>
+        <a
+          href="/account/admin/developers"
+          class="btn"
+          data-size="sm"
+          data-variant="outline"
+        >
+          View All
+        </a>
       </div>
-    )}
-  </section>
+      {unapprovedDevelopers.length === 0 ? (
+        <p class="text-sm text-muted-foreground">No Pending Profiles</p>
+      ) : (
+        <DeveloperProfilesTable
+          developers={unapprovedDevelopers.slice(0, 5)}
+        />
+      )}
+    </section>
+    <section class="space-y-3">
+      <div class="flex items-center justify-between gap-3">
+        <h2 class="font-semibold">Pending Claims</h2>
+        <a
+          href="/account/admin/developers?view=claims"
+          class="btn"
+          data-size="sm"
+          data-variant="outline"
+        >
+          View All
+        </a>
+      </div>
+      {pendingClaims.length === 0 ? (
+        <p class="text-sm text-muted-foreground">No Claims Awaiting Review</p>
+      ) : (
+        <ul class="space-y-4">
+          {pendingClaims.slice(0, 5).map((c) => (
+            <li class="card gap-4 p-5 scroll-mt-24" id={`claim-${c.id}`}>
+              <header class="px-0">
+                <h3 class="font-semibold flex flex-wrap items-center gap-2">
+                  {c.developer_name} ({c.developer_id})
+                  {c.github_org_verified && (
+                    <span class="badge">GitHub Verified</span>
+                  )}
+                </h3>
+                <p class="text-sm text-muted-foreground">
+                  {c.developer_type} · claimed by{' '}
+                  <strong>{c.claimant_name ?? c.claimant_id}</strong>
+                  {c.claimant_github_login && (
+                    <>
+                      {' '}
+                      <a href={`https://github.com/${c.claimant_github_login}`}>
+                        @{c.claimant_github_login}
+                      </a>
+                    </>
+                  )}
+                </p>
+                {c.note && <p class="text-sm mt-1">&ldquo;{c.note}&rdquo;</p>}
+              </header>
+              <footer class="flex items-center gap-2 flex-wrap">
+                <button
+                  type="button"
+                  class="btn"
+                  data-size="sm"
+                  onclick={`document.getElementById('approve-claim-${c.id}').showModal()`}
+                >
+                  Approve
+                </button>
+                <button
+                  type="button"
+                  class="btn"
+                  data-size="sm"
+                  data-variant="destructive"
+                  onclick={`document.getElementById('reject-claim-${c.id}').showModal()`}
+                >
+                  Reject
+                </button>
+              </footer>
 
-  <!-- Single shared pair of dialogs for the pending table above: row buttons
-       set formAction + titles via data attributes (see script below), same as
-       /account/admin/revisions. Acting here lands on the full queue, since
-       the POST handlers redirect there. -->
-  <ApproveDialog
-    id="admin-approve-revision"
-    title="Approve Revision?"
-    description="The new revision will go live immediately."
-    formAction="/account/admin/revisions/placeholder/placeholder/approve"
-    notifyRecipient="author"
-    hiddenFields={[{ name: 'intent', value: 'approve' }]}
-  />
-  <RejectDialog
-    id="admin-reject-revision"
-    title="Reject Revision?"
-    description="The submitter will see this reason."
-    formAction="/account/admin/revisions/placeholder/placeholder/reject"
-  />
+              <ApproveDialog
+                id={`approve-claim-${c.id}`}
+                title={`Approve claim on "${c.developer_id}"?`}
+                description="The claimant will gain ownership of this profile immediately."
+                formAction={`/account/admin/developers/claims/${c.id}/approve`}
+                notifyRecipient="claimant"
+                hiddenFields={[{ name: 'intent', value: 'approve' }]}
+              />
+              <RejectDialog
+                id={`reject-claim-${c.id}`}
+                title={`Reject claim on "${c.developer_id}"?`}
+                description="The claimant will see this reason."
+                formAction={`/account/admin/developers/claims/${c.id}/reject`}
+                notifyRecipient="claimant"
+              />
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
 </Admin>
 
 <script>
   import { initRevisionQueue } from '@/lib/admin-revisions-client';
   initRevisionQueue();
+
+  // Single shared approve dialog for the developers table above: each row
+  // button carries its developer on data attributes (same as
+  // /account/admin/developers).
+  const developerDialog = document.querySelector<HTMLDialogElement>(
+    '#admin-approve-developer',
+  );
+
+  document.addEventListener('click', (event) => {
+    const button = (
+      event.target as HTMLElement | null
+    )?.closest<HTMLButtonElement>('button[data-approve-developer]');
+    if (!button || !developerDialog) return;
+
+    const id = button.dataset.developerId ?? '';
+    const form = developerDialog.querySelector('form');
+    const titleEl = developerDialog.querySelector('h2');
+    const revisionInput = developerDialog.querySelector<HTMLInputElement>(
+      'input[name="expected_revision"]',
+    );
+    if (form) form.action = `/account/admin/developers/${id}/approve`;
+    if (titleEl) {
+      titleEl.textContent = `Approve "${button.dataset.developerName ?? id}"?`;
+    }
+    if (revisionInput) {
+      revisionInput.value = button.dataset.expectedRevision ?? '';
+    }
+    developerDialog.showModal();
+  });
 </script>
