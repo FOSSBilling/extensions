@@ -1,4 +1,4 @@
-import { defineConfig } from 'vitest/config';
+import { configDefaults, defineConfig } from 'vitest/config';
 import { fileURLToPath, URL } from 'node:url';
 
 export default defineConfig({
@@ -9,5 +9,8 @@ export default defineConfig({
   },
   test: {
     environment: 'node',
+    // Agent worktrees under .claude/ are full checkouts whose test files
+    // must never run as part of this repo's suite.
+    exclude: [...configDefaults.exclude, '**/.claude/**'],
   },
 });

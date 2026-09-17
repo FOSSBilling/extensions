@@ -5,17 +5,11 @@ import {
   getDevelopersById,
   getDevelopersByIdHistory,
   getDevelopersClaims,
-  getDevelopersClaimsMine,
   getDevelopersMe,
-  getDevelopersUnapproved,
   getExtensions,
   getExtensionsById,
   getExtensionsByIdRevisions,
-  getExtensionsMine,
-  getExtensionsMineById,
-  getModerationAllExtensions,
-  getModerationExtensions,
-  getModerationExtensionsById,
+  getRevisions,
   getUsersMe,
   patchUsersMe,
   postDevelopersByIdApprove,
@@ -37,7 +31,6 @@ import {
   putUsersMeIdentity,
   type Developer,
   type DeveloperApproval,
-  type DeveloperClaim,
   type DeveloperHistoryEntry,
   type DeveloperProfile,
   type DeveloperTransfer,
@@ -45,21 +38,19 @@ import {
   type Extension,
   type ExtensionCreate,
   type ExtensionListItem,
-  type ExtensionListResponse,
   type ExtensionRevision,
   type ExtensionUpdate,
   type GetExtensionsByIdRevisionsData,
   type GetExtensionsByIdRevisionsResponse,
   type GetExtensionsData,
-  type GetExtensionsMineData,
-  type GetModerationAllExtensionsData,
-  type GetModerationExtensionsData,
-  type GetModerationExtensionsResponse,
+  type GetRevisionsData,
+  type GetRevisionsResponses,
   type OwnedDeveloperProfile,
   type OwnedExtension,
   type OwnedExtensionListItem,
-  type OwnedExtensionListResponse,
+  type Pagination,
   type PendingDeveloperClaim,
+  type PublicDeveloper,
   type User,
   type UserIdentityInput,
   type PutDevelopersMeData,
@@ -76,14 +67,10 @@ export const MIN_API_PAGE_LIMIT = 1;
 export const MAX_API_PAGE_LIMIT = 100;
 
 type ExtensionListQuery = NonNullable<GetExtensionsData['query']>;
-type ExtensionMineQuery = NonNullable<GetExtensionsMineData['query']>;
 type RevisionHistoryQuery = NonNullable<
   GetExtensionsByIdRevisionsData['query']
 >;
-type ModerationQueueQuery = NonNullable<GetModerationExtensionsData['query']>;
-type ModerationExtensionsQuery = NonNullable<
-  GetModerationAllExtensionsData['query']
->;
+type RevisionQueueQuery = NonNullable<GetRevisionsData['query']>;
 
 export type ExtensionCatalogueFilters = Pick<
   ExtensionListQuery,
@@ -91,7 +78,7 @@ export type ExtensionCatalogueFilters = Pick<
 >;
 
 export type ExtensionMineFilters = Pick<
-  ExtensionMineQuery,
+  ExtensionListQuery,
   'type' | 'limit' | 'cursor'
 >;
 
@@ -101,24 +88,37 @@ export type RevisionHistoryOptions = Pick<
 >;
 
 export type ModerationQueueOptions = Pick<
-  ModerationQueueQuery,
+  RevisionQueueQuery,
   'cursor' | 'limit'
 >;
 
 export type ModerationExtensionFilters = Pick<
-  ModerationExtensionsQuery,
+  ExtensionListQuery,
   'status' | 'type' | 'q' | 'limit' | 'cursor'
 >;
 
 export type ModerationExtensionStatus = Exclude<
-  ModerationExtensionsQuery['status'],
+  ExtensionListQuery['status'],
   undefined
 >;
 
 export type RevisionHistoryPage = GetExtensionsByIdRevisionsResponse;
-export type ModerationQueuePage = GetModerationExtensionsResponse;
+export type ModerationQueuePage = GetRevisionsResponses[200];
 export type DeveloperProfileInput = NonNullable<PutDevelopersMeData['body']>;
-export type RevisionStatus = Exclude<ModerationQueueQuery['status'], undefined>;
+export type RevisionStatus = Exclude<RevisionQueueQuery['status'], undefined>;
+
+// The v2 list/detail reads are role-aware unions. These wrappers pin a scope
+// (public catalogue vs mine/all) or a transport (anonymous vs authenticated),
+// so they narrow to the projection that scope always returns.
+export interface ExtensionListResponse {
+  result: ExtensionListItem[];
+  pagination: Pagination;
+}
+
+export interface OwnedExtensionListResponse {
+  result: OwnedExtensionListItem[];
+  pagination: Pagination;
+}
 
 export type AccountUser = User;
 export type IdentitySyncInput = UserIdentityInput;
@@ -127,19 +127,16 @@ export type OwnedDeveloper = OwnedDeveloperProfile;
 export type {
   Developer,
   DeveloperApproval,
-  DeveloperClaim,
   DeveloperHistoryEntry,
   DeveloperProfile,
   DeveloperTransfer,
   Extension,
   ExtensionCreate,
   ExtensionListItem,
-  ExtensionListResponse,
   ExtensionRevision,
   ExtensionUpdate,
   OwnedExtension,
   OwnedExtensionListItem,
-  OwnedExtensionListResponse,
   PendingDeveloperClaim,
 };
 
@@ -270,6 +267,20 @@ function notifyQuery(notify: boolean): { query?: { notify: 'false' } } {
   return notify ? {} : { query: { notify: 'false' } };
 }
 
+function requireOwnedExtension(
+  result: Extension | OwnedExtension,
+  id: string,
+): OwnedExtension {
+  // The role-aware detail read falls through to the public projection for
+  // unrelated callers instead of 403ing. Owner/moderator views must not
+  // mistake that for an owned row, so treat it as not-found like before.
+  if (!('pending_revision' in result)) {
+    throw new ApiRequestError(404, 'not_found', `Extension "${id}" not found.`);
+  }
+
+  return result;
+}
+
 function extensionQuery(
   filters: ExtensionCatalogueFilters = {},
 ): ExtensionListQuery {
@@ -292,8 +303,9 @@ function extensionQuery(
 
 function mineExtensionQuery(
   filters: ExtensionMineFilters = {},
-): ExtensionMineQuery {
-  const query: ExtensionMineQuery = {
+): ExtensionListQuery {
+  const query: ExtensionListQuery = {
+    scope: 'mine',
     limit: clampApiPageLimit(filters.limit),
   };
 
@@ -309,8 +321,9 @@ function mineExtensionQuery(
 
 function moderationExtensionQuery(
   filters: ModerationExtensionFilters = {},
-): ModerationExtensionsQuery {
-  const query: ModerationExtensionsQuery = {
+): ExtensionListQuery {
+  const query: ExtensionListQuery = {
+    scope: 'all',
     limit: clampApiPageLimit(filters.limit),
   };
 
@@ -334,12 +347,16 @@ export async function listExtensions(
   env: ApplicationEnv,
   filters: ExtensionCatalogueFilters = {},
 ): Promise<ExtensionListResponse> {
-  return unwrap(
+  const page = await unwrap(
     await getExtensions({
       client: createApiTransport(env),
       query: extensionQuery(filters),
     }),
   );
+  return {
+    result: page.result as ExtensionListItem[],
+    pagination: page.pagination,
+  };
 }
 
 export async function getExtensionById(
@@ -351,19 +368,19 @@ export async function getExtensionById(
     path: { id },
   });
   const data = await unwrap(response);
-  return data.result;
+  return data.result as Extension;
 }
 
 export async function getDeveloperById(
   env: ApplicationEnv,
   id: string,
-): Promise<import('@/lib/api/generated/extensions-v2').PublicDeveloper> {
-  return unwrap(
-    await getDevelopersById({
-      client: createApiTransport(env),
-      path: { id },
-    }),
-  ).then((response) => response.result);
+): Promise<PublicDeveloper> {
+  const response = await getDevelopersById({
+    client: createApiTransport(env),
+    path: { id },
+  });
+  const data = await unwrap(response);
+  return data.result as PublicDeveloper;
 }
 
 export function createApiClient(env: ApplicationEnv, subject: string) {
@@ -395,23 +412,31 @@ export function createApiClient(env: ApplicationEnv, subject: string) {
 
     listMyExtensions: async (
       options: ExtensionMineFilters = {},
-    ): Promise<OwnedExtensionListResponse> =>
-      unwrap(
-        await getExtensionsMine({
+    ): Promise<OwnedExtensionListResponse> => {
+      const page = await unwrap(
+        await getExtensions({
           client,
           query: mineExtensionQuery(options),
         }),
-      ),
+      );
+      return {
+        result: page.result as OwnedExtensionListItem[],
+        pagination: page.pagination,
+      };
+    },
 
     getMyExtension: async (id: string): Promise<OwnedExtension> =>
-      (
-        await unwrap(
-          await getExtensionsMineById({
-            client,
-            path: { id },
-          }),
-        )
-      ).result,
+      requireOwnedExtension(
+        (
+          await unwrap(
+            await getExtensionsById({
+              client,
+              path: { id },
+            }),
+          )
+        ).result,
+        id,
+      ),
 
     createExtension: async (payload: ExtensionCreate) =>
       (
@@ -461,31 +486,39 @@ export function createApiClient(env: ApplicationEnv, subject: string) {
       options: ModerationQueueOptions = {},
     ): Promise<ModerationQueuePage> =>
       unwrap(
-        await getModerationExtensions({
+        await getRevisions({
           client,
           query: { status, ...pageQuery(options) },
         }),
       ),
 
     getModerationExtension: async (id: string): Promise<OwnedExtension> =>
-      (
-        await unwrap(
-          await getModerationExtensionsById({
-            client,
-            path: { id },
-          }),
-        )
-      ).result,
+      requireOwnedExtension(
+        (
+          await unwrap(
+            await getExtensionsById({
+              client,
+              path: { id },
+            }),
+          )
+        ).result,
+        id,
+      ),
 
     listAllExtensions: async (
       options: ModerationExtensionFilters = {},
-    ): Promise<OwnedExtensionListResponse> =>
-      unwrap(
-        await getModerationAllExtensions({
+    ): Promise<OwnedExtensionListResponse> => {
+      const page = await unwrap(
+        await getExtensions({
           client,
           query: moderationExtensionQuery(options),
         }),
-      ),
+      );
+      return {
+        result: page.result as OwnedExtensionListItem[],
+        pagination: page.pagination,
+      };
+    },
 
     approveRevision: async (
       extensionId: string,
@@ -569,8 +602,9 @@ export function createApiClient(env: ApplicationEnv, subject: string) {
     listUnapprovedDevelopers: async () =>
       (
         await unwrap(
-          await getDevelopersUnapproved({
+          await getDevelopers({
             client,
+            query: { status: 'unapproved' },
           }),
         )
       ).result,
@@ -666,8 +700,9 @@ export function createApiClient(env: ApplicationEnv, subject: string) {
     listMyClaims: async () =>
       (
         await unwrap(
-          await getDevelopersClaimsMine({
+          await getDevelopersClaims({
             client,
+            query: { scope: 'mine' },
           }),
         )
       ).result,
@@ -677,6 +712,7 @@ export function createApiClient(env: ApplicationEnv, subject: string) {
         await unwrap(
           await getDevelopersClaims({
             client,
+            query: { scope: 'pending' },
           }),
         )
       ).result,

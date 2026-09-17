@@ -4,9 +4,54 @@ export type ClientOptions = {
   baseUrl: `${string}://${string}/extensions/v2` | (string & {});
 };
 
-export type OwnedExtensionListResponse = {
-  result: Array<OwnedExtensionListItem>;
+export type UnifiedExtensionListResponse = {
+  result: Array<ExtensionListItem | OwnedExtensionListItem>;
   pagination: Pagination;
+};
+
+export type ExtensionListItem = {
+  type:
+    | 'mod'
+    | 'theme'
+    | 'payment-gateway'
+    | 'server-manager'
+    | 'domain-registrar'
+    | 'hook'
+    | 'translation';
+  name: string;
+  description: string;
+  website: string;
+  license: License;
+  icon_url?: string;
+  source: Repository;
+  version: string;
+  download_url: string;
+  id: string;
+  developer: PublicDeveloper;
+};
+
+export type License = {
+  name: string;
+  /**
+   * A current SPDX license identifier (https://spdx.org/licenses/). Omitted for custom or proprietary licenses.
+   */
+  spdx_id?: string;
+  URL?: string;
+};
+
+export type Repository = {
+  type: 'github' | 'gitlab' | 'custom';
+  repo: string;
+};
+
+export type PublicDeveloper = {
+  id: string;
+  type: 'user' | 'organization';
+  name: string;
+  URL?: string;
+  avatar_url?: string;
+  approved: boolean;
+  unclaimed: boolean;
 };
 
 export type OwnedExtensionListItem = {
@@ -35,30 +80,6 @@ export type OwnedExtensionListItem = {
   delisted: DelistedInfo;
   created_at: string;
   updated_at: string;
-};
-
-export type PublicDeveloper = {
-  id: string;
-  type: 'user' | 'organization';
-  name: string;
-  URL?: string;
-  avatar_url?: string;
-  approved: boolean;
-  unclaimed: boolean;
-};
-
-export type License = {
-  name: string;
-  /**
-   * A current SPDX license identifier (https://spdx.org/licenses/). Omitted for custom or proprietary licenses.
-   */
-  spdx_id?: string;
-  URL?: string;
-};
-
-export type Repository = {
-  type: 'github' | 'gitlab' | 'custom';
-  repo: string;
 };
 
 export type PendingRevisionRef = {
@@ -100,15 +121,13 @@ export type Error = {
   };
 };
 
-export type OwnedExtension = OwnedExtensionListItem & {
-  published?: ExtensionContent &
-    ({
-      releases?: Array<Release>;
-    } | null);
-  pending_revision?: PendingRevisionRef &
-    ({
-      content: StoredExtensionContent;
-    } | null);
+export type ExtensionDetailResponse = {
+  result: Extension | OwnedExtension;
+};
+
+export type Extension = ExtensionContent & {
+  id: string;
+  developer: PublicDeveloper;
 };
 
 export type Release = {
@@ -138,6 +157,17 @@ export type ExtensionContent = {
   source: Repository;
   version: string;
   download_url: string;
+};
+
+export type OwnedExtension = OwnedExtensionListItem & {
+  published?: ExtensionContent &
+    ({
+      releases?: Array<Release>;
+    } | null);
+  pending_revision?: PendingRevisionRef &
+    ({
+      content: StoredExtensionContent;
+    } | null);
 };
 
 export type StoredExtensionContent = {
@@ -215,37 +245,6 @@ export type ExtensionRevision = {
   review_note: string | null;
   created_at: string;
   reviewed_at: string | null;
-};
-
-export type ExtensionListResponse = {
-  result: Array<ExtensionListItem>;
-  pagination: Pagination;
-};
-
-export type ExtensionListItem = {
-  type:
-    | 'mod'
-    | 'theme'
-    | 'payment-gateway'
-    | 'server-manager'
-    | 'domain-registrar'
-    | 'hook'
-    | 'translation';
-  name: string;
-  description: string;
-  website: string;
-  license: License;
-  icon_url?: string;
-  source: Repository;
-  version: string;
-  download_url: string;
-  id: string;
-  developer: PublicDeveloper;
-};
-
-export type Extension = ExtensionContent & {
-  id: string;
-  developer: PublicDeveloper;
 };
 
 export type User = {
@@ -365,105 +364,9 @@ export type DeveloperInput = {
   contact_email?: string;
 };
 
-export type GetExtensionsMineData = {
-  body?: never;
-  path?: never;
-  query?: {
-    type?:
-      | 'mod'
-      | 'theme'
-      | 'payment-gateway'
-      | 'server-manager'
-      | 'domain-registrar'
-      | 'hook'
-      | 'translation';
-    limit?: number;
-    /**
-     * Opaque cursor returned by the previous page
-     */
-    cursor?: string;
-  };
-  url: '/extensions/mine';
+export type DeveloperDetailResponse = {
+  result: PublicDeveloper | DeveloperProfile | OwnedDeveloperProfile;
 };
-
-export type GetExtensionsMineErrors = {
-  /**
-   * Missing or invalid bearer token
-   */
-  401: Error;
-  /**
-   * The bearer is valid but the account is inactive
-   */
-  403: Error;
-  /**
-   * Pagination query failed validation
-   */
-  422: Error;
-  /**
-   * Database error
-   */
-  500: Error;
-};
-
-export type GetExtensionsMineError =
-  GetExtensionsMineErrors[keyof GetExtensionsMineErrors];
-
-export type GetExtensionsMineResponses = {
-  /**
-   * Every extension under the caller's developer profile, each with its live content, any unreviewed edit, and the last moderator decision
-   */
-  200: OwnedExtensionListResponse;
-};
-
-export type GetExtensionsMineResponse =
-  GetExtensionsMineResponses[keyof GetExtensionsMineResponses];
-
-export type GetExtensionsMineByIdData = {
-  body?: never;
-  path: {
-    id: string;
-  };
-  query?: never;
-  url: '/extensions/mine/{id}';
-};
-
-export type GetExtensionsMineByIdErrors = {
-  /**
-   * Missing or invalid bearer token
-   */
-  401: Error;
-  /**
-   * The account is inactive, or the caller does not own this extension
-   */
-  403: Error;
-  /**
-   * No extension with that id
-   */
-  404: Error;
-  /**
-   * id param failed validation
-   */
-  422: Error;
-  /**
-   * Database error
-   */
-  500: Error;
-};
-
-export type GetExtensionsMineByIdError =
-  GetExtensionsMineByIdErrors[keyof GetExtensionsMineByIdErrors];
-
-export type GetExtensionsMineByIdResponses = {
-  /**
-   * The extension's live content, its unreviewed edit if any, and the last moderator decision
-   */
-  200: {
-    result: OwnedExtension;
-  };
-};
-
-export type GetExtensionsMineByIdResponse =
-  GetExtensionsMineByIdResponses[keyof GetExtensionsMineByIdResponses];
 
 export type GetExtensionsData = {
   body?: never;
@@ -477,17 +380,40 @@ export type GetExtensionsData = {
       | 'domain-registrar'
       | 'hook'
       | 'translation';
+    /**
+     * Public scope only
+     */
     developer_id?: string;
     limit?: number;
     /**
      * Opaque cursor returned by the previous page
      */
     cursor?: string;
+    /**
+     * public: published catalogue (anonymous allowed). mine: caller's own extensions. all: every extension (moderator only).
+     */
+    scope?: 'public' | 'mine' | 'all';
+    /**
+     * All scope only: published, delisted, or unpublished
+     */
+    status?: 'published' | 'delisted' | 'unpublished';
+    /**
+     * All scope only: case-insensitive substring match on the extension id
+     */
+    q?: string;
   };
   url: '/extensions';
 };
 
 export type GetExtensionsErrors = {
+  /**
+   * Invalid bearer token
+   */
+  401: Error;
+  /**
+   * Inactive account, non-moderator scope=all, or scope misuse
+   */
+  403: Error;
   /**
    * Filter or pagination query failed validation
    */
@@ -502,9 +428,9 @@ export type GetExtensionsError = GetExtensionsErrors[keyof GetExtensionsErrors];
 
 export type GetExtensionsResponses = {
   /**
-   * Extensions matching the given filters
+   * Extensions matching the scope: catalogue cards for scope=public, owned rows for scope=mine/all
    */
-  200: ExtensionListResponse;
+  200: UnifiedExtensionListResponse;
 };
 
 export type GetExtensionsResponse =
@@ -620,6 +546,10 @@ export type GetExtensionsByIdData = {
 
 export type GetExtensionsByIdErrors = {
   /**
+   * Invalid bearer token
+   */
+  401: Error;
+  /**
    * No extension with that id
    */
   404: Error;
@@ -638,11 +568,9 @@ export type GetExtensionsByIdError =
 
 export type GetExtensionsByIdResponses = {
   /**
-   * The extension
+   * Published projection for anonymous/unrelated callers, owned projection for the owner or a moderator
    */
-  200: {
-    result: Extension;
-  };
+  200: ExtensionDetailResponse;
 };
 
 export type GetExtensionsByIdResponse =
@@ -902,12 +830,10 @@ export type PatchUsersMeError = PatchUsersMeErrors[keyof PatchUsersMeErrors];
 
 export type PatchUsersMeResponses = {
   /**
-   * Profile updated
+   * Profile updated (full account projection)
    */
   200: {
-    result: {
-      display_name: string | null;
-    };
+    result: User;
   };
 };
 
@@ -1023,47 +949,19 @@ export type PostDevelopersClaimsByIdCancelResponses = {
 export type PostDevelopersClaimsByIdCancelResponse =
   PostDevelopersClaimsByIdCancelResponses[keyof PostDevelopersClaimsByIdCancelResponses];
 
-export type GetDevelopersClaimsMineData = {
-  body?: never;
-  path?: never;
-  query?: never;
-  url: '/developers/claims/mine';
-};
-
-export type GetDevelopersClaimsMineErrors = {
-  /**
-   * Missing or invalid bearer token
-   */
-  401: Error;
-  /**
-   * The bearer is valid but the account is inactive
-   */
-  403: Error;
-  /**
-   * Database error
-   */
-  500: Error;
-};
-
-export type GetDevelopersClaimsMineError =
-  GetDevelopersClaimsMineErrors[keyof GetDevelopersClaimsMineErrors];
-
-export type GetDevelopersClaimsMineResponses = {
-  /**
-   * The caller's claims
-   */
-  200: {
-    result: Array<DeveloperClaim>;
-  };
-};
-
-export type GetDevelopersClaimsMineResponse =
-  GetDevelopersClaimsMineResponses[keyof GetDevelopersClaimsMineResponses];
-
 export type GetDevelopersClaimsData = {
   body?: never;
   path?: never;
-  query?: never;
+  query: {
+    /**
+     * mine: the caller's own claims. pending: claims awaiting review (moderator only).
+     */
+    scope: 'mine' | 'pending';
+    /**
+     * Filter claims by status (default: all)
+     */
+    status?: 'pending' | 'approved' | 'rejected' | 'all';
+  };
   url: '/developers/claims';
 };
 
@@ -1073,9 +971,13 @@ export type GetDevelopersClaimsErrors = {
    */
   401: Error;
   /**
-   * The account is inactive or the caller is not a moderator
+   * The bearer is valid but the account is inactive
    */
   403: Error;
+  /**
+   * scope query failed validation
+   */
+  422: Error;
   /**
    * Database error
    */
@@ -1087,7 +989,7 @@ export type GetDevelopersClaimsError =
 
 export type GetDevelopersClaimsResponses = {
   /**
-   * Claims awaiting moderator review
+   * Enriched claims with developer and claimant names in both scopes
    */
   200: {
     result: Array<PendingDeveloperClaim>;
@@ -1355,157 +1257,6 @@ export type PostDevelopersTransfersAcceptResponses = {
 export type PostDevelopersTransfersAcceptResponse =
   PostDevelopersTransfersAcceptResponses[keyof PostDevelopersTransfersAcceptResponses];
 
-export type GetModerationExtensionsData = {
-  body?: never;
-  path?: never;
-  query?: {
-    status?: 'pending' | 'approved' | 'rejected';
-    limit?: number;
-    cursor?: string;
-  };
-  url: '/moderation/extensions';
-};
-
-export type GetModerationExtensionsErrors = {
-  /**
-   * Missing or invalid bearer token
-   */
-  401: Error;
-  /**
-   * The account is inactive or the caller is not a moderator
-   */
-  403: Error;
-  /**
-   * status query param failed validation
-   */
-  422: Error;
-  /**
-   * Database error
-   */
-  500: Error;
-};
-
-export type GetModerationExtensionsError =
-  GetModerationExtensionsErrors[keyof GetModerationExtensionsErrors];
-
-export type GetModerationExtensionsResponses = {
-  /**
-   * Revisions matching the requested status (default: pending), oldest first
-   */
-  200: {
-    result: Array<ExtensionRevision>;
-    pagination: Pagination;
-  };
-};
-
-export type GetModerationExtensionsResponse =
-  GetModerationExtensionsResponses[keyof GetModerationExtensionsResponses];
-
-export type GetModerationAllExtensionsData = {
-  body?: never;
-  path?: never;
-  query?: {
-    type?:
-      | 'mod'
-      | 'theme'
-      | 'payment-gateway'
-      | 'server-manager'
-      | 'domain-registrar'
-      | 'hook'
-      | 'translation';
-    limit?: number;
-    /**
-     * Opaque cursor returned by the previous page
-     */
-    cursor?: string;
-    status?: 'published' | 'delisted' | 'unpublished';
-    /**
-     * Case-insensitive substring match on the extension id
-     */
-    q?: string;
-  };
-  url: '/moderation/all-extensions';
-};
-
-export type GetModerationAllExtensionsErrors = {
-  /**
-   * Missing or invalid bearer token
-   */
-  401: Error;
-  /**
-   * The account is inactive or the caller is not a moderator
-   */
-  403: Error;
-  /**
-   * Query params failed validation
-   */
-  422: Error;
-  /**
-   * Database error
-   */
-  500: Error;
-};
-
-export type GetModerationAllExtensionsError =
-  GetModerationAllExtensionsErrors[keyof GetModerationAllExtensionsErrors];
-
-export type GetModerationAllExtensionsResponses = {
-  /**
-   * Extensions matching the requested status (default: all), alphabetical by id
-   */
-  200: OwnedExtensionListResponse;
-};
-
-export type GetModerationAllExtensionsResponse =
-  GetModerationAllExtensionsResponses[keyof GetModerationAllExtensionsResponses];
-
-export type GetModerationExtensionsByIdData = {
-  body?: never;
-  path: {
-    id: string;
-  };
-  query?: never;
-  url: '/moderation/extensions/{id}';
-};
-
-export type GetModerationExtensionsByIdErrors = {
-  /**
-   * Missing or invalid bearer token
-   */
-  401: Error;
-  /**
-   * The account is inactive or the caller is not a moderator
-   */
-  403: Error;
-  /**
-   * No such extension
-   */
-  404: Error;
-  /**
-   * id param failed validation
-   */
-  422: Error;
-  /**
-   * Database error
-   */
-  500: Error;
-};
-
-export type GetModerationExtensionsByIdError =
-  GetModerationExtensionsByIdErrors[keyof GetModerationExtensionsByIdErrors];
-
-export type GetModerationExtensionsByIdResponses = {
-  /**
-   * The extension's live content, its unreviewed edit if any, the last moderator decision, and its delist state
-   */
-  200: {
-    result: OwnedExtension;
-  };
-};
-
-export type GetModerationExtensionsByIdResponse =
-  GetModerationExtensionsByIdResponses[keyof GetModerationExtensionsByIdResponses];
-
 export type PostExtensionsByIdRevisionsByRevisionIdApproveData = {
   body?: ReviewNoteOptional;
   path: {
@@ -1688,79 +1439,6 @@ export type PostExtensionsByIdDelistResponses = {
 export type PostExtensionsByIdDelistResponse =
   PostExtensionsByIdDelistResponses[keyof PostExtensionsByIdDelistResponses];
 
-export type GetDevelopersData = {
-  body?: never;
-  path?: never;
-  query?: never;
-  url: '/developers';
-};
-
-export type GetDevelopersErrors = {
-  /**
-   * Missing or invalid bearer token
-   */
-  401: Error;
-  /**
-   * The account is inactive or the caller is not a moderator
-   */
-  403: Error;
-  /**
-   * Database error
-   */
-  500: Error;
-};
-
-export type GetDevelopersError = GetDevelopersErrors[keyof GetDevelopersErrors];
-
-export type GetDevelopersResponses = {
-  /**
-   * All developer profiles
-   */
-  200: {
-    result: Array<DeveloperProfile>;
-  };
-};
-
-export type GetDevelopersResponse =
-  GetDevelopersResponses[keyof GetDevelopersResponses];
-
-export type GetDevelopersUnapprovedData = {
-  body?: never;
-  path?: never;
-  query?: never;
-  url: '/developers/unapproved';
-};
-
-export type GetDevelopersUnapprovedErrors = {
-  /**
-   * Missing or invalid bearer token
-   */
-  401: Error;
-  /**
-   * The account is inactive or the caller is not a moderator
-   */
-  403: Error;
-  /**
-   * Database error
-   */
-  500: Error;
-};
-
-export type GetDevelopersUnapprovedError =
-  GetDevelopersUnapprovedErrors[keyof GetDevelopersUnapprovedErrors];
-
-export type GetDevelopersUnapprovedResponses = {
-  /**
-   * Developer profiles not yet approved
-   */
-  200: {
-    result: Array<DeveloperProfile>;
-  };
-};
-
-export type GetDevelopersUnapprovedResponse =
-  GetDevelopersUnapprovedResponses[keyof GetDevelopersUnapprovedResponses];
-
 export type PostDevelopersByIdApproveData = {
   body?: DeveloperApproval;
   path: {
@@ -1863,6 +1541,96 @@ export type GetDevelopersByIdHistoryResponses = {
 
 export type GetDevelopersByIdHistoryResponse =
   GetDevelopersByIdHistoryResponses[keyof GetDevelopersByIdHistoryResponses];
+
+export type GetRevisionsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    status?: 'pending' | 'approved' | 'rejected';
+    limit?: number;
+    cursor?: string;
+  };
+  url: '/revisions';
+};
+
+export type GetRevisionsErrors = {
+  /**
+   * Missing or invalid bearer token
+   */
+  401: Error;
+  /**
+   * The account is inactive or the caller is not a moderator
+   */
+  403: Error;
+  /**
+   * Status, limit, or cursor query param failed validation
+   */
+  422: Error;
+  /**
+   * Database error
+   */
+  500: Error;
+};
+
+export type GetRevisionsError = GetRevisionsErrors[keyof GetRevisionsErrors];
+
+export type GetRevisionsResponses = {
+  /**
+   * Revisions matching the requested status (default: pending), oldest first
+   */
+  200: {
+    result: Array<ExtensionRevision>;
+    pagination: Pagination;
+  };
+};
+
+export type GetRevisionsResponse =
+  GetRevisionsResponses[keyof GetRevisionsResponses];
+
+export type GetDevelopersData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * all: every profile. unapproved: only profiles awaiting review.
+     */
+    status?: 'all' | 'unapproved';
+  };
+  url: '/developers';
+};
+
+export type GetDevelopersErrors = {
+  /**
+   * Missing or invalid bearer token
+   */
+  401: Error;
+  /**
+   * The account is inactive or the caller is not a moderator
+   */
+  403: Error;
+  /**
+   * status query failed validation
+   */
+  422: Error;
+  /**
+   * Database error
+   */
+  500: Error;
+};
+
+export type GetDevelopersError = GetDevelopersErrors[keyof GetDevelopersErrors];
+
+export type GetDevelopersResponses = {
+  /**
+   * Developer profiles matching the status filter
+   */
+  200: {
+    result: Array<DeveloperProfile>;
+  };
+};
+
+export type GetDevelopersResponse =
+  GetDevelopersResponses[keyof GetDevelopersResponses];
 
 export type DeleteDevelopersMeData = {
   body?: never;
@@ -2072,6 +1840,10 @@ export type GetDevelopersByIdData = {
 
 export type GetDevelopersByIdErrors = {
   /**
+   * Invalid bearer token
+   */
+  401: Error;
+  /**
    * No developer with that id
    */
   404: Error;
@@ -2090,11 +1862,9 @@ export type GetDevelopersByIdError =
 
 export type GetDevelopersByIdResponses = {
   /**
-   * The developer's public profile
+   * Public profile for anonymous callers, owned/full profile for the owner or a moderator
    */
-  200: {
-    result: PublicDeveloper;
-  };
+  200: DeveloperDetailResponse;
 };
 
 export type GetDevelopersByIdResponse =

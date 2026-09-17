@@ -190,8 +190,10 @@ submissions, claims, transfers, and extensions — happen in the
 [`FOSSBilling/api`](https://github.com/FOSSBilling/api) repo's `/extensions/v2` service;
 this app never queries those tables directly. The public catalogue uses the generated
 client from `src/lib/api/generated/extensions-v2`, with `GET /extensions` loaded in bounded cursor pages
-and `GET /extensions/{id}` used for complete detail pages. Account ownership/editing queries still
-use the API-backed helpers (`getExtensionsByOwner`, `getExtensionForSubmission`,
+and `GET /extensions/{id}` used for complete detail pages. Owner and moderator views use the same
+two paths with scoped, authenticated reads (`scope=mine` / `scope=all`), and the revision queue
+reads `GET /revisions`. Account ownership/editing queries still
+use the API-backed helpers (`getExtensionsByOwner`, `getOwnedExtension`,
 `getDeveloperByOwner`, and `getDeveloperById`); the public developer page receives its
 `unclaimed` flag from the API response (never exposing the raw owner id itself).
 
