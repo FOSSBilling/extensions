@@ -90,9 +90,7 @@ const stats = [
 
   {(revisionsError ?? developersError ?? claimsError) && (
     <p class="text-sm text-destructive">
-      {[revisionsError, developersError, claimsError]
-        .filter(Boolean)
-        .join(' ')}
+      {[revisionsError, developersError, claimsError].filter(Boolean).join(' ')}
     </p>
   )}
 
@@ -133,9 +131,7 @@ const stats = [
     {unapprovedDevelopers.length === 0 ? (
       <p class="text-sm text-muted-foreground">No Pending Profiles</p>
     ) : (
-      <DeveloperProfilesTable
-        developers={unapprovedDevelopers.slice(0, 5)}
-      />
+      <DeveloperProfilesTable developers={unapprovedDevelopers.slice(0, 5)} />
     )}
   </section>
   <section class="space-y-3">

@@ -38,9 +38,12 @@ const historyQuery = Astro.url.searchParams.get('q')?.trim() || undefined;
 if (historyQuery) {
   const needle = historyQuery.toLowerCase();
   entries = entries.filter((entry) =>
-    [entry.name, entry.type, entry.changed_by_name ?? '', entry.changed_by].some(
-      (field) => field.toLowerCase().includes(needle),
-    ),
+    [
+      entry.name,
+      entry.type,
+      entry.changed_by_name ?? '',
+      entry.changed_by,
+    ].some((field) => field.toLowerCase().includes(needle)),
   );
 }
 ---
@@ -62,10 +65,7 @@ if (historyQuery) {
   </div>
 
   <div class="flex flex-wrap items-center justify-end gap-3">
-    <SearchForm
-      placeholder="Search this timeline…"
-      value={historyQuery}
-    />
+    <SearchForm placeholder="Search this timeline…" value={historyQuery} />
   </div>
   {historyQuery && (
     <p class="text-sm text-muted-foreground">

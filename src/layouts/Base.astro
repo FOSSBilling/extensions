@@ -4,7 +4,15 @@ import LogoLight from '@/assets/logo-light.svg';
 import LogoDark from '@/assets/logo-dark.svg';
 import Container from '@/components/Container.astro';
 import Toast from '@/components/Toast.astro';
-import { Sun, Moon, LogIn, LogOut, CircleUser, User, ShieldUser } from '@lucide/astro';
+import {
+  Sun,
+  Moon,
+  LogIn,
+  LogOut,
+  CircleUser,
+  User,
+  ShieldUser,
+} from '@lucide/astro';
 import { getSessionUser } from '@/lib/session';
 
 interface Props {
@@ -131,11 +139,7 @@ const { flash } = Astro.locals;
                       </a>
                     )}
                     <div role="separator"></div>
-                    <form
-                      method="POST"
-                      action="/auth/logout"
-                      class="contents"
-                    >
+                    <form method="POST" action="/auth/logout" class="contents">
                       <button
                         id="account-menu-items-3"
                         role="menuitem"
