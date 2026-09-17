@@ -119,8 +119,7 @@ function renderDiff(
     const newValue = fieldDisplay(field, revision);
     const isChanged = isNew
       ? newValue !== null
-      : fieldCompareKey(field, published) !==
-        fieldCompareKey(field, revision);
+      : fieldCompareKey(field, published) !== fieldCompareKey(field, revision);
     if (isChanged) changed += 1;
     const tr = document.createElement('tr');
     tr.className =
@@ -181,8 +180,9 @@ export function initRevisionQueue(): void {
     // Shared delegation so every table using it gets a working toggle —
     // the extension detail page wires the same behaviour inline for its
     // own table.
-    const truncateToggle =
-      target?.closest<HTMLButtonElement>('[data-truncate-toggle]');
+    const truncateToggle = target?.closest<HTMLButtonElement>(
+      '[data-truncate-toggle]',
+    );
     if (truncateToggle) {
       const cell = truncateToggle.closest('td');
       const short = cell?.querySelector<HTMLElement>('[data-truncate-short]');

@@ -80,9 +80,7 @@ describe('diffRevisionContent', () => {
     expect(byField.license.oldValue).toBe('MIT (MIT)');
     expect(byField.license.newValue).toBe('MIT (MIT)');
     expect(byField.license.oldUrl).toBeNull();
-    expect(byField.license.newUrl).toBe(
-      'https://example.test/licenses/mit',
-    );
+    expect(byField.license.newUrl).toBe('https://example.test/licenses/mit');
     expect(countChangedRows(rows)).toBe(1);
   });
 

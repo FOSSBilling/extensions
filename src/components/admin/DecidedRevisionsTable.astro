@@ -116,10 +116,7 @@ const DETAIL_COLUMNS = showNote ? 5 : 4;
                       Note: {r.review_note}
                     </p>
                   )}
-                  <FrozenContentTable
-                    rows={rows}
-                    idPrefix={`frozen-${r.id}`}
-                  />
+                  <FrozenContentTable rows={rows} idPrefix={`frozen-${r.id}`} />
                 </div>
               </td>
             </tr>

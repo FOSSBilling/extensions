@@ -86,9 +86,7 @@ export function licenseUrl(license?: DiffLicense | null): string | null {
   return license.URL.length > 0 ? license.URL : null;
 }
 
-export function licenseCompareKey(
-  license?: DiffLicense | null,
-): string | null {
+export function licenseCompareKey(license?: DiffLicense | null): string | null {
   if (!license) return null;
   const parts = [license.name, license.spdx_id, license.URL].filter(
     (part): part is string => typeof part === 'string' && part.length > 0,

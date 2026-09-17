@@ -145,17 +145,17 @@ const stats = [
         View All
       </a>
     </div>
-      {claimsError ? (
-        <p class="text-sm text-destructive">{claimsError}</p>
-      ) : pendingClaims.length === 0 ? (
-        <p class="text-sm text-muted-foreground">No Claims Awaiting Review</p>
-      ) : (
-        <ul class="space-y-4">
-          {pendingClaims.slice(0, 5).map((c) => (
-            <ClaimCard claim={c} titleTag="h3" />
-          ))}
-        </ul>
-      )}
+    {claimsError ? (
+      <p class="text-sm text-destructive">{claimsError}</p>
+    ) : pendingClaims.length === 0 ? (
+      <p class="text-sm text-muted-foreground">No Claims Awaiting Review</p>
+    ) : (
+      <ul class="space-y-4">
+        {pendingClaims.slice(0, 5).map((c) => (
+          <ClaimCard claim={c} titleTag="h3" />
+        ))}
+      </ul>
+    )}
   </section>
 
   <!-- Single shared pair of dialogs for the pending table above: row buttons
