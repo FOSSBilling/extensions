@@ -2,8 +2,10 @@
 import Admin from '../../../layouts/Admin.astro';
 import { requireModerator } from '@/lib/auth-guard';
 import { createApiClient } from '@/lib/api/client';
-import DateTime from '@/components/admin/DateTime.astro';
+import ApproveDialog from '@/components/ApproveDialog.astro';
+import RejectDialog from '@/components/RejectDialog.astro';
 import EmptyState from '@/components/admin/EmptyState.astro';
+import PendingRevisionsTable from '@/components/admin/PendingRevisionsTable.astro';
 
 const env = Astro.locals.env;
 const guard = await requireModerator(Astro, env);
@@ -14,10 +16,9 @@ const api = createApiClient(env, user.sub);
 
 // Overview stays cheap: small pages per queue, no detail fan-out. Cards
 // link into the filtered tab where the full paginated list lives.
-const [revisionsResult, extensionsResult, developersResult, claimsResult] =
+const [revisionsResult, developersResult, claimsResult] =
   await Promise.allSettled([
-    api.listModerationQueue('pending', { limit: 5 }),
-    api.listAllExtensions({ status: 'published', limit: 1 }),
+    api.listModerationQueue('pending', { limit: 3 }),
     api.listUnapprovedDevelopers(),
     api.listPendingClaims(),
   ]);
@@ -42,9 +43,6 @@ const pendingClaims =
 const claimsError =
   claimsResult.status === 'rejected' ? 'Unable to load claims.' : null;
 
-const extensionsError =
-  extensionsResult.status === 'rejected' ? 'Unable to load extensions.' : null;
-
 const stats = [
   {
     label: 'Pending Revisions',
@@ -63,7 +61,7 @@ const stats = [
   {
     label: 'Profile Claims',
     value: claimsError ? '!' : `${pendingClaims.length}`,
-    href: '/account/admin/developers/claims',
+    href: '/account/admin/developers?view=claims',
     hint: 'Ownership Transfers to Judge',
   },
 ];
@@ -72,24 +70,24 @@ const stats = [
 <Admin
   title="Overview — FOSSBilling Extensions"
   active="overview"
-  description="Pending work across revisions, extensions, developers and claims. Open a section to review."
+  description="Pending work across revisions, developers and claims. Open a section to review."
 >
   <div class="grid gap-4 sm:grid-cols-3">
     {stats.map((s) => (
       <a
         href={s.href}
-        class="card p-4 space-y-1 hover:border-primary transition-colors"
+        class="card p-3 space-y-1 hover:border-primary transition-colors"
       >
         <p class="text-sm text-muted-foreground">{s.label}</p>
-        <p class="text-3xl font-semibold tracking-tight">{s.value}</p>
+        <p class="text-2xl font-semibold tracking-tight">{s.value}</p>
         <p class="text-xs text-muted-foreground">{s.hint}</p>
       </a>
     ))}
   </div>
 
-  {(revisionsError ?? extensionsError ?? developersError ?? claimsError) && (
+  {(revisionsError ?? developersError ?? claimsError) && (
     <p class="text-sm text-destructive">
-      {[revisionsError, extensionsError, developersError, claimsError]
+      {[revisionsError, developersError, claimsError]
         .filter(Boolean)
         .join(' ')}
     </p>
@@ -97,14 +95,14 @@ const stats = [
 
   <section class="space-y-3">
     <div class="flex items-center justify-between gap-3">
-      <h2 class="font-semibold">Oldest Pending Revisions</h2>
+      <h2 class="font-semibold">Pending Revisions</h2>
       <a
         href="/account/admin/revisions"
         class="btn"
         data-size="sm"
         data-variant="outline"
       >
-        Open Revision Queue
+        View All Revisions
       </a>
     </div>
     {pendingRevisions.length === 0 ? (
@@ -113,28 +111,7 @@ const stats = [
         description="New extension submissions and edits will appear here."
       />
     ) : (
-      <ul class="divide-y divide-border card px-4">
-        {pendingRevisions.map((r) => (
-          <li class="py-3 flex items-center justify-between gap-3">
-            <div class="min-w-0">
-              <p class="font-medium truncate">
-                {r.content.name ?? r.extension_id}
-              </p>
-              <p class="text-sm text-muted-foreground">
-                {r.extension_id} · submitted <DateTime value={r.created_at} />
-              </p>
-            </div>
-            <a
-              href={`/account/admin/extensions/${r.extension_id}`}
-              class="btn shrink-0"
-              data-size="sm"
-              data-variant="ghost"
-            >
-              Review
-            </a>
-          </li>
-        ))}
-      </ul>
+      <PendingRevisionsTable revisions={pendingRevisions} />
     )}
   </section>
 
@@ -142,41 +119,74 @@ const stats = [
     <div class="flex items-center justify-between gap-3">
       <h2 class="font-semibold">Needs a Decision</h2>
     </div>
-    <div class="grid gap-4 md:grid-cols-2">
-      <div class="card p-4 space-y-2">
-        <p class="font-medium text-sm">Developers Awaiting Review</p>
-        {unapprovedDevelopers.length === 0 ? (
-          <p class="text-sm text-muted-foreground">
-            No Profiles Awaiting Review
-          </p>
-        ) : (
-          <ul class="text-sm space-y-1">
-            {unapprovedDevelopers.slice(0, 5).map((d) => (
-              <li>
-                <a href="/account/admin/developers">
-                  {d.name} ({d.id})
-                </a>
-              </li>
-            ))}
-          </ul>
-        )}
+    {unapprovedDevelopers.length === 0 && pendingClaims.length === 0 ? (
+      <EmptyState
+        title="Nothing Needs a Decision"
+        description="New profiles and claims will appear here."
+      />
+    ) : (
+      <div class="grid gap-4 md:grid-cols-2">
+        <div class="card p-4 space-y-2">
+          <p class="font-medium text-sm">Developers Awaiting Review</p>
+          {unapprovedDevelopers.length === 0 ? (
+            <p class="text-sm text-muted-foreground">No Pending Profiles</p>
+          ) : (
+            <ul class="text-sm space-y-1">
+              {unapprovedDevelopers.slice(0, 5).map((d) => (
+                <li>
+                  <a href={`/account/admin/developers/${d.id}/history`}>
+                    {d.name} ({d.id})
+                  </a>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        <div class="card p-4 space-y-2">
+          <p class="font-medium text-sm">Profile Claims Awaiting Review</p>
+          {pendingClaims.length === 0 ? (
+            <p class="text-sm text-muted-foreground">
+              No Claims Awaiting Review
+            </p>
+          ) : (
+            <ul class="text-sm space-y-1">
+              {pendingClaims.slice(0, 5).map((c) => (
+                <li>
+                  <a
+                    href={`/account/admin/developers?view=claims#claim-${c.id}`}
+                  >
+                    {c.developer_name} ({c.developer_id})
+                  </a>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
-      <div class="card p-4 space-y-2">
-        <p class="font-medium text-sm">Profile Claims Awaiting Review</p>
-        {pendingClaims.length === 0 ? (
-          <p class="text-sm text-muted-foreground">No Claims Awaiting Review</p>
-        ) : (
-          <ul class="text-sm space-y-1">
-            {pendingClaims.slice(0, 5).map((c) => (
-              <li>
-                <a href="/account/admin/developers?view=claims">
-                  {c.developer_name} ({c.developer_id})
-                </a>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-    </div>
+    )}
   </section>
+
+  <!-- Single shared pair of dialogs for the pending table above: row buttons
+       set formAction + titles via data attributes (see script below), same as
+       /account/admin/revisions. Acting here lands on the full queue, since
+       the POST handlers redirect there. -->
+  <ApproveDialog
+    id="admin-approve-revision"
+    title="Approve Revision?"
+    description="The new revision will go live immediately."
+    formAction="/account/admin/revisions/placeholder/placeholder/approve"
+    notifyRecipient="author"
+    hiddenFields={[{ name: 'intent', value: 'approve' }]}
+  />
+  <RejectDialog
+    id="admin-reject-revision"
+    title="Reject Revision?"
+    description="The submitter will see this reason."
+    formAction="/account/admin/revisions/placeholder/placeholder/reject"
+  />
 </Admin>
+
+<script>
+  import { initRevisionQueue } from '@/lib/admin-revisions-client';
+  initRevisionQueue();
+</script>

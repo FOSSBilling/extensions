@@ -140,7 +140,7 @@ const pageDescription = isClaims
     ) : (
       <ul class="space-y-4">
         {claims.map((c) => (
-          <li class="card gap-4 p-5">
+          <li class="card gap-4 p-5 scroll-mt-24" id={`claim-${c.id}`}>
             <header class="px-0">
               <h2 class="font-semibold flex flex-wrap items-center gap-2">
                 {c.developer_name} ({c.developer_id})
