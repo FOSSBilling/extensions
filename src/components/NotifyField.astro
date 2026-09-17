@@ -1,0 +1,28 @@
+---
+interface Props {
+  id: string;
+  recipient: 'author' | 'owner' | 'claimant';
+}
+
+const { id, recipient } = Astro.props;
+const label = `Send notification email to ${recipient}`;
+---
+
+<div role="group" class="field" data-orientation="horizontal">
+  <section>
+    <h3>
+      <label for={id}>{label}</label>
+    </h3>
+    <p>
+      Sends to the contact email on file, falling back to the account email.
+    </p>
+  </section>
+  <input
+    class="input"
+    type="checkbox"
+    role="switch"
+    id={id}
+    name="notify"
+    checked
+  />
+</div>

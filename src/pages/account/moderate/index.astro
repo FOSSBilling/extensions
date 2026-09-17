@@ -14,6 +14,8 @@ import type {
   RevisionStatus,
 } from '@/lib/api/client';
 import RejectDialog from '@/components/RejectDialog.astro';
+import ApproveDialog from '@/components/ApproveDialog.astro';
+import NotifyField from '@/components/NotifyField.astro';
 import { formatDate } from '@/lib/format-date';
 import {
   cursorPageUrl,
@@ -264,23 +266,7 @@ const prevPageUrl = prevCursorPageUrl(Astro.url, 'cursor', 'cursors');
               required
             ></textarea>
           </div>
-          <div role="group" class="field" data-orientation="horizontal">
-            <section>
-              <h3>Email the author</h3>
-              <p>
-                Uses the contact email on file, falling back to the account
-                email.
-              </p>
-            </section>
-            <input
-              class="input"
-              type="checkbox"
-              id="delist-confirm-notify"
-              name="notify"
-              checked
-              aria-label="Email the author"
-            />
-          </div>
+          <NotifyField id="delist-confirm-notify" recipient="author" />
         </section>
         <footer>
           <button
@@ -369,28 +355,14 @@ const prevPageUrl = prevCursorPageUrl(Astro.url, 'cursor', 'cursors');
                     </details>
                     {r.status === 'pending' && (
                       <div class="flex items-center gap-3 mt-4">
-                        <form
-                          method="POST"
-                          action={`/account/moderate/${r.extension_id}/${r.id}/approve`}
-                          class="flex items-center gap-3"
+                        <button
+                          type="button"
+                          class="btn"
+                          data-size="sm"
+                          onclick={`document.getElementById('approve-revision-${r.id}').showModal()`}
                         >
-                          <input type="hidden" name="intent" value="approve" />
-                          <label
-                            class="flex items-center gap-1.5 text-sm text-muted-foreground"
-                            title="Uncheck to skip emailing the author"
-                          >
-                            <input
-                              class="input"
-                              type="checkbox"
-                              name="notify"
-                              checked
-                            />
-                            Email author
-                          </label>
-                          <button type="submit" class="btn" data-size="sm">
-                            Approve
-                          </button>
-                        </form>
+                          Approve
+                        </button>
                         <button
                           type="button"
                           class="btn"
@@ -404,13 +376,23 @@ const prevPageUrl = prevCursorPageUrl(Astro.url, 'cursor', 'cursors');
                     )}
 
                     {r.status === 'pending' && (
-                      <RejectDialog
-                        id={`reject-revision-${r.id}`}
-                        title={`Reject "${r.content.name ?? r.extension_id}"?`}
-                        description="The submitter will see this reason."
-                        formAction={`/account/moderate/${r.extension_id}/${r.id}/reject`}
-                        reasonPlaceholder="Reason for rejection"
-                      />
+                      <>
+                        <ApproveDialog
+                          id={`approve-revision-${r.id}`}
+                          title={`Approve "${r.content.name ?? r.extension_id}"?`}
+                          description="The new revision will go live immediately."
+                          formAction={`/account/moderate/${r.extension_id}/${r.id}/approve`}
+                          notifyRecipient="author"
+                          hiddenFields={[{ name: 'intent', value: 'approve' }]}
+                        />
+                        <RejectDialog
+                          id={`reject-revision-${r.id}`}
+                          title={`Reject "${r.content.name ?? r.extension_id}"?`}
+                          description="The submitter will see this reason."
+                          formAction={`/account/moderate/${r.extension_id}/${r.id}/reject`}
+                          reasonPlaceholder="Reason for rejection"
+                        />
+                      </>
                     )}
                     {r.status !== 'pending' && r.review_note && (
                       <p class="text-sm text-muted-foreground mt-2">

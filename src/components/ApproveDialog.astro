@@ -7,8 +7,8 @@ interface Props {
   title: string;
   description: string;
   formAction: string;
-  reasonPlaceholder?: string;
-  notifyRecipient?: 'author' | 'owner' | 'claimant';
+  notifyRecipient: 'author' | 'owner' | 'claimant';
+  hiddenFields?: { name: string; value: string | number }[];
 }
 
 const {
@@ -16,8 +16,8 @@ const {
   title,
   description,
   formAction,
-  reasonPlaceholder = 'Reason for rejecting',
-  notifyRecipient = 'author',
+  notifyRecipient,
+  hiddenFields = [],
 } = Astro.props;
 ---
 
@@ -34,17 +34,9 @@ const {
       <p id={`${id}-description`}>{description}</p>
     </header>
     <section>
-      <div class="field">
-        <label for={`${id}-note`}>Reason</label>
-        <input
-          class="input"
-          type="text"
-          id={`${id}-note`}
-          name="review_note"
-          placeholder={reasonPlaceholder}
-          required
-        />
-      </div>
+      {hiddenFields.map((field) => (
+        <input type="hidden" name={field.name} value={field.value} />
+      ))}
       <NotifyField id={`${id}-notify`} recipient={notifyRecipient} />
     </section>
     <footer>
@@ -56,8 +48,8 @@ const {
       >
         Cancel
       </button>
-      <button type="submit" class="btn" data-variant="destructive">
-        Reject
+      <button type="submit" class="btn">
+        Approve
       </button>
     </footer>
     <button

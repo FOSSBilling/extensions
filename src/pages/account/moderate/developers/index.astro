@@ -6,6 +6,7 @@ import { isSafeHttpUrl } from '@/lib/safe-url';
 import type { DeveloperProfile } from '@/lib/api/client';
 import { CircleCheck } from '@lucide/astro';
 import ProfileTrustBadge from '@/components/ProfileTrustBadge.astro';
+import ApproveDialog from '@/components/ApproveDialog.astro';
 
 const env = Astro.locals.env;
 const guard = await requireModerator(Astro, env);
@@ -150,32 +151,29 @@ try {
                   History
                 </a>
                 {!d.approved && (
-                  <form
-                    method="POST"
-                    action={`/account/moderate/developers/${d.id}/approve`}
-                    class="flex items-center gap-2"
-                  >
-                    <input
-                      type="hidden"
-                      name="expected_revision"
-                      value={d.content_revision}
-                    />
-                    <label
-                      class="flex items-center gap-1.5 text-sm text-muted-foreground"
-                      title="Uncheck to skip emailing the owner"
+                  <>
+                    <button
+                      type="button"
+                      class="btn"
+                      data-size="sm"
+                      onclick={`document.getElementById('approve-developer-${d.id}').showModal()`}
                     >
-                      <input
-                        class="input"
-                        type="checkbox"
-                        name="notify"
-                        checked
-                      />
-                      Email owner
-                    </label>
-                    <button type="submit" class="btn" data-size="sm">
                       Approve
                     </button>
-                  </form>
+                    <ApproveDialog
+                      id={`approve-developer-${d.id}`}
+                      title={`Approve "${d.name}"?`}
+                      description="The owner will see the trust badge on their live profile."
+                      formAction={`/account/moderate/developers/${d.id}/approve`}
+                      notifyRecipient="owner"
+                      hiddenFields={[
+                        {
+                          name: 'expected_revision',
+                          value: d.content_revision,
+                        },
+                      ]}
+                    />
+                  </>
                 )}
               </div>
             </header>

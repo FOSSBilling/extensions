@@ -4,6 +4,7 @@ import { requireModerator } from '@/lib/auth-guard';
 import { createApiClient } from '@/lib/api/client';
 import type { PendingDeveloperClaim } from '@/lib/api/client';
 import RejectDialog from '@/components/RejectDialog.astro';
+import ApproveDialog from '@/components/ApproveDialog.astro';
 import { formatDate } from '@/lib/format-date';
 
 const env = Astro.locals.env;
@@ -77,23 +78,14 @@ try {
               {c.note && <p class="text-sm mt-1">&ldquo;{c.note}&rdquo;</p>}
             </header>
             <footer class="flex items-center gap-3 flex-wrap">
-              <form
-                method="POST"
-                action={`/account/moderate/developers/claims/${c.id}/approve`}
-                class="flex items-center gap-2"
+              <button
+                type="button"
+                class="btn"
+                data-size="sm"
+                onclick={`document.getElementById('approve-claim-${c.id}').showModal()`}
               >
-                <input type="hidden" name="intent" value="approve" />
-                <label
-                  class="flex items-center gap-1.5 text-sm text-muted-foreground"
-                  title="Uncheck to skip emailing the claimant"
-                >
-                  <input class="input" type="checkbox" name="notify" checked />
-                  Email claimant
-                </label>
-                <button type="submit" class="btn" data-size="sm">
-                  Approve
-                </button>
-              </form>
+                Approve
+              </button>
               <button
                 type="button"
                 class="btn"
@@ -105,11 +97,20 @@ try {
               </button>
             </footer>
 
+            <ApproveDialog
+              id={`approve-claim-${c.id}`}
+              title={`Approve claim on "${c.developer_id}"?`}
+              description="The claimant will gain ownership of this profile immediately."
+              formAction={`/account/moderate/developers/claims/${c.id}/approve`}
+              notifyRecipient="claimant"
+              hiddenFields={[{ name: 'intent', value: 'approve' }]}
+            />
             <RejectDialog
               id={`reject-claim-${c.id}`}
               title={`Reject claim on "${c.developer_id}"?`}
               description="The claimant will see this reason."
               formAction={`/account/moderate/developers/claims/${c.id}/reject`}
+              notifyRecipient="claimant"
             />
           </li>
         ))}
