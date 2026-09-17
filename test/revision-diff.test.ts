@@ -57,12 +57,46 @@ describe('diffRevisionContent', () => {
       ...published,
       license: { name: 'MIT', spdx_id: 'MIT' },
       source: { type: 'github', repo: 'org/old' },
+      releases: published.releases.map((r) => ({ ...r })),
     };
     const rows = diffRevisionContent(published, revision);
     const byField = Object.fromEntries(rows.map((r) => [r.field, r]));
     expect(byField.license.changed).toBe(false);
     expect(byField.source.changed).toBe(false);
     expect(byField.releases.changed).toBe(false);
+  });
+
+  it('marks a license URL-only change as changed and exposes both URLs', () => {
+    const rows = diffRevisionContent(published, {
+      ...published,
+      license: {
+        name: 'MIT',
+        spdx_id: 'MIT',
+        URL: 'https://example.test/licenses/mit',
+      },
+    });
+    const byField = Object.fromEntries(rows.map((r) => [r.field, r]));
+    expect(byField.license.changed).toBe(true);
+    expect(byField.license.oldValue).toBe('MIT (MIT)');
+    expect(byField.license.newValue).toBe('MIT (MIT)');
+    expect(byField.license.oldUrl).toBeNull();
+    expect(byField.license.newUrl).toBe(
+      'https://example.test/licenses/mit',
+    );
+    expect(countChangedRows(rows)).toBe(1);
+  });
+
+  it('marks a repository host-only change as changed', () => {
+    const rows = diffRevisionContent(published, {
+      ...published,
+      source: { type: 'gitlab', repo: 'org/old' },
+    });
+    const byField = Object.fromEntries(rows.map((r) => [r.field, r]));
+    expect(byField.source.changed).toBe(true);
+    expect(byField.source.oldValue).toBe('org/old');
+    expect(byField.source.newValue).toBe('org/old');
+    expect(byField.source.oldUrl).toBe('https://github.com/org/old');
+    expect(byField.source.newUrl).toBe('https://gitlab.com/org/old');
   });
 
   it('carries type-aware repository URLs on the source row', () => {
@@ -83,5 +117,20 @@ describe('diffRevisionContent', () => {
     const byField = Object.fromEntries(rows.map((r) => [r.field, r]));
     expect(byField.source.oldUrl).toBeNull();
     expect(byField.source.newUrl).toBeNull();
+  });
+
+  it('keeps the surviving side URL when only one side has a source', () => {
+    const withoutSource = { ...published, source: undefined };
+    const added = diffRevisionContent(withoutSource, published);
+    expect(added.find((r) => r.field === 'source')?.oldUrl).toBeNull();
+    expect(added.find((r) => r.field === 'source')?.newUrl).toBe(
+      'https://github.com/org/old',
+    );
+
+    const removed = diffRevisionContent(published, withoutSource);
+    expect(removed.find((r) => r.field === 'source')?.oldUrl).toBe(
+      'https://github.com/org/old',
+    );
+    expect(removed.find((r) => r.field === 'source')?.newUrl).toBeNull();
   });
 });

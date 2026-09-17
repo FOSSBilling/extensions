@@ -7,10 +7,13 @@ import DiffValue from './DiffValue.astro';
 // expandable section and the decided-revisions audit table.
 interface Props {
   rows: RevisionDiffRow[];
+  idPrefix: string;
 }
 
-const { rows } = Astro.props;
-const visible = rows.filter((row) => row.newValue !== null);
+const { rows, idPrefix } = Astro.props;
+const visible = rows.filter(
+  (row) => row.oldValue !== null || row.newValue !== null,
+);
 ---
 
 <div class="overflow-x-auto">
@@ -30,6 +33,7 @@ const visible = rows.filter((row) => row.newValue !== null);
               field={row.field}
               value={row.newValue}
               href={row.newUrl}
+              id={`${idPrefix}-${row.field}`}
             />
           </td>
         </tr>

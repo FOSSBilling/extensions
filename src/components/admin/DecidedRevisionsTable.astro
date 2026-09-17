@@ -101,12 +101,14 @@ const DETAIL_COLUMNS = showNote ? 5 : 4;
                   data-frozen
                   data-show="Show Reviewed Content"
                   data-hide="Hide Reviewed Content"
+                  aria-expanded="false"
+                  aria-controls={`frozen-wrap-${r.id}`}
                 >
                   Show Reviewed Content
                 </button>
               </td>
             </tr>
-            <tr data-frozen-wrap hidden>
+            <tr data-frozen-wrap hidden id={`frozen-wrap-${r.id}`}>
               <td colspan={DETAIL_COLUMNS} class="px-4 py-3 bg-muted/30">
                 <div class="space-y-2">
                   {r.review_note && (
@@ -114,7 +116,10 @@ const DETAIL_COLUMNS = showNote ? 5 : 4;
                       Note: {r.review_note}
                     </p>
                   )}
-                  <FrozenContentTable rows={rows} />
+                  <FrozenContentTable
+                    rows={rows}
+                    idPrefix={`frozen-${r.id}`}
+                  />
                 </div>
               </td>
             </tr>

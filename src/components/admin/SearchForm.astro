@@ -9,7 +9,7 @@ interface Props {
 const { placeholder, value } = Astro.props;
 ---
 
-<form data-search-form class="flex gap-2" role="search">
+<form data-search-form class="flex gap-2" role="search" aria-label={placeholder}>
   <input
     class="input"
     type="text"

@@ -66,6 +66,8 @@ const DETAIL_COLUMNS = 4;
                     data-size="sm"
                     data-variant="outline"
                     data-compare
+                    aria-expanded="false"
+                    aria-controls={`diff-wrap-${r.id}`}
                   >
                     Show Changes
                   </button>
@@ -95,7 +97,7 @@ const DETAIL_COLUMNS = 4;
                 </div>
               </td>
             </tr>
-            <tr data-diff-table-wrap hidden>
+            <tr data-diff-table-wrap hidden id={`diff-wrap-${r.id}`}>
               <td colspan={DETAIL_COLUMNS} class="px-4 py-3 bg-muted/30">
                 <div class="space-y-2">
                   {description && <p class="text-sm">{description}</p>}

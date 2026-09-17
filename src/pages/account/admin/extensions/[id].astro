@@ -222,6 +222,7 @@ const pendingRevisionId =
                         value={row.oldValue}
                         emptyLabel={row.isNew ? '— (New Extension)' : '—'}
                         href={row.oldUrl}
+                        id={`detail-old-${row.field}`}
                       />
                     </td>
                     <td class="py-1 break-all">
@@ -229,6 +230,7 @@ const pendingRevisionId =
                         field={row.field}
                         value={row.newValue}
                         href={row.newUrl}
+                        id={`detail-new-${row.field}`}
                       />
                     </td>
                   </tr>
@@ -302,6 +304,7 @@ const pendingRevisionId =
       full.hidden = !expanded;
       short.hidden = expanded;
       truncateToggle.textContent = expanded ? 'Show Less' : 'Show More';
+      truncateToggle.setAttribute('aria-expanded', String(expanded));
     }
   });
 </script>

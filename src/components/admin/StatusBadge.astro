@@ -19,7 +19,10 @@ const variant: Record<Props['status'], string | undefined> = {
   'never-published': 'secondary',
   pending: 'secondary',
   approved: undefined,
-  rejected: 'destructive',
+  // Neutral, not destructive: a rejected edit leaves already-live content
+  // untouched, so red would read as "removed". Destructive stays reserved
+  // for delisted — content actually pulled from public view.
+  rejected: 'secondary',
   new: undefined,
 };
 

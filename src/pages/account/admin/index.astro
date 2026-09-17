@@ -4,6 +4,7 @@ import { requireModerator } from '@/lib/auth-guard';
 import { createApiClient } from '@/lib/api/client';
 import ApproveDialog from '@/components/ApproveDialog.astro';
 import RejectDialog from '@/components/RejectDialog.astro';
+import ClaimCard from '@/components/admin/ClaimCard.astro';
 import EmptyState from '@/components/admin/EmptyState.astro';
 import DeveloperProfilesTable from '@/components/admin/DeveloperProfilesTable.astro';
 import PendingRevisionsTable from '@/components/admin/PendingRevisionsTable.astro';
@@ -88,12 +89,6 @@ const stats = [
     ))}
   </div>
 
-  {(revisionsError ?? developersError ?? claimsError) && (
-    <p class="text-sm text-destructive">
-      {[revisionsError, developersError, claimsError].filter(Boolean).join(' ')}
-    </p>
-  )}
-
   <section class="space-y-3">
     <div class="flex items-center justify-between gap-3">
       <h2 class="font-semibold">Pending Revisions</h2>
@@ -106,7 +101,9 @@ const stats = [
         View All
       </a>
     </div>
-    {pendingRevisions.length === 0 ? (
+    {revisionsError ? (
+      <p class="text-sm text-destructive">{revisionsError}</p>
+    ) : pendingRevisions.length === 0 ? (
       <EmptyState
         title="Revision Queue Is Clear"
         description="New extension submissions and edits will appear here."
@@ -128,7 +125,9 @@ const stats = [
         View All
       </a>
     </div>
-    {unapprovedDevelopers.length === 0 ? (
+    {developersError ? (
+      <p class="text-sm text-destructive">{developersError}</p>
+    ) : unapprovedDevelopers.length === 0 ? (
       <p class="text-sm text-muted-foreground">No Pending Profiles</p>
     ) : (
       <DeveloperProfilesTable developers={unapprovedDevelopers.slice(0, 5)} />
@@ -146,72 +145,17 @@ const stats = [
         View All
       </a>
     </div>
-    {pendingClaims.length === 0 ? (
-      <p class="text-sm text-muted-foreground">No Claims Awaiting Review</p>
-    ) : (
-      <ul class="space-y-4">
-        {pendingClaims.slice(0, 5).map((c) => (
-          <li class="card gap-4 p-5 scroll-mt-24" id={`claim-${c.id}`}>
-            <header class="px-0">
-              <h3 class="font-semibold flex flex-wrap items-center gap-2">
-                {c.developer_name} ({c.developer_id})
-                {c.github_org_verified && (
-                  <span class="badge">GitHub Verified</span>
-                )}
-              </h3>
-              <p class="text-sm text-muted-foreground">
-                {c.developer_type} · claimed by{' '}
-                <strong>{c.claimant_name ?? c.claimant_id}</strong>
-                {c.claimant_github_login && (
-                  <>
-                    {' '}
-                    <a href={`https://github.com/${c.claimant_github_login}`}>
-                      @{c.claimant_github_login}
-                    </a>
-                  </>
-                )}
-              </p>
-              {c.note && <p class="text-sm mt-1">&ldquo;{c.note}&rdquo;</p>}
-            </header>
-            <footer class="flex items-center gap-2 flex-wrap">
-              <button
-                type="button"
-                class="btn"
-                data-size="sm"
-                onclick={`document.getElementById('approve-claim-${c.id}').showModal()`}
-              >
-                Approve
-              </button>
-              <button
-                type="button"
-                class="btn"
-                data-size="sm"
-                data-variant="destructive"
-                onclick={`document.getElementById('reject-claim-${c.id}').showModal()`}
-              >
-                Reject
-              </button>
-            </footer>
-
-            <ApproveDialog
-              id={`approve-claim-${c.id}`}
-              title={`Approve claim on "${c.developer_id}"?`}
-              description="The claimant will gain ownership of this profile immediately."
-              formAction={`/account/admin/developers/claims/${c.id}/approve`}
-              notifyRecipient="claimant"
-              hiddenFields={[{ name: 'intent', value: 'approve' }]}
-            />
-            <RejectDialog
-              id={`reject-claim-${c.id}`}
-              title={`Reject claim on "${c.developer_id}"?`}
-              description="The claimant will see this reason."
-              formAction={`/account/admin/developers/claims/${c.id}/reject`}
-              notifyRecipient="claimant"
-            />
-          </li>
-        ))}
-      </ul>
-    )}
+      {claimsError ? (
+        <p class="text-sm text-destructive">{claimsError}</p>
+      ) : pendingClaims.length === 0 ? (
+        <p class="text-sm text-muted-foreground">No Claims Awaiting Review</p>
+      ) : (
+        <ul class="space-y-4">
+          {pendingClaims.slice(0, 5).map((c) => (
+            <ClaimCard claim={c} titleTag="h3" />
+          ))}
+        </ul>
+      )}
   </section>
 
   <!-- Single shared pair of dialogs for the pending table above: row buttons

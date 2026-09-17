@@ -27,6 +27,21 @@ describe('renderMarkdown', () => {
     expect(html).not.toContain('javascript:');
   });
 
+  it('strips event handlers, data: srcs, and opener-capable link targets', () => {
+    const html = renderMarkdown(
+      '<img src="https://example.test/x.png" onerror="alert(1)" />\n\n' +
+        '<img src="data:image/png;base64,AAA" />\n\n' +
+        '<a href="https://example.test/page" target="_blank" rel="opener">x</a>',
+    );
+
+    expect(html).not.toContain('onerror');
+    expect(html).not.toContain('data:');
+    expect(html).not.toContain('target=');
+    expect(html).not.toContain('rel=');
+    expect(html).toContain('src="https://example.test/x.png"');
+    expect(html).toContain('href="https://example.test/page"');
+  });
+
   it('renders empty input to an empty string', () => {
     expect(renderMarkdown('')).toBe('');
   });

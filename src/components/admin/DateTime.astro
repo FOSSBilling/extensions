@@ -12,4 +12,5 @@ const { value } = Astro.props;
 
 <time datetime={value} title={formatDateTime(value)}>
   {formatShortDate(value)}
+  <span class="sr-only">, {formatDateTime(value)}</span>
 </time>

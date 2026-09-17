@@ -6,8 +6,16 @@
 
 import { renderMarkdown } from '@/lib/markdown';
 import { isSafeHttpUrl } from '@/lib/safe-url';
+import {
+  DIFF_FIELDS,
+  FIELD_LABELS,
+  fieldCompareKey,
+  fieldDisplay,
+  fieldUrl,
+  type DiffField,
+} from '@/lib/revision-diff-shared';
 
-interface PublishedContent {
+type PublishedContent = {
   type?: string;
   name?: string;
   version?: string;
@@ -17,97 +25,19 @@ interface PublishedContent {
   icon_url?: string;
   readme?: string;
   source?: { type?: string; repo?: string };
-  license?: { name?: string; spdx_id?: string };
+  license?: { name?: string; spdx_id?: string; URL?: string };
   releases?: Array<{ tag?: string }>;
-}
+};
 
 interface RevisionDetailResult {
   published: PublishedContent | null;
 }
 
-const FIELDS: Array<[keyof PublishedContent, string]> = [
-  ['name', 'Name'],
-  ['type', 'Type'],
-  ['version', 'Version'],
-  ['description', 'Description'],
-  ['website', 'Website'],
-  ['download_url', 'Download URL'],
-  ['icon_url', 'Icon URL'],
-  ['source', 'Source Repo'],
-  ['license', 'License'],
-  ['releases', 'Releases'],
-  ['readme', 'Readme'],
-];
-
-function scalar(value: unknown): string | null {
-  if (value === undefined || value === null) return null;
-  const text = String(value).trim();
-  return text.length > 0 ? text : null;
-}
-
-function licenseLabel(license: PublishedContent['license']): string | null {
-  if (
-    !license ||
-    typeof license.name !== 'string' ||
-    license.name.length === 0
-  ) {
-    return null;
-  }
-  return license.spdx_id
-    ? `${license.name} (${license.spdx_id})`
-    : license.name;
-}
-
-function sourceLabel(source: PublishedContent['source']): string | null {
-  if (!source || typeof source.repo !== 'string') return null;
-  return source.repo.length > 0 ? source.repo : null;
-}
-
-// Mirrors repositoryURL (@/types) + sourceUrl (revision-diff.ts) without
-// importing them: @/types pulls semver into the browser bundle for six lines
-// of switch. Keeps GitLab/custom sources linking correctly.
-function sourceHref(source: PublishedContent['source']): string | null {
-  if (
-    !source ||
-    typeof source.repo !== 'string' ||
-    source.repo.length === 0 ||
-    (source.type !== 'github' &&
-      source.type !== 'gitlab' &&
-      source.type !== 'custom')
-  ) {
-    return null;
-  }
-  switch (source.type) {
-    case 'github':
-      return `https://github.com/${source.repo}`;
-    case 'gitlab':
-      return `https://gitlab.com/${source.repo}`;
-    case 'custom':
-      return source.repo;
-  }
-}
-
-function releasesLabel(releases: PublishedContent['releases']): string | null {
-  if (!releases) return null;
-  if (releases.length === 0) return '—';
-  const tags = releases
-    .map((r) => r?.tag)
-    .filter((t): t is string => typeof t === 'string' && t.length > 0)
-    .slice(0, 5);
-  return tags.length > 0
-    ? `${releases.length} release(s): ${tags.join(', ')}${releases.length > 5 ? ', …' : ''}`
-    : `${releases.length} release(s)`;
-}
-
 function fieldValue(
-  field: keyof PublishedContent,
+  field: DiffField,
   obj: PublishedContent | null,
 ): string | null {
-  if (!obj) return null;
-  if (field === 'license') return licenseLabel(obj.license);
-  if (field === 'source') return sourceLabel(obj.source);
-  if (field === 'releases') return releasesLabel(obj.releases);
-  return scalar(obj[field]);
+  return fieldDisplay(field, obj);
 }
 
 const TRUNCATE_AT = 400;
@@ -191,10 +121,14 @@ function renderDiff(
   body.innerHTML = '';
   const isNew = !published;
   let changed = 0;
-  for (const [field, label] of FIELDS) {
+  for (const field of DIFF_FIELDS) {
+    const label = FIELD_LABELS[field];
     const oldValue = fieldValue(field, published);
     const newValue = fieldValue(field, revision);
-    const isChanged = isNew ? newValue !== null : oldValue !== newValue;
+    const isChanged = isNew
+      ? newValue !== null
+      : fieldCompareKey(field, published) !==
+        fieldCompareKey(field, revision);
     if (isChanged) changed += 1;
     const tr = document.createElement('tr');
     tr.className =
@@ -202,20 +136,20 @@ function renderDiff(
     const tdField = document.createElement('td');
     tdField.className = 'py-1 pr-3 font-medium whitespace-nowrap';
     tdField.textContent = label + (isChanged ? ' •' : '');
-    // Source rows link via the repository URL (type-aware); URL fields link
-    // via their own value. Everything else renders as text.
-    const oldHref =
-      field === 'source'
-        ? sourceHref(published?.source)
-        : URL_FIELDS.has(field)
-          ? oldValue
-          : null;
-    const newHref =
-      field === 'source'
-        ? sourceHref(revision.source)
-        : URL_FIELDS.has(field)
-          ? newValue
-          : null;
+    // Source and license rows link via their own URL (type-aware for
+    // sources); URL fields link via their own value. Everything else
+    // renders as text.
+    const linkedField = field === 'source' || field === 'license';
+    const oldHref = linkedField
+      ? fieldUrl(field, published)
+      : URL_FIELDS.has(field)
+        ? oldValue
+        : null;
+    const newHref = linkedField
+      ? fieldUrl(field, revision)
+      : URL_FIELDS.has(field)
+        ? newValue
+        : null;
     const tdOld =
       field === 'readme' && oldValue !== null
         ? markdownCell(
@@ -251,6 +185,25 @@ export function initRevisionQueue(): void {
   document.addEventListener('click', (event: MouseEvent) => {
     const target = event.target as HTMLElement | null;
 
+    // Long plain-text values render truncated with a toggle (TruncatedText).
+    // Shared delegation so every table using it gets a working toggle —
+    // the extension detail page wires the same behaviour inline for its
+    // own table.
+    const truncateToggle =
+      target?.closest<HTMLButtonElement>('[data-truncate-toggle]');
+    if (truncateToggle) {
+      const cell = truncateToggle.closest('td');
+      const short = cell?.querySelector<HTMLElement>('[data-truncate-short]');
+      const full = cell?.querySelector<HTMLElement>('[data-truncate-full]');
+      if (!short || !full) return;
+      const expanded = full.hidden;
+      full.hidden = !expanded;
+      short.hidden = expanded;
+      truncateToggle.textContent = expanded ? 'Show Less' : 'Show More';
+      truncateToggle.setAttribute('aria-expanded', String(expanded));
+      return;
+    }
+
     // Frozen content is server-rendered — this just toggles the next sibling
     // detail row, with no fetch involved (unlike [data-compare] below).
     // Labels come from data-show/data-hide.
@@ -266,6 +219,7 @@ export function initRevisionQueue(): void {
       }
       const showing = !wrap.hidden;
       wrap.hidden = showing;
+      frozenBtn.setAttribute('aria-expanded', String(!showing));
       frozenBtn.textContent = showing
         ? (frozenBtn.dataset.show ?? 'Show')
         : (frozenBtn.dataset.hide ?? 'Hide');
@@ -301,6 +255,7 @@ export function initRevisionQueue(): void {
       if (!body) return;
       if (!wrap.hidden) {
         wrap.hidden = true;
+        compareBtn.setAttribute('aria-expanded', 'false');
         compareBtn.textContent = 'Show Changes';
         return;
       }
@@ -331,6 +286,7 @@ export function initRevisionQueue(): void {
             detailCache.get(extensionId) ?? null,
           );
           wrap.hidden = false;
+          compareBtn.setAttribute('aria-expanded', 'true');
           compareBtn.textContent = 'Hide Changes';
         } catch (err) {
           if (errorEl) {
@@ -340,6 +296,7 @@ export function initRevisionQueue(): void {
                 : 'Unable to load live version.';
             errorEl.hidden = false;
           }
+          compareBtn.setAttribute('aria-expanded', 'false');
           compareBtn.textContent = 'Retry';
         } finally {
           compareBtn.disabled = false;

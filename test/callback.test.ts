@@ -167,12 +167,13 @@ describe('GET /auth/callback', () => {
   it('mints a non-moderator session when the account is not flagged', async () => {
     const ctx = context({ redirectTo: '/account' });
 
-    await GET(ctx);
+    const result = await GET(ctx);
 
     expect(mocks.createSessionCookieValue).toHaveBeenCalledWith(
       expect.objectContaining({ sub: 'user-subject', is_moderator: false }),
       'session-secret',
     );
+    expect(result.headers.get('location')).toBe('/account');
   });
 
   it('falls back to / for an unsafe redirect target', async () => {

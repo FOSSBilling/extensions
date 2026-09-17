@@ -14,7 +14,7 @@ const SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
   allowedAttributes: {
     ...sanitizeHtml.defaults.allowedAttributes,
     img: ['src', 'alt', 'title', 'width', 'height'],
-    a: ['href', 'title', 'target', 'rel'],
+    a: ['href', 'title'],
     '*': ['id', 'class'],
   },
   allowedSchemes: ['http', 'https', 'mailto'],

@@ -13,9 +13,10 @@ interface Props {
   value: string | null;
   emptyLabel?: string;
   href?: string | null;
+  id?: string;
 }
 
-const { field, value, emptyLabel = '—', href = null } = Astro.props;
+const { field, value, emptyLabel = '—', href = null, id } = Astro.props;
 const URL_FIELDS = new Set(['website', 'download_url', 'icon_url']);
 const link =
   href && isSafeHttpUrl(href)
@@ -32,5 +33,5 @@ const link =
 ) : link ? (
   <a href={link}>{value}</a>
 ) : (
-  <TruncatedText value={value} />
+  <TruncatedText value={value} id={id} />
 )}

@@ -4,12 +4,11 @@ import { requireModerator } from '@/lib/auth-guard';
 import { createApiClient } from '@/lib/api/client';
 import type { DeveloperProfile, PendingDeveloperClaim } from '@/lib/api/client';
 import ApproveDialog from '@/components/ApproveDialog.astro';
-import RejectDialog from '@/components/RejectDialog.astro';
+import ClaimCard from '@/components/admin/ClaimCard.astro';
 import EmptyState from '@/components/admin/EmptyState.astro';
 import DeveloperProfilesTable from '@/components/admin/DeveloperProfilesTable.astro';
 import SearchForm from '@/components/admin/SearchForm.astro';
 import { filterPageUrl } from '@/lib/pagination';
-import { formatDate } from '@/lib/format-date';
 
 const env = Astro.locals.env;
 const guard = await requireModerator(Astro, env);
@@ -28,22 +27,20 @@ const isClaims = view === 'claims';
 const api = createApiClient(env, user.sub);
 
 // Claims load on every view: the tab badge needs the pending count even
-// when the claims queue itself isn't showing. Both developer lists load too,
-// so the All and Pending tabs can carry exact counts — the endpoints return
-// whole lists with no pagination, and each tab keeps its own server ordering
-// (All by name, Pending by creation date).
+// when the claims queue itself isn't showing. Both developer lists load on
+// every view too, so the All and Pending counts stay truthful on the claims
+// tab — the endpoints return whole lists with no pagination, and each tab
+// keeps its own server ordering (All by name, Pending by creation date).
 let allDevelopers: DeveloperProfile[] = [];
 let unapprovedDevelopers: DeveloperProfile[] = [];
 let developersError = false;
-if (!isClaims) {
-  try {
-    [allDevelopers, unapprovedDevelopers] = await Promise.all([
-      api.listAllDevelopers(),
-      api.listUnapprovedDevelopers(),
-    ]);
-  } catch {
-    developersError = true;
-  }
+try {
+  [allDevelopers, unapprovedDevelopers] = await Promise.all([
+    api.listAllDevelopers(),
+    api.listUnapprovedDevelopers(),
+  ]);
+} catch {
+  developersError = true;
 }
 
 let claims: PendingDeveloperClaim[] = [];
@@ -140,65 +137,7 @@ const pageDescription = isClaims
     ) : (
       <ul class="space-y-4">
         {claims.map((c) => (
-          <li class="card gap-4 p-5 scroll-mt-24" id={`claim-${c.id}`}>
-            <header class="px-0">
-              <h2 class="font-semibold flex flex-wrap items-center gap-2">
-                {c.developer_name} ({c.developer_id})
-                {c.github_org_verified && (
-                  <span class="badge">GitHub Verified</span>
-                )}
-              </h2>
-              <p class="text-sm text-muted-foreground">
-                {c.developer_type} · claimed by{' '}
-                <strong>{c.claimant_name ?? c.claimant_id}</strong>
-                {c.claimant_github_login && (
-                  <>
-                    {' '}
-                    <a href={`https://github.com/${c.claimant_github_login}`}>
-                      @{c.claimant_github_login}
-                    </a>
-                  </>
-                )}{' '}
-                on {formatDate(c.created_at)}
-              </p>
-              {c.note && <p class="text-sm mt-1">&ldquo;{c.note}&rdquo;</p>}
-            </header>
-            <footer class="flex items-center gap-2 flex-wrap">
-              <button
-                type="button"
-                class="btn"
-                data-size="sm"
-                onclick={`document.getElementById('approve-claim-${c.id}').showModal()`}
-              >
-                Approve
-              </button>
-              <button
-                type="button"
-                class="btn"
-                data-size="sm"
-                data-variant="destructive"
-                onclick={`document.getElementById('reject-claim-${c.id}').showModal()`}
-              >
-                Reject
-              </button>
-            </footer>
-
-            <ApproveDialog
-              id={`approve-claim-${c.id}`}
-              title={`Approve claim on "${c.developer_id}"?`}
-              description="The claimant will gain ownership of this profile immediately."
-              formAction={`/account/admin/developers/claims/${c.id}/approve`}
-              notifyRecipient="claimant"
-              hiddenFields={[{ name: 'intent', value: 'approve' }]}
-            />
-            <RejectDialog
-              id={`reject-claim-${c.id}`}
-              title={`Reject claim on "${c.developer_id}"?`}
-              description="The claimant will see this reason."
-              formAction={`/account/admin/developers/claims/${c.id}/reject`}
-              notifyRecipient="claimant"
-            />
-          </li>
+          <ClaimCard claim={c} />
         ))}
       </ul>
     )

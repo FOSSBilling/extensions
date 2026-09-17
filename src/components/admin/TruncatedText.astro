@@ -1,21 +1,23 @@
 ---
 // Long plain-text diff values (e.g. description) render truncated with a
-// Show More/Less toggle. Markup only — the toggle is wired by the hosting
-// page via [data-truncate-toggle] click delegation. Markdown values use
+// Show More/Less toggle. Markup only — the toggle is wired by shared click
+// delegation on [data-truncate-toggle] (admin-revisions-client.ts, plus the
+// extension detail page for its own table). Markdown values use
 // MarkdownValue, URL fields use DiffValue's link branch.
 interface Props {
   value: string;
   limit?: number;
+  id?: string;
 }
 
-const { value, limit = 400 } = Astro.props;
+const { value, limit = 400, id } = Astro.props;
 const truncated = value.length > limit;
 ---
 
 {truncated ? (
   <>
     <span data-truncate-short>{value.slice(0, limit)}…</span>
-    <span data-truncate-full hidden>
+    <span data-truncate-full hidden id={id}>
       {value}
     </span>
     <button
@@ -24,6 +26,8 @@ const truncated = value.length > limit;
       data-size="sm"
       data-variant="ghost"
       data-truncate-toggle
+      aria-expanded="false"
+      aria-controls={id}
     >
       Show More
     </button>
