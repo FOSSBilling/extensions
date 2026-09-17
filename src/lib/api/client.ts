@@ -9,6 +9,7 @@ import {
   getExtensions,
   getExtensionsById,
   getExtensionsByIdRevisions,
+  getModerationCounts,
   getRevisions,
   getUsersMe,
   patchUsersMe,
@@ -43,6 +44,7 @@ import {
   type GetExtensionsByIdRevisionsData,
   type GetExtensionsByIdRevisionsResponse,
   type GetExtensionsData,
+  type GetModerationCountsResponse,
   type GetRevisionsData,
   type GetRevisionsResponses,
   type OwnedDeveloperProfile,
@@ -106,6 +108,7 @@ export type RevisionHistoryPage = GetExtensionsByIdRevisionsResponse;
 export type ModerationQueuePage = GetRevisionsResponses[200];
 export type DeveloperProfileInput = NonNullable<PutDevelopersMeData['body']>;
 export type RevisionStatus = Exclude<RevisionQueueQuery['status'], undefined>;
+export type ModerationCounts = GetModerationCountsResponse['result'];
 
 // The v2 list/detail reads are role-aware unions. These wrappers pin a scope
 // (public catalogue vs mine/all) or a transport (anonymous vs authenticated),
@@ -491,6 +494,12 @@ export function createApiClient(env: ApplicationEnv, subject: string) {
           query: { status, ...pageQuery(options) },
         }),
       ),
+
+    // Queue totals behind the admin tabs. Best-effort by design: pages
+    // render plain tab labels when it fails rather than erroring the
+    // whole queue.
+    getModerationCounts: async (): Promise<ModerationCounts> =>
+      (await unwrap(await getModerationCounts({ client }))).result,
 
     getModerationExtension: async (id: string): Promise<OwnedExtension> =>
       requireOwnedExtension(

@@ -1,16 +1,10 @@
 ---
 import Base from './Base.astro';
-import {
-  Inbox,
-  LayoutDashboard,
-  Package,
-  UserCheck,
-  Users,
-} from '@lucide/astro';
+import { Inbox, LayoutDashboard, Package, Users } from '@lucide/astro';
 
 interface Props {
   title: string;
-  active: 'overview' | 'revisions' | 'extensions' | 'developers' | 'claims';
+  active: 'overview' | 'revisions' | 'extensions' | 'developers';
   description?: string;
 }
 
@@ -48,12 +42,6 @@ const NAV = [
     label: 'Developers',
     href: '/account/admin/developers',
     Icon: Users,
-  },
-  {
-    id: 'claims',
-    label: 'Claims',
-    href: '/account/admin/developers/claims',
-    Icon: UserCheck,
   },
 ] as const;
 ---

@@ -6,7 +6,11 @@ import {
   createApiClient,
   getApiErrorMessage,
 } from '@/lib/api/client';
-import type { ExtensionRevision, RevisionStatus } from '@/lib/api/client';
+import type {
+  ExtensionRevision,
+  ModerationCounts,
+  RevisionStatus,
+} from '@/lib/api/client';
 import ApproveDialog from '@/components/ApproveDialog.astro';
 import RejectDialog from '@/components/RejectDialog.astro';
 import DecidedRevisionsTable from '@/components/admin/DecidedRevisionsTable.astro';
@@ -56,6 +60,15 @@ const nextPageUrl =
     ? cursorPageUrl(Astro.url, 'cursor', 'cursors', nextCursor)
     : null;
 const prevPageUrl = prevCursorPageUrl(Astro.url, 'cursor', 'cursors');
+
+// Queue totals for the tab badges. Best-effort: the tabs render plain
+// labels when this fails rather than erroring the whole queue.
+let queueCounts: ModerationCounts['revisions'] | null = null;
+try {
+  queueCounts = (await api.getModerationCounts()).revisions;
+} catch {
+  queueCounts = null;
+}
 ---
 
 <Admin
@@ -73,6 +86,7 @@ const prevPageUrl = prevCursorPageUrl(Astro.url, 'cursor', 'cursors');
         aria-current={s === status ? 'page' : undefined}
       >
         {s.charAt(0).toUpperCase() + s.slice(1)}
+        {queueCounts ? ` (${queueCounts[s]})` : ''}
       </a>
     ))}
   </nav>

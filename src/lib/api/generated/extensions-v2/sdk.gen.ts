@@ -42,6 +42,9 @@ import type {
   GetExtensionsData,
   GetExtensionsErrors,
   GetExtensionsResponses,
+  GetModerationCountsData,
+  GetModerationCountsErrors,
+  GetModerationCountsResponses,
   GetRevisionsData,
   GetRevisionsErrors,
   GetRevisionsResponses,
@@ -624,6 +627,26 @@ export const getDevelopersByIdHistory = <ThrowOnError extends boolean = false>(
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/developers/{id}/history',
+    ...options,
+  });
+
+/**
+ * Queue totals for the admin tabs
+ */
+export const getModerationCounts = <ThrowOnError extends boolean = false>(
+  options?: Options<GetModerationCountsData, ThrowOnError>,
+): RequestResult<
+  GetModerationCountsResponses,
+  GetModerationCountsErrors,
+  ThrowOnError
+> =>
+  (options?.client ?? client).get<
+    GetModerationCountsResponses,
+    GetModerationCountsErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/moderation/counts',
     ...options,
   });
 

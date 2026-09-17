@@ -7,6 +7,8 @@ import type { DeveloperHistoryEntry } from '@/lib/api/client';
 import { CircleAlert } from '@lucide/astro';
 import DateTime from '@/components/admin/DateTime.astro';
 import EmptyState from '@/components/admin/EmptyState.astro';
+import SearchForm from '@/components/admin/SearchForm.astro';
+import { filterPageUrl } from '@/lib/pagination';
 
 const env = Astro.locals.env;
 const guard = await requireModerator(Astro, env);
@@ -29,6 +31,18 @@ try {
       ? e.message
       : 'Unable to load history for this developer profile.';
 }
+
+// listDeveloperHistory returns the whole timeline with no pagination, so a
+// server-side substring filter over the loaded rows is complete.
+const historyQuery = Astro.url.searchParams.get('q')?.trim() || undefined;
+if (historyQuery) {
+  const needle = historyQuery.toLowerCase();
+  entries = entries.filter((entry) =>
+    [entry.name, entry.type, entry.changed_by_name ?? '', entry.changed_by].some(
+      (field) => field.toLowerCase().includes(needle),
+    ),
+  );
+}
 ---
 
 <Admin
@@ -47,6 +61,19 @@ try {
     </a>
   </div>
 
+  <div class="flex flex-wrap items-center justify-end gap-3">
+    <SearchForm
+      placeholder="Search this timeline…"
+      value={historyQuery}
+    />
+  </div>
+  {historyQuery && (
+    <p class="text-sm text-muted-foreground">
+      Showing results for "{historyQuery}" ·{' '}
+      <a href={filterPageUrl(Astro.url, 'q', null, [])}>Clear</a>
+    </p>
+  )}
+
   {loadError && (
     <div class="alert" data-variant="destructive">
       <CircleAlert class="size-4" />
@@ -55,7 +82,16 @@ try {
   )}
 
   {!loadError && entries.length === 0 && (
-    <EmptyState title="No Recorded Writes for This Profile Yet" />
+    <EmptyState
+      title={
+        historyQuery
+          ? 'No Matching History Entries'
+          : 'No Recorded Writes for This Profile Yet'
+      }
+      description={
+        historyQuery ? 'Try a different search or clear it.' : undefined
+      }
+    />
   )}
 
   {!loadError && entries.length > 0 && (

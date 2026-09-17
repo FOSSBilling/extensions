@@ -1,6 +1,6 @@
 ---
-import { formatDate } from '@/lib/format-date';
 import type { OwnedExtensionListItem } from '@/lib/api/client';
+import { formatDateTime } from '@/lib/format-date';
 import StatusBadge from './StatusBadge.astro';
 
 interface Props {
@@ -24,14 +24,12 @@ function statusOf(ext: OwnedExtensionListItem) {
         <th class="px-4 py-2 font-medium">Developer</th>
         <th class="px-4 py-2 font-medium">Status</th>
         <th class="px-4 py-2 font-medium">Version</th>
-        <th class="px-4 py-2 font-medium">Review</th>
-        <th class="px-4 py-2 font-medium">Updated</th>
-        <th class="px-4 py-2 font-medium text-right">Actions</th>
+        <th class="px-4 py-2 font-medium">Actions</th>
       </tr>
     </thead>
     <tbody class="divide-y divide-border">
       {extensions.map((ext) => (
-        <tr class="align-top">
+        <tr class="align-middle">
           <td class="px-4 py-2">
             <p class="font-medium">
               <a href={`/account/admin/extensions/${ext.id}`}>
@@ -40,30 +38,36 @@ function statusOf(ext: OwnedExtensionListItem) {
             </p>
             <p class="text-xs text-muted-foreground">{ext.id}</p>
           </td>
-          <td class="px-4 py-2 text-muted-foreground">{ext.developer.name}</td>
+          <td class="px-4 py-2 text-muted-foreground">
+            <a
+              href={`/account/admin/developers/${ext.developer.id}/history`}
+              class="hover:underline underline-offset-4"
+            >
+              {ext.developer.name}
+            </a>
+          </td>
           <td class="px-4 py-2">
-            <StatusBadge status={statusOf(ext)} />
+            <div class="flex flex-wrap items-center gap-1.5">
+              <span title={`Updated ${formatDateTime(ext.updated_at)}`}>
+                <StatusBadge status={statusOf(ext)} />
+              </span>
+              {ext.pending_revision ? (
+                <StatusBadge status="pending" label="Pending Edit" />
+              ) : (
+                ext.last_review?.status === 'rejected' && (
+                  <StatusBadge status="rejected" label="Edit Rejected" />
+                )
+              )}
+            </div>
           </td>
           <td class="px-4 py-2 text-muted-foreground">
             {ext.published ? `v${ext.published.version}` : '—'}
           </td>
           <td class="px-4 py-2">
-            {ext.pending_revision ? (
-              <StatusBadge status="pending" label="Pending Edit" />
-            ) : ext.last_review?.status === 'rejected' ? (
-              <StatusBadge status="rejected" label="Edit Rejected" />
-            ) : (
-              <span class="text-muted-foreground">—</span>
-            )}
-          </td>
-          <td class="px-4 py-2 text-muted-foreground whitespace-nowrap">
-            {formatDate(ext.updated_at)}
-          </td>
-          <td class="px-4 py-2">
-            <div class="flex justify-end items-center gap-2">
+            <div class="flex items-center gap-2">
               <a
                 href={`/account/admin/extensions/${ext.id}`}
-                class="btn"
+                class="btn px-0 flex-1 justify-start"
                 data-size="sm"
                 data-variant="ghost"
               >

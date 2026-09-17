@@ -2,160 +2,262 @@
 import Admin from '../../../../layouts/Admin.astro';
 import { requireModerator } from '@/lib/auth-guard';
 import { createApiClient } from '@/lib/api/client';
-import { isSafeHttpUrl } from '@/lib/safe-url';
-import type { DeveloperProfile } from '@/lib/api/client';
-import { CircleCheck } from '@lucide/astro';
-import ProfileTrustBadge from '@/components/ProfileTrustBadge.astro';
+import type { DeveloperProfile, PendingDeveloperClaim } from '@/lib/api/client';
 import ApproveDialog from '@/components/ApproveDialog.astro';
+import RejectDialog from '@/components/RejectDialog.astro';
 import EmptyState from '@/components/admin/EmptyState.astro';
+import DeveloperProfilesTable from '@/components/admin/DeveloperProfilesTable.astro';
+import SearchForm from '@/components/admin/SearchForm.astro';
+import { filterPageUrl } from '@/lib/pagination';
+import { formatDate } from '@/lib/format-date';
 
 const env = Astro.locals.env;
 const guard = await requireModerator(Astro, env);
 if (guard instanceof Response) return guard;
 const user = guard;
 
+const viewParam = Astro.url.searchParams.get('view');
 const view =
-  Astro.url.searchParams.get('view') === 'all' ? 'all' : 'unapproved';
+  viewParam === 'all'
+    ? 'all'
+    : viewParam === 'claims'
+      ? 'claims'
+      : 'unapproved';
+const isClaims = view === 'claims';
 
 const api = createApiClient(env, user.sub);
-let developers: DeveloperProfile[] = [];
-let loadError = false;
-try {
-  developers =
-    view === 'all'
-      ? await api.listAllDevelopers()
-      : await api.listUnapprovedDevelopers();
-} catch {
-  loadError = true;
+
+// Claims load on every view: the tab badge needs the pending count even
+// when the claims queue itself isn't showing. Both developer lists load too,
+// so the All and Pending tabs can carry exact counts — the endpoints return
+// whole lists with no pagination, and each tab keeps its own server ordering
+// (All by name, Pending by creation date).
+let allDevelopers: DeveloperProfile[] = [];
+let unapprovedDevelopers: DeveloperProfile[] = [];
+let developersError = false;
+if (!isClaims) {
+  try {
+    [allDevelopers, unapprovedDevelopers] = await Promise.all([
+      api.listAllDevelopers(),
+      api.listUnapprovedDevelopers(),
+    ]);
+  } catch {
+    developersError = true;
+  }
 }
+
+let claims: PendingDeveloperClaim[] = [];
+let claimsError = false;
+try {
+  claims = await api.listPendingClaims();
+} catch {
+  claimsError = true;
+}
+const pendingClaimCount = claimsError ? 0 : claims.length;
+
+// The list endpoints return whole lists with no pagination, so a
+// server-side substring filter over the loaded rows of the active tab is
+// complete.
+const query = Astro.url.searchParams.get('q')?.trim() || undefined;
+let developers: DeveloperProfile[] =
+  view === 'all' ? allDevelopers : unapprovedDevelopers;
+if (query) {
+  const needle = query.toLowerCase();
+  if (isClaims) {
+    claims = claims.filter((c) =>
+      [
+        c.developer_name,
+        c.developer_id,
+        c.claimant_name ?? '',
+        c.claimant_id,
+        c.claimant_github_login ?? '',
+      ].some((field) => field.toLowerCase().includes(needle)),
+    );
+  } else {
+    developers = developers.filter((d) =>
+      [d.name, d.id, d.owner_name ?? ''].some((field) =>
+        field.toLowerCase().includes(needle),
+      ),
+    );
+  }
+}
+
+const pageTitle = isClaims
+  ? 'Profile Claims — FOSSBilling Extensions'
+  : 'Developer Profiles — FOSSBilling Extensions';
+const pageDescription = isClaims
+  ? 'These profiles have no linked account. Approving gives the claimant ownership immediately. A “GitHub Verified” badge means the claimant’s own linked GitHub account was automatically confirmed to match — otherwise, use the note below (and the profile’s public page) to judge legitimacy yourself.'
+  : 'These profiles are already live — approval is a trust badge, not a publish gate. An edit to an approved profile clears its badge again until reviewed here, unless GitHub verified.';
 ---
 
-<Admin
-  title="Developer Profiles — FOSSBilling Extensions"
-  active="developers"
-  description="These profiles are already live — approval is a trust badge, not a publish gate. An edit to an approved profile clears its badge again until reviewed here, unless GitHub verified."
->
-  <div slot="actions">
-    <a
-      href="/account/admin/developers/claims"
-      class="btn"
-      data-size="sm"
-      data-variant="outline"
-    >
-      Claims Queue
-    </a>
+<Admin title={pageTitle} active="developers" description={pageDescription}>
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <nav class="flex gap-2" aria-label="Developer filter">
+      {(['all', 'unapproved', 'claims'] as const).map((v) => (
+        <a
+          href={filterPageUrl(Astro.url, 'view', v, [])}
+          class="btn"
+          data-size="sm"
+          data-variant={v === view ? 'primary' : 'outline'}
+          aria-current={v === view ? 'page' : undefined}
+        >
+          {v === 'all'
+            ? `All (${allDevelopers.length})`
+            : v === 'unapproved'
+              ? `Pending (${unapprovedDevelopers.length})`
+              : pendingClaimCount > 0
+                ? `Claims (${pendingClaimCount})`
+                : 'Claims'}
+        </a>
+      ))}
+    </nav>
+    <SearchForm
+      placeholder={
+        isClaims ? 'Search by profile or claimant…' : 'Search by name or ID…'
+      }
+      value={query}
+    />
   </div>
+  {query && (
+    <p class="text-sm text-muted-foreground">
+      Showing results for "{query}" ·{' '}
+      <a href={filterPageUrl(Astro.url, 'q', null, [])}>Clear</a>
+    </p>
+  )}
 
-  <nav class="flex gap-2" aria-label="Developer filter">
-    {(['unapproved', 'all'] as const).map((v) => (
-      <a
-        href={`/account/admin/developers?view=${v}`}
-        class="btn"
-        data-size="sm"
-        data-variant={v === view ? 'primary' : 'outline'}
-        aria-current={v === view ? 'page' : undefined}
-      >
-        {v === 'unapproved' ? 'Awaiting Review' : 'All Profiles'}
-      </a>
-    ))}
-  </nav>
+  {isClaims ? (
+    claimsError ? (
+      <p class="text-sm text-destructive">
+        Unable to load pending claims right now.
+      </p>
+    ) : claims.length === 0 ? (
+      <EmptyState
+        title={
+          query ? 'No Matching Claims' : 'No Profile Claims Awaiting Review'
+        }
+        description={query ? 'Try a different search or clear it.' : undefined}
+      />
+    ) : (
+      <ul class="space-y-4">
+        {claims.map((c) => (
+          <li class="card gap-4 p-5">
+            <header class="px-0">
+              <h2 class="font-semibold flex flex-wrap items-center gap-2">
+                {c.developer_name} ({c.developer_id})
+                {c.github_org_verified && (
+                  <span class="badge">GitHub Verified</span>
+                )}
+              </h2>
+              <p class="text-sm text-muted-foreground">
+                {c.developer_type} · claimed by{' '}
+                <strong>{c.claimant_name ?? c.claimant_id}</strong>
+                {c.claimant_github_login && (
+                  <>
+                    {' '}
+                    <a href={`https://github.com/${c.claimant_github_login}`}>
+                      @{c.claimant_github_login}
+                    </a>
+                  </>
+                )}{' '}
+                on {formatDate(c.created_at)}
+              </p>
+              {c.note && <p class="text-sm mt-1">&ldquo;{c.note}&rdquo;</p>}
+            </header>
+            <footer class="flex items-center gap-2 flex-wrap">
+              <button
+                type="button"
+                class="btn"
+                data-size="sm"
+                onclick={`document.getElementById('approve-claim-${c.id}').showModal()`}
+              >
+                Approve
+              </button>
+              <button
+                type="button"
+                class="btn"
+                data-size="sm"
+                data-variant="destructive"
+                onclick={`document.getElementById('reject-claim-${c.id}').showModal()`}
+              >
+                Reject
+              </button>
+            </footer>
 
-  {loadError ? (
+            <ApproveDialog
+              id={`approve-claim-${c.id}`}
+              title={`Approve claim on "${c.developer_id}"?`}
+              description="The claimant will gain ownership of this profile immediately."
+              formAction={`/account/admin/developers/claims/${c.id}/approve`}
+              notifyRecipient="claimant"
+              hiddenFields={[{ name: 'intent', value: 'approve' }]}
+            />
+            <RejectDialog
+              id={`reject-claim-${c.id}`}
+              title={`Reject claim on "${c.developer_id}"?`}
+              description="The claimant will see this reason."
+              formAction={`/account/admin/developers/claims/${c.id}/reject`}
+              notifyRecipient="claimant"
+            />
+          </li>
+        ))}
+      </ul>
+    )
+  ) : developersError ? (
     <p class="text-sm text-destructive">
       Unable to load developer profiles right now.
     </p>
   ) : developers.length === 0 ? (
     <EmptyState
       title={
-        view === 'unapproved'
-          ? 'No Profiles Awaiting Review'
-          : 'No Developer Profiles Yet'
+        query
+          ? 'No Matching Profiles'
+          : view === 'unapproved'
+            ? 'No Pending Profiles'
+            : 'No Developer Profiles Yet'
       }
+      description={query ? 'Try a different search or clear it.' : undefined}
     />
   ) : (
-    <ul class="space-y-4">
-      {developers.map((d) => (
-        <li class="card overflow-visible py-4">
-          <header class="flex items-start justify-between gap-4">
-            <div class="min-w-0">
-              <h2 class="font-semibold flex flex-wrap items-center gap-2">
-                {d.name} ({d.id})
-                <ProfileTrustBadge
-                  approved={d.approved}
-                  githubOrgVerified={d.github_org_verified}
-                  githubVerifiedAt={d.github_verified_at}
-                />
-                {d.unclaimed && (
-                  <span class="badge" data-variant="secondary">
-                    Unclaimed
-                  </span>
-                )}
-              </h2>
-              <p class="text-sm text-muted-foreground">
-                {d.type}
-                {d.URL && (
-                  <>
-                    {' '}
-                    ·{' '}
-                    {isSafeHttpUrl(d.URL) ? <a href={d.URL}>{d.URL}</a> : d.URL}
-                    {d.github_url_verified && (
-                      <CircleCheck
-                        class="size-3.5 inline text-primary align-text-bottom"
-                        title="Matches GitHub's on-file website"
-                      />
-                    )}
-                  </>
-                )}
-              </p>
-              {d.owner_name && (
-                <p class="text-sm text-muted-foreground">
-                  Owned by <strong>{d.owner_name}</strong>
-                  {d.owner_github_login && (
-                    <>
-                      {' '}
-                      <a href={`https://github.com/${d.owner_github_login}`}>
-                        @{d.owner_github_login}
-                      </a>
-                    </>
-                  )}
-                </p>
-              )}
-            </div>
-            <div class="flex shrink-0 items-center gap-2">
-              <a
-                href={`/account/admin/developers/${d.id}/history`}
-                class="btn"
-                data-size="sm"
-                data-variant="outline"
-              >
-                History
-              </a>
-              {!d.approved && (
-                <>
-                  <button
-                    type="button"
-                    class="btn"
-                    data-size="sm"
-                    onclick={`document.getElementById('approve-developer-${d.id}').showModal()`}
-                  >
-                    Approve
-                  </button>
-                  <ApproveDialog
-                    id={`approve-developer-${d.id}`}
-                    title={`Approve "${d.name}"?`}
-                    description="The owner will see the trust badge on their live profile."
-                    formAction={`/account/admin/developers/${d.id}/approve`}
-                    notifyRecipient="owner"
-                    hiddenFields={[
-                      { name: 'expected_revision', value: d.content_revision },
-                    ]}
-                  />
-                </>
-              )}
-            </div>
-          </header>
-        </li>
-      ))}
-    </ul>
+    <DeveloperProfilesTable developers={developers} />
   )}
+
+  <ApproveDialog
+    id="admin-approve-developer"
+    title="Approve Developer?"
+    description="The owner will see the trust badge on their live profile."
+    formAction="/account/admin/developers/placeholder/approve"
+    notifyRecipient="owner"
+    hiddenFields={[{ name: 'expected_revision', value: '' }]}
+  />
 </Admin>
+
+<script>
+  // Single shared approve dialog for the profiles table: each row button
+  // carries its developer on data attributes (same pattern as the delist
+  // confirm on /account/admin/extensions).
+  const dialog = document.querySelector<HTMLDialogElement>(
+    '#admin-approve-developer',
+  );
+
+  document.addEventListener('click', (event) => {
+    const button = (
+      event.target as HTMLElement | null
+    )?.closest<HTMLButtonElement>('button[data-approve-developer]');
+    if (!button || !dialog) return;
+
+    const id = button.dataset.developerId ?? '';
+    const form = dialog.querySelector('form');
+    const titleEl = dialog.querySelector('h2');
+    const revisionInput = dialog.querySelector<HTMLInputElement>(
+      'input[name="expected_revision"]',
+    );
+    if (form) form.action = `/account/admin/developers/${id}/approve`;
+    if (titleEl) {
+      titleEl.textContent = `Approve "${button.dataset.developerName ?? id}"?`;
+    }
+    if (revisionInput) {
+      revisionInput.value = button.dataset.expectedRevision ?? '';
+    }
+    dialog.showModal();
+  });
+</script>

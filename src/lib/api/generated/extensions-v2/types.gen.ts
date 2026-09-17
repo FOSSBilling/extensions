@@ -1542,6 +1542,55 @@ export type GetDevelopersByIdHistoryResponses = {
 export type GetDevelopersByIdHistoryResponse =
   GetDevelopersByIdHistoryResponses[keyof GetDevelopersByIdHistoryResponses];
 
+export type GetModerationCountsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/moderation/counts';
+};
+
+export type GetModerationCountsErrors = {
+  /**
+   * Missing or invalid bearer token
+   */
+  401: Error;
+  /**
+   * The account is inactive or the caller is not a moderator
+   */
+  403: Error;
+  /**
+   * Database error
+   */
+  500: Error;
+};
+
+export type GetModerationCountsError =
+  GetModerationCountsErrors[keyof GetModerationCountsErrors];
+
+export type GetModerationCountsResponses = {
+  /**
+   * Pending/decided totals per queue
+   */
+  200: {
+    result: {
+      revisions: {
+        pending: number;
+        approved: number;
+        rejected: number;
+      };
+      extensions: {
+        all: number;
+        published: number;
+        delisted: number;
+        unpublished: number;
+      };
+    };
+  };
+};
+
+export type GetModerationCountsResponse =
+  GetModerationCountsResponses[keyof GetModerationCountsResponses];
+
 export type GetRevisionsData = {
   body?: never;
   path?: never;

@@ -7,6 +7,7 @@ import {
   getApiErrorMessage,
 } from '@/lib/api/client';
 import type {
+  ModerationCounts,
   ModerationExtensionStatus,
   OwnedExtensionListItem,
 } from '@/lib/api/client';
@@ -65,6 +66,15 @@ const extNextPageUrl =
     ? cursorPageUrl(Astro.url, 'extCursor', 'extCursors', extNextCursor)
     : null;
 const extPrevPageUrl = prevCursorPageUrl(Astro.url, 'extCursor', 'extCursors');
+
+// Catalogue totals for the tab badges. Best-effort: the tabs render plain
+// labels when this fails rather than erroring the whole table.
+let catalogueCounts: ModerationCounts['extensions'] | null = null;
+try {
+  catalogueCounts = (await api.getModerationCounts()).extensions;
+} catch {
+  catalogueCounts = null;
+}
 ---
 
 <Admin
@@ -88,6 +98,7 @@ const extPrevPageUrl = prevCursorPageUrl(Astro.url, 'extCursor', 'extCursors');
           {s === 'unpublished'
             ? 'Never Published'
             : s.charAt(0).toUpperCase() + s.slice(1)}
+          {catalogueCounts ? ` (${catalogueCounts[s]})` : ''}
         </a>
       ))}
     </nav>
