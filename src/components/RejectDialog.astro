@@ -27,6 +27,7 @@ const {
   aria-labelledby={`${id}-title`}
   aria-describedby={`${id}-description`}
   onclick="if (arguments[0].target === this) this.close()"
+  onclose="this.querySelector('form').reset()"
 >
   <form method="POST" action={formAction}>
     <header>

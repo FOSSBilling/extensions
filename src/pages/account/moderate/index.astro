@@ -244,6 +244,7 @@ const prevPageUrl = prevCursorPageUrl(Astro.url, 'cursor', 'cursors');
       aria-labelledby="delist-confirm-title"
       aria-describedby="delist-confirm-description"
       onclick="if (arguments[0].target === this) this.close()"
+      onclose="this.querySelector('form').reset()"
     >
       <form method="POST" action="/account/moderate/delist">
         <header>

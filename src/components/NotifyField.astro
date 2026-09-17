@@ -8,12 +8,19 @@ const { id, recipient } = Astro.props;
 const label = `Send notification email to ${recipient}`;
 ---
 
-<div role="group" class="field" data-orientation="horizontal">
+<div
+  role="group"
+  class="field"
+  data-orientation="horizontal"
+  aria-labelledby={`${id}-label`}
+>
   <section>
     <h3>
-      <label for={id}>{label}</label>
+      <label for={id} id={`${id}-label`}>
+        {label}
+      </label>
     </h3>
-    <p>
+    <p id={`${id}-hint`}>
       Sends to the contact email on file, falling back to the account email.
     </p>
   </section>
@@ -24,5 +31,6 @@ const label = `Send notification email to ${recipient}`;
     id={id}
     name="notify"
     checked
+    aria-describedby={`${id}-hint`}
   />
 </div>
