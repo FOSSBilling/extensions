@@ -31,7 +31,6 @@ import {
   putUsersMeIdentity,
   type Developer,
   type DeveloperApproval,
-  type DeveloperClaim,
   type DeveloperHistoryEntry,
   type DeveloperProfile,
   type DeveloperTransfer,
@@ -128,7 +127,6 @@ export type OwnedDeveloper = OwnedDeveloperProfile;
 export type {
   Developer,
   DeveloperApproval,
-  DeveloperClaim,
   DeveloperHistoryEntry,
   DeveloperProfile,
   DeveloperTransfer,
@@ -137,12 +135,9 @@ export type {
   ExtensionListItem,
   ExtensionRevision,
   ExtensionUpdate,
-  OwnedDeveloperProfile,
   OwnedExtension,
   OwnedExtensionListItem,
-  Pagination,
   PendingDeveloperClaim,
-  PublicDeveloper,
 };
 
 export class ApiRequestError extends Error {
@@ -272,15 +267,14 @@ function notifyQuery(notify: boolean): { query?: { notify: 'false' } } {
   return notify ? {} : { query: { notify: 'false' } };
 }
 
-function isOwnedExtension(result: unknown): result is OwnedExtension {
-  return !!result && typeof result === 'object' && 'pending_revision' in result;
-}
-
-function requireOwnedExtension(result: unknown, id: string): OwnedExtension {
+function requireOwnedExtension(
+  result: Extension | OwnedExtension,
+  id: string,
+): OwnedExtension {
   // The role-aware detail read falls through to the public projection for
   // unrelated callers instead of 403ing. Owner/moderator views must not
   // mistake that for an owned row, so treat it as not-found like before.
-  if (!isOwnedExtension(result)) {
+  if (!('pending_revision' in result)) {
     throw new ApiRequestError(404, 'not_found', `Extension "${id}" not found.`);
   }
 
@@ -353,7 +347,6 @@ export async function listExtensions(
   env: ApplicationEnv,
   filters: ExtensionCatalogueFilters = {},
 ): Promise<ExtensionListResponse> {
-  // No scope is sent, so the API defaults to the public catalogue projection.
   const page = await unwrap(
     await getExtensions({
       client: createApiTransport(env),
@@ -375,7 +368,6 @@ export async function getExtensionById(
     path: { id },
   });
   const data = await unwrap(response);
-  // Anonymous callers always receive the published projection.
   return data.result as Extension;
 }
 
@@ -383,13 +375,12 @@ export async function getDeveloperById(
   env: ApplicationEnv,
   id: string,
 ): Promise<PublicDeveloper> {
-  return unwrap(
-    await getDevelopersById({
-      client: createApiTransport(env),
-      path: { id },
-    }),
-    // Anonymous callers always receive the public projection.
-  ).then((response) => response.result as PublicDeveloper);
+  const response = await getDevelopersById({
+    client: createApiTransport(env),
+    path: { id },
+  });
+  const data = await unwrap(response);
+  return data.result as PublicDeveloper;
 }
 
 export function createApiClient(env: ApplicationEnv, subject: string) {
@@ -428,7 +419,6 @@ export function createApiClient(env: ApplicationEnv, subject: string) {
           query: mineExtensionQuery(options),
         }),
       );
-      // scope=mine always returns owned rows.
       return {
         result: page.result as OwnedExtensionListItem[],
         pagination: page.pagination,
@@ -524,7 +514,6 @@ export function createApiClient(env: ApplicationEnv, subject: string) {
           query: moderationExtensionQuery(options),
         }),
       );
-      // scope=all (moderator only) always returns owned rows.
       return {
         result: page.result as OwnedExtensionListItem[],
         pagination: page.pagination,
