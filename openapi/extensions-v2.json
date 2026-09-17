@@ -18,13 +18,20 @@
       }
     },
     "schemas": {
-      "OwnedExtensionListResponse": {
+      "UnifiedExtensionListResponse": {
         "type": "object",
         "properties": {
           "result": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/OwnedExtensionListItem"
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/ExtensionListItem"
+                },
+                {
+                  "$ref": "#/components/schemas/OwnedExtensionListItem"
+                }
+              ]
             }
           },
           "pagination": {
@@ -32,6 +39,150 @@
           }
         },
         "required": ["result", "pagination"]
+      },
+      "ExtensionListItem": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "mod",
+              "theme",
+              "payment-gateway",
+              "server-manager",
+              "domain-registrar",
+              "hook",
+              "translation"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          },
+          "website": {
+            "type": "string",
+            "maxLength": 2048,
+            "format": "uri"
+          },
+          "license": {
+            "$ref": "#/components/schemas/License"
+          },
+          "icon_url": {
+            "type": "string",
+            "maxLength": 2048,
+            "format": "uri"
+          },
+          "source": {
+            "$ref": "#/components/schemas/Repository"
+          },
+          "version": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "download_url": {
+            "type": "string",
+            "maxLength": 2048,
+            "format": "uri"
+          },
+          "id": {
+            "type": "string"
+          },
+          "developer": {
+            "$ref": "#/components/schemas/PublicDeveloper"
+          }
+        },
+        "required": [
+          "type",
+          "name",
+          "description",
+          "website",
+          "license",
+          "source",
+          "version",
+          "download_url",
+          "id",
+          "developer"
+        ]
+      },
+      "License": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "spdx_id": {
+            "type": "string",
+            "description": "A current SPDX license identifier (https://spdx.org/licenses/). Omitted for custom or proprietary licenses.",
+            "example": "MIT"
+          },
+          "URL": {
+            "type": "string",
+            "maxLength": 2048,
+            "format": "uri"
+          }
+        },
+        "required": ["name"],
+        "additionalProperties": false
+      },
+      "Repository": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["github", "gitlab", "custom"]
+          },
+          "repo": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          }
+        },
+        "required": ["type", "repo"],
+        "additionalProperties": false
+      },
+      "PublicDeveloper": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["user", "organization"]
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "URL": {
+            "type": "string",
+            "maxLength": 2048,
+            "format": "uri"
+          },
+          "avatar_url": {
+            "type": "string",
+            "maxLength": 2048,
+            "format": "uri"
+          },
+          "approved": {
+            "type": "boolean"
+          },
+          "unclaimed": {
+            "type": "boolean"
+          }
+        },
+        "required": ["id", "type", "name", "approved", "unclaimed"]
       },
       "OwnedExtensionListItem": {
         "type": "object",
@@ -132,79 +283,6 @@
           "updated_at"
         ]
       },
-      "PublicDeveloper": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
-          },
-          "type": {
-            "type": "string",
-            "enum": ["user", "organization"]
-          },
-          "name": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 120
-          },
-          "URL": {
-            "type": "string",
-            "maxLength": 2048,
-            "format": "uri"
-          },
-          "avatar_url": {
-            "type": "string",
-            "maxLength": 2048,
-            "format": "uri"
-          },
-          "approved": {
-            "type": "boolean"
-          },
-          "unclaimed": {
-            "type": "boolean"
-          }
-        },
-        "required": ["id", "type", "name", "approved", "unclaimed"]
-      },
-      "License": {
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 100
-          },
-          "spdx_id": {
-            "type": "string",
-            "description": "A current SPDX license identifier (https://spdx.org/licenses/). Omitted for custom or proprietary licenses.",
-            "example": "MIT"
-          },
-          "URL": {
-            "type": "string",
-            "maxLength": 2048,
-            "format": "uri"
-          }
-        },
-        "required": ["name"],
-        "additionalProperties": false
-      },
-      "Repository": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "enum": ["github", "gitlab", "custom"]
-          },
-          "repo": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 500
-          }
-        },
-        "required": ["type", "repo"],
-        "additionalProperties": false
-      },
       "PendingRevisionRef": {
         "type": ["object", "null"],
         "properties": {
@@ -291,50 +369,38 @@
         },
         "required": ["error"]
       },
-      "OwnedExtension": {
+      "ExtensionDetailResponse": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Extension"
+              },
+              {
+                "$ref": "#/components/schemas/OwnedExtension"
+              }
+            ]
+          }
+        },
+        "required": ["result"]
+      },
+      "Extension": {
         "allOf": [
           {
-            "$ref": "#/components/schemas/OwnedExtensionListItem"
+            "$ref": "#/components/schemas/ExtensionContent"
           },
           {
             "type": "object",
             "properties": {
-              "published": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/ExtensionContent"
-                  },
-                  {
-                    "type": ["object", "null"],
-                    "properties": {
-                      "releases": {
-                        "type": "array",
-                        "items": {
-                          "$ref": "#/components/schemas/Release"
-                        },
-                        "maxItems": 100
-                      }
-                    }
-                  }
-                ]
+              "id": {
+                "type": "string"
               },
-              "pending_revision": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/PendingRevisionRef"
-                  },
-                  {
-                    "type": ["object", "null"],
-                    "properties": {
-                      "content": {
-                        "$ref": "#/components/schemas/StoredExtensionContent"
-                      }
-                    },
-                    "required": ["content"]
-                  }
-                ]
+              "developer": {
+                "$ref": "#/components/schemas/PublicDeveloper"
               }
-            }
+            },
+            "required": ["id", "developer"]
           }
         ]
       },
@@ -446,6 +512,53 @@
           "source",
           "version",
           "download_url"
+        ]
+      },
+      "OwnedExtension": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/OwnedExtensionListItem"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "published": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/ExtensionContent"
+                  },
+                  {
+                    "type": ["object", "null"],
+                    "properties": {
+                      "releases": {
+                        "type": "array",
+                        "items": {
+                          "$ref": "#/components/schemas/Release"
+                        },
+                        "maxItems": 100
+                      }
+                    }
+                  }
+                ]
+              },
+              "pending_revision": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/PendingRevisionRef"
+                  },
+                  {
+                    "type": ["object", "null"],
+                    "properties": {
+                      "content": {
+                        "$ref": "#/components/schemas/StoredExtensionContent"
+                      }
+                    },
+                    "required": ["content"]
+                  }
+                ]
+              }
+            }
+          }
         ]
       },
       "StoredExtensionContent": {
@@ -722,111 +835,6 @@
           "review_note",
           "created_at",
           "reviewed_at"
-        ]
-      },
-      "ExtensionListResponse": {
-        "type": "object",
-        "properties": {
-          "result": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ExtensionListItem"
-            }
-          },
-          "pagination": {
-            "$ref": "#/components/schemas/Pagination"
-          }
-        },
-        "required": ["result", "pagination"]
-      },
-      "ExtensionListItem": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "enum": [
-              "mod",
-              "theme",
-              "payment-gateway",
-              "server-manager",
-              "domain-registrar",
-              "hook",
-              "translation"
-            ]
-          },
-          "name": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 120
-          },
-          "description": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 4000
-          },
-          "website": {
-            "type": "string",
-            "maxLength": 2048,
-            "format": "uri"
-          },
-          "license": {
-            "$ref": "#/components/schemas/License"
-          },
-          "icon_url": {
-            "type": "string",
-            "maxLength": 2048,
-            "format": "uri"
-          },
-          "source": {
-            "$ref": "#/components/schemas/Repository"
-          },
-          "version": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 100
-          },
-          "download_url": {
-            "type": "string",
-            "maxLength": 2048,
-            "format": "uri"
-          },
-          "id": {
-            "type": "string"
-          },
-          "developer": {
-            "$ref": "#/components/schemas/PublicDeveloper"
-          }
-        },
-        "required": [
-          "type",
-          "name",
-          "description",
-          "website",
-          "license",
-          "source",
-          "version",
-          "download_url",
-          "id",
-          "developer"
-        ]
-      },
-      "Extension": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/ExtensionContent"
-          },
-          {
-            "type": "object",
-            "properties": {
-              "id": {
-                "type": "string"
-              },
-              "developer": {
-                "$ref": "#/components/schemas/PublicDeveloper"
-              }
-            },
-            "required": ["id", "developer"]
-          }
         ]
       },
       "User": {
@@ -1230,15 +1238,34 @@
         },
         "required": ["id", "type", "name"],
         "additionalProperties": false
+      },
+      "DeveloperDetailResponse": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PublicDeveloper"
+              },
+              {
+                "$ref": "#/components/schemas/DeveloperProfile"
+              },
+              {
+                "$ref": "#/components/schemas/OwnedDeveloperProfile"
+              }
+            ]
+          }
+        },
+        "required": ["result"]
       }
     },
     "parameters": {}
   },
   "paths": {
-    "/extensions/mine": {
+    "/extensions": {
       "get": {
         "tags": ["Extensions"],
-        "summary": "List the caller's extensions, published or not",
+        "summary": "List extensions: published catalogue (scope=public), caller's own (scope=mine), or every extension (scope=all, moderator)",
         "security": [
           {
             "Bearer": []
@@ -1264,6 +1291,16 @@
           },
           {
             "schema": {
+              "type": "string",
+              "description": "Public scope only"
+            },
+            "required": false,
+            "description": "Public scope only",
+            "name": "developer_id",
+            "in": "query"
+          },
+          {
+            "schema": {
               "type": "integer",
               "minimum": 1,
               "maximum": 100,
@@ -1284,101 +1321,56 @@
             "description": "Opaque cursor returned by the previous page",
             "name": "cursor",
             "in": "query"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Every extension under the caller's developer profile, each with its live content, any unreviewed edit, and the last moderator decision",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/OwnedExtensionListResponse"
-                }
-              }
-            }
           },
-          "401": {
-            "description": "Missing or invalid bearer token",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "The bearer is valid but the account is inactive",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Pagination query failed validation",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Database error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/extensions/mine/{id}": {
-      "get": {
-        "tags": ["Extensions"],
-        "summary": "Get one of the caller's extensions, published or not",
-        "security": [
-          {
-            "Bearer": []
-          }
-        ],
-        "parameters": [
           {
             "schema": {
               "type": "string",
-              "example": "b6e2c9c4-3f1a-4e9b-9c3a-2e4b1a2f9d10"
+              "enum": ["public", "mine", "all"],
+              "default": "public",
+              "description": "public: published catalogue (anonymous allowed). mine: caller's own extensions. all: every extension (moderator only)."
             },
-            "required": true,
-            "name": "id",
-            "in": "path"
+            "required": false,
+            "description": "public: published catalogue (anonymous allowed). mine: caller's own extensions. all: every extension (moderator only).",
+            "name": "scope",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": ["published", "delisted", "unpublished"],
+              "description": "All scope only: published, delisted, or unpublished"
+            },
+            "required": false,
+            "description": "All scope only: published, delisted, or unpublished",
+            "name": "status",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "description": "All scope only: case-insensitive substring match on the extension id"
+            },
+            "required": false,
+            "description": "All scope only: case-insensitive substring match on the extension id",
+            "name": "q",
+            "in": "query"
           }
         ],
         "responses": {
           "200": {
-            "description": "The extension's live content, its unreviewed edit if any, and the last moderator decision",
+            "description": "Extensions matching the scope: catalogue cards for scope=public, owned rows for scope=mine/all",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "result": {
-                      "$ref": "#/components/schemas/OwnedExtension"
-                    }
-                  },
-                  "required": ["result"]
+                  "$ref": "#/components/schemas/UnifiedExtensionListResponse"
                 }
               }
             }
           },
           "401": {
-            "description": "Missing or invalid bearer token",
+            "description": "Invalid bearer token",
             "content": {
               "application/json": {
                 "schema": {
@@ -1388,17 +1380,7 @@
             }
           },
           "403": {
-            "description": "The account is inactive, or the caller does not own this extension",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "No extension with that id",
+            "description": "Inactive account, non-moderator scope=all, or scope misuse",
             "content": {
               "application/json": {
                 "schema": {
@@ -1408,7 +1390,7 @@
             }
           },
           "422": {
-            "description": "id param failed validation",
+            "description": "Filter or pagination query failed validation",
             "content": {
               "application/json": {
                 "schema": {
@@ -1428,9 +1410,7 @@
             }
           }
         }
-      }
-    },
-    "/extensions": {
+      },
       "post": {
         "tags": ["Extensions"],
         "summary": "Create an extension and submit its first version for review",
@@ -1529,73 +1509,61 @@
             }
           }
         }
-      },
+      }
+    },
+    "/extensions/{id}": {
       "get": {
         "tags": ["Extensions"],
-        "summary": "List published extensions",
+        "summary": "Get an extension: published content anonymously, full owned record for its owner or a moderator",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
         "parameters": [
           {
             "schema": {
               "type": "string",
-              "enum": [
-                "mod",
-                "theme",
-                "payment-gateway",
-                "server-manager",
-                "domain-registrar",
-                "hook",
-                "translation"
-              ]
+              "example": "b6e2c9c4-3f1a-4e9b-9c3a-2e4b1a2f9d10"
             },
-            "required": false,
-            "name": "type",
-            "in": "query"
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": false,
-            "name": "developer_id",
-            "in": "query"
-          },
-          {
-            "schema": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 100,
-              "default": 50
-            },
-            "required": false,
-            "name": "limit",
-            "in": "query"
-          },
-          {
-            "schema": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 1000,
-              "description": "Opaque cursor returned by the previous page"
-            },
-            "required": false,
-            "description": "Opaque cursor returned by the previous page",
-            "name": "cursor",
-            "in": "query"
+            "required": true,
+            "name": "id",
+            "in": "path"
           }
         ],
         "responses": {
           "200": {
-            "description": "Extensions matching the given filters",
+            "description": "Published projection for anonymous/unrelated callers, owned projection for the owner or a moderator",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ExtensionListResponse"
+                  "$ref": "#/components/schemas/ExtensionDetailResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No extension with that id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
           },
           "422": {
-            "description": "Filter or pagination query failed validation",
+            "description": "id param failed validation",
             "content": {
               "application/json": {
                 "schema": {
@@ -1615,9 +1583,7 @@
             }
           }
         }
-      }
-    },
-    "/extensions/{id}": {
+      },
       "put": {
         "tags": ["Extensions"],
         "summary": "Submit an edit to an extension the caller owns",
@@ -1816,69 +1782,6 @@
           },
           "409": {
             "description": "The extension is published and cannot be withdrawn",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Database error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      },
-      "get": {
-        "tags": ["Extensions"],
-        "summary": "Get a single published extension",
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "example": "b6e2c9c4-3f1a-4e9b-9c3a-2e4b1a2f9d10"
-            },
-            "required": true,
-            "name": "id",
-            "in": "path"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "The extension",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "result": {
-                      "$ref": "#/components/schemas/Extension"
-                    }
-                  },
-                  "required": ["result"]
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "No extension with that id",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "id param failed validation",
             "content": {
               "application/json": {
                 "schema": {
@@ -2172,20 +2075,14 @@
         },
         "responses": {
           "200": {
-            "description": "Profile updated",
+            "description": "Profile updated (full account projection)",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
                     "result": {
-                      "type": "object",
-                      "properties": {
-                        "display_name": {
-                          "type": ["string", "null"]
-                        }
-                      },
-                      "required": ["display_name"]
+                      "$ref": "#/components/schemas/User"
                     }
                   },
                   "required": ["result"]
@@ -2539,80 +2436,43 @@
         }
       }
     },
-    "/developers/claims/mine": {
-      "get": {
-        "tags": ["Developers"],
-        "summary": "List the caller's own profile claims, in any status",
-        "security": [
-          {
-            "Bearer": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "The caller's claims",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "result": {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/components/schemas/DeveloperClaim"
-                      }
-                    }
-                  },
-                  "required": ["result"]
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Missing or invalid bearer token",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "The bearer is valid but the account is inactive",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Database error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/developers/claims": {
       "get": {
-        "tags": ["Moderation"],
-        "summary": "List pending profile claims",
+        "tags": ["Developers"],
+        "summary": "List claims: caller's own (?scope=mine) or pending review (?scope=pending, moderator)",
         "security": [
           {
             "Bearer": []
           }
         ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": ["mine", "pending"],
+              "description": "mine: the caller's own claims. pending: claims awaiting review (moderator only)."
+            },
+            "required": true,
+            "description": "mine: the caller's own claims. pending: claims awaiting review (moderator only).",
+            "name": "scope",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": ["pending", "approved", "rejected", "all"],
+              "default": "all",
+              "description": "Filter claims by status (default: all)"
+            },
+            "required": false,
+            "description": "Filter claims by status (default: all)",
+            "name": "status",
+            "in": "query"
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Claims awaiting moderator review",
+            "description": "Enriched claims with developer and claimant names in both scopes",
             "content": {
               "application/json": {
                 "schema": {
@@ -2641,7 +2501,17 @@
             }
           },
           "403": {
-            "description": "The account is inactive or the caller is not a moderator",
+            "description": "The bearer is valid but the account is inactive",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "scope query failed validation",
             "content": {
               "application/json": {
                 "schema": {
@@ -3198,329 +3068,6 @@
         }
       }
     },
-    "/moderation/extensions": {
-      "get": {
-        "tags": ["Moderation"],
-        "summary": "List extension revisions awaiting review",
-        "security": [
-          {
-            "Bearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "enum": ["pending", "approved", "rejected"]
-            },
-            "required": false,
-            "name": "status",
-            "in": "query"
-          },
-          {
-            "schema": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 100,
-              "default": 50
-            },
-            "required": false,
-            "name": "limit",
-            "in": "query"
-          },
-          {
-            "schema": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 1000
-            },
-            "required": false,
-            "name": "cursor",
-            "in": "query"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Revisions matching the requested status (default: pending), oldest first",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "result": {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/components/schemas/ExtensionRevision"
-                      }
-                    },
-                    "pagination": {
-                      "$ref": "#/components/schemas/Pagination"
-                    }
-                  },
-                  "required": ["result", "pagination"]
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Missing or invalid bearer token",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "The account is inactive or the caller is not a moderator",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "status query param failed validation",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Database error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/moderation/all-extensions": {
-      "get": {
-        "tags": ["Moderation"],
-        "summary": "List every extension regardless of status",
-        "security": [
-          {
-            "Bearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "enum": [
-                "mod",
-                "theme",
-                "payment-gateway",
-                "server-manager",
-                "domain-registrar",
-                "hook",
-                "translation"
-              ]
-            },
-            "required": false,
-            "name": "type",
-            "in": "query"
-          },
-          {
-            "schema": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 100,
-              "default": 50
-            },
-            "required": false,
-            "name": "limit",
-            "in": "query"
-          },
-          {
-            "schema": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 1000,
-              "description": "Opaque cursor returned by the previous page"
-            },
-            "required": false,
-            "description": "Opaque cursor returned by the previous page",
-            "name": "cursor",
-            "in": "query"
-          },
-          {
-            "schema": {
-              "type": "string",
-              "enum": ["published", "delisted", "unpublished"]
-            },
-            "required": false,
-            "name": "status",
-            "in": "query"
-          },
-          {
-            "schema": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 200,
-              "description": "Case-insensitive substring match on the extension id"
-            },
-            "required": false,
-            "description": "Case-insensitive substring match on the extension id",
-            "name": "q",
-            "in": "query"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Extensions matching the requested status (default: all), alphabetical by id",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/OwnedExtensionListResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Missing or invalid bearer token",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "The account is inactive or the caller is not a moderator",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Query params failed validation",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Database error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/moderation/extensions/{id}": {
-      "get": {
-        "tags": ["Moderation"],
-        "summary": "Get any extension's full record, including a delisted one",
-        "security": [
-          {
-            "Bearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "example": "b6e2c9c4-3f1a-4e9b-9c3a-2e4b1a2f9d10"
-            },
-            "required": true,
-            "name": "id",
-            "in": "path"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "The extension's live content, its unreviewed edit if any, the last moderator decision, and its delist state",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "result": {
-                      "$ref": "#/components/schemas/OwnedExtension"
-                    }
-                  },
-                  "required": ["result"]
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Missing or invalid bearer token",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "The account is inactive or the caller is not a moderator",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "No such extension",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "id param failed validation",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Database error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/extensions/{id}/revisions/{revisionId}/approve": {
       "post": {
         "tags": ["Moderation"],
@@ -3938,130 +3485,6 @@
         }
       }
     },
-    "/developers": {
-      "get": {
-        "tags": ["Moderation"],
-        "summary": "List every developer profile, approved or not",
-        "security": [
-          {
-            "Bearer": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "All developer profiles",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "result": {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/components/schemas/DeveloperProfile"
-                      }
-                    }
-                  },
-                  "required": ["result"]
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Missing or invalid bearer token",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "The account is inactive or the caller is not a moderator",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Database error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/developers/unapproved": {
-      "get": {
-        "tags": ["Moderation"],
-        "summary": "List developer profiles awaiting moderator review",
-        "security": [
-          {
-            "Bearer": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Developer profiles not yet approved",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "result": {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/components/schemas/DeveloperProfile"
-                      }
-                    }
-                  },
-                  "required": ["result"]
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Missing or invalid bearer token",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "The account is inactive or the caller is not a moderator",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Database error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/developers/{id}/approve": {
       "post": {
         "tags": ["Moderation"],
@@ -4257,6 +3680,199 @@
           },
           "422": {
             "description": "id param failed validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Database error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/revisions": {
+      "get": {
+        "tags": ["Moderation"],
+        "summary": "List extension revisions by status, oldest first",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": ["pending", "approved", "rejected"]
+            },
+            "required": false,
+            "name": "status",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1000
+            },
+            "required": false,
+            "name": "cursor",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Revisions matching the requested status (default: pending), oldest first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ExtensionRevision"
+                      }
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/Pagination"
+                    }
+                  },
+                  "required": ["result", "pagination"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The account is inactive or the caller is not a moderator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Status, limit, or cursor query param failed validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Database error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/developers": {
+      "get": {
+        "tags": ["Moderation"],
+        "summary": "List developer profiles: every profile (status=all) or awaiting review (status=unapproved)",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": ["all", "unapproved"],
+              "default": "all",
+              "description": "all: every profile. unapproved: only profiles awaiting review."
+            },
+            "required": false,
+            "description": "all: every profile. unapproved: only profiles awaiting review.",
+            "name": "status",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Developer profiles matching the status filter",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/DeveloperProfile"
+                      }
+                    }
+                  },
+                  "required": ["result"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The account is inactive or the caller is not a moderator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "status query failed validation",
             "content": {
               "application/json": {
                 "schema": {
@@ -4653,7 +4269,12 @@
     "/developers/{id}": {
       "get": {
         "tags": ["Developers"],
-        "summary": "Get a developer's public profile",
+        "summary": "Get a developer profile: public view anonymously, full view for the owner or a moderator",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
         "parameters": [
           {
             "schema": {
@@ -4667,17 +4288,21 @@
         ],
         "responses": {
           "200": {
-            "description": "The developer's public profile",
+            "description": "Public profile for anonymous callers, owned/full profile for the owner or a moderator",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "result": {
-                      "$ref": "#/components/schemas/PublicDeveloper"
-                    }
-                  },
-                  "required": ["result"]
+                  "$ref": "#/components/schemas/DeveloperDetailResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }

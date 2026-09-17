@@ -22,9 +22,10 @@ const resolveSchema = (schema) => {
   return schemas?.[ref.slice(prefix.length)];
 };
 
-const paginationSchema = resolveSchema(
-  schemas?.ExtensionListResponse?.properties?.pagination,
-);
+const paginationSchema =
+  resolveSchema(
+    schemas?.UnifiedExtensionListResponse?.properties?.pagination,
+  ) ?? resolveSchema(schemas?.ExtensionListResponse?.properties?.pagination);
 const cursorSchemas = [
   paginationSchema?.properties?.next_cursor,
   schemas?.Pagination?.properties?.next_cursor,

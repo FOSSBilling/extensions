@@ -26,9 +26,6 @@ import type {
   GetDevelopersByIdResponses,
   GetDevelopersClaimsData,
   GetDevelopersClaimsErrors,
-  GetDevelopersClaimsMineData,
-  GetDevelopersClaimsMineErrors,
-  GetDevelopersClaimsMineResponses,
   GetDevelopersClaimsResponses,
   GetDevelopersData,
   GetDevelopersErrors,
@@ -36,9 +33,6 @@ import type {
   GetDevelopersMeErrors,
   GetDevelopersMeResponses,
   GetDevelopersResponses,
-  GetDevelopersUnapprovedData,
-  GetDevelopersUnapprovedErrors,
-  GetDevelopersUnapprovedResponses,
   GetExtensionsByIdData,
   GetExtensionsByIdErrors,
   GetExtensionsByIdResponses,
@@ -47,22 +41,10 @@ import type {
   GetExtensionsByIdRevisionsResponses,
   GetExtensionsData,
   GetExtensionsErrors,
-  GetExtensionsMineByIdData,
-  GetExtensionsMineByIdErrors,
-  GetExtensionsMineByIdResponses,
-  GetExtensionsMineData,
-  GetExtensionsMineErrors,
-  GetExtensionsMineResponses,
   GetExtensionsResponses,
-  GetModerationAllExtensionsData,
-  GetModerationAllExtensionsErrors,
-  GetModerationAllExtensionsResponses,
-  GetModerationExtensionsByIdData,
-  GetModerationExtensionsByIdErrors,
-  GetModerationExtensionsByIdResponses,
-  GetModerationExtensionsData,
-  GetModerationExtensionsErrors,
-  GetModerationExtensionsResponses,
+  GetRevisionsData,
+  GetRevisionsErrors,
+  GetRevisionsResponses,
   GetUsersMeData,
   GetUsersMeErrors,
   GetUsersMeResponses,
@@ -138,47 +120,7 @@ export type Options<
 };
 
 /**
- * List the caller's extensions, published or not
- */
-export const getExtensionsMine = <ThrowOnError extends boolean = false>(
-  options?: Options<GetExtensionsMineData, ThrowOnError>,
-): RequestResult<
-  GetExtensionsMineResponses,
-  GetExtensionsMineErrors,
-  ThrowOnError
-> =>
-  (options?.client ?? client).get<
-    GetExtensionsMineResponses,
-    GetExtensionsMineErrors,
-    ThrowOnError
-  >({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/extensions/mine',
-    ...options,
-  });
-
-/**
- * Get one of the caller's extensions, published or not
- */
-export const getExtensionsMineById = <ThrowOnError extends boolean = false>(
-  options: Options<GetExtensionsMineByIdData, ThrowOnError>,
-): RequestResult<
-  GetExtensionsMineByIdResponses,
-  GetExtensionsMineByIdErrors,
-  ThrowOnError
-> =>
-  (options.client ?? client).get<
-    GetExtensionsMineByIdResponses,
-    GetExtensionsMineByIdErrors,
-    ThrowOnError
-  >({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/extensions/mine/{id}',
-    ...options,
-  });
-
-/**
- * List published extensions
+ * List extensions: published catalogue (scope=public), caller's own (scope=mine), or every extension (scope=all, moderator)
  */
 export const getExtensions = <ThrowOnError extends boolean = false>(
   options?: Options<GetExtensionsData, ThrowOnError>,
@@ -187,7 +129,11 @@ export const getExtensions = <ThrowOnError extends boolean = false>(
     GetExtensionsResponses,
     GetExtensionsErrors,
     ThrowOnError
-  >({ url: '/extensions', ...options });
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/extensions',
+    ...options,
+  });
 
 /**
  * Create an extension and submit its first version for review
@@ -230,7 +176,7 @@ export const deleteExtensionsById = <ThrowOnError extends boolean = false>(
   });
 
 /**
- * Get a single published extension
+ * Get an extension: published content anonymously, full owned record for its owner or a moderator
  */
 export const getExtensionsById = <ThrowOnError extends boolean = false>(
   options: Options<GetExtensionsByIdData, ThrowOnError>,
@@ -243,7 +189,11 @@ export const getExtensionsById = <ThrowOnError extends boolean = false>(
     GetExtensionsByIdResponses,
     GetExtensionsByIdErrors,
     ThrowOnError
-  >({ url: '/extensions/{id}', ...options });
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/extensions/{id}',
+    ...options,
+  });
 
 /**
  * Submit an edit to an extension the caller owns
@@ -414,36 +364,16 @@ export const postDevelopersClaimsByIdCancel = <
   });
 
 /**
- * List the caller's own profile claims, in any status
- */
-export const getDevelopersClaimsMine = <ThrowOnError extends boolean = false>(
-  options?: Options<GetDevelopersClaimsMineData, ThrowOnError>,
-): RequestResult<
-  GetDevelopersClaimsMineResponses,
-  GetDevelopersClaimsMineErrors,
-  ThrowOnError
-> =>
-  (options?.client ?? client).get<
-    GetDevelopersClaimsMineResponses,
-    GetDevelopersClaimsMineErrors,
-    ThrowOnError
-  >({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/developers/claims/mine',
-    ...options,
-  });
-
-/**
- * List pending profile claims
+ * List claims: caller's own (?scope=mine) or pending review (?scope=pending, moderator)
  */
 export const getDevelopersClaims = <ThrowOnError extends boolean = false>(
-  options?: Options<GetDevelopersClaimsData, ThrowOnError>,
+  options: Options<GetDevelopersClaimsData, ThrowOnError>,
 ): RequestResult<
   GetDevelopersClaimsResponses,
   GetDevelopersClaimsErrors,
   ThrowOnError
 > =>
-  (options?.client ?? client).get<
+  (options.client ?? client).get<
     GetDevelopersClaimsResponses,
     GetDevelopersClaimsErrors,
     ThrowOnError
@@ -572,70 +502,6 @@ export const postDevelopersTransfersAccept = <
   });
 
 /**
- * List extension revisions awaiting review
- */
-export const getModerationExtensions = <ThrowOnError extends boolean = false>(
-  options?: Options<GetModerationExtensionsData, ThrowOnError>,
-): RequestResult<
-  GetModerationExtensionsResponses,
-  GetModerationExtensionsErrors,
-  ThrowOnError
-> =>
-  (options?.client ?? client).get<
-    GetModerationExtensionsResponses,
-    GetModerationExtensionsErrors,
-    ThrowOnError
-  >({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/moderation/extensions',
-    ...options,
-  });
-
-/**
- * List every extension regardless of status
- */
-export const getModerationAllExtensions = <
-  ThrowOnError extends boolean = false,
->(
-  options?: Options<GetModerationAllExtensionsData, ThrowOnError>,
-): RequestResult<
-  GetModerationAllExtensionsResponses,
-  GetModerationAllExtensionsErrors,
-  ThrowOnError
-> =>
-  (options?.client ?? client).get<
-    GetModerationAllExtensionsResponses,
-    GetModerationAllExtensionsErrors,
-    ThrowOnError
-  >({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/moderation/all-extensions',
-    ...options,
-  });
-
-/**
- * Get any extension's full record, including a delisted one
- */
-export const getModerationExtensionsById = <
-  ThrowOnError extends boolean = false,
->(
-  options: Options<GetModerationExtensionsByIdData, ThrowOnError>,
-): RequestResult<
-  GetModerationExtensionsByIdResponses,
-  GetModerationExtensionsByIdErrors,
-  ThrowOnError
-> =>
-  (options.client ?? client).get<
-    GetModerationExtensionsByIdResponses,
-    GetModerationExtensionsByIdErrors,
-    ThrowOnError
-  >({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/moderation/extensions/{id}',
-    ...options,
-  });
-
-/**
  * Approve a pending revision and publish it
  */
 export const postExtensionsByIdRevisionsByRevisionIdApprove = <
@@ -718,42 +584,6 @@ export const postExtensionsByIdDelist = <ThrowOnError extends boolean = false>(
   });
 
 /**
- * List every developer profile, approved or not
- */
-export const getDevelopers = <ThrowOnError extends boolean = false>(
-  options?: Options<GetDevelopersData, ThrowOnError>,
-): RequestResult<GetDevelopersResponses, GetDevelopersErrors, ThrowOnError> =>
-  (options?.client ?? client).get<
-    GetDevelopersResponses,
-    GetDevelopersErrors,
-    ThrowOnError
-  >({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/developers',
-    ...options,
-  });
-
-/**
- * List developer profiles awaiting moderator review
- */
-export const getDevelopersUnapproved = <ThrowOnError extends boolean = false>(
-  options?: Options<GetDevelopersUnapprovedData, ThrowOnError>,
-): RequestResult<
-  GetDevelopersUnapprovedResponses,
-  GetDevelopersUnapprovedErrors,
-  ThrowOnError
-> =>
-  (options?.client ?? client).get<
-    GetDevelopersUnapprovedResponses,
-    GetDevelopersUnapprovedErrors,
-    ThrowOnError
-  >({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/developers/unapproved',
-    ...options,
-  });
-
-/**
  * Mark a developer profile as reviewed/approved
  */
 export const postDevelopersByIdApprove = <ThrowOnError extends boolean = false>(
@@ -794,6 +624,38 @@ export const getDevelopersByIdHistory = <ThrowOnError extends boolean = false>(
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/developers/{id}/history',
+    ...options,
+  });
+
+/**
+ * List extension revisions by status, oldest first
+ */
+export const getRevisions = <ThrowOnError extends boolean = false>(
+  options?: Options<GetRevisionsData, ThrowOnError>,
+): RequestResult<GetRevisionsResponses, GetRevisionsErrors, ThrowOnError> =>
+  (options?.client ?? client).get<
+    GetRevisionsResponses,
+    GetRevisionsErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/revisions',
+    ...options,
+  });
+
+/**
+ * List developer profiles: every profile (status=all) or awaiting review (status=unapproved)
+ */
+export const getDevelopers = <ThrowOnError extends boolean = false>(
+  options?: Options<GetDevelopersData, ThrowOnError>,
+): RequestResult<GetDevelopersResponses, GetDevelopersErrors, ThrowOnError> =>
+  (options?.client ?? client).get<
+    GetDevelopersResponses,
+    GetDevelopersErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/developers',
     ...options,
   });
 
@@ -882,7 +744,7 @@ export const postDevelopersMeReverify = <ThrowOnError extends boolean = false>(
   });
 
 /**
- * Get a developer's public profile
+ * Get a developer profile: public view anonymously, full view for the owner or a moderator
  */
 export const getDevelopersById = <ThrowOnError extends boolean = false>(
   options: Options<GetDevelopersByIdData, ThrowOnError>,
@@ -895,4 +757,8 @@ export const getDevelopersById = <ThrowOnError extends boolean = false>(
     GetDevelopersByIdResponses,
     GetDevelopersByIdErrors,
     ThrowOnError
-  >({ url: '/developers/{id}', ...options });
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/developers/{id}',
+    ...options,
+  });

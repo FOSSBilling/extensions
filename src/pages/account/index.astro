@@ -11,7 +11,7 @@ import {
   getExtensionsByOwner,
 } from '@/lib/extensions-data';
 import { ISSUER } from '@/lib/oauth';
-import type { DeveloperClaim } from '@/lib/api/client';
+import type { PendingDeveloperClaim } from '@/lib/api/client';
 import { CircleAlert } from '@lucide/astro';
 import ProfileTrustBadge from '@/components/ProfileTrustBadge.astro';
 import DeveloperAvatar from '@/components/DeveloperAvatar.astro';
@@ -49,7 +49,7 @@ const developerError =
 
 const api = createApiClient(env, user.sub);
 
-let myClaims: DeveloperClaim[] = [];
+let myClaims: PendingDeveloperClaim[] = [];
 let claimsError: string | null = null;
 if (!developer && !developerError) {
   try {

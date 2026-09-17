@@ -21,7 +21,10 @@ import ConfirmDeleteDialog from '@/components/ConfirmDeleteDialog.astro';
 import { setFlash } from '@/lib/flash';
 import { formatDateTimeInZone } from '@/lib/format-date';
 import { stripUrlScheme } from '@/lib/url-prefix';
-import type { DeveloperClaim, DeveloperTransfer } from '@/lib/api/client';
+import type {
+  PendingDeveloperClaim,
+  DeveloperTransfer,
+} from '@/lib/api/client';
 import type { DeveloperProfileInput } from '@/lib/api/client';
 
 const env = Astro.locals.env;
@@ -51,7 +54,7 @@ const api = createApiClient(env, user.sub);
 // geolocation metadata.
 const timeZone = Astro.locals.timeZone ?? 'UTC';
 
-let myClaims: DeveloperClaim[] = [];
+let myClaims: PendingDeveloperClaim[] = [];
 // Unlike the informational display on /account, a failure here must not
 // fail open: this page's own gate below is the actual enforcement point for
 // "only one profile per user", so an unknown claim state has to block

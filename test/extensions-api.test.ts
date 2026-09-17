@@ -373,9 +373,8 @@ describe('generated Extensions v2 façade', () => {
     expect(requestFrom(fetchMock, 1).headers.get('authorization')).toBe(
       'Bearer token-two',
     );
-    expect(requestUrl(fetchMock, 0).pathname).toBe(
-      '/extensions/v2/extensions/mine',
-    );
+    expect(requestUrl(fetchMock, 0).pathname).toBe('/extensions/v2/extensions');
+    expect(requestUrl(fetchMock, 0).searchParams.get('scope')).toBe('mine');
     expect(requestUrl(fetchMock, 0).searchParams.get('limit')).toBe('100');
     expect(requestUrl(fetchMock, 0).searchParams.get('cursor')).toBe(
       'opaque cursor',
@@ -396,7 +395,8 @@ describe('generated Extensions v2 façade', () => {
     });
 
     const url = requestUrl(fetchMock);
-    expect(url.pathname).toBe('/extensions/v2/extensions/mine');
+    expect(url.pathname).toBe('/extensions/v2/extensions');
+    expect(url.searchParams.get('scope')).toBe('mine');
     expect(url.searchParams.get('type')).toBe('theme');
     expect(url.searchParams.get('limit')).toBe('100');
     expect(url.searchParams.get('cursor')).toBe('mine-cursor');
@@ -631,6 +631,7 @@ describe('generated Extensions v2 façade', () => {
       next_cursor: 'next-page',
       has_more: true,
     });
+    expect(requestUrl(fetchMock).pathname).toBe('/extensions/v2/revisions');
     expect(requestUrl(fetchMock).searchParams.get('status')).toBe('approved');
     expect(requestUrl(fetchMock).searchParams.get('cursor')).toBe(
       'queue-cursor',
