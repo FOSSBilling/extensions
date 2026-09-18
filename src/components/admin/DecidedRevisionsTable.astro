@@ -1,0 +1,128 @@
+---
+import { formatDateTime } from '@/lib/format-date';
+import type { ExtensionRevision } from '@/lib/api/client';
+import { diffRevisionContent } from '@/lib/revision-diff';
+import FrozenContentTable from './FrozenContentTable.astro';
+import StatusBadge from './StatusBadge.astro';
+
+// Tooltip for the decision badge: "Approved on <date>." today, expanding to
+// "Approved on <date>, by <user>." once reviewer names are exposed (the API
+// already records reviewer_id on every decision).
+function decisionTitle(
+  status: 'approved' | 'rejected',
+  reviewedAt: string | null,
+  reviewerName: string | null = null,
+): string | undefined {
+  if (!reviewedAt) return undefined;
+  const verb = status === 'approved' ? 'Approved' : 'Rejected';
+  const when = `on ${formatDateTime(reviewedAt)}`;
+  return reviewerName
+    ? `${verb} ${when}, by ${reviewerName}.`
+    : `${verb} ${when}.`;
+}
+
+// Audit view for decided (approved/rejected) revisions: dense rows with the
+// decision, dates, and note at a glance, plus an expandable frozen-content
+// row showing exactly what was reviewed. The toggle is wired by the shared
+// queue client script via [data-frozen] (labels from data-show/data-hide).
+interface Props {
+  revisions: ExtensionRevision[];
+  status: 'approved' | 'rejected';
+}
+
+const { revisions, status } = Astro.props;
+// Approvals never carry a note (the approve form has no note field — only
+// rejections require one), so the Note column only exists on Rejected. A
+// note set directly via the API still surfaces inside the expanded detail
+// row, so dropping the column never hides information.
+const showNote = status === 'rejected';
+const DETAIL_COLUMNS = showNote ? 5 : 4;
+---
+
+<div class="card overflow-x-auto p-0">
+  <table class="w-full text-sm table-fixed">
+    <thead>
+      <tr class="text-left text-muted-foreground border-b border-border">
+        <th class="px-4 py-2 font-medium">Extension</th>
+        <th class="px-4 py-2 font-medium whitespace-nowrap w-28">Version</th>
+        <th class="px-4 py-2 font-medium whitespace-nowrap w-28">Status</th>
+        {showNote && <th class="px-4 py-2 font-medium">Note</th>}
+        <th class="px-4 py-2 font-medium whitespace-nowrap w-[192px]">
+          Actions
+        </th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-border">
+      {revisions.map((r) => {
+        const rows = diffRevisionContent(null, r.content);
+        return (
+          <>
+            <tr>
+              <td class="px-4 py-2">
+                <p class="font-medium">
+                  <a
+                    href={`/account/admin/extensions/${r.extension_id}`}
+                    title={`Submitted on ${formatDateTime(r.created_at)}.`}
+                  >
+                    {r.content.name ?? r.extension_id}
+                  </a>
+                </p>
+                <p class="text-xs text-muted-foreground">{r.extension_id}</p>
+              </td>
+              <td class="px-4 py-2 text-muted-foreground whitespace-nowrap">
+                {r.content.version?.trim() || '—'}
+              </td>
+              <td class="px-4 py-2 whitespace-nowrap">
+                <span
+                  title={decisionTitle(
+                    r.status === 'approved' ? 'approved' : 'rejected',
+                    r.reviewed_at,
+                  )}
+                >
+                  <StatusBadge
+                    status={r.status === 'approved' ? 'approved' : 'rejected'}
+                  />
+                </span>
+              </td>
+              {showNote && (
+                <td
+                  class="px-4 py-2 text-muted-foreground max-w-64 truncate"
+                  title={r.review_note ?? undefined}
+                >
+                  {r.review_note ?? '—'}
+                </td>
+              )}
+              <td class="px-4 py-2 whitespace-nowrap">
+                <button
+                  type="button"
+                  class="btn px-0"
+                  data-size="sm"
+                  data-variant="ghost"
+                  data-frozen
+                  data-show="Show Reviewed Content"
+                  data-hide="Hide Reviewed Content"
+                  aria-expanded="false"
+                  aria-controls={`frozen-wrap-${r.id}`}
+                >
+                  Show Reviewed Content
+                </button>
+              </td>
+            </tr>
+            <tr data-frozen-wrap hidden id={`frozen-wrap-${r.id}`}>
+              <td colspan={DETAIL_COLUMNS} class="px-4 py-3 bg-muted/30">
+                <div class="space-y-2">
+                  {r.review_note && (
+                    <p class="text-sm text-muted-foreground">
+                      Note: {r.review_note}
+                    </p>
+                  )}
+                  <FrozenContentTable rows={rows} idPrefix={`frozen-${r.id}`} />
+                </div>
+              </td>
+            </tr>
+          </>
+        );
+      })}
+    </tbody>
+  </table>
+</div>

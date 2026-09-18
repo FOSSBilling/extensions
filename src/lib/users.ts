@@ -99,11 +99,14 @@ function identityFrom(info: UserInfo) {
   };
 }
 
+// Returns the synced account projection so callers (e.g. the login
+// callback) can mint session state — like the moderator flag — from the
+// domain-side source of truth without a second API round-trip.
 export async function upsertUser(
   env: ApplicationEnv,
   info: UserInfo,
-): Promise<void> {
-  await createApiClient(env, info.sub).syncIdentity(identityFrom(info));
+): Promise<AccountUser> {
+  return createApiClient(env, info.sub).syncIdentity(identityFrom(info));
 }
 
 export async function getUser(

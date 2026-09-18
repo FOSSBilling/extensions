@@ -18,7 +18,7 @@ export const POST: APIRoute = async (context) => {
       category: 'error',
       title: 'Malformed request.',
     });
-    return context.redirect('/account/moderate');
+    return context.redirect('/account/admin/extensions');
   }
 
   const id = formString(form, 'id');
@@ -28,7 +28,7 @@ export const POST: APIRoute = async (context) => {
       category: 'error',
       title: 'An extension id and a reason are both required to delist.',
     });
-    return context.redirect('/account/moderate');
+    return context.redirect('/account/admin/extensions');
   }
   const notify = formFlag(form, 'notify');
 
@@ -53,5 +53,5 @@ export const POST: APIRoute = async (context) => {
     setFlash(context.session, { category: 'error', title: message });
   }
 
-  return context.redirect('/account/moderate');
+  return context.redirect('/account/admin/extensions');
 };

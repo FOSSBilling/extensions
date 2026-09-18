@@ -3701,6 +3701,106 @@
         }
       }
     },
+    "/moderation/counts": {
+      "get": {
+        "tags": ["Moderation"],
+        "summary": "Queue totals for the admin tabs",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Pending/decided totals per queue",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "revisions": {
+                          "type": "object",
+                          "properties": {
+                            "pending": {
+                              "type": "number"
+                            },
+                            "approved": {
+                              "type": "number"
+                            },
+                            "rejected": {
+                              "type": "number"
+                            }
+                          },
+                          "required": ["pending", "approved", "rejected"]
+                        },
+                        "extensions": {
+                          "type": "object",
+                          "properties": {
+                            "all": {
+                              "type": "number"
+                            },
+                            "published": {
+                              "type": "number"
+                            },
+                            "delisted": {
+                              "type": "number"
+                            },
+                            "unpublished": {
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "all",
+                            "published",
+                            "delisted",
+                            "unpublished"
+                          ]
+                        }
+                      },
+                      "required": ["revisions", "extensions"]
+                    }
+                  },
+                  "required": ["result"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The account is inactive or the caller is not a moderator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Database error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/revisions": {
       "get": {
         "tags": ["Moderation"],

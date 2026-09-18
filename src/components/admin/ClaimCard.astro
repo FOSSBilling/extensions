@@ -1,0 +1,77 @@
+---
+import ApproveDialog from '@/components/ApproveDialog.astro';
+import RejectDialog from '@/components/RejectDialog.astro';
+import { formatDate } from '@/lib/format-date';
+import type { PendingDeveloperClaim } from '@/lib/api/client';
+
+// One profile-claim card with its working Approve/Reject dialogs, shared by
+// the Developers Claims tab and the Overview Pending Claims section so the
+// two queues can't drift apart. Dialog ids are per-claim, so any number of
+// cards can share a page. The title rank follows the host page: h2 where the
+// card is the section content, h3 under the Overview's h2 sections.
+interface Props {
+  claim: PendingDeveloperClaim;
+  titleTag?: 'h2' | 'h3';
+}
+
+const { claim: c, titleTag = 'h2' } = Astro.props;
+const Title = titleTag;
+---
+
+<li class="card gap-4 p-5 scroll-mt-24" id={`claim-${c.id}`}>
+  <header class="px-0">
+    <Title class="font-semibold flex flex-wrap items-center gap-2">
+      {c.developer_name} ({c.developer_id})
+      {c.github_org_verified && <span class="badge">GitHub Verified</span>}
+    </Title>
+    <p class="text-sm text-muted-foreground">
+      {c.developer_type} · claimed by{' '}
+      <strong>{c.claimant_name ?? c.claimant_id}</strong>
+      {c.claimant_github_login && (
+        <>
+          {' '}
+          <a href={`https://github.com/${c.claimant_github_login}`}>
+            @{c.claimant_github_login}
+          </a>
+        </>
+      )}{' '}
+      on {formatDate(c.created_at)}
+    </p>
+    {c.note && <p class="text-sm mt-1">&ldquo;{c.note}&rdquo;</p>}
+  </header>
+  <footer class="flex items-center gap-2 flex-wrap">
+    <button
+      type="button"
+      class="btn"
+      data-size="sm"
+      data-claim-dialog={`approve-claim-${c.id}`}
+    >
+      Approve
+    </button>
+    <button
+      type="button"
+      class="btn"
+      data-size="sm"
+      data-variant="destructive"
+      data-claim-dialog={`reject-claim-${c.id}`}
+    >
+      Reject
+    </button>
+  </footer>
+
+  <ApproveDialog
+    id={`approve-claim-${c.id}`}
+    title={`Approve claim on "${c.developer_id}"?`}
+    description="The claimant will gain ownership of this profile immediately."
+    formAction={`/account/admin/developers/claims/${c.id}/approve`}
+    notifyRecipient="claimant"
+    hiddenFields={[{ name: 'intent', value: 'approve' }]}
+  />
+  <RejectDialog
+    id={`reject-claim-${c.id}`}
+    title={`Reject claim on "${c.developer_id}"?`}
+    description="The claimant will see this reason."
+    formAction={`/account/admin/developers/claims/${c.id}/reject`}
+    notifyRecipient="claimant"
+  />
+</li>

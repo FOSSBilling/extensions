@@ -1,0 +1,20 @@
+---
+import { renderMarkdown } from '@/lib/markdown';
+
+// A diff value that is itself markdown (readme). Renders exactly what the
+// public page shows inside a capped scroll region — tall content scrolls
+// in place instead of stretching the row, and short content is unaffected
+// since the scrollbar only appears on overflow.
+// `break-normal`: diff table cells use break-all for long URLs — markdown
+// prose must not inherit that.
+interface Props {
+  value: string;
+}
+
+const { value } = Astro.props;
+const html = renderMarkdown(value);
+---
+
+<div class="markdown-body break-normal max-h-72 overflow-y-auto overscroll-contain">
+  <Fragment set:html={html} />
+</div>

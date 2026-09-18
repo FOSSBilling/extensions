@@ -10,8 +10,8 @@ export const POST: APIRoute = async (context) => {
   if (guard instanceof Response) return guard;
   const user = guard;
 
-  const { id, revisionId } = context.params;
-  if (!id || !revisionId) return context.redirect('/account/moderate');
+  const { id } = context.params;
+  if (!id) return context.redirect('/account/admin/developers');
 
   let form: FormData;
   try {
@@ -21,32 +21,32 @@ export const POST: APIRoute = async (context) => {
       category: 'error',
       title: 'Malformed request.',
     });
-    return context.redirect('/account/moderate');
+    return context.redirect('/account/admin/developers');
   }
-  const reviewNote = formString(form, 'review_note');
-  if (!reviewNote) {
+  const expectedRevision = Number(formString(form, 'expected_revision'));
+  if (!Number.isInteger(expectedRevision) || expectedRevision < 1) {
     setFlash(context.session, {
       category: 'error',
-      title: 'A reason is required to reject a revision.',
+      title: 'Missing or invalid profile revision.',
     });
-    return context.redirect('/account/moderate');
+    return context.redirect('/account/admin/developers');
   }
 
   const api = createApiClient(env, user.sub);
   const notify = formFlag(form, 'notify');
   try {
-    const result = await api.rejectRevision(id, revisionId, reviewNote, notify);
+    const result = await api.approveDeveloper(id, expectedRevision, notify);
     if (notify && !result.notified) {
       setFlash(context.session, {
         category: 'warning',
-        title: 'Revision rejected, but the author could not be emailed.',
+        title: 'Profile approved, but the owner could not be emailed.',
       });
     }
   } catch (e) {
     const message =
-      e instanceof ApiRequestError ? e.message : 'Unable to reject revision.';
+      e instanceof ApiRequestError ? e.message : 'Unable to approve profile.';
     setFlash(context.session, { category: 'error', title: message });
   }
 
-  return context.redirect('/account/moderate');
+  return context.redirect('/account/admin/developers');
 };

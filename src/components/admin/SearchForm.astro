@@ -1,0 +1,53 @@
+---
+// GET-style `?q=` search that keeps the page's other params. One delegated
+// listener covers every instance; empty input clears `q`.
+interface Props {
+  placeholder: string;
+  value?: string;
+}
+
+const { placeholder, value } = Astro.props;
+---
+
+<form
+  data-search-form
+  class="flex gap-2"
+  role="search"
+  aria-label={placeholder}
+>
+  <input
+    class="input"
+    type="text"
+    name="q"
+    placeholder={placeholder}
+    value={value ?? ''}
+  />
+  <button type="submit" class="btn" data-size="sm" data-variant="outline">
+    Search
+  </button>
+</form>
+
+<script>
+  const flags = window as unknown as { adminSearchFormInit?: boolean };
+  if (!flags.adminSearchFormInit) {
+    flags.adminSearchFormInit = true;
+    document.addEventListener('submit', (event) => {
+      const form = (event.target as Element | null)?.closest(
+        'form[data-search-form]',
+      );
+      if (!form) return;
+      event.preventDefault();
+      const url = new URL(window.location.href);
+      const query = new FormData(form as HTMLFormElement)
+        .get('q')
+        ?.toString()
+        .trim();
+      if (query) {
+        url.searchParams.set('q', query);
+      } else {
+        url.searchParams.delete('q');
+      }
+      window.location.href = url.pathname + url.search;
+    });
+  }
+</script>

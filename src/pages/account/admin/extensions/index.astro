@@ -1,0 +1,228 @@
+---
+import Admin from '../../../../layouts/Admin.astro';
+import { requireModerator } from '@/lib/auth-guard';
+import {
+  ApiRequestError,
+  createApiClient,
+  getApiErrorMessage,
+} from '@/lib/api/client';
+import type {
+  ModerationCounts,
+  ModerationExtensionStatus,
+  OwnedExtensionListItem,
+} from '@/lib/api/client';
+import DialogShell from '@/components/DialogShell.astro';
+import NotifyField from '@/components/NotifyField.astro';
+import EmptyState from '@/components/admin/EmptyState.astro';
+import ExtensionAdminTable from '@/components/admin/ExtensionAdminTable.astro';
+import {
+  cursorPageUrl,
+  filterPageUrl,
+  prevCursorPageUrl,
+} from '@/lib/pagination';
+
+const env = Astro.locals.env;
+const guard = await requireModerator(Astro, env);
+if (guard instanceof Response) return guard;
+const user = guard;
+
+const api = createApiClient(env, user.sub);
+
+const EXTENSION_STATUS_TABS = [
+  'all',
+  'published',
+  'delisted',
+  'unpublished',
+] as const;
+const extStatusParam = Astro.url.searchParams.get('extStatus');
+const extStatusTab: (typeof EXTENSION_STATUS_TABS)[number] =
+  EXTENSION_STATUS_TABS.find((s) => s === extStatusParam) ?? 'published';
+const extStatus: ModerationExtensionStatus | undefined =
+  extStatusTab === 'all' ? undefined : extStatusTab;
+const extQuery = Astro.url.searchParams.get('q')?.trim() || undefined;
+
+let extensions: OwnedExtensionListItem[] = [];
+let extNextCursor: string | null = null;
+let extHasMore = false;
+let extError: string | null = null;
+try {
+  const page = await api.listAllExtensions({
+    status: extStatus,
+    q: extQuery,
+    limit: 20,
+    cursor: Astro.url.searchParams.get('extCursor') ?? undefined,
+  });
+  extensions = page.result;
+  extNextCursor = page.pagination.next_cursor;
+  extHasMore = page.pagination.has_more;
+} catch (error) {
+  extError =
+    error instanceof ApiRequestError
+      ? getApiErrorMessage(error)
+      : 'Unable to load extensions right now.';
+}
+const extNextPageUrl =
+  extHasMore && extNextCursor !== null && extNextCursor.length > 0
+    ? cursorPageUrl(Astro.url, 'extCursor', 'extCursors', extNextCursor)
+    : null;
+const extPrevPageUrl = prevCursorPageUrl(Astro.url, 'extCursor', 'extCursors');
+
+// Catalogue totals for the tab badges. Best-effort: the tabs render plain
+// labels when this fails rather than erroring the whole table.
+let catalogueCounts: ModerationCounts['extensions'] | null = null;
+try {
+  catalogueCounts = (await api.getModerationCounts()).extensions;
+} catch {
+  catalogueCounts = null;
+}
+---
+
+<Admin
+  title="Extensions — FOSSBilling Extensions"
+  active="extensions"
+  description="Every extension in the catalogue. Delisting removes it from public view immediately."
+>
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <nav class="flex flex-wrap gap-2" aria-label="Extension status">
+      {EXTENSION_STATUS_TABS.map((s) => (
+        <a
+          href={filterPageUrl(Astro.url, 'extStatus', s, [
+            'extCursor',
+            'extCursors',
+          ])}
+          class="btn"
+          data-size="sm"
+          data-variant={s === extStatusTab ? 'primary' : 'outline'}
+          aria-current={s === extStatusTab ? 'page' : undefined}
+        >
+          {s === 'unpublished'
+            ? 'Never Published'
+            : s.charAt(0).toUpperCase() + s.slice(1)}
+          {catalogueCounts ? ` (${catalogueCounts[s]})` : ''}
+        </a>
+      ))}
+    </nav>
+    <form id="extension-search-form" class="flex gap-2" role="search">
+      <input
+        class="input"
+        type="text"
+        id="extension-search-input"
+        name="q"
+        placeholder="Search by ID…"
+        value={extQuery ?? ''}
+      />
+      <button type="submit" class="btn" data-size="sm" data-variant="outline">
+        Search
+      </button>
+    </form>
+  </div>
+  {extQuery && (
+    <p class="text-sm text-muted-foreground">
+      Showing results for "{extQuery}" ·{' '}
+      <a
+        href={filterPageUrl(Astro.url, 'q', null, ['extCursor', 'extCursors'])}
+      >
+        Clear
+      </a>
+    </p>
+  )}
+
+  {extError ? (
+    <p class="text-sm text-destructive">{extError}</p>
+  ) : extensions.length === 0 ? (
+    <EmptyState
+      title="No Matching Extensions"
+      description="Try a different status tab or clear the search."
+    />
+  ) : (
+    <ExtensionAdminTable extensions={extensions} />
+  )}
+  {(extPrevPageUrl || extNextPageUrl) && (
+    <div class="flex gap-2">
+      {extPrevPageUrl && (
+        <a href={extPrevPageUrl} class="btn" data-variant="outline">
+          Previous Page
+        </a>
+      )}
+      {extNextPageUrl && (
+        <a href={extNextPageUrl} class="btn" data-variant="outline">
+          Next Page
+        </a>
+      )}
+    </div>
+  )}
+
+  <DialogShell
+    id="delist-confirm-dialog"
+    description="It will be removed from the public catalogue immediately. The owner can still see it, and why, in their dashboard."
+    formAction="/account/admin/extensions/delist"
+    submitLabel="Delist"
+    submitVariant="destructive"
+  >
+    <span slot="title">
+      Delist "<span id="delist-confirm-id"></span>"?
+    </span>
+    <div class="field">
+      <label for="delist-confirm-reason">Reason</label>
+      <textarea
+        class="textarea"
+        id="delist-confirm-reason"
+        name="reason"
+        placeholder="Why is this being removed? The owner will see this."
+        required
+      ></textarea>
+    </div>
+    <NotifyField id="delist-confirm-notify" recipient="author" />
+    <input type="hidden" name="id" id="delist-hidden-id" slot="extra" />
+  </DialogShell>
+</Admin>
+
+<script>
+  const dialog = document.querySelector<HTMLDialogElement>(
+    '#delist-confirm-dialog',
+  );
+  const confirmId = document.querySelector('#delist-confirm-id');
+  const hiddenId =
+    document.querySelector<HTMLInputElement>('#delist-hidden-id');
+  const reasonInput = document.querySelector<HTMLTextAreaElement>(
+    '#delist-confirm-reason',
+  );
+  const notifyInput = document.querySelector<HTMLInputElement>(
+    '#delist-confirm-notify',
+  );
+
+  document.addEventListener('click', (event) => {
+    const button = (
+      event.target as HTMLElement | null
+    )?.closest<HTMLButtonElement>('button[data-delist-id]');
+    if (!button || !dialog || !hiddenId) return;
+
+    const id = button.dataset.delistId ?? '';
+    if (confirmId) confirmId.textContent = button.dataset.delistName ?? id;
+    hiddenId.value = id;
+    if (reasonInput) reasonInput.value = '';
+    if (notifyInput) notifyInput.checked = true;
+    dialog.showModal();
+  });
+
+  const searchForm = document.querySelector<HTMLFormElement>(
+    '#extension-search-form',
+  );
+  const searchInput = document.querySelector<HTMLInputElement>(
+    '#extension-search-input',
+  );
+
+  searchForm?.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const url = new URL(window.location.href);
+    const value = searchInput?.value.trim();
+    if (value) {
+      url.searchParams.set('q', value);
+    } else {
+      url.searchParams.delete('q');
+    }
+    url.searchParams.delete('extCursor');
+    url.searchParams.delete('extCursors');
+    window.location.href = url.pathname + url.search;
+  });
+</script>

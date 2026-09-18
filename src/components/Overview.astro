@@ -1,28 +1,13 @@
 ---
 import type { Extension } from '@/types';
-import { marked } from 'marked';
-import sanitizeHtml from 'sanitize-html';
+import { renderMarkdown } from '@/lib/markdown';
 
 interface Props {
   ext: Extension;
 }
 
 const { ext } = Astro.props;
-const rawHtml = marked.parse(ext.readme ?? '', { async: false });
-const readmeHtml = sanitizeHtml(rawHtml, {
-  allowedTags: sanitizeHtml.defaults.allowedTags.concat([
-    'img',
-    'details',
-    'summary',
-  ]),
-  allowedAttributes: {
-    ...sanitizeHtml.defaults.allowedAttributes,
-    img: ['src', 'alt', 'title', 'width', 'height'],
-    a: ['href', 'title', 'target', 'rel'],
-    '*': ['id', 'class'],
-  },
-  allowedSchemes: ['http', 'https', 'mailto'],
-});
+const readmeHtml = renderMarkdown(ext.readme ?? '');
 ---
 
 <div class="markdown-body" set:html={readmeHtml} />

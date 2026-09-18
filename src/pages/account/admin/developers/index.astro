@@ -1,0 +1,205 @@
+---
+import Admin from '../../../../layouts/Admin.astro';
+import { requireModerator } from '@/lib/auth-guard';
+import { createApiClient } from '@/lib/api/client';
+import type { DeveloperProfile, PendingDeveloperClaim } from '@/lib/api/client';
+import ApproveDialog from '@/components/ApproveDialog.astro';
+import ClaimCard from '@/components/admin/ClaimCard.astro';
+import EmptyState from '@/components/admin/EmptyState.astro';
+import DeveloperProfilesTable from '@/components/admin/DeveloperProfilesTable.astro';
+import SearchForm from '@/components/admin/SearchForm.astro';
+import { filterPageUrl } from '@/lib/pagination';
+
+const env = Astro.locals.env;
+const guard = await requireModerator(Astro, env);
+if (guard instanceof Response) return guard;
+const user = guard;
+
+const viewParam = Astro.url.searchParams.get('view');
+const view =
+  viewParam === 'all'
+    ? 'all'
+    : viewParam === 'claims'
+      ? 'claims'
+      : 'unapproved';
+const isClaims = view === 'claims';
+
+const api = createApiClient(env, user.sub);
+
+// Claims load on every view: the tab badge needs the pending count even
+// when the claims queue itself isn't showing. Both developer lists load on
+// every view too, so the All and Pending counts stay truthful on the claims
+// tab — the endpoints return whole lists with no pagination, and each tab
+// keeps its own server ordering (All by name, Pending by creation date).
+let allDevelopers: DeveloperProfile[] = [];
+let unapprovedDevelopers: DeveloperProfile[] = [];
+let developersError = false;
+try {
+  [allDevelopers, unapprovedDevelopers] = await Promise.all([
+    api.listAllDevelopers(),
+    api.listUnapprovedDevelopers(),
+  ]);
+} catch {
+  developersError = true;
+}
+
+let claims: PendingDeveloperClaim[] = [];
+let claimsError = false;
+try {
+  claims = await api.listPendingClaims();
+} catch {
+  claimsError = true;
+}
+const pendingClaimCount = claimsError ? 0 : claims.length;
+
+// The list endpoints return whole lists with no pagination, so a
+// server-side substring filter over the loaded rows of the active tab is
+// complete.
+const query = Astro.url.searchParams.get('q')?.trim() || undefined;
+let developers: DeveloperProfile[] =
+  view === 'all' ? allDevelopers : unapprovedDevelopers;
+if (query) {
+  const needle = query.toLowerCase();
+  if (isClaims) {
+    claims = claims.filter((c) =>
+      [
+        c.developer_name,
+        c.developer_id,
+        c.claimant_name ?? '',
+        c.claimant_id,
+        c.claimant_github_login ?? '',
+      ].some((field) => field.toLowerCase().includes(needle)),
+    );
+  } else {
+    developers = developers.filter((d) =>
+      [d.name, d.id, d.owner_name ?? ''].some((field) =>
+        field.toLowerCase().includes(needle),
+      ),
+    );
+  }
+}
+
+const pageTitle = isClaims
+  ? 'Profile Claims — FOSSBilling Extensions'
+  : 'Developer Profiles — FOSSBilling Extensions';
+const pageDescription = isClaims
+  ? 'These profiles have no linked account — approving hands ownership to the claimant immediately. Without a “GitHub Verified” badge, judge legitimacy from the note and the public profile.'
+  : 'Approval is a trust badge, not a publish gate — profiles are live either way. An edit clears the badge until re-reviewed, unless still GitHub verified.';
+---
+
+<Admin title={pageTitle} active="developers" description={pageDescription}>
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <nav class="flex gap-2" aria-label="Developer filter">
+      {(['all', 'unapproved', 'claims'] as const).map((v) => (
+        <a
+          href={filterPageUrl(Astro.url, 'view', v, [])}
+          class="btn"
+          data-size="sm"
+          data-variant={v === view ? 'primary' : 'outline'}
+          aria-current={v === view ? 'page' : undefined}
+        >
+          {v === 'all'
+            ? `All (${allDevelopers.length})`
+            : v === 'unapproved'
+              ? `Pending (${unapprovedDevelopers.length})`
+              : pendingClaimCount > 0
+                ? `Claims (${pendingClaimCount})`
+                : 'Claims'}
+        </a>
+      ))}
+    </nav>
+    <SearchForm
+      placeholder={
+        isClaims ? 'Search by profile or claimant…' : 'Search by name or ID…'
+      }
+      value={query}
+    />
+  </div>
+  {query && (
+    <p class="text-sm text-muted-foreground">
+      Showing results for "{query}" ·{' '}
+      <a href={filterPageUrl(Astro.url, 'q', null, [])}>Clear</a>
+    </p>
+  )}
+
+  {isClaims ? (
+    claimsError ? (
+      <p class="text-sm text-destructive">
+        Unable to load pending claims right now.
+      </p>
+    ) : claims.length === 0 ? (
+      <EmptyState
+        title={
+          query ? 'No Matching Claims' : 'No Profile Claims Awaiting Review'
+        }
+        description={query ? 'Try a different search or clear it.' : undefined}
+      />
+    ) : (
+      <ul class="space-y-4">
+        {claims.map((c) => (
+          <ClaimCard claim={c} />
+        ))}
+      </ul>
+    )
+  ) : developersError ? (
+    <p class="text-sm text-destructive">
+      Unable to load developer profiles right now.
+    </p>
+  ) : developers.length === 0 ? (
+    <EmptyState
+      title={
+        query
+          ? 'No Matching Profiles'
+          : view === 'unapproved'
+            ? 'No Pending Profiles'
+            : 'No Developer Profiles Yet'
+      }
+      description={query ? 'Try a different search or clear it.' : undefined}
+    />
+  ) : (
+    <DeveloperProfilesTable developers={developers} />
+  )}
+
+  <ApproveDialog
+    id="admin-approve-developer"
+    title="Approve Developer?"
+    description="The owner will see the trust badge on their live profile."
+    formAction="/account/admin/developers/placeholder/approve"
+    notifyRecipient="owner"
+    hiddenFields={[{ name: 'expected_revision', value: '' }]}
+  />
+</Admin>
+
+<script>
+  import { initClaimDialogs } from '@/lib/claim-dialogs-client';
+  initClaimDialogs();
+
+  // Single shared approve dialog for the profiles table: each row button
+  // carries its developer on data attributes (same pattern as the delist
+  // confirm on /account/admin/extensions).
+  const dialog = document.querySelector<HTMLDialogElement>(
+    '#admin-approve-developer',
+  );
+
+  document.addEventListener('click', (event) => {
+    const button = (
+      event.target as HTMLElement | null
+    )?.closest<HTMLButtonElement>('button[data-approve-developer]');
+    if (!button || !dialog) return;
+
+    const id = button.dataset.developerId ?? '';
+    const form = dialog.querySelector('form');
+    const titleEl = dialog.querySelector('h2');
+    const revisionInput = dialog.querySelector<HTMLInputElement>(
+      'input[name="expected_revision"]',
+    );
+    if (form) form.action = `/account/admin/developers/${id}/approve`;
+    if (titleEl) {
+      titleEl.textContent = `Approve "${button.dataset.developerName ?? id}"?`;
+    }
+    if (revisionInput) {
+      revisionInput.value = button.dataset.expectedRevision ?? '';
+    }
+    dialog.showModal();
+  });
+</script>

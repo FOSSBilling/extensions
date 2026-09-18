@@ -1,0 +1,151 @@
+---
+import Admin from '../../../../layouts/Admin.astro';
+import { requireModerator } from '@/lib/auth-guard';
+import {
+  ApiRequestError,
+  createApiClient,
+  getApiErrorMessage,
+} from '@/lib/api/client';
+import type {
+  ExtensionRevision,
+  ModerationCounts,
+  RevisionStatus,
+} from '@/lib/api/client';
+import ApproveDialog from '@/components/ApproveDialog.astro';
+import RejectDialog from '@/components/RejectDialog.astro';
+import DecidedRevisionsTable from '@/components/admin/DecidedRevisionsTable.astro';
+import EmptyState from '@/components/admin/EmptyState.astro';
+import PendingRevisionsTable from '@/components/admin/PendingRevisionsTable.astro';
+import {
+  cursorPageUrl,
+  filterPageUrl,
+  prevCursorPageUrl,
+} from '@/lib/pagination';
+
+const env = Astro.locals.env;
+const guard = await requireModerator(Astro, env);
+if (guard instanceof Response) return guard;
+const user = guard;
+
+const api = createApiClient(env, user.sub);
+
+const statusParam = Astro.url.searchParams.get('status');
+const status: RevisionStatus =
+  statusParam === 'approved' || statusParam === 'rejected'
+    ? statusParam
+    : 'pending';
+const statusLabel = status.charAt(0).toUpperCase() + status.slice(1);
+
+let revisions: ExtensionRevision[] = [];
+let nextCursor: string | null = null;
+let hasMore = false;
+let loadError: string | null = null;
+try {
+  const page = await api.listModerationQueue(status, {
+    limit: 20,
+    cursor: Astro.url.searchParams.get('cursor') ?? undefined,
+  });
+  revisions = page.result;
+  nextCursor = page.pagination.next_cursor;
+  hasMore = page.pagination.has_more;
+} catch (error) {
+  loadError =
+    error instanceof ApiRequestError
+      ? getApiErrorMessage(error)
+      : 'Unable to load the revision queue right now.';
+}
+
+const nextPageUrl =
+  hasMore && nextCursor !== null && nextCursor.length > 0
+    ? cursorPageUrl(Astro.url, 'cursor', 'cursors', nextCursor)
+    : null;
+const prevPageUrl = prevCursorPageUrl(Astro.url, 'cursor', 'cursors');
+
+// Queue totals for the tab badges. Best-effort: the tabs render plain
+// labels when this fails rather than erroring the whole queue.
+let queueCounts: ModerationCounts['revisions'] | null = null;
+try {
+  queueCounts = (await api.getModerationCounts()).revisions;
+} catch {
+  queueCounts = null;
+}
+---
+
+<Admin
+  title="Revision Queue — FOSSBilling Extensions"
+  active="revisions"
+  description="Approve or reject extension submissions and edits. Approvals go live immediately."
+>
+  <nav class="flex gap-2" aria-label="Revision status">
+    {(['pending', 'approved', 'rejected'] as const).map((s) => (
+      <a
+        href={filterPageUrl(Astro.url, 'status', s, ['cursor', 'cursors'])}
+        class="btn"
+        data-size="sm"
+        data-variant={s === status ? 'primary' : 'outline'}
+        aria-current={s === status ? 'page' : undefined}
+      >
+        {s.charAt(0).toUpperCase() + s.slice(1)}
+        {queueCounts ? ` (${queueCounts[s]})` : ''}
+      </a>
+    ))}
+  </nav>
+
+  {loadError ? (
+    <p class="text-sm text-destructive">{loadError}</p>
+  ) : revisions.length === 0 ? (
+    <EmptyState
+      title={`No ${statusLabel} Revisions`}
+      description={
+        status === 'pending'
+          ? 'New submissions and edits will appear here.'
+          : `Nothing has been ${status} yet.`
+      }
+    />
+  ) : (
+    <>
+      {status === 'pending' ? (
+        <PendingRevisionsTable revisions={revisions} />
+      ) : (
+        <DecidedRevisionsTable revisions={revisions} status={status} />
+      )}
+      {(prevPageUrl || nextPageUrl) && (
+        <div class="flex gap-2">
+          {prevPageUrl && (
+            <a href={prevPageUrl} class="btn" data-variant="outline">
+              Previous Page
+            </a>
+          )}
+          {nextPageUrl && (
+            <a href={nextPageUrl} class="btn" data-variant="outline">
+              Next Page
+            </a>
+          )}
+        </div>
+      )}
+    </>
+  )}
+
+  <!-- Single shared pair of dialogs for the whole queue: the card buttons
+       set formAction + titles via data attributes (see script below). This
+       replaces the previous N-cards × 2-dialogs DOM fan-out. -->
+  <ApproveDialog
+    id="admin-approve-revision"
+    title="Approve Revision?"
+    description="The new revision will go live immediately."
+    formAction="/account/admin/revisions/placeholder/placeholder/approve"
+    notifyRecipient="author"
+    hiddenFields={[{ name: 'intent', value: 'approve' }]}
+  />
+  <RejectDialog
+    id="admin-reject-revision"
+    title="Reject Revision?"
+    description="The submitter will see this reason."
+    formAction="/account/admin/revisions/placeholder/placeholder/reject"
+  />
+</Admin>
+
+<script>
+  import { initRevisionQueue } from '@/lib/admin-revisions-client';
+  initRevisionQueue();
+</script>

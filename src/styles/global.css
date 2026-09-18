@@ -187,3 +187,17 @@
     @apply text-muted-foreground;
   }
 }
+
+/* Basecoat renders [data-tooltip] as a single truncated line capped at
+   max-w-xs. Opt-in wrapping for tooltips whose full text must read (e.g.
+   trust dates in admin tables) — the box still caps at max-w-xs, it just
+   grows downward instead of ellipsizing. */
+@layer components {
+  [data-tooltip-wrap]::before {
+    width: max-content;
+    max-width: 20rem;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+  }
+}

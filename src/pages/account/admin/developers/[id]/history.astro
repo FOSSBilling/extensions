@@ -1,0 +1,138 @@
+---
+import Admin from '../../../../../layouts/Admin.astro';
+import { requireModerator } from '@/lib/auth-guard';
+import { createApiClient, ApiRequestError } from '@/lib/api/client';
+import { isSafeHttpUrl } from '@/lib/safe-url';
+import type { DeveloperHistoryEntry } from '@/lib/api/client';
+import { CircleAlert } from '@lucide/astro';
+import DateTime from '@/components/admin/DateTime.astro';
+import EmptyState from '@/components/admin/EmptyState.astro';
+import SearchForm from '@/components/admin/SearchForm.astro';
+import { filterPageUrl } from '@/lib/pagination';
+
+const env = Astro.locals.env;
+const guard = await requireModerator(Astro, env);
+if (guard instanceof Response) return guard;
+const user = guard;
+
+const { id } = Astro.params;
+if (!id) {
+  return Astro.redirect('/404');
+}
+
+const api = createApiClient(env, user.sub);
+let entries: DeveloperHistoryEntry[] = [];
+let loadError: string | null = null;
+try {
+  entries = await api.listDeveloperHistory(id);
+} catch (e) {
+  loadError =
+    e instanceof ApiRequestError
+      ? e.message
+      : 'Unable to load history for this developer profile.';
+}
+
+// listDeveloperHistory returns the whole timeline with no pagination, so a
+// server-side substring filter over the loaded rows is complete.
+const historyQuery = Astro.url.searchParams.get('q')?.trim() || undefined;
+if (historyQuery) {
+  const needle = historyQuery.toLowerCase();
+  entries = entries.filter((entry) =>
+    [
+      entry.name,
+      entry.type,
+      entry.changed_by_name ?? '',
+      entry.changed_by,
+    ].some((field) => field.toLowerCase().includes(needle)),
+  );
+}
+---
+
+<Admin
+  title={`Profile History: ${id} — FOSSBilling Extensions`}
+  active="developers"
+  description={`Recorded writes for ${id}, newest first.`}
+>
+  <div slot="actions">
+    <a
+      href="/account/admin/developers"
+      class="btn"
+      data-size="sm"
+      data-variant="outline"
+    >
+      Back to Profiles
+    </a>
+  </div>
+
+  <div class="flex flex-wrap items-center justify-end gap-3">
+    <SearchForm placeholder="Search this timeline…" value={historyQuery} />
+  </div>
+  {historyQuery && (
+    <p class="text-sm text-muted-foreground">
+      Showing results for "{historyQuery}" ·{' '}
+      <a href={filterPageUrl(Astro.url, 'q', null, [])}>Clear</a>
+    </p>
+  )}
+
+  {loadError && (
+    <div class="alert" data-variant="destructive">
+      <CircleAlert class="size-4" />
+      <section>{loadError}</section>
+    </div>
+  )}
+
+  {!loadError && entries.length === 0 && (
+    <EmptyState
+      title={
+        historyQuery
+          ? 'No Matching History Entries'
+          : 'No Recorded Writes for This Profile Yet'
+      }
+      description={
+        historyQuery ? 'Try a different search or clear it.' : undefined
+      }
+    />
+  )}
+
+  {!loadError && entries.length > 0 && (
+    <ol class="space-y-4">
+      {entries.map((entry, i) => (
+        <li class="card gap-3 p-5">
+          <header class="flex items-center justify-between gap-4 px-0">
+            <p class="font-medium">
+              {entry.name}
+              {i === 0 && (
+                <span class="badge ml-2" data-variant="secondary">
+                  Current
+                </span>
+              )}
+            </p>
+            <span class="text-sm text-muted-foreground">
+              <DateTime value={entry.changed_at} />
+            </span>
+          </header>
+          <section>
+            <p class="text-sm text-muted-foreground">
+              {entry.type}
+              {entry.URL && (
+                <>
+                  {' '}
+                  ·{' '}
+                  {isSafeHttpUrl(entry.URL) ? (
+                    <a href={entry.URL}>{entry.URL}</a>
+                  ) : (
+                    entry.URL
+                  )}
+                </>
+              )}
+            </p>
+            <p class="text-sm text-muted-foreground mt-1">
+              Changed by{' '}
+              <strong>{entry.changed_by_name ?? entry.changed_by}</strong>
+            </p>
+          </section>
+        </li>
+      ))}
+    </ol>
+  )}
+</Admin>

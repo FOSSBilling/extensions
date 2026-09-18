@@ -1,0 +1,43 @@
+---
+import type { RevisionDiffRow } from '@/lib/revision-diff';
+import DiffValue from './DiffValue.astro';
+
+// The frozen content of a decided revision — exactly what was reviewed,
+// independent of anything approved since. Shared by the queue cards'
+// expandable section and the decided-revisions audit table.
+interface Props {
+  rows: RevisionDiffRow[];
+  idPrefix: string;
+}
+
+const { rows, idPrefix } = Astro.props;
+const visible = rows.filter(
+  (row) => row.oldValue !== null || row.newValue !== null,
+);
+---
+
+<div class="overflow-x-auto">
+  <table class="w-full text-sm table-fixed">
+    <thead>
+      <tr class="text-left text-muted-foreground">
+        <th class="py-1 pr-3 font-medium w-32">Field</th>
+        <th class="py-1 font-medium">Reviewed Content</th>
+      </tr>
+    </thead>
+    <tbody>
+      {visible.map((row) => (
+        <tr class="border-t border-border align-top">
+          <td class="py-1 pr-3 font-medium whitespace-nowrap">{row.label}</td>
+          <td class="py-1 break-all">
+            <DiffValue
+              field={row.field}
+              value={row.newValue}
+              href={row.newUrl}
+              id={`${idPrefix}-${row.field}`}
+            />
+          </td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+</div>

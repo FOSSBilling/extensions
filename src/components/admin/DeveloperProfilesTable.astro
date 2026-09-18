@@ -1,0 +1,97 @@
+---
+import { CircleCheck } from '@lucide/astro';
+import { isSafeHttpUrl } from '@/lib/safe-url';
+import type { DeveloperProfile } from '@/lib/api/client';
+import ProfileTrustBadge from '../ProfileTrustBadge.astro';
+
+interface Props {
+  developers: DeveloperProfile[];
+}
+
+const { developers } = Astro.props;
+---
+
+<div class="card overflow-x-auto p-0">
+  <table class="w-full text-sm table-fixed">
+    <thead>
+      <tr class="text-left text-muted-foreground border-b border-border">
+        <th class="px-4 py-2 font-medium">Developer</th>
+        <th class="px-4 py-2 font-medium w-[150px]">Trust</th>
+        <th class="px-4 py-2 font-medium w-[190px]">Actions</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-border">
+      {developers.map((d) => (
+        <tr class="align-middle">
+          <td class="px-4 py-2">
+            <p class="font-medium">
+              <a
+                href={`/account/admin/developers/${d.id}/history`}
+                title={`Type: ${d.type === 'organization' ? 'Organization' : 'User'}`}
+              >
+                {d.name}
+              </a>
+            </p>
+            <p class="text-xs text-muted-foreground">{d.id}</p>
+            {d.URL && (
+              <p
+                class="text-xs text-muted-foreground truncate max-w-64"
+                title={d.URL}
+              >
+                {isSafeHttpUrl(d.URL) ? <a href={d.URL}>{d.URL}</a> : d.URL}{' '}
+                {d.github_url_verified && (
+                  <CircleCheck
+                    class="size-3.5 inline text-primary align-text-bottom"
+                    title="Matches GitHub's on-file website"
+                  />
+                )}
+              </p>
+            )}
+          </td>
+          <td class="px-4 py-2">
+            <div class="flex flex-wrap items-center gap-1.5">
+              <ProfileTrustBadge
+                approved={d.approved}
+                githubOrgVerified={d.github_org_verified}
+                githubVerifiedAt={d.github_verified_at}
+                side="left"
+                align="center"
+                wrap
+              />
+              {d.unclaimed && (
+                <span class="badge" data-variant="secondary">
+                  Unclaimed
+                </span>
+              )}
+            </div>
+          </td>
+          <td class="px-4 py-2">
+            <div class="flex items-center gap-2">
+              <a
+                href={`/account/admin/developers/${d.id}/history`}
+                class="btn px-0 flex-1 justify-start"
+                data-size="sm"
+                data-variant="ghost"
+              >
+                History
+              </a>
+              {!d.approved && (
+                <button
+                  type="button"
+                  class="btn"
+                  data-size="sm"
+                  data-approve-developer
+                  data-developer-id={d.id}
+                  data-developer-name={d.name}
+                  data-expected-revision={d.content_revision}
+                >
+                  Approve
+                </button>
+              )}
+            </div>
+          </td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+</div>

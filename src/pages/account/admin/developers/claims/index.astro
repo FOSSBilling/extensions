@@ -1,0 +1,7 @@
+---
+// Profile Claims now lives as a tab on Developer Profiles; this route stays
+// only so old links and bookmarks land in the right place. The per-claim
+// approve/reject POST routes alongside it are still live (the tab's dialog
+// forms post to them).
+return Astro.redirect('/account/admin/developers?view=claims');
+---

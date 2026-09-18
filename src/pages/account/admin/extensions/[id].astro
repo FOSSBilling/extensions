@@ -1,0 +1,310 @@
+---
+import Admin from '../../../../layouts/Admin.astro';
+import { requireModerator } from '@/lib/auth-guard';
+import { createApiClient, ApiRequestError } from '@/lib/api/client';
+import { isSafeHttpUrl } from '@/lib/safe-url';
+import { repositoryURL } from '@/types';
+import type { OwnedExtension } from '@/lib/api/client';
+import { CircleAlert } from '@lucide/astro';
+import DateTime from '@/components/admin/DateTime.astro';
+import { diffRevisionContent, countChangedRows } from '@/lib/revision-diff';
+import StatusBadge from '@/components/admin/StatusBadge.astro';
+import DiffValue from '@/components/admin/DiffValue.astro';
+import ApproveDialog from '@/components/ApproveDialog.astro';
+import RejectDialog from '@/components/RejectDialog.astro';
+
+const env = Astro.locals.env;
+const guard = await requireModerator(Astro, env);
+if (guard instanceof Response) return guard;
+const user = guard;
+
+const { id } = Astro.params;
+if (!id) {
+  return Astro.redirect('/404');
+}
+
+const api = createApiClient(env, user.sub);
+let ext: OwnedExtension | null = null;
+let loadError: string | null = null;
+try {
+  ext = await api.getModerationExtension(id);
+} catch (e) {
+  loadError =
+    e instanceof ApiRequestError && e.status === 404
+      ? `No extension found with id "${id}".`
+      : e instanceof ApiRequestError
+        ? e.message
+        : 'Unable to load this extension.';
+}
+
+// Single detail fetch already gives us both sides — render the diff
+// server-side with no further queries.
+const diffRows =
+  ext?.pending_revision &&
+  'content' in ext.pending_revision &&
+  ext.pending_revision.content
+    ? diffRevisionContent(ext.published ?? null, ext.pending_revision.content)
+    : [];
+const changedCount = countChangedRows(diffRows);
+const pendingRevisionId =
+  ext?.pending_revision && typeof ext.pending_revision.id === 'string'
+    ? ext.pending_revision.id
+    : null;
+---
+
+<Admin
+  title={`Extension: ${id} — FOSSBilling Extensions`}
+  active="extensions"
+  description={`Live content, pending edits and review history for ${id}.`}
+>
+  <div slot="actions">
+    <a
+      href="/account/admin/extensions"
+      class="btn"
+      data-size="sm"
+      data-variant="outline"
+    >
+      Back to Extensions
+    </a>
+    <a
+      href="/account/admin/revisions"
+      class="btn"
+      data-size="sm"
+      data-variant="outline"
+    >
+      Revision Queue
+    </a>
+  </div>
+
+  {loadError && (
+    <div class="alert" data-variant="destructive">
+      <CircleAlert class="size-4" />
+      <section>{loadError}</section>
+    </div>
+  )}
+
+  {ext && (
+    <div class="space-y-6">
+      {ext.delisted && (
+        <div class="alert" data-variant="destructive">
+          <CircleAlert class="size-4" />
+          <section>
+            <p class="font-medium">
+              Delisted <DateTime value={ext.delisted.at} />
+            </p>
+            <p>{ext.delisted.reason}</p>
+          </section>
+        </div>
+      )}
+
+      <div class="card p-4 space-y-3">
+        <header class="flex flex-wrap items-center justify-between gap-3 px-0">
+          <p class="font-medium">
+            {ext.developer.name}
+            <span class="text-muted-foreground text-sm ml-2">
+              ({ext.developer.id})
+            </span>
+          </p>
+          <div class="flex items-center gap-2">
+            {ext.delisted ? (
+              <StatusBadge status="delisted" />
+            ) : ext.published ? (
+              <StatusBadge status="published" />
+            ) : (
+              <StatusBadge status="never-published" />
+            )}
+            {ext.pending_revision && (
+              <StatusBadge status="pending" label="Pending Edit" />
+            )}
+          </div>
+        </header>
+
+        {ext.published ? (
+          <dl class="text-sm space-y-1">
+            <div class="flex gap-2">
+              <dt class="text-muted-foreground w-28 shrink-0">Name</dt>
+              <dd>{ext.published.name}</dd>
+            </div>
+            <div class="flex gap-2">
+              <dt class="text-muted-foreground w-28 shrink-0">Type</dt>
+              <dd>{ext.published.type}</dd>
+            </div>
+            <div class="flex gap-2">
+              <dt class="text-muted-foreground w-28 shrink-0">Version</dt>
+              <dd>{ext.published.version}</dd>
+            </div>
+            <div class="flex gap-2">
+              <dt class="text-muted-foreground w-28 shrink-0">Website</dt>
+              <dd>
+                {isSafeHttpUrl(ext.published.website) ? (
+                  <a href={ext.published.website}>{ext.published.website}</a>
+                ) : (
+                  ext.published.website
+                )}
+              </dd>
+            </div>
+            <div class="flex gap-2">
+              <dt class="text-muted-foreground w-28 shrink-0">Source</dt>
+              <dd>
+                {isSafeHttpUrl(repositoryURL(ext.published.source)) ? (
+                  <a href={repositoryURL(ext.published.source)}>
+                    {ext.published.source.repo}
+                  </a>
+                ) : (
+                  ext.published.source.repo
+                )}
+              </dd>
+            </div>
+            <div class="flex gap-2">
+              <dt class="text-muted-foreground w-28 shrink-0">License</dt>
+              <dd>{ext.published.license.name}</dd>
+            </div>
+          </dl>
+        ) : (
+          <p class="text-sm text-muted-foreground">
+            Not published — no content to show.
+          </p>
+        )}
+      </div>
+
+      {ext.pending_revision && pendingRevisionId && (
+        <div class="card p-4 space-y-3">
+          <header class="flex flex-wrap items-center justify-between gap-3 px-0">
+            <div>
+              <p class="font-medium text-sm">
+                Edit Awaiting Review · {changedCount} Field(s) Changed
+              </p>
+              <p class="text-sm text-muted-foreground">
+                Submitted <DateTime value={ext.pending_revision.created_at} />
+              </p>
+            </div>
+            <div class="flex items-center gap-2">
+              <button
+                type="button"
+                class="btn"
+                data-size="sm"
+                onclick={`document.getElementById('admin-approve-detail').showModal()`}
+              >
+                Approve
+              </button>
+              <button
+                type="button"
+                class="btn"
+                data-size="sm"
+                data-variant="destructive"
+                onclick={`document.getElementById('admin-reject-detail').showModal()`}
+              >
+                Reject
+              </button>
+            </div>
+          </header>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm table-fixed">
+              <thead>
+                <tr class="text-left text-muted-foreground">
+                  <th class="py-1 pr-3 font-medium w-32">Field</th>
+                  <th class="py-1 pr-3 font-medium min-w-40">Live</th>
+                  <th class="py-1 font-medium">Proposed</th>
+                </tr>
+              </thead>
+              <tbody>
+                {diffRows.map((row) => (
+                  <tr
+                    class={`border-t border-border align-top ${row.changed ? 'bg-muted/50' : ''}`}
+                  >
+                    <td class="py-1 pr-3 font-medium whitespace-nowrap">
+                      {row.label}
+                      {row.changed ? ' •' : ''}
+                    </td>
+                    <td class="py-1 pr-3 text-muted-foreground break-all min-w-40">
+                      <DiffValue
+                        field={row.field}
+                        value={row.oldValue}
+                        emptyLabel={row.isNew ? '— (New Extension)' : '—'}
+                        href={row.oldUrl}
+                        id={`detail-old-${row.field}`}
+                      />
+                    </td>
+                    <td class="py-1 break-all">
+                      <DiffValue
+                        field={row.field}
+                        value={row.newValue}
+                        href={row.newUrl}
+                        id={`detail-new-${row.field}`}
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <ApproveDialog
+            id="admin-approve-detail"
+            title={`Approve "${ext.published?.name ?? id}"?`}
+            description="The new revision will go live immediately."
+            formAction={`/account/admin/revisions/${id}/${pendingRevisionId}/approve`}
+            notifyRecipient="author"
+            hiddenFields={[{ name: 'intent', value: 'approve' }]}
+          />
+          <RejectDialog
+            id="admin-reject-detail"
+            title={`Reject "${ext.published?.name ?? id}"?`}
+            description="The submitter will see this reason."
+            formAction={`/account/admin/revisions/${id}/${pendingRevisionId}/reject`}
+            reasonPlaceholder="Reason for rejection"
+          />
+        </div>
+      )}
+
+      {ext.last_review && (
+        <div class="card p-4">
+          <p class="font-medium text-sm">
+            Last Review:{' '}
+            <StatusBadge
+              status={
+                ext.last_review.status === 'approved' ? 'approved' : 'rejected'
+              }
+              label={
+                ext.last_review.status === 'approved' ? 'Approved' : 'Rejected'
+              }
+            />
+          </p>
+          {ext.last_review.reviewed_at && (
+            <p class="text-sm text-muted-foreground">
+              <DateTime value={ext.last_review.reviewed_at} />
+            </p>
+          )}
+          {ext.last_review.review_note && (
+            <p class="text-sm mt-1">{ext.last_review.review_note}</p>
+          )}
+        </div>
+      )}
+
+      <p class="text-xs text-muted-foreground">
+        Created <DateTime value={ext.created_at} /> · updated{' '}
+        <DateTime value={ext.updated_at} />
+      </p>
+    </div>
+  )}
+</Admin>
+
+<script>
+  document.addEventListener('click', (event) => {
+    const target = event.target as HTMLElement | null;
+
+    const truncateToggle = target?.closest<HTMLButtonElement>(
+      '[data-truncate-toggle]',
+    );
+    if (truncateToggle) {
+      const cell = truncateToggle.closest('td');
+      const short = cell?.querySelector<HTMLElement>('[data-truncate-short]');
+      const full = cell?.querySelector<HTMLElement>('[data-truncate-full]');
+      if (!short || !full) return;
+      const expanded = full.hidden;
+      full.hidden = !expanded;
+      short.hidden = expanded;
+      truncateToggle.textContent = expanded ? 'Show Less' : 'Show More';
+      truncateToggle.setAttribute('aria-expanded', String(expanded));
+    }
+  });
+</script>

@@ -4,6 +4,7 @@ import {
   formatDateTime,
   formatDateTimeInZone,
   formatRelativeTime,
+  formatShortDate,
 } from '@/lib/format-date';
 
 afterEach(() => {
@@ -16,6 +17,11 @@ describe('date formatting', () => {
 
     expect(formatDate(localDate)).toBe('30 July 2026');
     expect(formatDateTime(localDate)).toBe('30 July 2026, 13:05');
+  });
+
+  it('formats compact day-first dates with an abbreviated month', () => {
+    expect(formatShortDate(new Date(2026, 8, 17))).toBe('17 Sept 2026');
+    expect(formatShortDate('2026-07-30')).toBe('30 Jul 2026');
   });
 
   it('formats an instant in an explicit time zone with its numeric offset', () => {

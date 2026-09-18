@@ -151,7 +151,7 @@ Signed-in users manage two separate profiles from `/account`:
   directory and on your public developer page at `/developer/[id]`. Writes take effect
   immediately (`PUT /extensions/v2/developers/me`) — there's no moderation gate on creating or
   editing one. A moderator can mark a profile **approved** as a trust badge
-  (`/account/moderate/developers`); it's cosmetic, not a publish gate, and any edit clears
+  (`/account/admin/developers`); it's cosmetic, not a publish gate, and any edit clears
   the badge again until it's re-reviewed. `contact_email` is never returned by the API's
   public developer operation; it is available only to the owner-management operation.
 
@@ -169,7 +169,7 @@ Profiles with no owner at all (`owner_user_id IS NULL` — pre-v2 rows, or ones 
 api repo's owner-uniqueness migration) show an **Unclaimed** badge on their public page and can
 be **claimed**: a signed-in user requests ownership (`POST /extensions/v2/developers/{id}/claim`,
 with an optional note), and a moderator approves or rejects the request at
-`/account/moderate/developers/claims` — there's no automated verification, so approval is a
+`/account/admin/developers/claims` — there's no automated verification, so approval is a
 judgment call based on the note and the profile itself. This is how legacy, pre-ownership-tracking
 profiles get linked to an actual account.
 
@@ -183,7 +183,7 @@ FK column on the legacy `extensions` table itself, was deliberately left unrenam
 table it points to changed — and the API maps it to `developer_id` in its generated responses.
 
 Extension submissions (new extensions and edits) are the one thing still moderated: they go
-into a queue at `/account/moderate` and only take effect once a moderator approves them — a
+into a queue at `/account/admin/revisions` and only take effect once a moderator approves them — a
 higher bar than developer profiles since they carry download URLs and arbitrary readme/website
 content. All reads and writes to the Extensions domain — including users, developers,
 submissions, claims, transfers, and extensions — happen in the

@@ -17,6 +17,13 @@ interface Props {
   // PublicDeveloperProfile) and an opportunistic, infra-dependent signal
   // shouldn't be used to publicly flag a developer.
   publicView?: boolean;
+  // Basecoat tooltip placement. Defaults keep current behaviour; the admin
+  // Developers table passes side="left" + wrap so long tooltips extend over
+  // the roomy Developer column (vertically centred in tall rows) instead of
+  // clipping against the table card's overflow edges.
+  side?: 'top' | 'bottom' | 'left' | 'right';
+  align?: 'start' | 'center' | 'end';
+  wrap?: boolean;
 }
 
 const {
@@ -24,6 +31,9 @@ const {
   githubOrgVerified,
   githubVerifiedAt,
   publicView = false,
+  side = 'bottom',
+  align = 'start',
+  wrap = false,
 } = Astro.props;
 
 const verifiedAtText = githubVerifiedAt
@@ -67,8 +77,9 @@ const tooltip =
   <span
     class="inline-flex font-normal"
     data-tooltip={tooltip}
-    data-side="bottom"
-    data-align="start"
+    data-side={side}
+    data-align={align}
+    data-tooltip-wrap={wrap ? '' : undefined}
     role="img"
     aria-label={tooltip}
   >

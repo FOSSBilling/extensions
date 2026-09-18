@@ -10,8 +10,8 @@ export const POST: APIRoute = async (context) => {
   if (guard instanceof Response) return guard;
   const user = guard;
 
-  const { id } = context.params;
-  if (!id) return context.redirect('/account/moderate/developers/claims');
+  const { id, revisionId } = context.params;
+  if (!id || !revisionId) return context.redirect('/account/admin/revisions');
 
   let form: FormData;
   try {
@@ -21,32 +21,32 @@ export const POST: APIRoute = async (context) => {
       category: 'error',
       title: 'Malformed request.',
     });
-    return context.redirect('/account/moderate/developers/claims');
+    return context.redirect('/account/admin/revisions');
   }
   const reviewNote = formString(form, 'review_note');
   if (!reviewNote) {
     setFlash(context.session, {
       category: 'error',
-      title: 'A reason is required to reject a claim.',
+      title: 'A reason is required to reject a revision.',
     });
-    return context.redirect('/account/moderate/developers/claims');
+    return context.redirect('/account/admin/revisions');
   }
 
   const api = createApiClient(env, user.sub);
   const notify = formFlag(form, 'notify');
   try {
-    const result = await api.rejectClaim(id, reviewNote, notify);
+    const result = await api.rejectRevision(id, revisionId, reviewNote, notify);
     if (notify && !result.notified) {
       setFlash(context.session, {
         category: 'warning',
-        title: 'Claim rejected, but the claimant could not be emailed.',
+        title: 'Revision rejected, but the author could not be emailed.',
       });
     }
   } catch (e) {
     const message =
-      e instanceof ApiRequestError ? e.message : 'Unable to reject claim.';
+      e instanceof ApiRequestError ? e.message : 'Unable to reject revision.';
     setFlash(context.session, { category: 'error', title: message });
   }
 
-  return context.redirect('/account/moderate/developers/claims');
+  return context.redirect('/account/admin/revisions');
 };
