@@ -114,6 +114,9 @@ const details: DetailsItem[] = [
                 class="btn"
                 data-size="sm"
                 data-variant="outline"
+                data-astro-prefetch={
+                  detail.link.startsWith('/developer/') ? 'false' : undefined
+                }
               >
                 {detail.text}
               </a>

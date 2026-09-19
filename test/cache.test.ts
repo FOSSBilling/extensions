@@ -81,8 +81,14 @@ describe('cachedEdgeRead', () => {
     const [, stored] = cache.put.mock.calls[0] as [Request, Response];
     expect(stored.headers.get('cache-control')).toBe('public, s-maxage=60');
     expect(stored.headers.get('content-type')).toBe('application/json');
-    // Entries are stored as { writtenAt, value } so purges can age them out.
-    expect(await stored.json()).toMatchObject({ value: PRODUCER_VALUE });
+    // Entries are stored as { writtenAt, value } so purges can age them out
+    // — the envelope's writtenAt is load-bearing for that check.
+    const envelope = (await stored.json()) as {
+      writtenAt: number;
+      value: unknown;
+    };
+    expect(envelope.value).toEqual(PRODUCER_VALUE);
+    expect(typeof envelope.writtenAt).toBe('number');
   });
 
   it('never caches producer failures', async () => {
@@ -142,7 +148,11 @@ describe('cachedEdgeRead', () => {
     expect(producer).toHaveBeenCalledOnce();
   });
 
+  // Deterministic via fake timers: writes are stamped with the miss-start
+  // time, so the clock must advance between the purge and the repopulating
+  // read for the new entry to count as post-purge.
   it('skips entries written before the last purge and repopulates', async () => {
+    vi.useFakeTimers();
     const producerValue = { fresh: true };
     let stored: Response | undefined;
     vi.stubGlobal('caches', {
@@ -155,17 +165,36 @@ describe('cachedEdgeRead', () => {
     });
     const producer = vi.fn().mockResolvedValue({ stale: true });
 
-    // Populate the cache normally.
+    // Populate the cache at T0.
     await cachedEdgeRead(dataCacheKey('extensions'), producer);
     expect(producer).toHaveBeenCalledTimes(1);
 
-    // A purge lands after the entry was written: the stale entry must be
-    // skipped and the producer re-run.
+    // A purge lands at T1 (after the entry was written): the stale entry
+    // must be skipped and the producer re-run.
+    vi.setSystemTime(Date.now() + 1000);
     markEdgeCachePurged();
     const freshProducer = vi.fn().mockResolvedValue(producerValue);
+    vi.setSystemTime(Date.now() + 5000);
     await expect(
       cachedEdgeRead(dataCacheKey('extensions'), freshProducer),
     ).resolves.toEqual(producerValue);
     expect(freshProducer).toHaveBeenCalledOnce();
+
+    // The fresh result must replace the stale entry in the cache — its
+    // envelope is stamped post-purge, so the next read is served without
+    // re-running the producer. (Read the stored entry through a clone:
+    // `match` hands the same Response to the reads below.)
+    expect(stored).toBeDefined();
+    const envelope = (await stored!.clone().json()) as {
+      writtenAt: number;
+      value: unknown;
+    };
+    expect(envelope.value).toEqual(producerValue);
+    expect(envelope.writtenAt).toBeGreaterThan(Date.now() - 5000);
+    await expect(
+      cachedEdgeRead(dataCacheKey('extensions'), freshProducer),
+    ).resolves.toEqual(producerValue);
+    expect(freshProducer).toHaveBeenCalledOnce();
+    vi.useRealTimers();
   });
 });

@@ -11,7 +11,10 @@ import { markEdgeCachePurged } from '@/lib/cache';
 const PURGEABLE_TAGS = new Set<string>(CATALOGUE_CACHE_TAGS);
 
 function isLocalRuntime(url: URL): boolean {
-  return ['localhost', '127.0.0.1', '::1'].includes(url.hostname);
+  // WHATWG URL keeps IPv6 hosts bracketed ([::1]), so strip brackets before
+  // comparing — otherwise IPv6 loopback never matches.
+  const host = url.hostname.replace(/^\[|\]$/g, '');
+  return ['localhost', '127.0.0.1', '::1'].includes(host);
 }
 
 // Compares digests instead of raw strings so token length never leaks

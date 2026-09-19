@@ -3,8 +3,10 @@ import { markEdgeCachePurged } from './cache';
 
 // Shared cache-tag vocabulary. astro.config.mjs's routeRules tag cached
 // pages with these, and both purge paths — the dashboard helpers below and
-// POST /api/revalidate — purge them. Keep the sets aligned when adding a
-// cached surface.
+// POST /api/revalidate — purge them. 'developers' currently tags no route
+// (developer pages are deliberately uncached — see routeRules) but is kept
+// accepted because the api worker sends it; purging a tag no URL carries is
+// a no-op, and it is reserved for any future developer-surface caching.
 export const CATALOGUE_CACHE_TAGS = ['catalogue', 'developers'];
 
 // Purging both tags together is a single CDN purge call, and every catalogue

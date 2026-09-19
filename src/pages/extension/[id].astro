@@ -37,12 +37,23 @@ const shareDescription =
     : ext.description;
 // og:image uses the original icon rather than the 64x64 icon variant:
 // social scrapers want the largest available image for large-card previews.
+// Stored URLs arrive unvalidated from upstream, and Base builds the share
+// URL with `new URL(image, Astro.site)` — which throws on malformed input
+// and would 500 the whole page — so only pass cleanly-parseable URLs.
+let shareImage: string | undefined;
+if (ext.icon_url) {
+  try {
+    shareImage = new URL(ext.icon_url).href;
+  } catch {
+    // Malformed stored URL: omit the social image rather than fail render.
+  }
+}
 ---
 
 <Base
   title={`${ext.name} | FOSSBilling Extensions`}
   description={shareDescription}
-  image={ext.icon_url}
+  image={shareImage}
 >
   <ExtensionHeader ext={ext} />
 

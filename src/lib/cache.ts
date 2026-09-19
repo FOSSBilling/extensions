@@ -102,12 +102,17 @@ export async function cachedEdgeRead<T>(
     // A malformed or unreadable cache entry is treated as a miss.
   }
 
+  // Timestamp the miss, not the write: a producer that starts before a
+  // purge and resolves after it would otherwise store pre-purge data stamped
+  // as fresh (Date.now() at write time). The read-start time is always older
+  // than any purge that lands mid-flight, so the entry is aged out instead.
+  const missStartedAt = Date.now();
   const value = await producer();
 
   try {
     await cache.put(
       key,
-      new Response(JSON.stringify({ writtenAt: Date.now(), value }), {
+      new Response(JSON.stringify({ writtenAt: missStartedAt, value }), {
         headers: {
           'content-type': 'application/json',
           'cache-control': `public, s-maxage=${CATALOGUE_CACHE_TTL_SECONDS}`,
