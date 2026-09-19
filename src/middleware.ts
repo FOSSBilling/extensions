@@ -4,12 +4,24 @@ import { getApplicationEnv, getRequestTimeZone } from '@/platform/cloudflare';
 // The site renders no third-party frames, so framing is refused outright.
 // CSP frame-ancestors covers modern browsers; X-Frame-Options covers the
 // remainder. Responses carry these headers into the CDN cache, so edge-cache
-// hits replay them too.
-function applySecurityHeaders(response: Response): void {
-  response.headers.set('X-Content-Type-Options', 'nosniff');
-  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-  response.headers.set('X-Frame-Options', 'DENY');
-  response.headers.set('Content-Security-Policy', "frame-ancestors 'none'");
+// hits replay them too. Returns the response to serve: some responses
+// (Response.redirect) have immutable headers, so those are re-wrapped with
+// the original status, headers, and streaming body before mutating.
+function applySecurityHeaders(response: Response): Response {
+  const apply = (target: Response) => {
+    target.headers.set('X-Content-Type-Options', 'nosniff');
+    target.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+    target.headers.set('X-Frame-Options', 'DENY');
+    target.headers.set('Content-Security-Policy', "frame-ancestors 'none'");
+  };
+  try {
+    apply(response);
+    return response;
+  } catch {
+    const unwrapped = new Response(response.body, response);
+    apply(unwrapped);
+    return unwrapped;
+  }
 }
 
 export const onRequest = defineMiddleware(async (context, next) => {
@@ -17,6 +29,5 @@ export const onRequest = defineMiddleware(async (context, next) => {
   context.locals.timeZone = getRequestTimeZone(context.request);
 
   const response = await next();
-  applySecurityHeaders(response);
-  return response;
+  return applySecurityHeaders(response);
 });

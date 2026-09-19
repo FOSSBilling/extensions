@@ -28,7 +28,7 @@ if (Astro.request.method === 'POST') {
   try {
     const payload = buildExtensionCreatePayload(form);
     await api.createExtension(payload);
-    setFlash(Astro, Astro.locals.env.sessionSecret, {
+    await setFlash(Astro, Astro.locals.env.sessionSecret, {
       title: 'Submitted for Review.',
     });
     return Astro.redirect('/account');

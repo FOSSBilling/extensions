@@ -27,8 +27,24 @@ function edgeCache(): Cache | undefined {
   return (globalThis as EdgeCacheHolder).caches?.default;
 }
 
-function imageCacheRequest(requestUrl: URL, accept: string): Request {
-  return new Request(requestUrl, { method: 'GET', headers: { accept } });
+function imageCacheRequest(
+  requestUrl: URL,
+  accept: string,
+  conditionalRequest?: Request,
+): Request {
+  const headers = new Headers({ accept });
+  // Carrying the client's validators on the look-up key lets cache.match()
+  // evaluate If-None-Match/If-Modified-Since against the stored ETag and
+  // return 304s on cache hits, matching the miss path's behaviour.
+  if (conditionalRequest) {
+    for (const name of CONDITIONAL_REQUEST_HEADERS) {
+      const value = conditionalRequest.headers.get(name);
+      if (value !== null) {
+        headers.set(name, value);
+      }
+    }
+  }
+  return new Request(requestUrl, { method: 'GET', headers });
 }
 
 function isImageRoutePath(pathname: string): boolean {
@@ -258,7 +274,15 @@ export async function handleImageRequest({
   }
 
   const cache = edgeCache();
-  const cacheKey = cache ? imageCacheRequest(requestUrl, accept) : null;
+  // Key variants on the negotiated format rather than the raw Accept header:
+  // browsers send long, version-specific Accept strings that all negotiate
+  // to the same format, and one cache entry per exact header string would
+  // undermine the transform-once goal. The stored responses' Vary: Accept
+  // then compares equal for every client negotiating the same format.
+  const cacheAccept = format ? `image/${format}` : 'image/*';
+  const cacheKey = cache
+    ? imageCacheRequest(requestUrl, cacheAccept, request)
+    : null;
   if (cache && cacheKey) {
     try {
       const hit = await cache.match(cacheKey);

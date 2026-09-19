@@ -7,6 +7,19 @@
 
 const CATALOGUE_CACHE_TTL_SECONDS = 60;
 
+// Per-isolate purge marker. CDN tag purges cannot reach the per-colo Cache
+// API entries cached here, so a page re-rendered right after a purge could
+// otherwise repopulate from a pre-purge data-cache entry. Purge paths call
+// markEdgeCachePurged() and cachedEdgeRead() skips entries written before
+// the marker — in the same isolate (the common dashboard POST -> redirect ->
+// re-render flow) re-renders are always fresh; other isolates converge
+// within the TTL.
+let lastPurgeAtEpochMs = 0;
+
+export function markEdgeCachePurged(): void {
+  lastPurgeAtEpochMs = Date.now();
+}
+
 // Cache keys must be absolute URLs. The production origin keeps the key on
 // the deployed zone; reads fall back to the producer if the cache is
 // unavailable (plain Node, `astro dev`, or a preview host).
@@ -60,7 +73,28 @@ export async function cachedEdgeRead<T>(
   try {
     const hit = await cache.match(key);
     if (hit) {
-      return (await hit.json()) as T;
+      const parsed: unknown = await hit.json();
+      if (
+        parsed &&
+        typeof parsed === 'object' &&
+        'writtenAt' in parsed &&
+        typeof (parsed as { writtenAt?: unknown }).writtenAt === 'number'
+      ) {
+        const { writtenAt, value } = parsed as {
+          writtenAt: number;
+          value: T;
+        };
+        if (writtenAt < lastPurgeAtEpochMs) {
+          // Written before the most recent purge: treat as a miss so the
+          // re-render repopulates from the producer with post-purge data.
+        } else {
+          return value;
+        }
+      } else {
+        // Entry from before the writtenAt format existed: no age is known,
+        // so serve it — its remaining TTL bounds any staleness.
+        return parsed as T;
+      }
     }
   } catch {
     // A malformed or unreadable cache entry is treated as a miss.
@@ -71,7 +105,7 @@ export async function cachedEdgeRead<T>(
   try {
     await cache.put(
       key,
-      new Response(JSON.stringify(value), {
+      new Response(JSON.stringify({ writtenAt: Date.now(), value }), {
         headers: {
           'content-type': 'application/json',
           'cache-control': `public, s-maxage=${CATALOGUE_CACHE_TTL_SECONDS}`,

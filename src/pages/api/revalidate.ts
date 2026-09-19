@@ -1,4 +1,6 @@
 import type { APIRoute } from 'astro';
+import { CATALOGUE_CACHE_TAGS } from '@/lib/cache-invalidate';
+import { markEdgeCachePurged } from '@/lib/cache';
 
 // Catalogue mutations that bypass this dashboard (the api worker, other
 // tooling) cannot trigger the in-request purgeCatalogue() hooks, so they call
@@ -6,7 +8,11 @@ import type { APIRoute } from 'astro';
 // is wired up, api-side changes surface within the route rule's
 // maxAge+SWR window rather than instantly.
 
-const PURGEABLE_TAGS = new Set(['catalogue', 'developers']);
+const PURGEABLE_TAGS = new Set<string>(CATALOGUE_CACHE_TAGS);
+
+function isLocalRuntime(url: URL): boolean {
+  return ['localhost', '127.0.0.1', '::1'].includes(url.hostname);
+}
 
 // Compares digests instead of raw strings so token length never leaks
 // through timing.
@@ -93,11 +99,15 @@ export const POST: APIRoute = async ({ request, locals, cache }) => {
   }
 
   try {
+    markEdgeCachePurged();
     await cache.invalidate({ tags: tags as string[] });
   } catch (error) {
-    // Local workerd does not emulate Workers Cache purges; only real purge
-    // failures should surface as errors. Production callers retry on 502.
+    // Local workerd does not emulate Workers Cache purges (a plain TypeError
+    // from the cache module); gate the workaround on an explicitly local
+    // runtime so a production purge failure always surfaces as 502 for
+    // callers to retry.
     if (
+      isLocalRuntime(new URL(request.url)) &&
       error instanceof TypeError &&
       /purge is not a function/.test(error.message)
     ) {

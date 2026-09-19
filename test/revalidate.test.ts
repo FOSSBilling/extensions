@@ -22,8 +22,9 @@ function makeEnv(overrides: Partial<ApplicationEnv> = {}): ApplicationEnv {
 function makeRequest(
   body: unknown,
   headers: Record<string, string> = {},
+  url = 'https://extensions.example.test/api/revalidate',
 ): Request {
-  return new Request('https://extensions.example.test/api/revalidate', {
+  return new Request(url, {
     method: 'POST',
     headers: { 'content-type': 'application/json', ...headers },
     body: typeof body === 'string' ? body : JSON.stringify(body),
@@ -160,5 +161,69 @@ describe('POST /api/revalidate', () => {
 
     expect(response.status).toBe(200);
     expect(cache.invalidate).not.toHaveBeenCalled();
+  });
+
+  it('returns 502 PURGE_FAILED when invalidation rejects', async () => {
+    const cache = makeCache();
+    cache.invalidate.mockRejectedValueOnce(new Error('purge unavailable'));
+    const response = await POST(
+      makeContext(
+        makeRequest(
+          { tags: ['catalogue'] },
+          { authorization: `Bearer ${SECRET}` },
+        ),
+        makeEnv(),
+        cache,
+      ),
+    );
+
+    expect(response.status).toBe(502);
+    await expect(response.json()).resolves.toMatchObject({
+      error: { code: 'PURGE_FAILED' },
+    });
+  });
+
+  it('surfaces a production purge-not-a-function TypeError as 502', async () => {
+    const cache = makeCache();
+    cache.invalidate.mockRejectedValueOnce(
+      new TypeError('cache.purge is not a function'),
+    );
+    const response = await POST(
+      makeContext(
+        makeRequest(
+          { tags: ['catalogue'] },
+          { authorization: `Bearer ${SECRET}` },
+        ),
+        makeEnv(),
+        cache,
+      ),
+    );
+
+    // Only an explicitly local runtime may treat this as benign.
+    expect(response.status).toBe(502);
+  });
+
+  it('treats the local-runtime purge TypeError as success', async () => {
+    const cache = makeCache();
+    cache.invalidate.mockRejectedValueOnce(
+      new TypeError('cache.purge is not a function'),
+    );
+    const response = await POST(
+      makeContext(
+        makeRequest(
+          { tags: ['catalogue'] },
+          { authorization: `Bearer ${SECRET}` },
+          'http://localhost:4321/api/revalidate',
+        ),
+        makeEnv(),
+        cache,
+      ),
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      purged: ['catalogue'],
+      cache: 'purge-unavailable-locally',
+    });
   });
 });

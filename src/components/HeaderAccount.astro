@@ -1,10 +1,10 @@
 ---
 // Server Island: the only per-user markup in the public page chrome. Every
 // page that includes this stays free of session-dependent HTML, which is
-// what makes full-page edge caching (src/lib/page-cache.ts) safe. The
-// component reads the session cookie itself, so it takes no props and needs
-// no ASTRO_KEY. Basecoat's MutationObserver-initialized registry wires up
-// the dropdown menu when this fragment is inserted.
+// what makes route-level CDN caching (see routeRules in astro.config.mjs)
+// safe. The component reads the session cookie itself, so it takes no props
+// and needs no ASTRO_KEY. Basecoat's MutationObserver-initialized registry
+// wires up the dropdown menu when this fragment is inserted.
 import { CircleUser, LogIn, LogOut, ShieldUser, User } from '@lucide/astro';
 import { getSessionUser } from '@/lib/session';
 
@@ -89,7 +89,10 @@ const user = await getSessionUser(
     class="btn"
     data-size="icon-sm"
     data-variant="outline"
+    data-astro-prefetch="false"
   >
+    <!-- /auth/login starts the OAuth flow (state cookies + authorization
+         redirect), so hover-prefetching it would have side effects. -->
     <LogIn class="w-5 h-5" aria-hidden="true" />
   </a>
 )}

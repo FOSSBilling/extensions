@@ -225,7 +225,12 @@ npx wrangler secret put AUTH_CLIENT_ID
 npx wrangler secret put AUTH_CLIENT_SECRET
 npx wrangler secret put SESSION_SECRET
 npx wrangler secret put ASSERTION_SIGNING_SECRET
+npx wrangler secret put EXTENSIONS_REVALIDATE_SECRET
 ```
+
+`EXTENSIONS_REVALIDATE_SECRET` authorizes `POST /api/revalidate` (cache purge for
+the CDN-cached catalogue pages). The api repo's worker sends it as a bearer token
+after content mutations, so both Workers must be configured with the same value.
 
 For a no-downtime assertion-secret rotation, configure the API's
 `ASSERTION_SIGNING_SECRET_PREVIOUS` with the old value first, replace the API's

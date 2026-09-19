@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cachedEdgeRead, dataCacheKey } from '@/lib/cache';
+import { cachedEdgeRead, dataCacheKey, markEdgeCachePurged } from '@/lib/cache';
 
 const PRODUCER_VALUE = {
   result: ['extension-1'],
@@ -81,7 +81,8 @@ describe('cachedEdgeRead', () => {
     const [, stored] = cache.put.mock.calls[0] as [Request, Response];
     expect(stored.headers.get('cache-control')).toBe('public, s-maxage=60');
     expect(stored.headers.get('content-type')).toBe('application/json');
-    expect(await stored.json()).toEqual(PRODUCER_VALUE);
+    // Entries are stored as { writtenAt, value } so purges can age them out.
+    expect(await stored.json()).toMatchObject({ value: PRODUCER_VALUE });
   });
 
   it('never caches producer failures', async () => {
@@ -122,5 +123,49 @@ describe('cachedEdgeRead', () => {
       cachedEdgeRead(dataCacheKey('extensions'), producer),
     ).resolves.toEqual(PRODUCER_VALUE);
     expect(producer).toHaveBeenCalledOnce();
+  });
+
+  // A present-but-corrupt entry (body no longer parses as the writtenAt
+  // envelope) must also fall back to the producer rather than throwing.
+  it('treats a malformed cache entry body as a miss', async () => {
+    vi.stubGlobal('caches', {
+      default: {
+        match: vi.fn().mockResolvedValue(new Response('not-json')),
+        put: vi.fn(),
+      },
+    });
+    const producer = vi.fn().mockResolvedValue(PRODUCER_VALUE);
+
+    await expect(
+      cachedEdgeRead(dataCacheKey('extensions'), producer),
+    ).resolves.toEqual(PRODUCER_VALUE);
+    expect(producer).toHaveBeenCalledOnce();
+  });
+
+  it('skips entries written before the last purge and repopulates', async () => {
+    const producerValue = { fresh: true };
+    let stored: Response | undefined;
+    vi.stubGlobal('caches', {
+      default: {
+        match: vi.fn(async () => stored),
+        put: vi.fn(async (_key: Request, response: Response) => {
+          stored = response.clone();
+        }),
+      },
+    });
+    const producer = vi.fn().mockResolvedValue({ stale: true });
+
+    // Populate the cache normally.
+    await cachedEdgeRead(dataCacheKey('extensions'), producer);
+    expect(producer).toHaveBeenCalledTimes(1);
+
+    // A purge lands after the entry was written: the stale entry must be
+    // skipped and the producer re-run.
+    markEdgeCachePurged();
+    const freshProducer = vi.fn().mockResolvedValue(producerValue);
+    await expect(
+      cachedEdgeRead(dataCacheKey('extensions'), freshProducer),
+    ).resolves.toEqual(producerValue);
+    expect(freshProducer).toHaveBeenCalledOnce();
   });
 });

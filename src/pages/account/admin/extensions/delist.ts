@@ -15,7 +15,7 @@ export const POST: APIRoute = async (context) => {
   try {
     form = await context.request.formData();
   } catch {
-    setFlash(context, env.sessionSecret, {
+    await setFlash(context, env.sessionSecret, {
       category: 'error',
       title: 'Malformed request.',
     });
@@ -25,7 +25,7 @@ export const POST: APIRoute = async (context) => {
   const id = formString(form, 'id');
   const reason = formString(form, 'reason');
   if (!id || !reason) {
-    setFlash(context, env.sessionSecret, {
+    await setFlash(context, env.sessionSecret, {
       category: 'error',
       title: 'An extension id and a reason are both required to delist.',
     });
@@ -44,7 +44,7 @@ export const POST: APIRoute = async (context) => {
       description =
         'The author could not be emailed — no address on file or sending failed.';
     }
-    setFlash(context, env.sessionSecret, {
+    await setFlash(context, env.sessionSecret, {
       category: 'success',
       title: `"${id}" removed from the catalogue.`,
       description,
@@ -52,7 +52,10 @@ export const POST: APIRoute = async (context) => {
   } catch (e) {
     const message =
       e instanceof ApiRequestError ? e.message : 'Unable to delist extension.';
-    setFlash(context, env.sessionSecret, { category: 'error', title: message });
+    await setFlash(context, env.sessionSecret, {
+      category: 'error',
+      title: message,
+    });
   }
 
   return context.redirect('/account/admin/extensions');

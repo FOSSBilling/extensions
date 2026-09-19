@@ -40,17 +40,17 @@ export const GET: APIRoute = async ({ cookies, redirect, url, locals }) => {
   // error response, which echoes state per RFC 6749 section 4.1.2.1 — without
   // valid state.
   if (!state || !verifier || !expectedState || state !== expectedState) {
-    setFlash({ cookies, url }, env.sessionSecret, AUTH_ERROR_FLASH);
+    await setFlash({ cookies, url }, env.sessionSecret, AUTH_ERROR_FLASH);
     return redirect('/');
   }
 
   if (oauthError) {
-    setFlash({ cookies, url }, env.sessionSecret, AUTH_ERROR_FLASH);
+    await setFlash({ cookies, url }, env.sessionSecret, AUTH_ERROR_FLASH);
     return redirect('/');
   }
 
   if (!code) {
-    setFlash({ cookies, url }, env.sessionSecret, AUTH_ERROR_FLASH);
+    await setFlash({ cookies, url }, env.sessionSecret, AUTH_ERROR_FLASH);
     return redirect('/');
   }
 
@@ -68,7 +68,7 @@ export const GET: APIRoute = async ({ cookies, redirect, url, locals }) => {
     userInfo = await fetchUserInfo(token.access_token);
   } catch (e) {
     console.error('[auth/callback] token/userinfo failed', e);
-    setFlash({ cookies, url }, env.sessionSecret, AUTH_ERROR_FLASH);
+    await setFlash({ cookies, url }, env.sessionSecret, AUTH_ERROR_FLASH);
     return redirect('/');
   }
 
@@ -82,7 +82,7 @@ export const GET: APIRoute = async ({ cookies, redirect, url, locals }) => {
     account = await upsertUser(env, userInfo);
   } catch (e) {
     console.error('[auth/callback] identity-sync failed', e);
-    setFlash({ cookies, url }, env.sessionSecret, AUTH_ERROR_FLASH);
+    await setFlash({ cookies, url }, env.sessionSecret, AUTH_ERROR_FLASH);
     return redirect('/');
   }
 
@@ -119,7 +119,7 @@ export const GET: APIRoute = async ({ cookies, redirect, url, locals }) => {
     );
   } catch (e) {
     console.error('[auth/callback] session-mint failed', e);
-    setFlash({ cookies, url }, env.sessionSecret, AUTH_ERROR_FLASH);
+    await setFlash({ cookies, url }, env.sessionSecret, AUTH_ERROR_FLASH);
     return redirect('/');
   }
 

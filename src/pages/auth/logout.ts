@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
 import { SESSION_COOKIE } from '@/lib/session';
+import { FLASH_COOKIE } from '@/lib/flash';
 
 // A cross-site page could auto-submit this form to force a visitor's
 // session to be cleared. SameSite=Lax on the session cookie already stops a
@@ -14,5 +15,9 @@ export const POST: APIRoute = async ({ cookies, redirect, request, url }) => {
   }
 
   cookies.delete(SESSION_COOKIE, { path: '/' });
+  // The flash cookie is not session-scoped — without this, a toast set
+  // shortly before logout could surface for the next account that signs in
+  // on the same browser within its short lifetime.
+  cookies.delete(FLASH_COOKIE, { path: '/' });
   return redirect('/');
 };

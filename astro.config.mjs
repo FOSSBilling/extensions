@@ -22,9 +22,13 @@ export default defineConfig({
     // changes when a dashboard approval (purges 'catalogue') or an api-side
     // writer (POST /api/revalidate) publishes something; between events,
     // maxAge+SWR bound the staleness of any other drift.
+    //
+    // /developer/[id] is deliberately NOT cached: unclaimed profiles render
+    // a session-dependent claim form vs sign-in link, and CDN hits are
+    // served by URL without cookies, so the first visitor's variant would
+    // leak to everyone.
     '/': { maxAge: 120, swr: 60, tags: ['catalogue'] },
     '/extension/[id]': { maxAge: 300, swr: 120, tags: ['catalogue'] },
-    '/developer/[id]': { maxAge: 120, swr: 60, tags: ['developers'] },
     '/404': { maxAge: 60 },
   },
   // Hover-prefetch same-origin links so catalogue navigation feels instant;

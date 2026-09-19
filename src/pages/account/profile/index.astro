@@ -21,7 +21,7 @@ if (Astro.request.method === 'POST') {
     await updateUserProfile(env, user.sub, {
       display_name: displayName || null,
     });
-    setFlash(Astro, Astro.locals.env.sessionSecret, {
+    await setFlash(Astro, Astro.locals.env.sessionSecret, {
       title: 'Profile Updated.',
     });
     return Astro.redirect('/account');

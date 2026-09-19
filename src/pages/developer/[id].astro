@@ -27,6 +27,11 @@ if (!id) {
 // Both reads only need the URL param, so run them concurrently. The
 // detached catch keeps an extensions-read failure from surfacing as an
 // unhandled rejection when the developer read independently 404s the page.
+// Accepted tradeoff: a request for a nonexistent developer id also starts
+// the extensions read before the 404 rewrite. That wastes one upstream call
+// on an invalid id, but keeps listExtensions off the critical path for every
+// valid request — the far more common case — and repeat misses hit the
+// per-colo data cache.
 const extensionsPromise = listExtensions(env, { developer_id: id });
 extensionsPromise.catch(() => {});
 
@@ -169,6 +174,7 @@ const hasNextPage = Boolean(
             ) : (
               <a
                 href={`/auth/login?redirect=${encodeURIComponent(Astro.url.pathname)}`}
+                data-astro-prefetch="false"
                 class="btn"
                 data-size="sm"
                 data-variant="outline"

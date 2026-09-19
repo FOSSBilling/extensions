@@ -1,5 +1,6 @@
 import type { AstroCookies } from 'astro';
 import { base64urlEncode, base64urlDecode } from './base64url';
+import { signPayload, verifyPayloadSignature } from './signed-value';
 
 // A self-contained, HMAC-signed session cookie. Deliberately does not persist
 // or depend on the auth service's own tokens past the initial code exchange —
@@ -24,30 +25,6 @@ export type SessionUser = {
 
 type SessionPayload = SessionUser & { exp: number };
 
-// WebCrypto key import happens on every request (session verification in
-// the header island) — cache the imported CryptoKey per secret for the
-// lifetime of the isolate. Secrets only change across deployments, so the
-// map stays effectively size-bounded.
-const signingKeys = new Map<string, Promise<CryptoKey>>();
-
-// Exported for the flash-cookie signer in lib/flash.ts, which shares the
-// session secret's trust domain.
-export function importSigningKey(secret: string): Promise<CryptoKey> {
-  let key = signingKeys.get(secret);
-  if (!key) {
-    key = crypto.subtle.importKey(
-      'raw',
-      new TextEncoder().encode(secret),
-      { name: 'HMAC', hash: 'SHA-256' },
-      false,
-      ['sign', 'verify'],
-    );
-    key.catch(() => signingKeys.delete(secret));
-    signingKeys.set(secret, key);
-  }
-  return key;
-}
-
 export async function createSessionCookieValue(
   user: SessionUser,
   secret: string,
@@ -59,13 +36,7 @@ export async function createSessionCookieValue(
   const payloadB64 = base64urlEncode(
     new TextEncoder().encode(JSON.stringify(payload)),
   );
-  const key = await importSigningKey(secret);
-  const signature = await crypto.subtle.sign(
-    'HMAC',
-    key,
-    new TextEncoder().encode(payloadB64),
-  );
-  return `${payloadB64}.${base64urlEncode(new Uint8Array(signature))}`;
+  return `${payloadB64}.${await signPayload(payloadB64, secret)}`;
 }
 
 async function verifySessionCookieValue(
@@ -74,25 +45,29 @@ async function verifySessionCookieValue(
 ): Promise<SessionUser | null> {
   const [payloadB64, signatureB64] = value.split('.');
   if (!payloadB64 || !signatureB64) return null;
-
-  const key = await importSigningKey(secret);
-  let valid: boolean;
-  try {
-    valid = await crypto.subtle.verify(
-      'HMAC',
-      key,
-      base64urlDecode(signatureB64),
-      new TextEncoder().encode(payloadB64),
-    );
-  } catch {
+  if (!(await verifyPayloadSignature(payloadB64, signatureB64, secret))) {
     return null;
   }
-  if (!valid) return null;
 
   let payload: SessionPayload;
   try {
     payload = JSON.parse(new TextDecoder().decode(base64urlDecode(payloadB64)));
   } catch {
+    return null;
+  }
+
+  // Require the session shape, not just a valid signature: every signed
+  // cookie (flash, cooldown) shares this key, and only the session payload
+  // carries these identity fields.
+  if (
+    typeof payload.exp !== 'number' ||
+    typeof payload.sub !== 'string' ||
+    payload.sub === '' ||
+    typeof payload.name !== 'string' ||
+    payload.name === '' ||
+    typeof payload.email !== 'string' ||
+    payload.email === ''
+  ) {
     return null;
   }
 

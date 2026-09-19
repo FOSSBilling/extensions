@@ -18,7 +18,7 @@ export const POST: APIRoute = async (context) => {
   try {
     form = await context.request.formData();
   } catch {
-    setFlash(context, env.sessionSecret, {
+    await setFlash(context, env.sessionSecret, {
       category: 'error',
       title: 'Malformed request.',
     });
@@ -26,7 +26,7 @@ export const POST: APIRoute = async (context) => {
   }
   const reviewNote = formString(form, 'review_note');
   if (!reviewNote) {
-    setFlash(context, env.sessionSecret, {
+    await setFlash(context, env.sessionSecret, {
       category: 'error',
       title: 'A reason is required to reject a revision.',
     });
@@ -39,7 +39,7 @@ export const POST: APIRoute = async (context) => {
     const result = await api.rejectRevision(id, revisionId, reviewNote, notify);
     purgeCatalogue(context);
     if (notify && !result.notified) {
-      setFlash(context, env.sessionSecret, {
+      await setFlash(context, env.sessionSecret, {
         category: 'warning',
         title: 'Revision rejected, but the author could not be emailed.',
       });
@@ -47,7 +47,10 @@ export const POST: APIRoute = async (context) => {
   } catch (e) {
     const message =
       e instanceof ApiRequestError ? e.message : 'Unable to reject revision.';
-    setFlash(context, env.sessionSecret, { category: 'error', title: message });
+    await setFlash(context, env.sessionSecret, {
+      category: 'error',
+      title: message,
+    });
   }
 
   return context.redirect('/account/admin/revisions');

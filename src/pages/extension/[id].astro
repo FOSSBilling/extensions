@@ -6,7 +6,6 @@ import ReleasesCard from '@/components/ReleasesCard.astro';
 import Overview from '@/components/Overview.astro';
 import ReleasesTable from '@/components/ReleasesTable.astro';
 import { ApiRequestError, getExtensionById } from '@/lib/api/client';
-import { getOptimizedImageUrl } from '@/lib/image-url';
 
 const env = Astro.locals.env;
 const { id } = Astro.params;
@@ -28,16 +27,22 @@ try {
 if (!ext) {
   return Astro.rewrite('/404');
 }
+
+// Truncate on code points — UTF-16 slice() can split a surrogate pair and
+// leave a lone surrogate in the shared metadata.
+const descriptionCodePoints = [...ext.description];
+const shareDescription =
+  descriptionCodePoints.length > 160
+    ? `${descriptionCodePoints.slice(0, 157).join('')}...`
+    : ext.description;
+// og:image uses the original icon rather than the 64x64 icon variant:
+// social scrapers want the largest available image for large-card previews.
 ---
 
 <Base
   title={`${ext.name} | FOSSBilling Extensions`}
-  description={
-    ext.description.length > 160
-      ? `${ext.description.slice(0, 157)}...`
-      : ext.description
-  }
-  image={getOptimizedImageUrl(ext.icon_url, 'icon')}
+  description={shareDescription}
+  image={ext.icon_url}
 >
   <ExtensionHeader ext={ext} />
 

@@ -18,7 +18,7 @@ export const POST: APIRoute = async (context) => {
   try {
     form = await context.request.formData();
   } catch {
-    setFlash(context, env.sessionSecret, {
+    await setFlash(context, env.sessionSecret, {
       category: 'error',
       title: 'Malformed request.',
     });
@@ -26,7 +26,7 @@ export const POST: APIRoute = async (context) => {
   }
   const expectedRevision = Number(formString(form, 'expected_revision'));
   if (!Number.isInteger(expectedRevision) || expectedRevision < 1) {
-    setFlash(context, env.sessionSecret, {
+    await setFlash(context, env.sessionSecret, {
       category: 'error',
       title: 'Missing or invalid profile revision.',
     });
@@ -39,7 +39,7 @@ export const POST: APIRoute = async (context) => {
     const result = await api.approveDeveloper(id, expectedRevision, notify);
     purgeCatalogue(context);
     if (notify && !result.notified) {
-      setFlash(context, env.sessionSecret, {
+      await setFlash(context, env.sessionSecret, {
         category: 'warning',
         title: 'Profile approved, but the owner could not be emailed.',
       });
@@ -47,7 +47,10 @@ export const POST: APIRoute = async (context) => {
   } catch (e) {
     const message =
       e instanceof ApiRequestError ? e.message : 'Unable to approve profile.';
-    setFlash(context, env.sessionSecret, { category: 'error', title: message });
+    await setFlash(context, env.sessionSecret, {
+      category: 'error',
+      title: message,
+    });
   }
 
   return context.redirect('/account/admin/developers');

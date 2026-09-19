@@ -29,7 +29,7 @@ export const POST: APIRoute = async (context) => {
     const result = await api.approveClaim(id, notify);
     purgeCatalogue(context);
     if (notify && !result.notified) {
-      setFlash(context, env.sessionSecret, {
+      await setFlash(context, env.sessionSecret, {
         category: 'warning',
         title: 'Claim approved, but the claimant could not be emailed.',
       });
@@ -37,7 +37,10 @@ export const POST: APIRoute = async (context) => {
   } catch (e) {
     const message =
       e instanceof ApiRequestError ? e.message : 'Unable to approve claim.';
-    setFlash(context, env.sessionSecret, { category: 'error', title: message });
+    await setFlash(context, env.sessionSecret, {
+      category: 'error',
+      title: message,
+    });
   }
 
   return context.redirect('/account/admin/developers/claims');

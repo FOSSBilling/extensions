@@ -105,7 +105,7 @@ if (Astro.request.method === 'POST') {
     if (extensions.length === 0) {
       try {
         await api.deleteDeveloperProfile();
-        setFlash(Astro, Astro.locals.env.sessionSecret, {
+        await setFlash(Astro, Astro.locals.env.sessionSecret, {
           title: 'Developer Profile Deleted.',
         });
         return Astro.redirect('/account');
@@ -126,7 +126,7 @@ if (Astro.request.method === 'POST') {
       const payload = buildDeveloperProfile(form, developer);
       submitted = payload;
       developer = await api.upsertDeveloperProfile(payload);
-      setFlash(Astro, Astro.locals.env.sessionSecret, {
+      await setFlash(Astro, Astro.locals.env.sessionSecret, {
         title: 'Developer Profile Saved.',
       });
       return Astro.redirect('/account');
