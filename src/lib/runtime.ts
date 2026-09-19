@@ -26,4 +26,8 @@ export interface ApplicationEnv {
   authClientSecret: string;
   sessionSecret: string;
   assertionSigningSecret: string;
+  // Shared secret for POST /api/revalidate, called by the api worker (and
+  // other writers) to purge CDN-cached catalogue pages after mutations that
+  // bypass this dashboard.
+  revalidateSecret: string;
 }

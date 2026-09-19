@@ -24,6 +24,7 @@ export function getApplicationEnv(): ApplicationEnv {
     authClientSecret: env.AUTH_CLIENT_SECRET,
     sessionSecret: env.SESSION_SECRET,
     assertionSigningSecret: env.ASSERTION_SIGNING_SECRET,
+    revalidateSecret: env.REVALIDATE_SECRET,
   };
 }
 

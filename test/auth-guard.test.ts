@@ -28,6 +28,7 @@ const env: ApplicationEnv = {
   authClientSecret: 'client-secret',
   sessionSecret: 'session-secret',
   assertionSigningSecret: 'assertion-secret',
+  revalidateSecret: 'revalidate-secret',
 };
 
 function context() {

@@ -2,6 +2,7 @@ import type { APIRoute } from 'astro';
 import { requireModerator } from '@/lib/auth-guard';
 import { createApiClient, ApiRequestError } from '@/lib/api/client';
 import { formFlag, formString } from '@/lib/form';
+import { purgeCatalogue } from '@/lib/cache-invalidate';
 import { setFlash } from '@/lib/flash';
 
 export const POST: APIRoute = async (context) => {
@@ -35,6 +36,7 @@ export const POST: APIRoute = async (context) => {
   const api = createApiClient(env, user.sub);
   try {
     const result = await api.delistExtension(id, reason, notify);
+    purgeCatalogue(context);
     let description = 'The author has been emailed.';
     if (!notify) {
       description = 'The author was not emailed, as requested.';

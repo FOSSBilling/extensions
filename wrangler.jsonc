@@ -5,6 +5,12 @@
 		"global_fetch_strictly_public",
 		"nodejs_compat"
 	],
+	// Workers Cache: serves route-cached pages (Cloudflare-CDN-Cache-Control,
+	// set by Astro's cacheCloudflare provider) before the worker runs, and
+	// enables the tag purge behind Astro's cache.invalidate().
+	"cache": {
+		"enabled": true
+	},
 	"observability": {
 		"logs": {
 			"enabled": true

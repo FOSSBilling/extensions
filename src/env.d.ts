@@ -13,6 +13,7 @@ declare global {
       SESSION_SECRET: string;
       ASSERTION_SIGNING_SECRET: string;
       EXTENSIONS_API_BASE_URL: string;
+      REVALIDATE_SECRET: string;
     }
   }
 
@@ -20,6 +21,9 @@ declare global {
     interface Locals {
       env: ApplicationEnv;
       timeZone: string | undefined;
+      // Cloudflare execution context, provided by the adapter in deployed
+      // builds only (absent in `astro dev`), used to background cache purges.
+      cfContext?: { waitUntil: (promise: Promise<unknown>) => void };
     }
   }
 }

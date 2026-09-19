@@ -2,6 +2,7 @@ import type { APIRoute } from 'astro';
 import { requireUser } from '@/lib/auth-guard';
 import { getDeveloperByOwner } from '@/lib/extensions-data';
 import { createApiClient, ApiRequestError } from '@/lib/api/client';
+import { purgeCatalogue } from '@/lib/cache-invalidate';
 import { setFlash } from '@/lib/flash';
 import {
   setReverifyCooldown,
@@ -35,6 +36,7 @@ export const POST: APIRoute = async (context) => {
   let result;
   try {
     result = await api.reverifyDeveloper(true);
+    purgeCatalogue(context);
   } catch (e) {
     let description =
       'Unable to refresh your GitHub verification right now. Please try again manually.';
