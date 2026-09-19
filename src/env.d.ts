@@ -13,7 +13,7 @@ declare global {
       SESSION_SECRET: string;
       ASSERTION_SIGNING_SECRET: string;
       EXTENSIONS_API_BASE_URL: string;
-      REVALIDATE_SECRET: string;
+      EXTENSIONS_REVALIDATE_SECRET: string;
     }
   }
 

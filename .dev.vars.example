@@ -5,7 +5,7 @@ SESSION_SECRET="replace-with-openssl-rand-base64-32"
 ASSERTION_SIGNING_SECRET="replace-with-openssl-rand-base64-32"
 # Shared secret for POST /api/revalidate (purges CDN-cached catalogue pages).
 # The api worker (or other writers) sends it as: Authorization: Bearer <secret>.
-REVALIDATE_SECRET="replace-with-openssl-rand-base64-32"
+EXTENSIONS_REVALIDATE_SECRET="replace-with-openssl-rand-base64-32"
 # Local development uses ordinary HTTP unless you run both Workers with a
 # connected service binding. The production Wrangler config uses `binding`.
 EXTENSIONS_API_TRANSPORT="http"
