@@ -2,6 +2,7 @@ import type { APIRoute } from 'astro';
 import { requireModerator } from '@/lib/auth-guard';
 import { createApiClient, ApiRequestError } from '@/lib/api/client';
 import { formFlag, formString } from '@/lib/form';
+import { purgeCatalogue } from '@/lib/cache-invalidate';
 import { setFlash } from '@/lib/flash';
 
 export const POST: APIRoute = async (context) => {
@@ -17,7 +18,7 @@ export const POST: APIRoute = async (context) => {
   try {
     form = await context.request.formData();
   } catch {
-    setFlash(context.session, {
+    await setFlash(context, env.sessionSecret, {
       category: 'error',
       title: 'Malformed request.',
     });
@@ -25,7 +26,7 @@ export const POST: APIRoute = async (context) => {
   }
   const expectedRevision = Number(formString(form, 'expected_revision'));
   if (!Number.isInteger(expectedRevision) || expectedRevision < 1) {
-    setFlash(context.session, {
+    await setFlash(context, env.sessionSecret, {
       category: 'error',
       title: 'Missing or invalid profile revision.',
     });
@@ -36,8 +37,9 @@ export const POST: APIRoute = async (context) => {
   const notify = formFlag(form, 'notify');
   try {
     const result = await api.approveDeveloper(id, expectedRevision, notify);
+    purgeCatalogue(context);
     if (notify && !result.notified) {
-      setFlash(context.session, {
+      await setFlash(context, env.sessionSecret, {
         category: 'warning',
         title: 'Profile approved, but the owner could not be emailed.',
       });
@@ -45,7 +47,10 @@ export const POST: APIRoute = async (context) => {
   } catch (e) {
     const message =
       e instanceof ApiRequestError ? e.message : 'Unable to approve profile.';
-    setFlash(context.session, { category: 'error', title: message });
+    await setFlash(context, env.sessionSecret, {
+      category: 'error',
+      title: message,
+    });
   }
 
   return context.redirect('/account/admin/developers');

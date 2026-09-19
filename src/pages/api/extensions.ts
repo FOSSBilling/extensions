@@ -41,7 +41,12 @@ export const GET: APIRoute = async ({ url, locals }) => {
   }
 
   try {
-    return Response.json(await listExtensions(env, filters));
+    // Short browser TTL so repeated Load-more/filter requests reuse the same
+    // cursor page; the edge cache for the underlying read lives in the
+    // client-layer catalogue wrapper.
+    return Response.json(await listExtensions(env, filters), {
+      headers: { 'cache-control': 'public, max-age=30' },
+    });
   } catch (error) {
     if (error instanceof ApiRequestError) {
       return Response.json(

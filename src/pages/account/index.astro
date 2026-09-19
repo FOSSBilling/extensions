@@ -16,6 +16,7 @@ import { CircleAlert } from '@lucide/astro';
 import ProfileTrustBadge from '@/components/ProfileTrustBadge.astro';
 import DeveloperAvatar from '@/components/DeveloperAvatar.astro';
 import { getOptimizedImageUrl } from '@/lib/image-url';
+import { takeReverifyCooldown } from '@/lib/reverify-cooldown';
 
 const env = Astro.locals.env;
 const guard = await requireUser(Astro, env);
@@ -76,12 +77,15 @@ const pendingClaim = myClaims.find((c) => c.status === 'pending');
 // since, leaving the page with no way to proceed.
 const displayClaim = pendingClaim ?? latestClaim;
 
-let reverifyCooldownUntil =
-  (await Astro.session?.get('reverifyCooldownUntil')) ?? 0;
-if (reverifyCooldownUntil <= Date.now()) {
-  Astro.session?.delete('reverifyCooldownUntil');
-  reverifyCooldownUntil = 0;
-}
+// The cookie outlives the cooldown itself (it must survive reads across
+// retries), so an expired-but-still-present timestamp has to be normalized
+// to 0 here — the template treats any non-zero value as an active cooldown.
+const rawReverifyCooldownUntil = await takeReverifyCooldown(
+  Astro.cookies,
+  Astro.locals.env.sessionSecret,
+);
+const reverifyCooldownUntil =
+  rawReverifyCooldownUntil > Date.now() ? rawReverifyCooldownUntil : 0;
 
 // After linking GitHub, send the user back through our own OIDC login
 // (rather than stranding them on auth's own /account page) so the ID token

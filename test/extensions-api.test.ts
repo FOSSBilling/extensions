@@ -58,11 +58,13 @@ const publicEnv: ApplicationEnv = {
   authClientSecret: 'test-secret',
   sessionSecret: 'test-session-secret',
   assertionSigningSecret: '',
+  revalidateSecret: '',
 };
 
 const authenticatedEnv: ApplicationEnv = {
   ...publicEnv,
   assertionSigningSecret: 'test-secret',
+  revalidateSecret: 'revalidate-secret',
 };
 
 function apiResponse(body: unknown, status = 200): Response {

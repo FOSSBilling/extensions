@@ -100,7 +100,9 @@ if (!owned.pendingRevision && Astro.request.method === 'POST') {
   try {
     const payload = buildExtensionUpdatePayload(form, owned.published);
     await api.updateExtension(owned.id, payload);
-    setFlash(Astro.session, { title: 'Submitted for Review.' });
+    await setFlash(Astro, Astro.locals.env.sessionSecret, {
+      title: 'Submitted for Review.',
+    });
     return Astro.redirect('/account');
   } catch (e) {
     error =

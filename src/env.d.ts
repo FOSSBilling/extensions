@@ -1,4 +1,3 @@
-import type { FlashMessage } from '@/lib/flash';
 import type { ApplicationEnv } from '@/lib/runtime';
 
 export {};
@@ -14,19 +13,17 @@ declare global {
       SESSION_SECRET: string;
       ASSERTION_SIGNING_SECRET: string;
       EXTENSIONS_API_BASE_URL: string;
+      EXTENSIONS_REVALIDATE_SECRET: string;
     }
   }
 
   namespace App {
-    interface SessionData {
-      flash: FlashMessage;
-    }
     interface Locals {
       env: ApplicationEnv;
       timeZone: string | undefined;
-      // Read and cleared once per request by src/middleware.ts, before any
-      // rendering starts — see the comment there for why that timing matters.
-      flash: FlashMessage | undefined;
+      // Cloudflare execution context, provided by the adapter in deployed
+      // builds only (absent in `astro dev`), used to background cache purges.
+      cfContext?: { waitUntil: (promise: Promise<unknown>) => void };
     }
   }
 }

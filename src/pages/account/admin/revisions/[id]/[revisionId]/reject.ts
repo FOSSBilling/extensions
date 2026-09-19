@@ -2,6 +2,7 @@ import type { APIRoute } from 'astro';
 import { requireModerator } from '@/lib/auth-guard';
 import { createApiClient, ApiRequestError } from '@/lib/api/client';
 import { formFlag, formString } from '@/lib/form';
+import { purgeCatalogue } from '@/lib/cache-invalidate';
 import { setFlash } from '@/lib/flash';
 
 export const POST: APIRoute = async (context) => {
@@ -17,7 +18,7 @@ export const POST: APIRoute = async (context) => {
   try {
     form = await context.request.formData();
   } catch {
-    setFlash(context.session, {
+    await setFlash(context, env.sessionSecret, {
       category: 'error',
       title: 'Malformed request.',
     });
@@ -25,7 +26,7 @@ export const POST: APIRoute = async (context) => {
   }
   const reviewNote = formString(form, 'review_note');
   if (!reviewNote) {
-    setFlash(context.session, {
+    await setFlash(context, env.sessionSecret, {
       category: 'error',
       title: 'A reason is required to reject a revision.',
     });
@@ -36,8 +37,9 @@ export const POST: APIRoute = async (context) => {
   const notify = formFlag(form, 'notify');
   try {
     const result = await api.rejectRevision(id, revisionId, reviewNote, notify);
+    purgeCatalogue(context);
     if (notify && !result.notified) {
-      setFlash(context.session, {
+      await setFlash(context, env.sessionSecret, {
         category: 'warning',
         title: 'Revision rejected, but the author could not be emailed.',
       });
@@ -45,7 +47,10 @@ export const POST: APIRoute = async (context) => {
   } catch (e) {
     const message =
       e instanceof ApiRequestError ? e.message : 'Unable to reject revision.';
-    setFlash(context.session, { category: 'error', title: message });
+    await setFlash(context, env.sessionSecret, {
+      category: 'error',
+      title: message,
+    });
   }
 
   return context.redirect('/account/admin/revisions');

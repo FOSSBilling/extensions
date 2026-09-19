@@ -1,5 +1,6 @@
 import type { AstroCookies } from 'astro';
 import { getSessionUser, SESSION_COOKIE, type SessionUser } from './session';
+import { FLASH_COOKIE } from './flash';
 import { ApiRequestError } from './api/client';
 import { getUser } from './users';
 import type { ApplicationEnv } from './runtime';
@@ -13,6 +14,7 @@ export type AuthenticatedUser = SessionUser & {
 interface AuthContext {
   cookies: AstroCookies;
   redirect: (path: string) => Response;
+  rewrite: (path: string) => Promise<Response>;
   url: URL;
 }
 
@@ -33,6 +35,13 @@ export async function requireUser(
     return context.redirect(`/auth/login?redirect=${redirectTo}`);
   };
 
+  // The flash cookie is not session-scoped (see logout.ts), so it goes with
+  // the session when the session is force-cleared.
+  const clearSessionCookies = (cookies: AstroCookies) => {
+    cookies.delete(SESSION_COOKIE, { path: '/' });
+    cookies.delete(FLASH_COOKIE, { path: '/' });
+  };
+
   const user = await getSessionUser(context.cookies, env.sessionSecret);
   if (!user) return redirectToLogin();
 
@@ -44,7 +53,7 @@ export async function requireUser(
   try {
     const account = await getUser(env, user.sub);
     if (!account.active) {
-      context.cookies.delete(SESSION_COOKIE, { path: '/' });
+      clearSessionCookies(context.cookies);
       return redirectToLogin();
     }
     return { ...user, account };
@@ -54,7 +63,7 @@ export async function requireUser(
     // assertion/configuration problem) are not evidence that the local
     // session is stale, so keep the cookie and use the retryable 503 path.
     if (error instanceof ApiRequestError && error.status === 404) {
-      context.cookies.delete(SESSION_COOKIE, { path: '/' });
+      clearSessionCookies(context.cookies);
       return redirectToLogin();
     }
     return new Response(
@@ -74,7 +83,9 @@ export async function requireModerator(
   const guard = await requireUser(context, env);
   if (guard instanceof Response) return guard;
 
-  if (!guard.account.is_moderator) return context.redirect('/404');
+  // Non-moderators get the 404 page itself (not a redirect to it) so the
+  // admin surface doesn't even appear to exist.
+  if (!guard.account.is_moderator) return context.rewrite('/404');
 
   return guard;
 }

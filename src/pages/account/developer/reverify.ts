@@ -2,7 +2,12 @@ import type { APIRoute } from 'astro';
 import { requireUser } from '@/lib/auth-guard';
 import { getDeveloperByOwner } from '@/lib/extensions-data';
 import { createApiClient, ApiRequestError } from '@/lib/api/client';
+import { purgeCatalogue } from '@/lib/cache-invalidate';
 import { setFlash } from '@/lib/flash';
+import {
+  setReverifyCooldown,
+  takeReverifyCooldown,
+} from '@/lib/reverify-cooldown';
 
 export const POST: APIRoute = async (context) => {
   const env = context.locals.env;
@@ -10,10 +15,12 @@ export const POST: APIRoute = async (context) => {
   if (guard instanceof Response) return guard;
   const user = guard;
 
-  const cooldownUntil =
-    (await context.session?.get('reverifyCooldownUntil')) ?? 0;
+  const cooldownUntil = await takeReverifyCooldown(
+    context.cookies,
+    env.sessionSecret,
+  );
   if (cooldownUntil > Date.now()) {
-    setFlash(context.session, {
+    await setFlash(context, env.sessionSecret, {
       category: 'error',
       title: 'Could not refresh GitHub verification',
       description:
@@ -21,7 +28,6 @@ export const POST: APIRoute = async (context) => {
     });
     return context.redirect('/account');
   }
-  context.session?.delete('reverifyCooldownUntil');
 
   const developer = await getDeveloperByOwner(env, user.sub);
   if (!developer) return context.redirect('/account');
@@ -30,6 +36,7 @@ export const POST: APIRoute = async (context) => {
   let result;
   try {
     result = await api.reverifyDeveloper(true);
+    purgeCatalogue(context);
   } catch (e) {
     let description =
       'Unable to refresh your GitHub verification right now. Please try again manually.';
@@ -39,12 +46,12 @@ export const POST: APIRoute = async (context) => {
         case 'RATE_LIMITED':
           description =
             'GitHub verification is temporarily rate limited. Please wait one minute, then retry manually.';
-          context.session?.set('reverifyCooldownUntil', Date.now() + 60_000);
+          await setReverifyCooldown(context, env.sessionSecret);
           break;
         case 'SERVICE_UNAVAILABLE':
           description =
             'GitHub verification is temporarily unavailable. Please wait one minute, then retry manually.';
-          context.session?.set('reverifyCooldownUntil', Date.now() + 60_000);
+          await setReverifyCooldown(context, env.sessionSecret);
           break;
         case 'GITHUB_ENTITY_UNSUPPORTED':
           description =
@@ -55,7 +62,7 @@ export const POST: APIRoute = async (context) => {
       }
     }
 
-    setFlash(context.session, {
+    await setFlash(context, env.sessionSecret, {
       category: 'error',
       title: 'Could not refresh GitHub verification',
       description,
@@ -67,7 +74,7 @@ export const POST: APIRoute = async (context) => {
   // linked GitHub identity — see the api repo's reverifyOwn) rather than an
   // actual mismatch, which is `false`. Conflating the two would show "no
   // longer matches" for a case that isn't a mismatch at all.
-  setFlash(context.session, {
+  await setFlash(context, env.sessionSecret, {
     category:
       result.github_org_verified === true
         ? 'success'

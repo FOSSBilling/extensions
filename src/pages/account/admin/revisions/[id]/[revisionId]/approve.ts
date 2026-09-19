@@ -2,6 +2,7 @@ import type { APIRoute } from 'astro';
 import { requireModerator } from '@/lib/auth-guard';
 import { createApiClient, ApiRequestError } from '@/lib/api/client';
 import { formFlag, formString } from '@/lib/form';
+import { purgeCatalogue } from '@/lib/cache-invalidate';
 import { setFlash } from '@/lib/flash';
 
 export const POST: APIRoute = async (context) => {
@@ -26,8 +27,9 @@ export const POST: APIRoute = async (context) => {
   const api = createApiClient(env, user.sub);
   try {
     const result = await api.approveRevision(id, revisionId, undefined, notify);
+    purgeCatalogue(context);
     if (notify && !result.notified) {
-      setFlash(context.session, {
+      await setFlash(context, env.sessionSecret, {
         category: 'warning',
         title: 'Revision approved, but the author could not be emailed.',
       });
@@ -35,7 +37,10 @@ export const POST: APIRoute = async (context) => {
   } catch (e) {
     const message =
       e instanceof ApiRequestError ? e.message : 'Unable to approve revision.';
-    setFlash(context.session, { category: 'error', title: message });
+    await setFlash(context, env.sessionSecret, {
+      category: 'error',
+      title: message,
+    });
   }
 
   return context.redirect('/account/admin/revisions');

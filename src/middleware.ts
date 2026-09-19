@@ -1,16 +1,33 @@
 import { defineMiddleware } from 'astro:middleware';
-import { takeFlash } from '@/lib/flash';
 import { getApplicationEnv, getRequestTimeZone } from '@/platform/cloudflare';
 
-// Reads (and clears) the flash here, in middleware, rather than in Base.astro
-// or any page — by the time a nested layout component's frontmatter runs,
-// Astro's streaming renderer may have already flushed response headers,
-// which silently drops any session mutation made at that point (the delete
-// never reaches the persisted write). Middleware runs before rendering
-// starts, so the mutation is guaranteed to land before headers are sent.
+// The site renders no third-party frames, so framing is refused outright.
+// CSP frame-ancestors covers modern browsers; X-Frame-Options covers the
+// remainder. Responses carry these headers into the CDN cache, so edge-cache
+// hits replay them too. Returns the response to serve: some responses
+// (Response.redirect) have immutable headers, so those are re-wrapped with
+// the original status, headers, and streaming body before mutating.
+function applySecurityHeaders(response: Response): Response {
+  const apply = (target: Response) => {
+    target.headers.set('X-Content-Type-Options', 'nosniff');
+    target.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+    target.headers.set('X-Frame-Options', 'DENY');
+    target.headers.set('Content-Security-Policy', "frame-ancestors 'none'");
+  };
+  try {
+    apply(response);
+    return response;
+  } catch {
+    const unwrapped = new Response(response.body, response);
+    apply(unwrapped);
+    return unwrapped;
+  }
+}
+
 export const onRequest = defineMiddleware(async (context, next) => {
   context.locals.env = getApplicationEnv();
   context.locals.timeZone = getRequestTimeZone(context.request);
-  context.locals.flash = await takeFlash(context.session);
-  return next();
+
+  const response = await next();
+  return applySecurityHeaders(response);
 });

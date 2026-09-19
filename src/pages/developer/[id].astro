@@ -21,13 +21,24 @@ const env = Astro.locals.env;
 const { id } = Astro.params;
 
 if (!id) {
-  return Astro.redirect('/404');
+  return Astro.rewrite('/404');
 }
+
+// Both reads only need the URL param, so run them concurrently. The
+// detached catch keeps an extensions-read failure from surfacing as an
+// unhandled rejection when the developer read independently 404s the page.
+// Accepted tradeoff: a request for a nonexistent developer id also starts
+// the extensions read before the 404 rewrite. That wastes one upstream call
+// on an invalid id, but keeps listExtensions off the critical path for every
+// valid request — the far more common case — and repeat misses hit the
+// per-colo data cache.
+const extensionsPromise = listExtensions(env, { developer_id: id });
+extensionsPromise.catch(() => {});
 
 const developer = await getDeveloperById(env, id);
 
 if (!developer) {
-  return Astro.redirect('/404');
+  return Astro.rewrite('/404');
 }
 
 const currentUser = await getSessionUser(Astro.cookies, env.sessionSecret);
@@ -59,9 +70,7 @@ if (Astro.request.method === 'POST' && developer.unclaimed) {
 let extensionsPage: ExtensionListResponse | null = null;
 let extensionsError: string | null = null;
 try {
-  extensionsPage = await listExtensions(env, {
-    developer_id: developer.id,
-  });
+  extensionsPage = await extensionsPromise;
 } catch (error) {
   extensionsError =
     error instanceof ApiRequestError
@@ -77,7 +86,10 @@ const hasNextPage = Boolean(
 );
 ---
 
-<Base title={`${developer.name} — FOSSBilling Extensions`}>
+<Base
+  title={`${developer.name} — FOSSBilling Extensions`}
+  description={`Browse extensions and components for FOSSBilling by ${developer.name}.`}
+>
   <div class="flex items-center gap-4 mb-8">
     <DeveloperAvatar
       avatarUrl={developer.avatar_url}
@@ -162,6 +174,7 @@ const hasNextPage = Boolean(
             ) : (
               <a
                 href={`/auth/login?redirect=${encodeURIComponent(Astro.url.pathname)}`}
+                data-astro-prefetch="false"
                 class="btn"
                 data-size="sm"
                 data-variant="outline"

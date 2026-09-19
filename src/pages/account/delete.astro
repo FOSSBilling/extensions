@@ -31,7 +31,7 @@ if (Astro.request.method === 'POST' && extensions.length === 0) {
     // operation so a partial two-request cleanup cannot leave stale state.
     await deleteUser(env, user.sub);
     Astro.cookies.delete(SESSION_COOKIE, { path: '/' });
-    setFlash(Astro.session, {
+    await setFlash(Astro, Astro.locals.env.sessionSecret, {
       category: 'success',
       title: 'Your account has been deleted.',
     });

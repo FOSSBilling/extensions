@@ -3,6 +3,9 @@ AUTH_CLIENT_SECRET="replace-with-oauth-client-secret-from-auth.fossbilling.net"
 SESSION_SECRET="replace-with-openssl-rand-base64-32"
 # Must match the api repo's ASSERTION_SIGNING_SECRET exactly (same shared secret).
 ASSERTION_SIGNING_SECRET="replace-with-openssl-rand-base64-32"
+# Shared secret for POST /api/revalidate (purges CDN-cached catalogue pages).
+# The api worker (or other writers) sends it as: Authorization: Bearer <secret>.
+EXTENSIONS_REVALIDATE_SECRET="replace-with-openssl-rand-base64-32"
 # Local development uses ordinary HTTP unless you run both Workers with a
 # connected service binding. The production Wrangler config uses `binding`.
 EXTENSIONS_API_TRANSPORT="http"

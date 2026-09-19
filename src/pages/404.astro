@@ -1,5 +1,9 @@
 ---
 import Base from '../layouts/Base.astro';
+
+// Rewritten-to pages must carry a real 404 status for crawlers and cache
+// semantics; direct visits to /404 get the same status.
+Astro.response.status = 404;
 ---
 
 <Base title="Page Not Found | FOSSBilling Extensions">

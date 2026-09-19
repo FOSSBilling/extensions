@@ -23,13 +23,7 @@ const AUTH_ERROR_FLASH = {
   description: 'Please try again.',
 } as const;
 
-export const GET: APIRoute = async ({
-  cookies,
-  redirect,
-  url,
-  session,
-  locals,
-}) => {
+export const GET: APIRoute = async ({ cookies, redirect, url, locals }) => {
   const env = locals.env;
   const verifier = cookies.get(OAUTH_VERIFIER_COOKIE)?.value;
   const expectedState = cookies.get(OAUTH_STATE_COOKIE)?.value;
@@ -46,17 +40,17 @@ export const GET: APIRoute = async ({
   // error response, which echoes state per RFC 6749 section 4.1.2.1 — without
   // valid state.
   if (!state || !verifier || !expectedState || state !== expectedState) {
-    setFlash(session, AUTH_ERROR_FLASH);
+    await setFlash({ cookies, url }, env.sessionSecret, AUTH_ERROR_FLASH);
     return redirect('/');
   }
 
   if (oauthError) {
-    setFlash(session, AUTH_ERROR_FLASH);
+    await setFlash({ cookies, url }, env.sessionSecret, AUTH_ERROR_FLASH);
     return redirect('/');
   }
 
   if (!code) {
-    setFlash(session, AUTH_ERROR_FLASH);
+    await setFlash({ cookies, url }, env.sessionSecret, AUTH_ERROR_FLASH);
     return redirect('/');
   }
 
@@ -74,7 +68,7 @@ export const GET: APIRoute = async ({
     userInfo = await fetchUserInfo(token.access_token);
   } catch (e) {
     console.error('[auth/callback] token/userinfo failed', e);
-    setFlash(session, AUTH_ERROR_FLASH);
+    await setFlash({ cookies, url }, env.sessionSecret, AUTH_ERROR_FLASH);
     return redirect('/');
   }
 
@@ -88,7 +82,7 @@ export const GET: APIRoute = async ({
     account = await upsertUser(env, userInfo);
   } catch (e) {
     console.error('[auth/callback] identity-sync failed', e);
-    setFlash(session, AUTH_ERROR_FLASH);
+    await setFlash({ cookies, url }, env.sessionSecret, AUTH_ERROR_FLASH);
     return redirect('/');
   }
 
@@ -125,7 +119,7 @@ export const GET: APIRoute = async ({
     );
   } catch (e) {
     console.error('[auth/callback] session-mint failed', e);
-    setFlash(session, AUTH_ERROR_FLASH);
+    await setFlash({ cookies, url }, env.sessionSecret, AUTH_ERROR_FLASH);
     return redirect('/');
   }
 
