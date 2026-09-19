@@ -84,9 +84,11 @@ export async function cachedEdgeRead<T>(
           writtenAt: number;
           value: T;
         };
-        if (writtenAt < lastPurgeAtEpochMs) {
-          // Written before the most recent purge: treat as a miss so the
-          // re-render repopulates from the producer with post-purge data.
+        if (writtenAt <= lastPurgeAtEpochMs) {
+          // Written before (or racing with) the most recent purge: treat as
+          // a miss so the re-render repopulates from the producer with
+          // post-purge data. Erring toward freshness here only costs an
+          // extra producer call in a same-millisecond race.
         } else {
           return value;
         }
