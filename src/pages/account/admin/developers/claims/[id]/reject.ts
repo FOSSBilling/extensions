@@ -17,7 +17,7 @@ export const POST: APIRoute = async (context) => {
   try {
     form = await context.request.formData();
   } catch {
-    setFlash(context.session, {
+    setFlash(context, env.sessionSecret, {
       category: 'error',
       title: 'Malformed request.',
     });
@@ -25,7 +25,7 @@ export const POST: APIRoute = async (context) => {
   }
   const reviewNote = formString(form, 'review_note');
   if (!reviewNote) {
-    setFlash(context.session, {
+    setFlash(context, env.sessionSecret, {
       category: 'error',
       title: 'A reason is required to reject a claim.',
     });
@@ -37,7 +37,7 @@ export const POST: APIRoute = async (context) => {
   try {
     const result = await api.rejectClaim(id, reviewNote, notify);
     if (notify && !result.notified) {
-      setFlash(context.session, {
+      setFlash(context, env.sessionSecret, {
         category: 'warning',
         title: 'Claim rejected, but the claimant could not be emailed.',
       });
@@ -45,7 +45,7 @@ export const POST: APIRoute = async (context) => {
   } catch (e) {
     const message =
       e instanceof ApiRequestError ? e.message : 'Unable to reject claim.';
-    setFlash(context.session, { category: 'error', title: message });
+    setFlash(context, env.sessionSecret, { category: 'error', title: message });
   }
 
   return context.redirect('/account/admin/developers/claims');

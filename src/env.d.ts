@@ -1,4 +1,3 @@
-import type { FlashMessage } from '@/lib/flash';
 import type { ApplicationEnv } from '@/lib/runtime';
 
 export {};
@@ -19,7 +18,9 @@ declare global {
 
   namespace App {
     interface SessionData {
-      flash: FlashMessage;
+      // Astro session (KV) now only carries the re-verify cooldown; flash
+      // messages live in a signed cookie — see src/lib/flash.ts.
+      reverifyCooldownUntil?: number;
     }
     interface Locals {
       env: ApplicationEnv;

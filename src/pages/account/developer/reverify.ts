@@ -13,7 +13,7 @@ export const POST: APIRoute = async (context) => {
   const cooldownUntil =
     (await context.session?.get('reverifyCooldownUntil')) ?? 0;
   if (cooldownUntil > Date.now()) {
-    setFlash(context.session, {
+    setFlash(context, env.sessionSecret, {
       category: 'error',
       title: 'Could not refresh GitHub verification',
       description:
@@ -55,7 +55,7 @@ export const POST: APIRoute = async (context) => {
       }
     }
 
-    setFlash(context.session, {
+    setFlash(context, env.sessionSecret, {
       category: 'error',
       title: 'Could not refresh GitHub verification',
       description,
@@ -67,7 +67,7 @@ export const POST: APIRoute = async (context) => {
   // linked GitHub identity — see the api repo's reverifyOwn) rather than an
   // actual mismatch, which is `false`. Conflating the two would show "no
   // longer matches" for a case that isn't a mismatch at all.
-  setFlash(context.session, {
+  setFlash(context, env.sessionSecret, {
     category:
       result.github_org_verified === true
         ? 'success'

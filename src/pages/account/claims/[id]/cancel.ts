@@ -18,10 +18,10 @@ export const POST: APIRoute = async (context) => {
   } catch (e) {
     const message =
       e instanceof ApiRequestError ? e.message : 'Unable to cancel claim.';
-    setFlash(context.session, { category: 'error', title: message });
+    setFlash(context, env.sessionSecret, { category: 'error', title: message });
     return context.redirect('/account');
   }
 
-  setFlash(context.session, { title: 'Claim Cancelled.' });
+  setFlash(context, env.sessionSecret, { title: 'Claim Cancelled.' });
   return context.redirect('/account');
 };

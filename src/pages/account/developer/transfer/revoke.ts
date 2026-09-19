@@ -21,10 +21,12 @@ export const POST: APIRoute = async (context) => {
       e instanceof ApiRequestError
         ? e.message
         : 'Unable to revoke the pending transfer.';
-    setFlash(context.session, { category: 'error', title: message });
+    setFlash(context, env.sessionSecret, { category: 'error', title: message });
     return context.redirect('/account/developer');
   }
 
-  setFlash(context.session, { title: 'Pending transfer link revoked.' });
+  setFlash(context, env.sessionSecret, {
+    title: 'Pending transfer link revoked.',
+  });
   return context.redirect('/account/developer');
 };

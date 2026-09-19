@@ -21,7 +21,7 @@ if (Astro.request.method === 'POST') {
   const api = createApiClient(env, user.sub);
   try {
     await api.acceptTransfer(token);
-    setFlash(Astro.session, {
+    setFlash(Astro, Astro.locals.env.sessionSecret, {
       title: 'Transfer accepted',
       description: 'This profile is now yours.',
     });

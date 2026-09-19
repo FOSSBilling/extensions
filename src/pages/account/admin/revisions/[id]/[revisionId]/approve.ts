@@ -27,7 +27,7 @@ export const POST: APIRoute = async (context) => {
   try {
     const result = await api.approveRevision(id, revisionId, undefined, notify);
     if (notify && !result.notified) {
-      setFlash(context.session, {
+      setFlash(context, env.sessionSecret, {
         category: 'warning',
         title: 'Revision approved, but the author could not be emailed.',
       });
@@ -35,7 +35,7 @@ export const POST: APIRoute = async (context) => {
   } catch (e) {
     const message =
       e instanceof ApiRequestError ? e.message : 'Unable to approve revision.';
-    setFlash(context.session, { category: 'error', title: message });
+    setFlash(context, env.sessionSecret, { category: 'error', title: message });
   }
 
   return context.redirect('/account/admin/revisions');

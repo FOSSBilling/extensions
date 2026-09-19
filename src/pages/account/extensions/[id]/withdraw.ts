@@ -20,10 +20,10 @@ export const POST: APIRoute = async (context) => {
       e instanceof ApiRequestError
         ? e.message
         : 'Unable to withdraw extension.';
-    setFlash(context.session, { category: 'error', title: message });
+    setFlash(context, env.sessionSecret, { category: 'error', title: message });
     return context.redirect(`/account/extensions/${id}/edit`);
   }
 
-  setFlash(context.session, { title: 'Extension withdrawn.' });
+  setFlash(context, env.sessionSecret, { title: 'Extension withdrawn.' });
   return context.redirect('/account');
 };

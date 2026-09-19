@@ -30,7 +30,9 @@ type SessionPayload = SessionUser & { exp: number };
 // map stays effectively size-bounded.
 const signingKeys = new Map<string, Promise<CryptoKey>>();
 
-function importSigningKey(secret: string): Promise<CryptoKey> {
+// Exported for the flash-cookie signer in lib/flash.ts, which shares the
+// session secret's trust domain.
+export function importSigningKey(secret: string): Promise<CryptoKey> {
   let key = signingKeys.get(secret);
   if (!key) {
     key = crypto.subtle.importKey(
