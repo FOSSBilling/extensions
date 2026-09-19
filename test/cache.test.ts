@@ -30,6 +30,9 @@ function stubEdgeCache() {
 }
 
 afterEach(() => {
+  // Also restores timers for any test that enabled fake ones but failed
+  // before its own cleanup ran.
+  vi.useRealTimers();
   vi.unstubAllGlobals();
 });
 
@@ -195,6 +198,5 @@ describe('cachedEdgeRead', () => {
       cachedEdgeRead(dataCacheKey('extensions'), freshProducer),
     ).resolves.toEqual(producerValue);
     expect(freshProducer).toHaveBeenCalledOnce();
-    vi.useRealTimers();
   });
 });
