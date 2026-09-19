@@ -24,9 +24,6 @@ declare global {
     interface Locals {
       env: ApplicationEnv;
       timeZone: string | undefined;
-      // Read and cleared once per request by src/middleware.ts, before any
-      // rendering starts — see the comment there for why that timing matters.
-      flash: FlashMessage | undefined;
     }
   }
 }

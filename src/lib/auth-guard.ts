@@ -13,6 +13,7 @@ export type AuthenticatedUser = SessionUser & {
 interface AuthContext {
   cookies: AstroCookies;
   redirect: (path: string) => Response;
+  rewrite: (path: string) => Promise<Response>;
   url: URL;
 }
 
@@ -74,7 +75,9 @@ export async function requireModerator(
   const guard = await requireUser(context, env);
   if (guard instanceof Response) return guard;
 
-  if (!guard.account.is_moderator) return context.redirect('/404');
+  // Non-moderators get the 404 page itself (not a redirect to it) so the
+  // admin surface doesn't even appear to exist.
+  if (!guard.account.is_moderator) return context.rewrite('/404');
 
   return guard;
 }

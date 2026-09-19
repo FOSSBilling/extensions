@@ -26,6 +26,14 @@
 			"service": "api"
 		}
 	],
+	"kv_namespaces": [
+		{
+			// Astro's session driver (flash messages, re-verify cooldown). The
+			// adapter auto-configures sessions from a KV binding named SESSION.
+			"binding": "SESSION",
+			"id": "3f80e066c7e4473fb730ce7d3f2dbc13"
+		}
+	],
 	"routes": [
 		{
 			"pattern": "extensions.fossbilling.org",

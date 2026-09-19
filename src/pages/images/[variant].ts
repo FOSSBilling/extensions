@@ -16,6 +16,21 @@ const CONDITIONAL_REQUEST_HEADERS = [
   'if-modified-since',
 ] as const;
 
+// Worker-generated responses are not cached by Cloudflare's edge on their
+// own — the response cache-control header only describes reuse to others —
+// so transformed results are stored through the Cache API here. The cache
+// key carries the request's Accept header, matching the Vary: Accept header
+// on stored responses so AVIF/WebP/plain variants never collide.
+type EdgeCacheHolder = { caches?: { default?: Cache } };
+
+function edgeCache(): Cache | undefined {
+  return (globalThis as EdgeCacheHolder).caches?.default;
+}
+
+function imageCacheRequest(requestUrl: URL, accept: string): Request {
+  return new Request(requestUrl, { method: 'GET', headers: { accept } });
+}
+
 function isImageRoutePath(pathname: string): boolean {
   try {
     const normalizedPath = decodeURIComponent(pathname).replace(/\/+$/, '');
@@ -233,13 +248,25 @@ export async function handleImageRequest({
   const variant: ImageVariant = params.variant;
   const format = negotiateFormat(request.headers.get('accept'));
   const { width, height } = IMAGE_VARIANTS[variant];
-  const upstreamHeaders = new Headers({
-    accept: request.headers.get('accept') ?? 'image/*',
-  });
+  const accept = request.headers.get('accept') ?? 'image/*';
+  const upstreamHeaders = new Headers({ accept });
   for (const name of CONDITIONAL_REQUEST_HEADERS) {
     const value = request.headers.get(name);
     if (value !== null) {
       upstreamHeaders.set(name, value);
+    }
+  }
+
+  const cache = edgeCache();
+  const cacheKey = cache ? imageCacheRequest(requestUrl, accept) : null;
+  if (cache && cacheKey) {
+    try {
+      const hit = await cache.match(cacheKey);
+      if (hit) {
+        return hit;
+      }
+    } catch {
+      // Cache reads must never break image serving.
     }
   }
 
@@ -267,7 +294,15 @@ export async function handleImageRequest({
       return imageUnavailable();
     }
 
-    return await cacheImageResponse(response);
+    const result = await cacheImageResponse(response);
+    if (cache && cacheKey && result.status === 200) {
+      try {
+        await cache.put(cacheKey, result.clone());
+      } catch {
+        // Best-effort: the transformed result is still served.
+      }
+    }
+    return result;
   } catch {
     return Response.redirect(sourceUrl, 307);
   }

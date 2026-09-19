@@ -21,13 +21,19 @@ const env = Astro.locals.env;
 const { id } = Astro.params;
 
 if (!id) {
-  return Astro.redirect('/404');
+  return Astro.rewrite('/404');
 }
+
+// Both reads only need the URL param, so run them concurrently. The
+// detached catch keeps an extensions-read failure from surfacing as an
+// unhandled rejection when the developer read independently 404s the page.
+const extensionsPromise = listExtensions(env, { developer_id: id });
+extensionsPromise.catch(() => {});
 
 const developer = await getDeveloperById(env, id);
 
 if (!developer) {
-  return Astro.redirect('/404');
+  return Astro.rewrite('/404');
 }
 
 const currentUser = await getSessionUser(Astro.cookies, env.sessionSecret);
@@ -59,9 +65,7 @@ if (Astro.request.method === 'POST' && developer.unclaimed) {
 let extensionsPage: ExtensionListResponse | null = null;
 let extensionsError: string | null = null;
 try {
-  extensionsPage = await listExtensions(env, {
-    developer_id: developer.id,
-  });
+  extensionsPage = await extensionsPromise;
 } catch (error) {
   extensionsError =
     error instanceof ApiRequestError

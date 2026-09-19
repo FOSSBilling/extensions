@@ -7,6 +7,30 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 
+function stubEdgeCache() {
+  const entries = new Map<string, { body: string; headers: Headers }>();
+  const cache = {
+    entries,
+    match: vi.fn(async (key: Request) => {
+      const entry = entries.get(`${key.url}|${key.headers.get('accept')}`);
+      return entry
+        ? new Response(entry.body, { headers: entry.headers })
+        : undefined;
+    }),
+    put: vi.fn(async (key: Request, response: Response) => {
+      entries.set(`${key.url}|${key.headers.get('accept')}`, {
+        body: await response.clone().text(),
+        headers: response.headers,
+      });
+    }),
+  };
+  vi.stubGlobal('caches', { default: cache });
+  return cache;
+}
+
+const ICON_REQUEST_URL =
+  'https://extensions.example.test/images/icon?src=https%3A%2F%2Fraw.githubusercontent.com%2Ffossbilling%2Flogo.png';
+
 function requestContext(
   variant: string,
   url: string,
@@ -369,5 +393,88 @@ describe('image transformation route', () => {
     );
 
     expect(response.status).toBe(404);
+  });
+});
+
+describe('image transformation edge cache', () => {
+  it('transforms once, then serves later requests from the cache', async () => {
+    const cache = stubEdgeCache();
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response('transformed image', {
+        headers: { 'content-type': 'image/png' },
+      }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const first = await handleImageRequest(
+      requestContext('icon', ICON_REQUEST_URL),
+    );
+    const second = await handleImageRequest(
+      requestContext('icon', ICON_REQUEST_URL),
+    );
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(cache.put).toHaveBeenCalledOnce();
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(200);
+    expect(await second.text()).toBe('transformed image');
+  });
+
+  it('stores only successful transformations', async () => {
+    const cache = stubEdgeCache();
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response('not an image', {
+        headers: { 'content-type': 'text/html' },
+      }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await handleImageRequest(requestContext('icon', ICON_REQUEST_URL));
+
+    expect(cache.put).not.toHaveBeenCalled();
+  });
+
+  it('separates cache entries by negotiated format via Accept', async () => {
+    const cache = stubEdgeCache();
+    const fetchMock = vi.fn().mockImplementation(() =>
+      Promise.resolve(
+        new Response('avif image', {
+          headers: { 'content-type': 'image/avif' },
+        }),
+      ),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await handleImageRequest(
+      requestContext('icon', ICON_REQUEST_URL, 'image/avif,image/*;q=0.8'),
+    );
+    await handleImageRequest(
+      requestContext('icon', ICON_REQUEST_URL, 'image/webp,image/*;q=0.8'),
+    );
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(cache.put).toHaveBeenCalledTimes(2);
+  });
+
+  it('falls back to transformation when the cache read fails', async () => {
+    vi.stubGlobal('caches', {
+      default: {
+        match: vi.fn().mockRejectedValue(new Error('cache error')),
+        put: vi.fn(),
+      },
+    });
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response('transformed image', {
+        headers: { 'content-type': 'image/png' },
+      }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await handleImageRequest(
+      requestContext('icon', ICON_REQUEST_URL),
+    );
+
+    expect(response.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

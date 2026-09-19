@@ -24,14 +24,26 @@ export type SessionUser = {
 
 type SessionPayload = SessionUser & { exp: number };
 
-async function importSigningKey(secret: string): Promise<CryptoKey> {
-  return crypto.subtle.importKey(
-    'raw',
-    new TextEncoder().encode(secret),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign', 'verify'],
-  );
+// WebCrypto key import happens on every request (session verification in
+// the header island) — cache the imported CryptoKey per secret for the
+// lifetime of the isolate. Secrets only change across deployments, so the
+// map stays effectively size-bounded.
+const signingKeys = new Map<string, Promise<CryptoKey>>();
+
+function importSigningKey(secret: string): Promise<CryptoKey> {
+  let key = signingKeys.get(secret);
+  if (!key) {
+    key = crypto.subtle.importKey(
+      'raw',
+      new TextEncoder().encode(secret),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign', 'verify'],
+    );
+    key.catch(() => signingKeys.delete(secret));
+    signingKeys.set(secret, key);
+  }
+  return key;
 }
 
 export async function createSessionCookieValue(

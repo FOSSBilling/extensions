@@ -61,6 +61,7 @@ import {
   createClient,
   type Client,
 } from '@/lib/api/generated/extensions-v2/client';
+import { dataCacheKey, cachedEdgeRead } from '../cache';
 import { mintBearerAssertion } from '../assertion';
 import type { ApplicationEnv } from '../runtime';
 
@@ -346,44 +347,69 @@ function moderationExtensionQuery(
   return query;
 }
 
+// The three anonymous catalogue reads below are edge-cached: their results
+// only change when a moderator approves a revision, so a short TTL absorbs
+// most repeat traffic without any invalidation protocol. Authenticated
+// reads (scope=mine/all) must never pass through this cache.
 export async function listExtensions(
   env: ApplicationEnv,
   filters: ExtensionCatalogueFilters = {},
 ): Promise<ExtensionListResponse> {
-  const page = await unwrap(
-    await getExtensions({
-      client: createApiTransport(env),
-      query: extensionQuery(filters),
+  const query = extensionQuery(filters);
+  return cachedEdgeRead(
+    dataCacheKey('extensions', {
+      cursor: query.cursor,
+      developer_id: query.developer_id,
+      limit: query.limit,
+      type: query.type,
     }),
+    async () => {
+      const page = await unwrap(
+        await getExtensions({
+          client: createApiTransport(env),
+          query,
+        }),
+      );
+      return {
+        result: page.result as ExtensionListItem[],
+        pagination: page.pagination,
+      };
+    },
   );
-  return {
-    result: page.result as ExtensionListItem[],
-    pagination: page.pagination,
-  };
 }
 
 export async function getExtensionById(
   env: ApplicationEnv,
   id: string,
 ): Promise<Extension> {
-  const response = await getExtensionsById({
-    client: createApiTransport(env),
-    path: { id },
-  });
-  const data = await unwrap(response);
-  return data.result as Extension;
+  return cachedEdgeRead(
+    dataCacheKey(`extension/${encodeURIComponent(id)}`),
+    async () => {
+      const response = await getExtensionsById({
+        client: createApiTransport(env),
+        path: { id },
+      });
+      const data = await unwrap(response);
+      return data.result as Extension;
+    },
+  );
 }
 
 export async function getDeveloperById(
   env: ApplicationEnv,
   id: string,
 ): Promise<PublicDeveloper> {
-  const response = await getDevelopersById({
-    client: createApiTransport(env),
-    path: { id },
-  });
-  const data = await unwrap(response);
-  return data.result as PublicDeveloper;
+  return cachedEdgeRead(
+    dataCacheKey(`developer/${encodeURIComponent(id)}`),
+    async () => {
+      const response = await getDevelopersById({
+        client: createApiTransport(env),
+        path: { id },
+      });
+      const data = await unwrap(response);
+      return data.result as PublicDeveloper;
+    },
+  );
 }
 
 export function createApiClient(env: ApplicationEnv, subject: string) {

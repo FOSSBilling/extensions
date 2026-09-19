@@ -1,0 +1,20 @@
+---
+// Server Island: renders the one-shot flash message so cached catalogue
+// pages can still surface per-request toasts. The flash is read and cleared
+// here, inside the island endpoint's own request, so the session delete is
+// guaranteed to land before that response's headers flush (page renders
+// never touch the session at all). Basecoat's registry watches the DOM and
+// initializes the inserted toast, so no extra wiring is needed.
+import Toast from '@/components/Toast.astro';
+import { takeFlash } from '@/lib/flash';
+
+const flash = await takeFlash(Astro.session);
+---
+
+{flash && (
+  <Toast
+    category={flash.category}
+    title={flash.title}
+    description={flash.description}
+  />
+)}

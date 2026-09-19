@@ -11,7 +11,7 @@ const env = Astro.locals.env;
 const { id } = Astro.params;
 
 if (!id) {
-  return Astro.redirect('/404');
+  return Astro.rewrite('/404');
 }
 
 let ext;
@@ -19,13 +19,13 @@ try {
   ext = await getExtensionById(env, id);
 } catch (error) {
   if (error instanceof ApiRequestError && error.status === 404) {
-    return Astro.redirect('/404');
+    return Astro.rewrite('/404');
   }
   throw error;
 }
 
 if (!ext) {
-  return Astro.redirect('/404');
+  return Astro.rewrite('/404');
 }
 ---
 
