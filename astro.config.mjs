@@ -6,6 +6,8 @@ import cloudflare from '@astrojs/cloudflare';
 // https://astro.build/config
 export default defineConfig({
   output: 'server',
+  // Canonical and Open Graph URLs are built from this origin at render time.
+  site: 'https://extensions.fossbilling.org',
   // Hover-prefetch same-origin links so catalogue navigation feels instant;
   // prefetched pages are cheap because public pages are edge-cached.
   prefetch: { prefetchAll: true },

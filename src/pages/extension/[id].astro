@@ -6,6 +6,7 @@ import ReleasesCard from '@/components/ReleasesCard.astro';
 import Overview from '@/components/Overview.astro';
 import ReleasesTable from '@/components/ReleasesTable.astro';
 import { ApiRequestError, getExtensionById } from '@/lib/api/client';
+import { getOptimizedImageUrl } from '@/lib/image-url';
 
 const env = Astro.locals.env;
 const { id } = Astro.params;
@@ -29,7 +30,15 @@ if (!ext) {
 }
 ---
 
-<Base title={`${ext.name} | FOSSBilling Extensions`}>
+<Base
+  title={`${ext.name} | FOSSBilling Extensions`}
+  description={
+    ext.description.length > 160
+      ? `${ext.description.slice(0, 157)}...`
+      : ext.description
+  }
+  image={getOptimizedImageUrl(ext.icon_url, 'icon')}
+>
   <ExtensionHeader ext={ext} />
 
   <div class="tabs mt-6" id="extension-tabs">

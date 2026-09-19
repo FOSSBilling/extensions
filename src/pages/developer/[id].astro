@@ -81,7 +81,10 @@ const hasNextPage = Boolean(
 );
 ---
 
-<Base title={`${developer.name} — FOSSBilling Extensions`}>
+<Base
+  title={`${developer.name} — FOSSBilling Extensions`}
+  description={`Browse extensions and components for FOSSBilling by ${developer.name}.`}
+>
   <div class="flex items-center gap-4 mb-8">
     <DeveloperAvatar
       avatarUrl={developer.avatar_url}

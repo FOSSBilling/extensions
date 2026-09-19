@@ -1,6 +1,6 @@
 import type { AstroCookies } from 'astro';
 import { base64urlDecode, base64urlEncode } from './base64url';
-import { importSigningKey } from './session';
+import { signPayload, verifyPayloadSignature } from './signed-value';
 
 // One-shot flash messages carried across a POST -> redirect -> GET cycle via
 // a short-lived, HMAC-signed cookie — distinct from the signed auth-cookie
@@ -26,35 +26,6 @@ const FLASH_MAX_AGE_SECONDS = 120;
 interface FlashContext {
   cookies: AstroCookies;
   url: URL;
-}
-
-async function signPayload(
-  payloadB64: string,
-  secret: string,
-): Promise<string> {
-  const signature = await crypto.subtle.sign(
-    'HMAC',
-    await importSigningKey(secret),
-    new TextEncoder().encode(payloadB64),
-  );
-  return base64urlEncode(new Uint8Array(signature));
-}
-
-async function verifyPayloadSignature(
-  payloadB64: string,
-  signatureB64: string,
-  secret: string,
-): Promise<boolean> {
-  try {
-    return await crypto.subtle.verify(
-      'HMAC',
-      await importSigningKey(secret),
-      base64urlDecode(signatureB64),
-      new TextEncoder().encode(payloadB64),
-    );
-  } catch {
-    return false;
-  }
 }
 
 function parseFlashPayload(

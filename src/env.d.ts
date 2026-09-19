@@ -17,11 +17,6 @@ declare global {
   }
 
   namespace App {
-    interface SessionData {
-      // Astro session (KV) now only carries the re-verify cooldown; flash
-      // messages live in a signed cookie — see src/lib/flash.ts.
-      reverifyCooldownUntil?: number;
-    }
     interface Locals {
       env: ApplicationEnv;
       timeZone: string | undefined;

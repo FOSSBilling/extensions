@@ -3,6 +3,10 @@ import { requireUser } from '@/lib/auth-guard';
 import { getDeveloperByOwner } from '@/lib/extensions-data';
 import { createApiClient, ApiRequestError } from '@/lib/api/client';
 import { setFlash } from '@/lib/flash';
+import {
+  setReverifyCooldown,
+  takeReverifyCooldown,
+} from '@/lib/reverify-cooldown';
 
 export const POST: APIRoute = async (context) => {
   const env = context.locals.env;
@@ -10,8 +14,10 @@ export const POST: APIRoute = async (context) => {
   if (guard instanceof Response) return guard;
   const user = guard;
 
-  const cooldownUntil =
-    (await context.session?.get('reverifyCooldownUntil')) ?? 0;
+  const cooldownUntil = await takeReverifyCooldown(
+    context.cookies,
+    env.sessionSecret,
+  );
   if (cooldownUntil > Date.now()) {
     setFlash(context, env.sessionSecret, {
       category: 'error',
@@ -21,7 +27,6 @@ export const POST: APIRoute = async (context) => {
     });
     return context.redirect('/account');
   }
-  context.session?.delete('reverifyCooldownUntil');
 
   const developer = await getDeveloperByOwner(env, user.sub);
   if (!developer) return context.redirect('/account');
@@ -39,12 +44,12 @@ export const POST: APIRoute = async (context) => {
         case 'RATE_LIMITED':
           description =
             'GitHub verification is temporarily rate limited. Please wait one minute, then retry manually.';
-          context.session?.set('reverifyCooldownUntil', Date.now() + 60_000);
+          await setReverifyCooldown(context, env.sessionSecret);
           break;
         case 'SERVICE_UNAVAILABLE':
           description =
             'GitHub verification is temporarily unavailable. Please wait one minute, then retry manually.';
-          context.session?.set('reverifyCooldownUntil', Date.now() + 60_000);
+          await setReverifyCooldown(context, env.sessionSecret);
           break;
         case 'GITHUB_ENTITY_UNSUPPORTED':
           description =

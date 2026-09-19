@@ -9,9 +9,18 @@ import { Sun, Moon } from '@lucide/astro';
 
 interface Props {
   title: string;
+  description?: string;
+  image?: string;
 }
 
-const { title } = Astro.props;
+const { title, description, image } = Astro.props;
+
+const DEFAULT_DESCRIPTION =
+  'Browse, filter, and install community extensions for FOSSBilling.';
+const shareDescription = description ?? DEFAULT_DESCRIPTION;
+const canonicalUrl = new URL(Astro.url.pathname, Astro.site);
+// Open Graph/Twitter images must be absolute; the images route returns paths.
+const shareImageUrl = image ? new URL(image, Astro.site).href : undefined;
 ---
 
 <!doctype html>
@@ -55,12 +64,36 @@ const { title } = Astro.props;
     </script>
     <script>
       import 'basecoat-css/basecoat';
-      import 'basecoat-css/combobox';
       import 'basecoat-css/dropdown-menu';
-      import 'basecoat-css/tabs';
       import 'basecoat-css/toast';
+
+      // Only extension detail pages use tabs and only the submission form
+      // uses the license combobox; load their JS on demand so catalogue
+      // pages never download it. Module scripts run after parsing, so the
+      // markup is present by the time these checks execute.
+      if (document.querySelector('.tabs')) {
+        import('basecoat-css/tabs');
+      }
+      if (document.querySelector('.combobox')) {
+        import('basecoat-css/combobox');
+      }
     </script>
     <title>{title}</title>
+    <meta name="description" content={shareDescription} />
+    <link rel="canonical" href={canonicalUrl} />
+    <meta property="og:site_name" content="FOSSBilling Extensions" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={shareDescription} />
+    <meta property="og:url" content={canonicalUrl} />
+    {shareImageUrl && <meta property="og:image" content={shareImageUrl} />}
+    <meta
+      name="twitter:card"
+      content={shareImageUrl ? 'summary_large_image' : 'summary'}
+    />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={shareDescription} />
+    {shareImageUrl && <meta name="twitter:image" content={shareImageUrl} />}
   </head>
   <body class="bg-background">
     <header class="border-b border-border sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">

@@ -2,6 +2,17 @@ import { defineMiddleware } from 'astro:middleware';
 import { getApplicationEnv, getRequestTimeZone } from '@/platform/cloudflare';
 import { cacheRenderedPage, matchCachedPage } from '@/lib/page-cache';
 
+// The site renders no third-party frames, so framing is refused outright.
+// CSP frame-ancestors covers modern browsers; X-Frame-Options covers the
+// remainder. Applied before the page cache stores responses so cached HTML
+// carries them too.
+function applySecurityHeaders(response: Response): void {
+  response.headers.set('X-Content-Type-Options', 'nosniff');
+  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+  response.headers.set('X-Frame-Options', 'DENY');
+  response.headers.set('Content-Security-Policy', "frame-ancestors 'none'");
+}
+
 export const onRequest = defineMiddleware(async (context, next) => {
   context.locals.env = getApplicationEnv();
   context.locals.timeZone = getRequestTimeZone(context.request);
@@ -16,6 +27,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
   }
 
   const response = await next();
+  applySecurityHeaders(response);
   await cacheRenderedPage(context.request, response);
   return response;
 });
