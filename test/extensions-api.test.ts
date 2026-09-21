@@ -799,7 +799,7 @@ describe('offset-paginated moderator lists', () => {
   });
 
   it('walks the claims queue and profile history with explicit pages', async () => {
-    const claim = {
+    const claim: PendingDeveloperClaim = {
       id: 'claim-1',
       developer_id: 'dev-1',
       claimant_id: 'user-1',
@@ -809,15 +809,15 @@ describe('offset-paginated moderator lists', () => {
       developer_type: 'user',
       claimant_name: null,
       claimant_github_login: null,
-    } as PendingDeveloperClaim;
-    const entry = {
+    };
+    const entry: DeveloperHistoryEntry = {
       developer_id: 'dev-1',
       type: 'user',
       name: 'Dev One',
       changed_by: 'user-1',
       changed_by_name: null,
       changed_at: '2026-01-01T00:00:00Z',
-    } as DeveloperHistoryEntry;
+    };
 
     const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
       const url = new URL(
