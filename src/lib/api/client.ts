@@ -192,9 +192,6 @@ export const clampExtensionPageLimit = clampApiPageLimit;
 // are sent. The admin surfaces consume whole lists (tab counts, server-side
 // substring search), so the wrappers walk every page and concatenate.
 const MODERATOR_LIST_PAGE_LIMIT = 100;
-// The lists are finite; this bound only turns a misbehaving has_more=true
-// into a thrown error instead of an infinite loop.
-const MODERATOR_LIST_MAX_PAGES = 100;
 
 async function fetchWholeList<T>(
   fetchPage: (
@@ -207,17 +204,24 @@ async function fetchWholeList<T>(
 ): Promise<T[]> {
   const items: T[] = [];
   let offset = 0;
-  for (let page = 0; page < MODERATOR_LIST_MAX_PAGES; page++) {
+  for (;;) {
     const result = await fetchPage(offset, MODERATOR_LIST_PAGE_LIMIT);
     items.push(...result.items);
     if (!result.hasMore) {
       return items;
     }
-    offset += MODERATOR_LIST_PAGE_LIMIT;
+    // Termination is the API reporting has_more=false. The only runaway a
+    // client can detect is a page claiming more data but returning no rows:
+    // without this guard that loop never ends. Advancing by the rows
+    // actually received (not the requested limit) keeps the walk correct
+    // even if the server clamps the window.
+    if (result.items.length === 0) {
+      throw new Error(
+        'The API reported more pages but returned no rows for this one.',
+      );
+    }
+    offset += result.items.length;
   }
-  throw new Error(
-    'The list did not fit within the maximum number of pages the client will fetch.',
-  );
 }
 
 function createApiTransport(env: ApplicationEnv, subject?: string): Client {
@@ -771,14 +775,15 @@ export function createApiClient(env: ApplicationEnv, subject: string) {
       ).result,
 
     listMyClaims: async () =>
-      (
-        await unwrap(
+      fetchWholeList<PendingDeveloperClaim>(async (offset, limit) => {
+        const page = await unwrap(
           await getDevelopersClaims({
             client,
-            query: { scope: 'mine' },
+            query: { scope: 'mine', limit, offset },
           }),
-        )
-      ).result,
+        );
+        return { items: page.result, hasMore: page.pagination.has_more };
+      }),
 
     listPendingClaims: async () =>
       fetchWholeList<PendingDeveloperClaim>(async (offset, limit) => {
