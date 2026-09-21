@@ -32,7 +32,7 @@ try {
       : 'Unable to load history for this developer profile.';
 }
 
-// listDeveloperHistory returns the whole timeline with no pagination, so a
+// listDeveloperHistory walks every page of the API's 100-row window, so a
 // server-side substring filter over the loaded rows is complete.
 const historyQuery = Astro.url.searchParams.get('q')?.trim() || undefined;
 if (historyQuery) {

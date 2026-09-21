@@ -187,6 +187,39 @@ export function clampApiPageLimit(limit?: number): number {
 
 export const clampExtensionPageLimit = clampApiPageLimit;
 
+// The offset-paginated moderator lists (developers, claims, history) cap a
+// single request at 100 rows and apply exactly that window when no params
+// are sent. The admin surfaces consume whole lists (tab counts, server-side
+// substring search), so the wrappers walk every page and concatenate.
+const MODERATOR_LIST_PAGE_LIMIT = 100;
+// The lists are finite; this bound only turns a misbehaving has_more=true
+// into a thrown error instead of an infinite loop.
+const MODERATOR_LIST_MAX_PAGES = 100;
+
+async function fetchWholeList<T>(
+  fetchPage: (
+    offset: number,
+    limit: number,
+  ) => Promise<{
+    items: T[];
+    hasMore: boolean;
+  }>,
+): Promise<T[]> {
+  const items: T[] = [];
+  let offset = 0;
+  for (let page = 0; page < MODERATOR_LIST_MAX_PAGES; page++) {
+    const result = await fetchPage(offset, MODERATOR_LIST_PAGE_LIMIT);
+    items.push(...result.items);
+    if (!result.hasMore) {
+      return items;
+    }
+    offset += MODERATOR_LIST_PAGE_LIMIT;
+  }
+  throw new Error(
+    'The list did not fit within the maximum number of pages the client will fetch.',
+  );
+}
+
 function createApiTransport(env: ApplicationEnv, subject?: string): Client {
   const baseUrl = env.extensionsApi.baseUrl.replace(/\/$/, '');
 
@@ -635,23 +668,26 @@ export function createApiClient(env: ApplicationEnv, subject: string) {
       ).result,
 
     listUnapprovedDevelopers: async () =>
-      (
-        await unwrap(
+      fetchWholeList<DeveloperProfile>(async (offset, limit) => {
+        const page = await unwrap(
           await getDevelopers({
             client,
-            query: { status: 'unapproved' },
+            query: { status: 'unapproved', limit, offset },
           }),
-        )
-      ).result,
+        );
+        return { items: page.result, hasMore: page.pagination.has_more };
+      }),
 
     listAllDevelopers: async () =>
-      (
-        await unwrap(
+      fetchWholeList<DeveloperProfile>(async (offset, limit) => {
+        const page = await unwrap(
           await getDevelopers({
             client,
+            query: { status: 'all', limit, offset },
           }),
-        )
-      ).result,
+        );
+        return { items: page.result, hasMore: page.pagination.has_more };
+      }),
 
     approveDeveloper: async (
       id: string,
@@ -672,14 +708,16 @@ export function createApiClient(env: ApplicationEnv, subject: string) {
       ).result,
 
     listDeveloperHistory: async (id: string) =>
-      (
-        await unwrap(
+      fetchWholeList<DeveloperHistoryEntry>(async (offset, limit) => {
+        const page = await unwrap(
           await getDevelopersByIdHistory({
             client,
             path: { id },
+            query: { limit, offset },
           }),
-        )
-      ).result,
+        );
+        return { items: page.result, hasMore: page.pagination.has_more };
+      }),
 
     initiateTransfer: async (id: string) =>
       (
@@ -743,14 +781,15 @@ export function createApiClient(env: ApplicationEnv, subject: string) {
       ).result,
 
     listPendingClaims: async () =>
-      (
-        await unwrap(
+      fetchWholeList<PendingDeveloperClaim>(async (offset, limit) => {
+        const page = await unwrap(
           await getDevelopersClaims({
             client,
-            query: { scope: 'pending' },
+            query: { scope: 'pending', limit, offset },
           }),
-        )
-      ).result,
+        );
+        return { items: page.result, hasMore: page.pagination.has_more };
+      }),
 
     approveClaim: async (id: string, notify = true) =>
       (

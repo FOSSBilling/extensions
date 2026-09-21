@@ -29,6 +29,11 @@ import {
   type RevisionHistoryPage,
 } from '@/lib/api/client';
 import { mintBearerAssertion } from '@/lib/assertion';
+import type {
+  DeveloperHistoryEntry,
+  DeveloperProfile,
+  PendingDeveloperClaim,
+} from '@/lib/api/generated/extensions-v2';
 import { isCatalogueCardPage } from '@/scripts/extension-catalogue';
 import { isDeveloperType, isExtensionType, isSourceType } from '@/types';
 import type {
@@ -732,6 +737,127 @@ describe('generated Extensions v2 façade', () => {
     expectTypeOf<
       ReturnType<ReturnType<typeof createApiClient>['listModerationQueue']>
     >().resolves.toEqualTypeOf<ModerationQueuePage>();
+  });
+});
+
+describe('offset-paginated moderator lists', () => {
+  // The API caps these lists at 100 rows per request (and applies that
+  // window when params are omitted), so the wrappers must walk pages
+  // instead of assuming one whole-list response.
+  function developerProfile(id: string): DeveloperProfile {
+    return {
+      id,
+      type: 'user',
+      name: id,
+      approved: true,
+      content_revision: 1,
+    };
+  }
+
+  function offsetPage<T>(items: T[], offset: number, hasMore: boolean) {
+    return {
+      result: items,
+      pagination: { limit: 100, offset, has_more: hasMore },
+    };
+  }
+
+  it('walks every page of the developer list and concatenates the rows', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        apiResponse(offsetPage([developerProfile('a')], 0, true)),
+      )
+      .mockResolvedValueOnce(
+        apiResponse(offsetPage([developerProfile('b')], 100, false)),
+      );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const api = createApiClient(authenticatedEnv, 'moderator-sub');
+    const developers = await api.listAllDevelopers();
+
+    expect(developers.map((d) => d.id)).toEqual(['a', 'b']);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(requestUrl(fetchMock, 0).searchParams.get('limit')).toBe('100');
+    expect(requestUrl(fetchMock, 0).searchParams.get('offset')).toBe('0');
+    expect(requestUrl(fetchMock, 1).searchParams.get('offset')).toBe('100');
+  });
+
+  it('stops after a single request when has_more is false', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        apiResponse(offsetPage([developerProfile('only')], 0, false)),
+      );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const api = createApiClient(authenticatedEnv, 'moderator-sub');
+    const developers = await api.listUnapprovedDevelopers();
+
+    expect(developers.map((d) => d.id)).toEqual(['only']);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(requestUrl(fetchMock).searchParams.get('status')).toBe('unapproved');
+  });
+
+  it('walks the claims queue and profile history with explicit pages', async () => {
+    const claim = {
+      id: 'claim-1',
+      developer_id: 'dev-1',
+      claimant_id: 'user-1',
+      status: 'pending',
+      created_at: '2026-01-01T00:00:00Z',
+      developer_name: 'Dev One',
+      developer_type: 'user',
+      claimant_name: null,
+      claimant_github_login: null,
+    } as PendingDeveloperClaim;
+    const entry = {
+      developer_id: 'dev-1',
+      type: 'user',
+      name: 'Dev One',
+      changed_by: 'user-1',
+      changed_by_name: null,
+      changed_at: '2026-01-01T00:00:00Z',
+    } as DeveloperHistoryEntry;
+
+    const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
+      const url = new URL(
+        typeof input === 'string' ? input : (input as Request).url,
+      );
+      if (url.pathname.endsWith('/developers/claims')) {
+        return Promise.resolve(apiResponse(offsetPage([claim], 0, false)));
+      }
+      if (url.pathname.endsWith('/history')) {
+        return Promise.resolve(apiResponse(offsetPage([entry], 0, false)));
+      }
+      return Promise.reject(new Error(`unexpected path: ${url.pathname}`));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const api = createApiClient(authenticatedEnv, 'moderator-sub');
+    const [claims, history] = await Promise.all([
+      api.listPendingClaims(),
+      api.listDeveloperHistory('dev-1'),
+    ]);
+
+    expect(claims.map((c) => c.id)).toEqual(['claim-1']);
+    expect(history.map((h) => h.developer_id)).toEqual(['dev-1']);
+    expect(requestUrl(fetchMock).searchParams.get('scope')).toBe('pending');
+    expect(requestUrl(fetchMock).searchParams.get('limit')).toBe('100');
+  });
+
+  it('throws instead of looping forever when has_more never clears', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(() =>
+        Promise.resolve(apiResponse(offsetPage([], 0, true))),
+      );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const api = createApiClient(authenticatedEnv, 'moderator-sub');
+    await expect(api.listAllDevelopers()).rejects.toThrow(
+      /maximum number of pages/,
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(100);
   });
 });
 
