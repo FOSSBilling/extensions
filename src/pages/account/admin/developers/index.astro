@@ -29,8 +29,9 @@ const api = createApiClient(env, user.sub);
 // Claims load on every view: the tab badge needs the pending count even
 // when the claims queue itself isn't showing. Both developer lists load on
 // every view too, so the All and Pending counts stay truthful on the claims
-// tab — the endpoints return whole lists with no pagination, and each tab
-// keeps its own server ordering (All by name, Pending by creation date).
+// tab — the API pages these lists at 100 rows per request, and the client
+// walks every page, so each tab still receives complete lists (All by name,
+// Pending by creation date).
 let allDevelopers: DeveloperProfile[] = [];
 let unapprovedDevelopers: DeveloperProfile[] = [];
 let developersError = false;
@@ -52,9 +53,8 @@ try {
 }
 const pendingClaimCount = claimsError ? 0 : claims.length;
 
-// The list endpoints return whole lists with no pagination, so a
-// server-side substring filter over the loaded rows of the active tab is
-// complete.
+// The client walks every page of the list endpoints, so a server-side
+// substring filter over the loaded rows of the active tab is complete.
 const query = Astro.url.searchParams.get('q')?.trim() || undefined;
 let developers: DeveloperProfile[] =
   view === 'all' ? allDevelopers : unapprovedDevelopers;

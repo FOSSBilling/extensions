@@ -187,6 +187,43 @@ export function clampApiPageLimit(limit?: number): number {
 
 export const clampExtensionPageLimit = clampApiPageLimit;
 
+// The offset-paginated moderator lists (developers, claims, history) cap a
+// single request at 100 rows and apply exactly that window when no params
+// are sent. The admin surfaces consume whole lists (tab counts, server-side
+// substring search), so the wrappers walk every page and concatenate.
+const MODERATOR_LIST_PAGE_LIMIT = 100;
+
+async function fetchWholeList<T>(
+  fetchPage: (
+    offset: number,
+    limit: number,
+  ) => Promise<{
+    items: T[];
+    hasMore: boolean;
+  }>,
+): Promise<T[]> {
+  const items: T[] = [];
+  let offset = 0;
+  for (;;) {
+    const result = await fetchPage(offset, MODERATOR_LIST_PAGE_LIMIT);
+    items.push(...result.items);
+    if (!result.hasMore) {
+      return items;
+    }
+    // Termination is the API reporting has_more=false. The only runaway a
+    // client can detect is a page claiming more data but returning no rows:
+    // without this guard that loop never ends. Advancing by the rows
+    // actually received (not the requested limit) keeps the walk correct
+    // even if the server clamps the window.
+    if (result.items.length === 0) {
+      throw new Error(
+        'The API reported more pages but returned no rows for this one.',
+      );
+    }
+    offset += result.items.length;
+  }
+}
+
 function createApiTransport(env: ApplicationEnv, subject?: string): Client {
   const baseUrl = env.extensionsApi.baseUrl.replace(/\/$/, '');
 
@@ -635,23 +672,26 @@ export function createApiClient(env: ApplicationEnv, subject: string) {
       ).result,
 
     listUnapprovedDevelopers: async () =>
-      (
-        await unwrap(
+      fetchWholeList<DeveloperProfile>(async (offset, limit) => {
+        const page = await unwrap(
           await getDevelopers({
             client,
-            query: { status: 'unapproved' },
+            query: { status: 'unapproved', limit, offset },
           }),
-        )
-      ).result,
+        );
+        return { items: page.result, hasMore: page.pagination.has_more };
+      }),
 
     listAllDevelopers: async () =>
-      (
-        await unwrap(
+      fetchWholeList<DeveloperProfile>(async (offset, limit) => {
+        const page = await unwrap(
           await getDevelopers({
             client,
+            query: { status: 'all', limit, offset },
           }),
-        )
-      ).result,
+        );
+        return { items: page.result, hasMore: page.pagination.has_more };
+      }),
 
     approveDeveloper: async (
       id: string,
@@ -672,14 +712,16 @@ export function createApiClient(env: ApplicationEnv, subject: string) {
       ).result,
 
     listDeveloperHistory: async (id: string) =>
-      (
-        await unwrap(
+      fetchWholeList<DeveloperHistoryEntry>(async (offset, limit) => {
+        const page = await unwrap(
           await getDevelopersByIdHistory({
             client,
             path: { id },
+            query: { limit, offset },
           }),
-        )
-      ).result,
+        );
+        return { items: page.result, hasMore: page.pagination.has_more };
+      }),
 
     initiateTransfer: async (id: string) =>
       (
@@ -733,24 +775,26 @@ export function createApiClient(env: ApplicationEnv, subject: string) {
       ).result,
 
     listMyClaims: async () =>
-      (
-        await unwrap(
+      fetchWholeList<PendingDeveloperClaim>(async (offset, limit) => {
+        const page = await unwrap(
           await getDevelopersClaims({
             client,
-            query: { scope: 'mine' },
+            query: { scope: 'mine', limit, offset },
           }),
-        )
-      ).result,
+        );
+        return { items: page.result, hasMore: page.pagination.has_more };
+      }),
 
     listPendingClaims: async () =>
-      (
-        await unwrap(
+      fetchWholeList<PendingDeveloperClaim>(async (offset, limit) => {
+        const page = await unwrap(
           await getDevelopersClaims({
             client,
-            query: { scope: 'pending' },
+            query: { scope: 'pending', limit, offset },
           }),
-        )
-      ).result,
+        );
+        return { items: page.result, hasMore: page.pagination.has_more };
+      }),
 
     approveClaim: async (id: string, notify = true) =>
       (

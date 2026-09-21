@@ -293,6 +293,12 @@ export type PendingDeveloperClaim = DeveloperClaim & {
   claimant_github_login: string | null;
 };
 
+export type OffsetPagination = {
+  limit: number;
+  offset: number;
+  has_more: boolean;
+};
+
 export type DeveloperProfile = Developer & {
   approved: boolean;
   content_revision: number;
@@ -961,6 +967,8 @@ export type GetDevelopersClaimsData = {
      * Filter claims by status (default: all)
      */
     status?: 'pending' | 'approved' | 'rejected' | 'all';
+    limit?: number;
+    offset?: number | null;
   };
   url: '/developers/claims';
 };
@@ -993,6 +1001,7 @@ export type GetDevelopersClaimsResponses = {
    */
   200: {
     result: Array<PendingDeveloperClaim>;
+    pagination: OffsetPagination;
   };
 };
 
@@ -1049,6 +1058,9 @@ export type PostDevelopersClaimsByIdApproveResponses = {
    */
   200: {
     result: DeveloperProfile & {
+      /**
+       * Whether a notification email was dispatched - delivery itself is asynchronous
+       */
       notified: boolean;
     };
   };
@@ -1103,6 +1115,9 @@ export type PostDevelopersClaimsByIdRejectResponses = {
    */
   200: {
     result: DeveloperClaim & {
+      /**
+       * Whether a notification email was dispatched - delivery itself is asynchronous
+       */
       notified: boolean;
     };
   };
@@ -1310,6 +1325,9 @@ export type PostExtensionsByIdRevisionsByRevisionIdApproveResponses = {
     result: {
       id: string;
       status: 'approved';
+      /**
+       * Whether a notification email was dispatched - delivery itself is asynchronous
+       */
       notified: boolean;
     };
   };
@@ -1371,6 +1389,9 @@ export type PostExtensionsByIdRevisionsByRevisionIdRejectResponses = {
     result: {
       id: string;
       status: 'rejected';
+      /**
+       * Whether a notification email was dispatched - delivery itself is asynchronous
+       */
       notified: boolean;
     };
   };
@@ -1431,6 +1452,9 @@ export type PostExtensionsByIdDelistResponses = {
     result: {
       id: string;
       status: 'delisted';
+      /**
+       * Whether a notification email was dispatched - delivery itself is asynchronous
+       */
       notified: boolean;
     };
   };
@@ -1491,6 +1515,9 @@ export type PostDevelopersByIdApproveResponses = {
     result: {
       id: string;
       approved: true;
+      /**
+       * Whether a notification email was dispatched - delivery itself is asynchronous
+       */
       notified: boolean;
     };
   };
@@ -1504,7 +1531,10 @@ export type GetDevelopersByIdHistoryData = {
   path: {
     id: string;
   };
-  query?: never;
+  query?: {
+    limit?: number;
+    offset?: number | null;
+  };
   url: '/developers/{id}/history';
 };
 
@@ -1518,7 +1548,7 @@ export type GetDevelopersByIdHistoryErrors = {
    */
   403: Error;
   /**
-   * id param failed validation
+   * id param or pagination query failed validation
    */
   422: Error;
   /**
@@ -1536,6 +1566,7 @@ export type GetDevelopersByIdHistoryResponses = {
    */
   200: {
     result: Array<DeveloperHistoryEntry>;
+    pagination: OffsetPagination;
   };
 };
 
@@ -1644,6 +1675,8 @@ export type GetDevelopersData = {
      * all: every profile. unapproved: only profiles awaiting review.
      */
     status?: 'all' | 'unapproved';
+    limit?: number;
+    offset?: number | null;
   };
   url: '/developers';
 };
@@ -1675,6 +1708,7 @@ export type GetDevelopersResponses = {
    */
   200: {
     result: Array<DeveloperProfile>;
+    pagination: OffsetPagination;
   };
 };
 

@@ -126,6 +126,7 @@ export type {
   GetUsersMeResponse,
   GetUsersMeResponses,
   License,
+  OffsetPagination,
   OwnedDeveloperProfile,
   OwnedExtension,
   OwnedExtensionListItem,
