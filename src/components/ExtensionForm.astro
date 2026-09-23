@@ -196,6 +196,15 @@ const otherSpdxIds = SPDX_LICENSE_IDS.filter((id) => !popularSpdxIds.has(id));
               rows="8"
               set:text={extension?.readme}
             ></textarea>
+            <p class="text-muted-foreground">
+              Use fenced code blocks for snippets. The preview below renders
+              with the same pipeline as the public page.
+            </p>
+            <div
+              id="readme-preview"
+              class="markdown-body break-normal max-h-72 overflow-y-auto overscroll-contain"
+              aria-live="polite"
+            ></div>
           </div>
         </fieldset>
 
@@ -502,6 +511,22 @@ const otherSpdxIds = SPDX_LICENSE_IDS.filter((id) => !popularSpdxIds.has(id));
         idInput.value = slugify(nameInput.value);
       }
     });
+  }
+</script>
+
+<script>
+  import { renderMarkdown } from '@/lib/markdown';
+
+  // Same pipeline as Overview.astro, so authors see what visitors will.
+  const readmeInput = document.querySelector<HTMLTextAreaElement>('#readme');
+  const readmePreview = document.querySelector<HTMLElement>('#readme-preview');
+
+  if (readmeInput && readmePreview) {
+    const updateReadmePreview = () => {
+      readmePreview.innerHTML = renderMarkdown(readmeInput.value);
+    };
+    readmeInput.addEventListener('input', updateReadmePreview);
+    updateReadmePreview();
   }
 </script>
 

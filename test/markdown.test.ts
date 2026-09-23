@@ -45,4 +45,44 @@ describe('renderMarkdown', () => {
   it('renders empty input to an empty string', () => {
     expect(renderMarkdown('')).toBe('');
   });
+
+  it('preserves Twig colon syntax in fenced blocks', () => {
+    const html = renderMarkdown(
+      'Add one line after the `</table>`:\n\n' +
+        '```twig\n' +
+        "{% include 'mod_novapanel_usage.html.twig' with { 'order_id': order.id } %}\n" +
+        '```',
+    );
+
+    expect(html).toContain('order.id');
+    expect(html).toContain('order_id');
+    expect(html).toContain('<pre>');
+  });
+
+  it('renders truncated input verbatim', () => {
+    const html = renderMarkdown(
+      "    {% include 'mod_novapanel_usage.html.twig' with { 'order_id'",
+    );
+
+    expect(html).toContain('order_id');
+    expect(html).not.toContain('order.id');
+  });
+
+  it('renders angle-bracket autolinks without stray brackets', () => {
+    const html = renderMarkdown(
+      'Full instructions: <https://novapanel.dev/docs/howto/fossbilling>',
+    );
+
+    expect(html).toContain(
+      'href="https://novapanel.dev/docs/howto/fossbilling"',
+    );
+    expect(html).not.toContain('&lt;<a');
+  });
+
+  it('keeps closing-tag code spans escaped', () => {
+    const html = renderMarkdown('after the `</table>` that closes the tab');
+
+    expect(html).toContain('<code>');
+    expect(html).toContain('&lt;/table&gt;');
+  });
 });
