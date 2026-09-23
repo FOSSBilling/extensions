@@ -927,8 +927,14 @@ describe('cursor-paginated moderator lists', () => {
       status: 'relisted',
       notified: true,
     });
-    const url = requestUrl(fetchMock);
-    expect(url.pathname.endsWith('/extensions/live-ext/relist')).toBe(true);
+    const request = requestFrom(fetchMock);
+    expect(request.method).toBe('POST');
+    expect(
+      new URL(request.url).pathname.endsWith('/extensions/live-ext/relist'),
+    ).toBe(true);
+    await expect(request.json()).resolves.toEqual({
+      review_note: 'Upstream is back',
+    });
   });
 });
 

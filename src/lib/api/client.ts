@@ -217,7 +217,7 @@ async function fetchWholeList<T>(
     // or no cursor: without this guard that loop never ends.
     if (result.items.length === 0 || !result.nextCursor) {
       throw new Error(
-        'The API reported more pages but returned no rows for this one.',
+        'The API reported more pages but returned no rows or cursor for this one.',
       );
     }
     cursor = result.nextCursor;
