@@ -64,29 +64,14 @@ const correctable = Boolean(
   description={`Live content, pending edits and review history for ${id}.`}
 >
   <div slot="actions">
-    <a
-      href="/account/admin/extensions"
-      class="btn"
-      data-size="sm"
-      data-variant="outline"
-    >
-      Back to Extensions
-    </a>
-    <a
-      href="/account/admin/revisions"
-      class="btn"
-      data-size="sm"
-      data-variant="outline"
-    >
-      Revision Queue
-    </a>
     {ext && correctable && (
       <a
         href={`/account/admin/extensions/${ext.id}/edit`}
         class="btn"
         data-size="sm"
+        data-variant="outline"
       >
-        Correct live content
+        Edit
       </a>
     )}
   </div>
