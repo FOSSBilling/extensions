@@ -24,6 +24,7 @@ import {
   postDevelopersTransfersAccept,
   postExtensions,
   postExtensionsByIdDelist,
+  postExtensionsByIdRelist,
   postExtensionsByIdRevisionsByRevisionIdApprove,
   postExtensionsByIdRevisionsByRevisionIdReject,
   deleteUsersMe,
@@ -187,40 +188,39 @@ export function clampApiPageLimit(limit?: number): number {
 
 export const clampExtensionPageLimit = clampApiPageLimit;
 
-// The offset-paginated moderator lists (developers, claims, history) cap a
-// single request at 100 rows and apply exactly that window when no params
-// are sent. The admin surfaces consume whole lists (tab counts, server-side
-// substring search), so the wrappers walk every page and concatenate.
+// The cursor-paginated moderator lists (developers, claims, history) cap a
+// single request at 100 rows. The admin surfaces consume whole lists (tab
+// counts, server-side substring search), so the wrappers walk every page
+// with the opaque cursor and concatenate.
 const MODERATOR_LIST_PAGE_LIMIT = 100;
 
 async function fetchWholeList<T>(
   fetchPage: (
-    offset: number,
+    cursor: string | undefined,
     limit: number,
   ) => Promise<{
     items: T[];
+    nextCursor: string | null;
     hasMore: boolean;
   }>,
 ): Promise<T[]> {
   const items: T[] = [];
-  let offset = 0;
+  let cursor: string | undefined;
   for (;;) {
-    const result = await fetchPage(offset, MODERATOR_LIST_PAGE_LIMIT);
+    const result = await fetchPage(cursor, MODERATOR_LIST_PAGE_LIMIT);
     items.push(...result.items);
     if (!result.hasMore) {
       return items;
     }
     // Termination is the API reporting has_more=false. The only runaway a
-    // client can detect is a page claiming more data but returning no rows:
-    // without this guard that loop never ends. Advancing by the rows
-    // actually received (not the requested limit) keeps the walk correct
-    // even if the server clamps the window.
-    if (result.items.length === 0) {
+    // client can detect is a page claiming more data but returning no rows
+    // or no cursor: without this guard that loop never ends.
+    if (result.items.length === 0 || !result.nextCursor) {
       throw new Error(
         'The API reported more pages but returned no rows for this one.',
       );
     }
-    offset += result.items.length;
+    cursor = result.nextCursor;
   }
 }
 
@@ -642,6 +642,22 @@ export function createApiClient(env: ApplicationEnv, subject: string) {
         )
       ).result,
 
+    relistExtension: async (
+      extensionId: string,
+      reviewNote?: string,
+      notify = true,
+    ) =>
+      (
+        await unwrap(
+          await postExtensionsByIdRelist({
+            client,
+            path: { id: extensionId },
+            ...notifyQuery(notify),
+            ...(reviewNote ? { body: { review_note: reviewNote } } : {}),
+          }),
+        )
+      ).result,
+
     upsertDeveloperProfile: async (developer: Developer) =>
       (
         await unwrap(
@@ -672,25 +688,37 @@ export function createApiClient(env: ApplicationEnv, subject: string) {
       ).result,
 
     listUnapprovedDevelopers: async () =>
-      fetchWholeList<DeveloperProfile>(async (offset, limit) => {
+      fetchWholeList<DeveloperProfile>(async (cursor, limit) => {
         const page = await unwrap(
           await getDevelopers({
             client,
-            query: { status: 'unapproved', limit, offset },
+            query: {
+              scope: 'unapproved',
+              limit,
+              ...(cursor ? { cursor } : {}),
+            },
           }),
         );
-        return { items: page.result, hasMore: page.pagination.has_more };
+        return {
+          items: page.result,
+          nextCursor: page.pagination.next_cursor,
+          hasMore: page.pagination.has_more,
+        };
       }),
 
     listAllDevelopers: async () =>
-      fetchWholeList<DeveloperProfile>(async (offset, limit) => {
+      fetchWholeList<DeveloperProfile>(async (cursor, limit) => {
         const page = await unwrap(
           await getDevelopers({
             client,
-            query: { status: 'all', limit, offset },
+            query: { scope: 'all', limit, ...(cursor ? { cursor } : {}) },
           }),
         );
-        return { items: page.result, hasMore: page.pagination.has_more };
+        return {
+          items: page.result,
+          nextCursor: page.pagination.next_cursor,
+          hasMore: page.pagination.has_more,
+        };
       }),
 
     approveDeveloper: async (
@@ -712,15 +740,19 @@ export function createApiClient(env: ApplicationEnv, subject: string) {
       ).result,
 
     listDeveloperHistory: async (id: string) =>
-      fetchWholeList<DeveloperHistoryEntry>(async (offset, limit) => {
+      fetchWholeList<DeveloperHistoryEntry>(async (cursor, limit) => {
         const page = await unwrap(
           await getDevelopersByIdHistory({
             client,
             path: { id },
-            query: { limit, offset },
+            query: { limit, ...(cursor ? { cursor } : {}) },
           }),
         );
-        return { items: page.result, hasMore: page.pagination.has_more };
+        return {
+          items: page.result,
+          nextCursor: page.pagination.next_cursor,
+          hasMore: page.pagination.has_more,
+        };
       }),
 
     initiateTransfer: async (id: string) =>
@@ -775,25 +807,33 @@ export function createApiClient(env: ApplicationEnv, subject: string) {
       ).result,
 
     listMyClaims: async () =>
-      fetchWholeList<PendingDeveloperClaim>(async (offset, limit) => {
+      fetchWholeList<PendingDeveloperClaim>(async (cursor, limit) => {
         const page = await unwrap(
           await getDevelopersClaims({
             client,
-            query: { scope: 'mine', limit, offset },
+            query: { scope: 'mine', limit, ...(cursor ? { cursor } : {}) },
           }),
         );
-        return { items: page.result, hasMore: page.pagination.has_more };
+        return {
+          items: page.result,
+          nextCursor: page.pagination.next_cursor,
+          hasMore: page.pagination.has_more,
+        };
       }),
 
     listPendingClaims: async () =>
-      fetchWholeList<PendingDeveloperClaim>(async (offset, limit) => {
+      fetchWholeList<PendingDeveloperClaim>(async (cursor, limit) => {
         const page = await unwrap(
           await getDevelopersClaims({
             client,
-            query: { scope: 'pending', limit, offset },
+            query: { scope: 'pending', limit, ...(cursor ? { cursor } : {}) },
           }),
         );
-        return { items: page.result, hasMore: page.pagination.has_more };
+        return {
+          items: page.result,
+          nextCursor: page.pagination.next_cursor,
+          hasMore: page.pagination.has_more,
+        };
       }),
 
     approveClaim: async (id: string, notify = true) =>

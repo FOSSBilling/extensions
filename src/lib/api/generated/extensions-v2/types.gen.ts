@@ -293,12 +293,6 @@ export type PendingDeveloperClaim = DeveloperClaim & {
   claimant_github_login: string | null;
 };
 
-export type OffsetPagination = {
-  limit: number;
-  offset: number;
-  has_more: boolean;
-};
-
 export type DeveloperProfile = Developer & {
   approved: boolean;
   content_revision: number;
@@ -959,16 +953,19 @@ export type GetDevelopersClaimsData = {
   body?: never;
   path?: never;
   query: {
+    limit?: number;
+    /**
+     * Opaque cursor returned by the previous page
+     */
+    cursor?: string;
     /**
      * mine: the caller's own claims. pending: claims awaiting review (moderator only).
      */
     scope: 'mine' | 'pending';
     /**
-     * Filter claims by status (default: all)
+     * Filter claims by status (default: all). Only valid with scope=mine.
      */
     status?: 'pending' | 'approved' | 'rejected' | 'all';
-    limit?: number;
-    offset?: number | null;
   };
   url: '/developers/claims';
 };
@@ -983,7 +980,7 @@ export type GetDevelopersClaimsErrors = {
    */
   403: Error;
   /**
-   * scope query failed validation
+   * scope, status, limit, or cursor query failed validation
    */
   422: Error;
   /**
@@ -1001,7 +998,7 @@ export type GetDevelopersClaimsResponses = {
    */
   200: {
     result: Array<PendingDeveloperClaim>;
-    pagination: OffsetPagination;
+    pagination: Pagination;
   };
 };
 
@@ -1149,6 +1146,10 @@ export type PostDevelopersByIdTransferErrors = {
    */
   404: Error;
   /**
+   * Ownership conflict
+   */
+  409: Error;
+  /**
    * id param failed validation
    */
   422: Error;
@@ -1195,6 +1196,10 @@ export type PostDevelopersByIdTransferRevokeErrors = {
    * No developer with that id
    */
   404: Error;
+  /**
+   * Ownership conflict
+   */
+  409: Error;
   /**
    * id param failed validation
    */
@@ -1463,6 +1468,69 @@ export type PostExtensionsByIdDelistResponses = {
 export type PostExtensionsByIdDelistResponse =
   PostExtensionsByIdDelistResponses[keyof PostExtensionsByIdDelistResponses];
 
+export type PostExtensionsByIdRelistData = {
+  body?: ReviewNoteOptional;
+  path: {
+    id: string;
+  };
+  query?: {
+    /**
+     * Set to false to skip the author notification email for this action
+     */
+    notify?: 'true' | 'false';
+  };
+  url: '/extensions/{id}/relist';
+};
+
+export type PostExtensionsByIdRelistErrors = {
+  /**
+   * Missing or invalid bearer token
+   */
+  401: Error;
+  /**
+   * The account is inactive or the caller is not a moderator
+   */
+  403: Error;
+  /**
+   * No such extension
+   */
+  404: Error;
+  /**
+   * Extension is not delisted, or was never published
+   */
+  409: Error;
+  /**
+   * Path params, review_note body, or notify query failed validation
+   */
+  422: Error;
+  /**
+   * Database error
+   */
+  500: Error;
+};
+
+export type PostExtensionsByIdRelistError =
+  PostExtensionsByIdRelistErrors[keyof PostExtensionsByIdRelistErrors];
+
+export type PostExtensionsByIdRelistResponses = {
+  /**
+   * Extension restored to the public catalogue. Content and history unchanged.
+   */
+  200: {
+    result: {
+      id: string;
+      status: 'relisted';
+      /**
+       * Whether a notification email was dispatched - delivery itself is asynchronous
+       */
+      notified: boolean;
+    };
+  };
+};
+
+export type PostExtensionsByIdRelistResponse =
+  PostExtensionsByIdRelistResponses[keyof PostExtensionsByIdRelistResponses];
+
 export type PostDevelopersByIdApproveData = {
   body?: DeveloperApproval;
   path: {
@@ -1533,7 +1601,10 @@ export type GetDevelopersByIdHistoryData = {
   };
   query?: {
     limit?: number;
-    offset?: number | null;
+    /**
+     * Opaque cursor returned by the previous page
+     */
+    cursor?: string;
   };
   url: '/developers/{id}/history';
 };
@@ -1548,7 +1619,7 @@ export type GetDevelopersByIdHistoryErrors = {
    */
   403: Error;
   /**
-   * id param or pagination query failed validation
+   * id param, limit, or cursor query failed validation
    */
   422: Error;
   /**
@@ -1566,7 +1637,7 @@ export type GetDevelopersByIdHistoryResponses = {
    */
   200: {
     result: Array<DeveloperHistoryEntry>;
-    pagination: OffsetPagination;
+    pagination: Pagination;
   };
 };
 
@@ -1671,12 +1742,19 @@ export type GetDevelopersData = {
   body?: never;
   path?: never;
   query?: {
+    limit?: number;
     /**
-     * all: every profile. unapproved: only profiles awaiting review.
+     * Opaque cursor returned by the previous page
+     */
+    cursor?: string;
+    /**
+     * all: every profile (default). unapproved: only profiles awaiting review.
+     */
+    scope?: 'all' | 'unapproved';
+    /**
+     * Deprecated alias for scope.
      */
     status?: 'all' | 'unapproved';
-    limit?: number;
-    offset?: number | null;
   };
   url: '/developers';
 };
@@ -1691,7 +1769,7 @@ export type GetDevelopersErrors = {
    */
   403: Error;
   /**
-   * status query failed validation
+   * scope, limit, or cursor query failed validation
    */
   422: Error;
   /**
@@ -1704,11 +1782,11 @@ export type GetDevelopersError = GetDevelopersErrors[keyof GetDevelopersErrors];
 
 export type GetDevelopersResponses = {
   /**
-   * Developer profiles matching the status filter
+   * Developer profiles matching the scope filter
    */
   200: {
     result: Array<DeveloperProfile>;
-    pagination: OffsetPagination;
+    pagination: Pagination;
   };
 };
 

@@ -1000,21 +1000,6 @@
           }
         ]
       },
-      "OffsetPagination": {
-        "type": "object",
-        "properties": {
-          "limit": {
-            "type": "integer"
-          },
-          "offset": {
-            "type": "integer"
-          },
-          "has_more": {
-            "type": "boolean"
-          }
-        },
-        "required": ["limit", "offset", "has_more"]
-      },
       "DeveloperProfile": {
         "allOf": [
           {
@@ -2463,6 +2448,29 @@
         "parameters": [
           {
             "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1000,
+              "description": "Opaque cursor returned by the previous page"
+            },
+            "required": false,
+            "description": "Opaque cursor returned by the previous page",
+            "name": "cursor",
+            "in": "query"
+          },
+          {
+            "schema": {
               "type": "string",
               "enum": ["mine", "pending"],
               "description": "mine: the caller's own claims. pending: claims awaiting review (moderator only)."
@@ -2477,30 +2485,11 @@
               "type": "string",
               "enum": ["pending", "approved", "rejected", "all"],
               "default": "all",
-              "description": "Filter claims by status (default: all)"
+              "description": "Filter claims by status (default: all). Only valid with scope=mine."
             },
             "required": false,
-            "description": "Filter claims by status (default: all)",
+            "description": "Filter claims by status (default: all). Only valid with scope=mine.",
             "name": "status",
-            "in": "query"
-          },
-          {
-            "schema": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 100
-            },
-            "required": false,
-            "name": "limit",
-            "in": "query"
-          },
-          {
-            "schema": {
-              "type": ["integer", "null"],
-              "minimum": 0
-            },
-            "required": false,
-            "name": "offset",
             "in": "query"
           }
         ],
@@ -2519,7 +2508,7 @@
                       }
                     },
                     "pagination": {
-                      "$ref": "#/components/schemas/OffsetPagination"
+                      "$ref": "#/components/schemas/Pagination"
                     }
                   },
                   "required": ["result", "pagination"]
@@ -2548,7 +2537,7 @@
             }
           },
           "422": {
-            "description": "scope query failed validation",
+            "description": "scope, status, limit, or cursor query failed validation",
             "content": {
               "application/json": {
                 "schema": {
@@ -2572,7 +2561,7 @@
     },
     "/developers/claims/{id}/approve": {
       "post": {
-        "tags": ["Moderation"],
+        "tags": ["Developers"],
         "summary": "Approve a pending profile claim",
         "security": [
           {
@@ -2619,7 +2608,8 @@
                           "properties": {
                             "notified": {
                               "type": "boolean",
-                              "description": "Whether a notification email was dispatched - delivery itself is asynchronous"
+                              "description": "Whether a notification email was dispatched - delivery itself is asynchronous",
+                              "example": true
                             }
                           },
                           "required": ["notified"]
@@ -2697,7 +2687,7 @@
     },
     "/developers/claims/{id}/reject": {
       "post": {
-        "tags": ["Moderation"],
+        "tags": ["Developers"],
         "summary": "Reject a pending profile claim",
         "security": [
           {
@@ -2753,7 +2743,8 @@
                           "properties": {
                             "notified": {
                               "type": "boolean",
-                              "description": "Whether a notification email was dispatched - delivery itself is asynchronous"
+                              "description": "Whether a notification email was dispatched - delivery itself is asynchronous",
+                              "example": true
                             }
                           },
                           "required": ["notified"]
@@ -2886,6 +2877,16 @@
               }
             }
           },
+          "409": {
+            "description": "Ownership conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
           "422": {
             "description": "id param failed validation",
             "content": {
@@ -2978,6 +2979,16 @@
           },
           "404": {
             "description": "No developer with that id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Ownership conflict",
             "content": {
               "application/json": {
                 "schema": {
@@ -3176,7 +3187,8 @@
                         },
                         "notified": {
                           "type": "boolean",
-                          "description": "Whether a notification email was dispatched - delivery itself is asynchronous"
+                          "description": "Whether a notification email was dispatched - delivery itself is asynchronous",
+                          "example": true
                         }
                       },
                       "required": ["id", "status", "notified"]
@@ -3319,7 +3331,8 @@
                         },
                         "notified": {
                           "type": "boolean",
-                          "description": "Whether a notification email was dispatched - delivery itself is asynchronous"
+                          "description": "Whether a notification email was dispatched - delivery itself is asynchronous",
+                          "example": true
                         }
                       },
                       "required": ["id", "status", "notified"]
@@ -3453,7 +3466,8 @@
                         },
                         "notified": {
                           "type": "boolean",
-                          "description": "Whether a notification email was dispatched - delivery itself is asynchronous"
+                          "description": "Whether a notification email was dispatched - delivery itself is asynchronous",
+                          "example": true
                         }
                       },
                       "required": ["id", "status", "notified"]
@@ -3506,6 +3520,141 @@
           },
           "422": {
             "description": "Path params, reason body, or notify query failed validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Database error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/extensions/{id}/relist": {
+      "post": {
+        "tags": ["Moderation"],
+        "summary": "Restore a delisted extension to the public catalogue",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "b6e2c9c4-3f1a-4e9b-9c3a-2e4b1a2f9d10"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": ["true", "false"],
+              "description": "Set to false to skip the author notification email for this action"
+            },
+            "required": false,
+            "description": "Set to false to skip the author notification email for this action",
+            "name": "notify",
+            "in": "query"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewNoteOptional"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Extension restored to the public catalogue. Content and history unchanged.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": ["relisted"]
+                        },
+                        "notified": {
+                          "type": "boolean",
+                          "description": "Whether a notification email was dispatched - delivery itself is asynchronous",
+                          "example": true
+                        }
+                      },
+                      "required": ["id", "status", "notified"]
+                    }
+                  },
+                  "required": ["result"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The account is inactive or the caller is not a moderator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such extension",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Extension is not delisted, or was never published",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Path params, review_note body, or notify query failed validation",
             "content": {
               "application/json": {
                 "schema": {
@@ -3587,7 +3736,8 @@
                         },
                         "notified": {
                           "type": "boolean",
-                          "description": "Whether a notification email was dispatched - delivery itself is asynchronous"
+                          "description": "Whether a notification email was dispatched - delivery itself is asynchronous",
+                          "example": true
                         }
                       },
                       "required": ["id", "approved", "notified"]
@@ -3684,7 +3834,8 @@
             "schema": {
               "type": "integer",
               "minimum": 1,
-              "maximum": 100
+              "maximum": 100,
+              "default": 50
             },
             "required": false,
             "name": "limit",
@@ -3692,11 +3843,14 @@
           },
           {
             "schema": {
-              "type": ["integer", "null"],
-              "minimum": 0
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1000,
+              "description": "Opaque cursor returned by the previous page"
             },
             "required": false,
-            "name": "offset",
+            "description": "Opaque cursor returned by the previous page",
+            "name": "cursor",
             "in": "query"
           }
         ],
@@ -3715,7 +3869,7 @@
                       }
                     },
                     "pagination": {
-                      "$ref": "#/components/schemas/OffsetPagination"
+                      "$ref": "#/components/schemas/Pagination"
                     }
                   },
                   "required": ["result", "pagination"]
@@ -3744,7 +3898,7 @@
             }
           },
           "422": {
-            "description": "id param or pagination query failed validation",
+            "description": "id param, limit, or cursor query failed validation",
             "content": {
               "application/json": {
                 "schema": {
@@ -3975,8 +4129,8 @@
     },
     "/developers": {
       "get": {
-        "tags": ["Moderation"],
-        "summary": "List developer profiles: every profile (status=all) or awaiting review (status=unapproved)",
+        "tags": ["Developers"],
+        "summary": "List developer profiles: every profile (scope=all) or awaiting review (scope=unapproved)",
         "security": [
           {
             "Bearer": []
@@ -3985,21 +4139,10 @@
         "parameters": [
           {
             "schema": {
-              "type": "string",
-              "enum": ["all", "unapproved"],
-              "default": "all",
-              "description": "all: every profile. unapproved: only profiles awaiting review."
-            },
-            "required": false,
-            "description": "all: every profile. unapproved: only profiles awaiting review.",
-            "name": "status",
-            "in": "query"
-          },
-          {
-            "schema": {
               "type": "integer",
               "minimum": 1,
-              "maximum": 100
+              "maximum": 100,
+              "default": 50
             },
             "required": false,
             "name": "limit",
@@ -4007,17 +4150,42 @@
           },
           {
             "schema": {
-              "type": ["integer", "null"],
-              "minimum": 0
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1000,
+              "description": "Opaque cursor returned by the previous page"
             },
             "required": false,
-            "name": "offset",
+            "description": "Opaque cursor returned by the previous page",
+            "name": "cursor",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": ["all", "unapproved"],
+              "description": "all: every profile (default). unapproved: only profiles awaiting review."
+            },
+            "required": false,
+            "description": "all: every profile (default). unapproved: only profiles awaiting review.",
+            "name": "scope",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": ["all", "unapproved"],
+              "description": "Deprecated alias for scope."
+            },
+            "required": false,
+            "description": "Deprecated alias for scope.",
+            "name": "status",
             "in": "query"
           }
         ],
         "responses": {
           "200": {
-            "description": "Developer profiles matching the status filter",
+            "description": "Developer profiles matching the scope filter",
             "content": {
               "application/json": {
                 "schema": {
@@ -4030,7 +4198,7 @@
                       }
                     },
                     "pagination": {
-                      "$ref": "#/components/schemas/OffsetPagination"
+                      "$ref": "#/components/schemas/Pagination"
                     }
                   },
                   "required": ["result", "pagination"]
@@ -4059,7 +4227,7 @@
             }
           },
           "422": {
-            "description": "status query failed validation",
+            "description": "scope, limit, or cursor query failed validation",
             "content": {
               "application/json": {
                 "schema": {

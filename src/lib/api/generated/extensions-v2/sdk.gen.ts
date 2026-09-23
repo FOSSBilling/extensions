@@ -84,6 +84,9 @@ import type {
   PostExtensionsByIdDelistData,
   PostExtensionsByIdDelistErrors,
   PostExtensionsByIdDelistResponses,
+  PostExtensionsByIdRelistData,
+  PostExtensionsByIdRelistErrors,
+  PostExtensionsByIdRelistResponses,
   PostExtensionsByIdRevisionsByRevisionIdApproveData,
   PostExtensionsByIdRevisionsByRevisionIdApproveErrors,
   PostExtensionsByIdRevisionsByRevisionIdApproveResponses,
@@ -587,6 +590,30 @@ export const postExtensionsByIdDelist = <ThrowOnError extends boolean = false>(
   });
 
 /**
+ * Restore a delisted extension to the public catalogue
+ */
+export const postExtensionsByIdRelist = <ThrowOnError extends boolean = false>(
+  options: Options<PostExtensionsByIdRelistData, ThrowOnError>,
+): RequestResult<
+  PostExtensionsByIdRelistResponses,
+  PostExtensionsByIdRelistErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).post<
+    PostExtensionsByIdRelistResponses,
+    PostExtensionsByIdRelistErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/extensions/{id}/relist',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+
+/**
  * Mark a developer profile as reviewed/approved
  */
 export const postDevelopersByIdApprove = <ThrowOnError extends boolean = false>(
@@ -667,7 +694,7 @@ export const getRevisions = <ThrowOnError extends boolean = false>(
   });
 
 /**
- * List developer profiles: every profile (status=all) or awaiting review (status=unapproved)
+ * List developer profiles: every profile (scope=all) or awaiting review (scope=unapproved)
  */
 export const getDevelopers = <ThrowOnError extends boolean = false>(
   options?: Options<GetDevelopersData, ThrowOnError>,

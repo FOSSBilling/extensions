@@ -740,10 +740,10 @@ describe('generated Extensions v2 façade', () => {
   });
 });
 
-describe('offset-paginated moderator lists', () => {
-  // The API caps these lists at 100 rows per request (and applies that
-  // window when params are omitted), so the wrappers must walk pages
-  // instead of assuming one whole-list response.
+describe('cursor-paginated moderator lists', () => {
+  // The API caps these lists at 100 rows per request, so the wrappers walk
+  // keyset pages with the opaque cursor instead of assuming one whole-list
+  // response.
   function developerProfile(id: string): DeveloperProfile {
     return {
       id,
@@ -754,10 +754,14 @@ describe('offset-paginated moderator lists', () => {
     };
   }
 
-  function offsetPage<T>(items: T[], offset: number, hasMore: boolean) {
+  function cursorPage<T>(
+    items: T[],
+    nextCursor: string | null,
+    hasMore: boolean,
+  ) {
     return {
       result: items,
-      pagination: { limit: 100, offset, has_more: hasMore },
+      pagination: { next_cursor: nextCursor, has_more: hasMore },
     };
   }
 
@@ -779,10 +783,10 @@ describe('offset-paginated moderator lists', () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(
-        apiResponse(offsetPage([developerProfile('a')], 0, true)),
+        apiResponse(cursorPage([developerProfile('a')], 'cursor-1', true)),
       )
       .mockResolvedValueOnce(
-        apiResponse(offsetPage([developerProfile('b')], 1, false)),
+        apiResponse(cursorPage([developerProfile('b')], null, false)),
       );
     vi.stubGlobal('fetch', fetchMock);
 
@@ -792,18 +796,19 @@ describe('offset-paginated moderator lists', () => {
     expect(developers.map((d) => d.id)).toEqual(['a', 'b']);
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(requestUrl(fetchMock, 0).searchParams.get('limit')).toBe('100');
-    expect(requestUrl(fetchMock, 0).searchParams.get('offset')).toBe('0');
+    expect(requestUrl(fetchMock, 0).searchParams.get('cursor')).toBe(null);
     expect(requestUrl(fetchMock, 1).searchParams.get('limit')).toBe('100');
-    // The offset advances by rows received, not by the requested limit -
-    // page one returned a single row in this fixture.
-    expect(requestUrl(fetchMock, 1).searchParams.get('offset')).toBe('1');
+    // The second page carries the previous page's next_cursor.
+    expect(requestUrl(fetchMock, 1).searchParams.get('cursor')).toBe(
+      'cursor-1',
+    );
   });
 
   it('stops after a single request when has_more is false', async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValue(
-        apiResponse(offsetPage([developerProfile('only')], 0, false)),
+        apiResponse(cursorPage([developerProfile('only')], null, false)),
       );
     vi.stubGlobal('fetch', fetchMock);
 
@@ -812,7 +817,7 @@ describe('offset-paginated moderator lists', () => {
 
     expect(developers.map((d) => d.id)).toEqual(['only']);
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(requestUrl(fetchMock).searchParams.get('status')).toBe('unapproved');
+    expect(requestUrl(fetchMock).searchParams.get('scope')).toBe('unapproved');
   });
 
   it('walks the claims queue and profile history with explicit pages', async () => {
@@ -841,10 +846,10 @@ describe('offset-paginated moderator lists', () => {
         typeof input === 'string' ? input : (input as Request).url,
       );
       if (url.pathname.endsWith('/developers/claims')) {
-        return Promise.resolve(apiResponse(offsetPage([claim], 0, false)));
+        return Promise.resolve(apiResponse(cursorPage([claim], null, false)));
       }
       if (url.pathname.endsWith('/history')) {
-        return Promise.resolve(apiResponse(offsetPage([entry], 0, false)));
+        return Promise.resolve(apiResponse(cursorPage([entry], null, false)));
       }
       return Promise.reject(new Error(`unexpected path: ${url.pathname}`));
     });
@@ -867,16 +872,16 @@ describe('offset-paginated moderator lists', () => {
     const historyUrl = urls.find((u) => u.pathname.endsWith('/history'));
     expect(claimsUrl?.searchParams.get('scope')).toBe('pending');
     expect(claimsUrl?.searchParams.get('limit')).toBe('100');
-    expect(claimsUrl?.searchParams.get('offset')).toBe('0');
+    expect(claimsUrl?.searchParams.get('cursor')).toBe(null);
     expect(historyUrl?.searchParams.get('limit')).toBe('100');
-    expect(historyUrl?.searchParams.get('offset')).toBe('0');
+    expect(historyUrl?.searchParams.get('cursor')).toBe(null);
   });
 
   it('throws instead of looping forever on an empty page that claims more', async () => {
     const fetchMock = vi
       .fn()
       .mockImplementation(() =>
-        Promise.resolve(apiResponse(offsetPage([], 0, true))),
+        Promise.resolve(apiResponse(cursorPage([], null, true))),
       );
     vi.stubGlobal('fetch', fetchMock);
 
@@ -889,10 +894,10 @@ describe('offset-paginated moderator lists', () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(
-        apiResponse(offsetPage([myClaim('older')], 0, true)),
+        apiResponse(cursorPage([myClaim('older')], 'cursor-1', true)),
       )
       .mockResolvedValueOnce(
-        apiResponse(offsetPage([myClaim('newer')], 1, false)),
+        apiResponse(cursorPage([myClaim('newer')], null, false)),
       );
     vi.stubGlobal('fetch', fetchMock);
 
@@ -901,7 +906,29 @@ describe('offset-paginated moderator lists', () => {
 
     expect(claims.map((c) => c.id)).toEqual(['older', 'newer']);
     expect(requestUrl(fetchMock, 0).searchParams.get('scope')).toBe('mine');
-    expect(requestUrl(fetchMock, 1).searchParams.get('offset')).toBe('1');
+    expect(requestUrl(fetchMock, 1).searchParams.get('cursor')).toBe(
+      'cursor-1',
+    );
+  });
+
+  it('relists a delisted extension', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      apiResponse({
+        result: { id: 'live-ext', status: 'relisted', notified: true },
+      }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const api = createApiClient(authenticatedEnv, 'moderator-sub');
+    const result = await api.relistExtension('live-ext', 'Upstream is back');
+
+    expect(result).toEqual({
+      id: 'live-ext',
+      status: 'relisted',
+      notified: true,
+    });
+    const url = requestUrl(fetchMock);
+    expect(url.pathname.endsWith('/extensions/live-ext/relist')).toBe(true);
   });
 });
 
