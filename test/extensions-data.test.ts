@@ -15,6 +15,7 @@ import {
   getDeveloperByOwner,
   getExtensionsByOwner,
   getOwnedExtension,
+  toOwnedExtensionDetail,
 } from '@/lib/extensions-data';
 import type { ApplicationEnv } from '@/lib/runtime';
 
@@ -100,6 +101,36 @@ describe('API-backed extension data adapters', () => {
       status: 'approved',
       reviewNote: null,
       reviewedAt: '2025-12-01T00:00:00Z',
+    });
+  });
+
+  it('maps either detail view to the same shape, delisted state included', () => {
+    const detail = toOwnedExtensionDetail({
+      id: 'extension-id',
+      developer,
+      published: {
+        type: 'mod',
+        name: 'Example',
+        description: 'desc',
+        releases: [],
+        website: 'https://example.test',
+        license: { name: 'MIT' },
+        readme: '# Example',
+        source: { type: 'github', repo: 'fossbilling/example' },
+        version: '1.0.0',
+        download_url: 'https://example.test/example.zip',
+      },
+      pending_revision: null,
+      last_review: null,
+      delisted: { reason: 'gone', at: '2026-02-01T00:00:00Z' },
+      created_at: '2025-01-01T00:00:00Z',
+      updated_at: '2026-02-01T00:00:00Z',
+    });
+
+    expect(detail.published?.name).toBe('Example');
+    expect(detail.delisted).toEqual({
+      reason: 'gone',
+      at: '2026-02-01T00:00:00Z',
     });
   });
 

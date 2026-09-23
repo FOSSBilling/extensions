@@ -6,6 +6,7 @@ import {
   getDeveloperById as getDeveloperByIdFromApi,
   type DeveloperProfile as ApiDeveloperProfile,
   type Extension as ApiExtension,
+  type OwnedExtension as ApiOwnedExtension,
   type OwnedExtensionListItem,
 } from './api/client';
 import type { PublicDeveloper } from './api/generated/extensions-v2';
@@ -69,6 +70,7 @@ export interface OwnedExtensionDetail {
   published: Extension | null;
   pendingRevision: PendingRevision | null;
   lastReview: LastReview | null;
+  delisted: { reason: string; at: string } | null;
 }
 
 function toDeveloperProfile(
@@ -124,6 +126,45 @@ function toExtension(extension: ApiExtension): Extension {
   };
 }
 
+// Maps either detail view — owner or moderation — to the same shape, so a
+// moderator's view can never disagree with an owner's about what one row
+// means. Exported for the admin edit page, which reads through the
+// moderation view itself to preserve read errors (a failed load must not
+// look like a missing extension).
+export function toOwnedExtensionDetail(
+  owned: ApiOwnedExtension,
+): OwnedExtensionDetail {
+  return {
+    id: owned.id,
+    developer: toPublicDeveloper(owned.developer),
+    published: owned.published
+      ? toExtension({
+          ...owned.published,
+          id: owned.id,
+          developer: owned.developer,
+        })
+      : null,
+    pendingRevision: owned.pending_revision
+      ? {
+          id: owned.pending_revision.id,
+          createdAt: owned.pending_revision.created_at,
+          content: owned.pending_revision.content,
+        }
+      : null,
+    lastReview: owned.last_review
+      ? {
+          revisionId: owned.last_review.revision_id,
+          status: owned.last_review.status,
+          reviewNote: owned.last_review.review_note,
+          reviewedAt: owned.last_review.reviewed_at,
+        }
+      : null,
+    delisted: owned.delisted
+      ? { reason: owned.delisted.reason, at: owned.delisted.at }
+      : null,
+  };
+}
+
 export async function getOwnedExtension(
   env: ApplicationEnv,
   userId: string,
@@ -131,33 +172,7 @@ export async function getOwnedExtension(
 ): Promise<OwnedExtensionDetail | null> {
   try {
     const owned = await createApiClient(env, userId).getMyExtension(id);
-
-    return {
-      id: owned.id,
-      developer: toPublicDeveloper(owned.developer),
-      published: owned.published
-        ? toExtension({
-            ...owned.published,
-            id: owned.id,
-            developer: owned.developer,
-          })
-        : null,
-      pendingRevision: owned.pending_revision
-        ? {
-            id: owned.pending_revision.id,
-            createdAt: owned.pending_revision.created_at,
-            content: owned.pending_revision.content,
-          }
-        : null,
-      lastReview: owned.last_review
-        ? {
-            revisionId: owned.last_review.revision_id,
-            status: owned.last_review.status,
-            reviewNote: owned.last_review.review_note,
-            reviewedAt: owned.last_review.reviewed_at,
-          }
-        : null,
-    };
+    return toOwnedExtensionDetail(owned);
   } catch {
     // 404 (no such extension) and 403 (not the owner) both resolve to "not
     // found" here — this adapter backs an owner-only page that already

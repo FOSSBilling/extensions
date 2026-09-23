@@ -1,0 +1,234 @@
+---
+import Admin from '../../../../../layouts/Admin.astro';
+import ExtensionForm from '@/components/ExtensionForm.astro';
+import { requireModerator } from '@/lib/auth-guard';
+import { createApiClient, ApiRequestError } from '@/lib/api/client';
+import {
+  toOwnedExtensionDetail,
+  type OwnedExtensionDetail,
+} from '@/lib/extensions-data';
+import {
+  buildExtensionUpdatePayload,
+  ExtensionValidationError,
+  OTHER_LICENSE,
+} from '@/lib/extension-form';
+import { formString } from '@/lib/form';
+import { formatDate } from '@/lib/format-date';
+import { setFlash } from '@/lib/flash';
+import { purgeCatalogue } from '@/lib/cache-invalidate';
+import { SPDX_LICENSE_IDS } from '@/types';
+import type { Extension } from '@/types';
+import { CircleAlert } from '@lucide/astro';
+import DateTime from '@/components/admin/DateTime.astro';
+
+const env = Astro.locals.env;
+const guard = await requireModerator(Astro, env);
+if (guard instanceof Response) return guard;
+const user = guard;
+
+const { id } = Astro.params;
+if (!id) {
+  return Astro.redirect('/404');
+}
+
+// Moderation view, not the owner view: getMyExtension would 403 for anyone
+// but the owner, and this page must never weaken that ownership check.
+// Unlike the owner adapter, failures are preserved here: a missing extension
+// reports not-found, while any other read failure renders a retryable error
+// instead of sending the moderator to /404.
+const api = createApiClient(env, user.sub);
+let owned: OwnedExtensionDetail | null = null;
+let loadError: string | null = null;
+try {
+  owned = toOwnedExtensionDetail(await api.getModerationExtension(id));
+} catch (e) {
+  loadError =
+    e instanceof ApiRequestError && e.status === 404
+      ? `No extension found with id "${id}".`
+      : e instanceof ApiRequestError
+        ? e.message
+        : 'Unable to load this extension.';
+}
+
+// Only published, listed extensions with no pending edit are correctable —
+// the api answers 409 otherwise, so the form below is only rendered in that
+// state (see the branches in the markup).
+const correctable = Boolean(
+  owned?.published && !owned?.delisted && !owned?.pendingRevision,
+);
+const base: Extension | null = owned?.published ?? null;
+
+let error: string | null = null;
+// Falls back to the just-submitted values on a failed correction, so the
+// form doesn't reset to the published content and discard the edit — same
+// submitted echo as the author edit page.
+let submitted: Extension | null = null;
+let submittedNote = '';
+
+if (
+  !loadError &&
+  owned &&
+  correctable &&
+  base &&
+  Astro.request.method === 'POST'
+) {
+  const form = await Astro.request.formData();
+  // Mirrors buildLicense() in extension-form.ts, minus the validation —
+  // this is a best-effort echo of what was submitted, not the payload
+  // itself, so an incomplete choice here is fine to redisplay as-is.
+  const selectedLicenseId = formString(form, 'license_spdx_id');
+  const isRecognizedLicense =
+    selectedLicenseId !== OTHER_LICENSE &&
+    SPDX_LICENSE_IDS.includes(selectedLicenseId);
+  submitted = {
+    ...base,
+    type: formString(form, 'type') as Extension['type'],
+    name: formString(form, 'name'),
+    description: formString(form, 'description'),
+    website: formString(form, 'website'),
+    icon_url: formString(form, 'icon_url') || undefined,
+    readme: formString(form, 'readme'),
+    license: isRecognizedLicense
+      ? {
+          name: selectedLicenseId,
+          spdx_id: selectedLicenseId,
+          URL: formString(form, 'license_url') || undefined,
+        }
+      : {
+          name: formString(form, 'license_name_custom'),
+          URL: formString(form, 'license_url') || undefined,
+        },
+    source: {
+      type: formString(form, 'source_type') as Extension['source']['type'],
+      repo: formString(form, 'source_repo'),
+    },
+  };
+  submittedNote = formString(form, 'correction_note');
+
+  try {
+    if (!submittedNote) {
+      throw new ExtensionValidationError('A correction note is required.');
+    }
+    const payload = buildExtensionUpdatePayload(form, base);
+    await api.correctExtension(owned.id, payload, submittedNote);
+    purgeCatalogue(Astro);
+    await setFlash(Astro, env.sessionSecret, {
+      category: 'success',
+      title: `"${owned.id}" corrected.`,
+      description:
+        'Recorded as a moderator revision — the author sees it in history; no email was sent.',
+    });
+    return Astro.redirect(`/account/admin/extensions/${owned.id}`);
+  } catch (e) {
+    error =
+      e instanceof ApiRequestError || e instanceof ExtensionValidationError
+        ? e.message
+        : 'Something went wrong correcting this extension. Please try again.';
+  }
+}
+
+const fields = submitted ?? base;
+const title = base?.name || owned?.id || id;
+---
+
+<Admin
+  title={`Correct ${title} — FOSSBilling Extensions`}
+  active="extensions"
+  description={`Moderator correction of the live listing for ${id}.`}
+>
+  <div slot="actions">
+    <a
+      href={
+        owned
+          ? `/account/admin/extensions/${owned.id}`
+          : '/account/admin/extensions'
+      }
+      class="btn"
+      data-size="sm"
+      data-variant="outline"
+    >
+      Back to Detail
+    </a>
+    <a
+      href="/account/admin/revisions"
+      class="btn"
+      data-size="sm"
+      data-variant="outline"
+    >
+      Revision Queue
+    </a>
+  </div>
+
+  {loadError && (
+    <div class="alert" data-variant="destructive">
+      <CircleAlert class="size-4" />
+      <section>
+        <p>{loadError}</p>
+        <p class="mt-1">
+          <a href={`/account/admin/extensions/${id}/edit`}>Try again</a> or
+          return to the <a href="/account/admin/extensions">extension list</a>.
+        </p>
+      </section>
+    </div>
+  )}
+
+  {owned && (
+    <div class="max-w-2xl mx-auto space-y-6">
+      <h1 class="text-2xl font-semibold tracking-tight">
+        Correct {owned.published?.name ?? owned.id}
+      </h1>
+
+      {!owned.published ? (
+        <div class="alert">
+          <CircleAlert class="size-4" />
+          <section>
+            This extension has never been published, so there is no live content
+            to correct. Ask the author to resubmit through the normal review
+            queue.
+          </section>
+        </div>
+      ) : owned.delisted ? (
+        <div class="alert" data-variant="destructive">
+          <CircleAlert class="size-4" />
+          <section>
+            <p class="font-medium">
+              Delisted <DateTime value={owned.delisted.at} />
+            </p>
+            <p>{owned.delisted.reason}</p>
+            <p class="mt-1">
+              Relist this extension before correcting its content.
+            </p>
+          </section>
+        </div>
+      ) : owned.pendingRevision ? (
+        <div class="alert">
+          <CircleAlert class="size-4" />
+          <section>
+            An edit submitted {formatDate(owned.pendingRevision.createdAt)} is
+            still awaiting review. Approve or reject it first — a correction
+            cannot supersede a pending edit. See the{' '}
+            <a href={`/account/admin/extensions/${owned.id}`}>detail page</a> or
+            the <a href="/account/admin/revisions">revision queue</a>.
+          </section>
+        </div>
+      ) : (
+        fields && (
+          <Fragment>
+            <p class="text-muted-foreground text-sm">
+              For live listing corruption — a truncated readme, a broken link —
+              that should not wait for the author to resubmit.
+            </p>
+            <ExtensionForm
+              developer={owned.developer}
+              extension={fields}
+              error={error}
+              submitLabel="Correct Live Listing"
+              cancelHref={`/account/admin/extensions/${owned.id}`}
+              correctionNote={submittedNote}
+            />
+          </Fragment>
+        )
+      )}
+    </div>
+  )}
+</Admin>

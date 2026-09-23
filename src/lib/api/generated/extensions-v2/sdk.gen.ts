@@ -84,6 +84,9 @@ import type {
   PostExtensionsByIdDelistData,
   PostExtensionsByIdDelistErrors,
   PostExtensionsByIdDelistResponses,
+  PostExtensionsByIdModeratorCorrectData,
+  PostExtensionsByIdModeratorCorrectErrors,
+  PostExtensionsByIdModeratorCorrectResponses,
   PostExtensionsByIdRelistData,
   PostExtensionsByIdRelistErrors,
   PostExtensionsByIdRelistResponses,
@@ -606,6 +609,32 @@ export const postExtensionsByIdRelist = <ThrowOnError extends boolean = false>(
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/extensions/{id}/relist',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+
+/**
+ * Correct a published extension's live content as a moderator
+ */
+export const postExtensionsByIdModeratorCorrect = <
+  ThrowOnError extends boolean = false,
+>(
+  options: Options<PostExtensionsByIdModeratorCorrectData, ThrowOnError>,
+): RequestResult<
+  PostExtensionsByIdModeratorCorrectResponses,
+  PostExtensionsByIdModeratorCorrectErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).post<
+    PostExtensionsByIdModeratorCorrectResponses,
+    PostExtensionsByIdModeratorCorrectErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/extensions/{id}/moderator-correct',
     ...options,
     headers: {
       'Content-Type': 'application/json',
