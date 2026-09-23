@@ -9,7 +9,6 @@ interface Props {
   developer: Developer;
   extension?: Extension;
   error?: string | null;
-  formAction?: string;
   submitLabel?: string;
   cancelHref?: string;
   // When present, renders the required moderator correction-note field
@@ -21,7 +20,6 @@ const {
   developer,
   extension,
   error,
-  formAction,
   submitLabel,
   cancelHref = '/account',
   correctionNote,
@@ -74,7 +72,7 @@ const otherSpdxIds = SPDX_LICENSE_IDS.filter((id) => !popularSpdxIds.has(id));
 
 <div class="card">
   <section>
-    <form method="POST" class="space-y-8" action={formAction}>
+    <form method="POST" class="space-y-8">
       <div role="group" aria-label="Extension fields" class="fieldset">
         <fieldset class="fieldset space-y-4">
           <legend>Publisher</legend>
@@ -501,7 +499,7 @@ const otherSpdxIds = SPDX_LICENSE_IDS.filter((id) => !popularSpdxIds.has(id));
                 Correction note <span class="text-destructive">*</span>
               </label>
               <textarea
-                class="input"
+                class="textarea"
                 id="correction_note"
                 name="correction_note"
                 required

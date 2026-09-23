@@ -14,8 +14,8 @@ import {
   getDeveloperById,
   getDeveloperByOwner,
   getExtensionsByOwner,
-  getModerationExtensionDetail,
   getOwnedExtension,
+  toOwnedExtensionDetail,
 } from '@/lib/extensions-data';
 import type { ApplicationEnv } from '@/lib/runtime';
 
@@ -104,8 +104,8 @@ describe('API-backed extension data adapters', () => {
     });
   });
 
-  it('reads the moderator detail through the moderation view with delisted state', async () => {
-    const getModerationExtension = vi.fn().mockResolvedValue({
+  it('maps either detail view to the same shape, delisted state included', () => {
+    const detail = toOwnedExtensionDetail({
       id: 'extension-id',
       developer,
       published: {
@@ -126,32 +126,12 @@ describe('API-backed extension data adapters', () => {
       created_at: '2025-01-01T00:00:00Z',
       updated_at: '2026-02-01T00:00:00Z',
     });
-    mocks.createApiClient.mockReturnValue({ getModerationExtension });
 
-    const detail = await getModerationExtensionDetail(
-      env,
-      'moderator-subject',
-      'extension-id',
-    );
-
-    expect(getModerationExtension).toHaveBeenCalledWith('extension-id');
-    expect(detail?.published?.name).toBe('Example');
-    expect(detail?.delisted).toEqual({
+    expect(detail.published?.name).toBe('Example');
+    expect(detail.delisted).toEqual({
       reason: 'gone',
       at: '2026-02-01T00:00:00Z',
     });
-  });
-
-  it('treats a failed moderator detail read as a missing resource', async () => {
-    mocks.createApiClient.mockReturnValue({
-      getModerationExtension: vi
-        .fn()
-        .mockRejectedValue(new Error('API unavailable')),
-    });
-
-    await expect(
-      getModerationExtensionDetail(env, 'moderator-subject', 'extension-id'),
-    ).resolves.toBe(null);
   });
 
   it('treats failed public developer reads as missing profiles', async () => {

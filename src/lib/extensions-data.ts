@@ -126,7 +126,12 @@ function toExtension(extension: ApiExtension): Extension {
   };
 }
 
-function toOwnedExtensionDetail(
+// Maps either detail view — owner or moderation — to the same shape, so a
+// moderator's view can never disagree with an owner's about what one row
+// means. Exported for the admin edit page, which reads through the
+// moderation view itself to preserve read errors (a failed load must not
+// look like a missing extension).
+export function toOwnedExtensionDetail(
   owned: ApiOwnedExtension,
 ): OwnedExtensionDetail {
   return {
@@ -173,23 +178,6 @@ export async function getOwnedExtension(
     // found" here — this adapter backs an owner-only page that already
     // redirects on a missing resource, and it must not distinguish "doesn't
     // exist" from "isn't yours" to an unauthenticated prober.
-    return null;
-  }
-}
-
-// Moderator counterpart of getOwnedExtension for the admin correct-content
-// page (api#251). Same detail shape, but read through the moderation view so
-// ownership is never consulted — getMyExtension would 403 for anyone but the
-// owner. Callers stay behind requireModerator().
-export async function getModerationExtensionDetail(
-  env: ApplicationEnv,
-  userId: string,
-  id: string,
-): Promise<OwnedExtensionDetail | null> {
-  try {
-    const owned = await createApiClient(env, userId).getModerationExtension(id);
-    return toOwnedExtensionDetail(owned);
-  } catch {
     return null;
   }
 }
