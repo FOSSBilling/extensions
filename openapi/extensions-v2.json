@@ -4180,7 +4180,8 @@
             "required": false,
             "description": "Deprecated alias for scope.",
             "name": "status",
-            "in": "query"
+            "in": "query",
+            "deprecated": true
           }
         ],
         "responses": {
@@ -4227,7 +4228,7 @@
             }
           },
           "422": {
-            "description": "scope, limit, or cursor query failed validation",
+            "description": "scope, status, limit, or cursor query failed validation",
             "content": {
               "application/json": {
                 "schema": {

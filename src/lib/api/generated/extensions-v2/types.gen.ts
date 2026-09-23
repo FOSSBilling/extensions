@@ -1753,6 +1753,8 @@ export type GetDevelopersData = {
     scope?: 'all' | 'unapproved';
     /**
      * Deprecated alias for scope.
+     *
+     * @deprecated
      */
     status?: 'all' | 'unapproved';
   };
@@ -1769,7 +1771,7 @@ export type GetDevelopersErrors = {
    */
   403: Error;
   /**
-   * scope, limit, or cursor query failed validation
+   * scope, status, limit, or cursor query failed validation
    */
   422: Error;
   /**
