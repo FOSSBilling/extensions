@@ -9,9 +9,23 @@ interface Props {
   developer: Developer;
   extension?: Extension;
   error?: string | null;
+  formAction?: string;
+  submitLabel?: string;
+  cancelHref?: string;
+  // When present, renders the required moderator correction-note field
+  // (api#251). Author flows leave it undefined and the form is unchanged.
+  correctionNote?: string;
 }
 
-const { developer, extension, error } = Astro.props;
+const {
+  developer,
+  extension,
+  error,
+  formAction,
+  submitLabel,
+  cancelHref = '/account',
+  correctionNote,
+} = Astro.props;
 const isEdit = Boolean(extension);
 // A release is required, same as a brand new extension, whenever there's
 // nothing already published to carry through — an extension can reach this
@@ -60,7 +74,7 @@ const otherSpdxIds = SPDX_LICENSE_IDS.filter((id) => !popularSpdxIds.has(id));
 
 <div class="card">
   <section>
-    <form method="POST" class="space-y-8">
+    <form method="POST" class="space-y-8" action={formAction}>
       <div role="group" aria-label="Extension fields" class="fieldset">
         <fieldset class="fieldset space-y-4">
           <legend>Publisher</legend>
@@ -474,11 +488,42 @@ const otherSpdxIds = SPDX_LICENSE_IDS.filter((id) => !popularSpdxIds.has(id));
         </fieldset>
       </div>
 
+      {correctionNote !== undefined && (
+        <Fragment>
+          <div class="field-separator">
+            <hr role="separator" />
+          </div>
+
+          <fieldset class="fieldset space-y-4">
+            <legend>Moderator Correction</legend>
+            <div class="field">
+              <label for="correction_note">
+                Correction note <span class="text-destructive">*</span>
+              </label>
+              <textarea
+                class="input"
+                id="correction_note"
+                name="correction_note"
+                required
+                maxlength="2000"
+                rows="2"
+                placeholder="What was wrong with the live listing"
+              >{correctionNote}</textarea>
+              <p class="text-muted-foreground">
+                Corrects the live listing immediately. Recorded as a moderator
+                revision — the author sees it in history; no email is sent.
+              </p>
+            </div>
+          </fieldset>
+        </Fragment>
+      )}
+
       <div class="flex gap-3">
         <button type="submit" class="btn">
-          {isEdit ? 'Submit Edit for Review' : 'Submit for Review'}
+          {submitLabel ??
+            (isEdit ? 'Submit Edit for Review' : 'Submit for Review')}
         </button>
-        <a href="/account" class="btn" data-variant="ghost">
+        <a href={cancelHref} class="btn" data-variant="ghost">
           {' '}
           Cancel{' '}
         </a>

@@ -578,6 +578,49 @@ describe('generated Extensions v2 façade', () => {
     expect(await rejectRequest.json()).toEqual({ review_note: 'needs work' });
   });
 
+  it('corrects live content as a moderator with no notify query', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      apiResponse({
+        result: { id: 'live-ext', revision_id: 'rev-1', status: 'approved' },
+      }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    const payload = {
+      type: 'mod' as const,
+      name: 'Fixed',
+      description: 'd',
+      releases: [],
+      website: 'https://example.test',
+      license: { name: 'MIT' },
+      readme: '# Fixed',
+      source: { type: 'github' as const, repo: 'example/live' },
+      version: '1.0.0',
+      download_url: 'https://example.test/live.zip',
+    };
+
+    const result = await createApiClient(
+      authenticatedEnv,
+      'moderator-sub',
+    ).correctExtension('live-ext', payload, 'Fix truncated readme');
+
+    const request = requestFrom(fetchMock);
+    expect(requestUrl(fetchMock).pathname).toBe(
+      '/extensions/v2/extensions/live-ext/moderator-correct',
+    );
+    expect(request.method).toBe('POST');
+    // No notify opt-out travels: corrections never email the author (api#251).
+    expect(requestUrl(fetchMock).searchParams.get('notify')).toBeNull();
+    expect(await request.json()).toEqual({
+      ...payload,
+      correction_note: 'Fix truncated readme',
+    });
+    expect(result).toEqual({
+      id: 'live-ext',
+      revision_id: 'rev-1',
+      status: 'approved',
+    });
+  });
+
   it('skips the author email on moderation writes when asked', async () => {
     const delistFetch = vi.fn().mockResolvedValue(
       apiResponse({

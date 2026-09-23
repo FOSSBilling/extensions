@@ -24,6 +24,7 @@ import {
   postDevelopersTransfersAccept,
   postExtensions,
   postExtensionsByIdDelist,
+  postExtensionsByIdModeratorCorrect,
   postExtensionsByIdRelist,
   postExtensionsByIdRevisionsByRevisionIdApprove,
   postExtensionsByIdRevisionsByRevisionIdReject,
@@ -638,6 +639,25 @@ export function createApiClient(env: ApplicationEnv, subject: string) {
             path: { id: extensionId },
             ...notifyQuery(notify),
             body: { reason },
+          }),
+        )
+      ).result,
+
+    // Moderator correction of live content (api#251): unlike every other
+    // moderation write there is no notify option and no author email — the
+    // correction is recorded as an approved moderator revision and surfaced
+    // in history by the directory UI.
+    correctExtension: async (
+      extensionId: string,
+      payload: ExtensionUpdate,
+      correctionNote: string,
+    ) =>
+      (
+        await unwrap(
+          await postExtensionsByIdModeratorCorrect({
+            client,
+            path: { id: extensionId },
+            body: { ...payload, correction_note: correctionNote },
           }),
         )
       ).result,

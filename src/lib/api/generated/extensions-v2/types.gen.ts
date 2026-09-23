@@ -335,6 +335,28 @@ export type DelistReason = {
   reason: string;
 };
 
+export type ModeratorCorrect = {
+  type:
+    | 'mod'
+    | 'theme'
+    | 'payment-gateway'
+    | 'server-manager'
+    | 'domain-registrar'
+    | 'hook'
+    | 'translation';
+  name: string;
+  description: string;
+  releases: Array<Release>;
+  website: string;
+  license: License;
+  icon_url?: string;
+  readme: string;
+  source: Repository;
+  version: string;
+  download_url: string;
+  correction_note: string;
+};
+
 export type DeveloperApproval = {
   expected_revision: number;
 };
@@ -1530,6 +1552,61 @@ export type PostExtensionsByIdRelistResponses = {
 
 export type PostExtensionsByIdRelistResponse =
   PostExtensionsByIdRelistResponses[keyof PostExtensionsByIdRelistResponses];
+
+export type PostExtensionsByIdModeratorCorrectData = {
+  body?: ModeratorCorrect;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/extensions/{id}/moderator-correct';
+};
+
+export type PostExtensionsByIdModeratorCorrectErrors = {
+  /**
+   * Missing or invalid bearer token
+   */
+  401: Error;
+  /**
+   * The account is inactive or the caller is not a moderator
+   */
+  403: Error;
+  /**
+   * No such extension
+   */
+  404: Error;
+  /**
+   * Extension is unpublished or delisted, or an edit is already awaiting review
+   */
+  409: Error;
+  /**
+   * Path params, content, or correction_note failed validation
+   */
+  422: Error;
+  /**
+   * Database error
+   */
+  500: Error;
+};
+
+export type PostExtensionsByIdModeratorCorrectError =
+  PostExtensionsByIdModeratorCorrectErrors[keyof PostExtensionsByIdModeratorCorrectErrors];
+
+export type PostExtensionsByIdModeratorCorrectResponses = {
+  /**
+   * Content corrected and published. Recorded as an approved moderator revision; no author email is sent.
+   */
+  200: {
+    result: {
+      id: string;
+      revision_id: string;
+      status: 'approved';
+    };
+  };
+};
+
+export type PostExtensionsByIdModeratorCorrectResponse =
+  PostExtensionsByIdModeratorCorrectResponses[keyof PostExtensionsByIdModeratorCorrectResponses];
 
 export type PostDevelopersByIdApproveData = {
   body?: DeveloperApproval;

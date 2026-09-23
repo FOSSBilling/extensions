@@ -1,0 +1,107 @@
+---
+import Admin from '../../../../../layouts/Admin.astro';
+import ExtensionForm from '@/components/ExtensionForm.astro';
+import { requireModerator } from '@/lib/auth-guard';
+import { getModerationExtensionDetail } from '@/lib/extensions-data';
+import { CircleAlert } from '@lucide/astro';
+import DateTime from '@/components/admin/DateTime.astro';
+import { formatDate } from '@/lib/format-date';
+
+const env = Astro.locals.env;
+const guard = await requireModerator(Astro, env);
+if (guard instanceof Response) return guard;
+const user = guard;
+
+const { id } = Astro.params;
+if (!id) {
+  return Astro.redirect('/404');
+}
+
+// Moderation view, not the owner view: getMyExtension would 403 for anyone
+// but the owner, and this page must never weaken that ownership check.
+const owned = await getModerationExtensionDetail(env, user.sub, id);
+if (!owned) {
+  return Astro.redirect('/404');
+}
+---
+
+<Admin
+  title={`Correct ${owned.published?.name ?? id} — FOSSBilling Extensions`}
+  active="extensions"
+  description={`Moderator correction of the live listing for ${id}.`}
+>
+  <div slot="actions">
+    <a
+      href={`/account/admin/extensions/${owned.id}`}
+      class="btn"
+      data-size="sm"
+      data-variant="outline"
+    >
+      Back to Detail
+    </a>
+    <a
+      href="/account/admin/revisions"
+      class="btn"
+      data-size="sm"
+      data-variant="outline"
+    >
+      Revision Queue
+    </a>
+  </div>
+
+  <div class="max-w-2xl mx-auto space-y-6">
+    <h1 class="text-2xl font-semibold tracking-tight">
+      Correct {owned.published?.name ?? owned.id}
+    </h1>
+
+    {!owned.published ? (
+      <div class="alert">
+        <CircleAlert class="size-4" />
+        <section>
+          This extension has never been published, so there is no live content
+          to correct. Ask the author to resubmit through the normal review
+          queue.
+        </section>
+      </div>
+    ) : owned.delisted ? (
+      <div class="alert" data-variant="destructive">
+        <CircleAlert class="size-4" />
+        <section>
+          <p class="font-medium">
+            Delisted <DateTime value={owned.delisted.at} />
+          </p>
+          <p>{owned.delisted.reason}</p>
+          <p class="mt-1">
+            Relist this extension before correcting its content.
+          </p>
+        </section>
+      </div>
+    ) : owned.pendingRevision ? (
+      <div class="alert">
+        <CircleAlert class="size-4" />
+        <section>
+          An edit submitted {formatDate(owned.pendingRevision.createdAt)} is
+          still awaiting review. Approve or reject it first — a correction
+          cannot supersede a pending edit. See the{' '}
+          <a href={`/account/admin/extensions/${owned.id}`}>detail page</a> or
+          the <a href="/account/admin/revisions">revision queue</a>.
+        </section>
+      </div>
+    ) : (
+      <Fragment>
+        <p class="text-muted-foreground text-sm">
+          For live listing corruption — a truncated readme, a broken link — that
+          should not wait for the author to resubmit.
+        </p>
+        <ExtensionForm
+          developer={owned.developer}
+          extension={owned.published}
+          formAction={`/account/admin/extensions/${owned.id}/correct`}
+          submitLabel="Correct Live Listing"
+          cancelHref={`/account/admin/extensions/${owned.id}`}
+          correctionNote=""
+        />
+      </Fragment>
+    )}
+  </div>
+</Admin>

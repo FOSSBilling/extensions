@@ -3,7 +3,7 @@
   "info": {
     "title": "FOSSBilling Extensions API (v2)",
     "version": "2.0.0",
-    "description": "Self-service extension publishing, ownership, moderation, and public browsing. v1 (/extensions/v1) remains available for existing integrations."
+    "description": "x"
   },
   "servers": [
     {
@@ -1131,6 +1131,91 @@
           }
         },
         "required": ["reason"],
+        "additionalProperties": false
+      },
+      "ModeratorCorrect": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "mod",
+              "theme",
+              "payment-gateway",
+              "server-manager",
+              "domain-registrar",
+              "hook",
+              "translation"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          },
+          "releases": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Release"
+            },
+            "minItems": 1,
+            "maxItems": 100
+          },
+          "website": {
+            "type": "string",
+            "maxLength": 2048,
+            "format": "uri"
+          },
+          "license": {
+            "$ref": "#/components/schemas/License"
+          },
+          "icon_url": {
+            "type": "string",
+            "maxLength": 2048,
+            "format": "uri"
+          },
+          "readme": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100000
+          },
+          "source": {
+            "$ref": "#/components/schemas/Repository"
+          },
+          "version": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "download_url": {
+            "type": "string",
+            "maxLength": 2048,
+            "format": "uri"
+          },
+          "correction_note": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "type",
+          "name",
+          "description",
+          "releases",
+          "website",
+          "license",
+          "readme",
+          "source",
+          "version",
+          "download_url",
+          "correction_note"
+        ],
         "additionalProperties": false
       },
       "DeveloperApproval": {
@@ -3655,6 +3740,128 @@
           },
           "422": {
             "description": "Path params, review_note body, or notify query failed validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Database error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/extensions/{id}/moderator-correct": {
+      "post": {
+        "tags": ["Moderation"],
+        "summary": "Correct a published extension's live content as a moderator",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "b6e2c9c4-3f1a-4e9b-9c3a-2e4b1a2f9d10"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModeratorCorrect"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Content corrected and published. Recorded as an approved moderator revision; no author email is sent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "revision_id": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": ["approved"]
+                        }
+                      },
+                      "required": ["id", "revision_id", "status"]
+                    }
+                  },
+                  "required": ["result"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The account is inactive or the caller is not a moderator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such extension",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Extension is unpublished or delisted, or an edit is already awaiting review",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Path params, content, or correction_note failed validation",
             "content": {
               "application/json": {
                 "schema": {

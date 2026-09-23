@@ -50,6 +50,12 @@ const pendingRevisionId =
   ext?.pending_revision && typeof ext.pending_revision.id === 'string'
     ? ext.pending_revision.id
     : null;
+// Mirrors the correct-content page's own gating (api#251): published, listed,
+// and no pending edit. The button is hidden otherwise rather than leading to
+// a page that only explains why the correction is unavailable.
+const correctable = Boolean(
+  ext?.published && !ext?.delisted && !ext?.pending_revision,
+);
 ---
 
 <Admin
@@ -74,6 +80,15 @@ const pendingRevisionId =
     >
       Revision Queue
     </a>
+    {ext && correctable && (
+      <a
+        href={`/account/admin/extensions/${ext.id}/edit`}
+        class="btn"
+        data-size="sm"
+      >
+        Correct live content
+      </a>
+    )}
   </div>
 
   {loadError && (

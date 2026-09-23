@@ -14,6 +14,7 @@ import {
   getDeveloperById,
   getDeveloperByOwner,
   getExtensionsByOwner,
+  getModerationExtensionDetail,
   getOwnedExtension,
 } from '@/lib/extensions-data';
 import type { ApplicationEnv } from '@/lib/runtime';
@@ -101,6 +102,56 @@ describe('API-backed extension data adapters', () => {
       reviewNote: null,
       reviewedAt: '2025-12-01T00:00:00Z',
     });
+  });
+
+  it('reads the moderator detail through the moderation view with delisted state', async () => {
+    const getModerationExtension = vi.fn().mockResolvedValue({
+      id: 'extension-id',
+      developer,
+      published: {
+        type: 'mod',
+        name: 'Example',
+        description: 'desc',
+        releases: [],
+        website: 'https://example.test',
+        license: { name: 'MIT' },
+        readme: '# Example',
+        source: { type: 'github', repo: 'fossbilling/example' },
+        version: '1.0.0',
+        download_url: 'https://example.test/example.zip',
+      },
+      pending_revision: null,
+      last_review: null,
+      delisted: { reason: 'gone', at: '2026-02-01T00:00:00Z' },
+      created_at: '2025-01-01T00:00:00Z',
+      updated_at: '2026-02-01T00:00:00Z',
+    });
+    mocks.createApiClient.mockReturnValue({ getModerationExtension });
+
+    const detail = await getModerationExtensionDetail(
+      env,
+      'moderator-subject',
+      'extension-id',
+    );
+
+    expect(getModerationExtension).toHaveBeenCalledWith('extension-id');
+    expect(detail?.published?.name).toBe('Example');
+    expect(detail?.delisted).toEqual({
+      reason: 'gone',
+      at: '2026-02-01T00:00:00Z',
+    });
+  });
+
+  it('treats a failed moderator detail read as a missing resource', async () => {
+    mocks.createApiClient.mockReturnValue({
+      getModerationExtension: vi
+        .fn()
+        .mockRejectedValue(new Error('API unavailable')),
+    });
+
+    await expect(
+      getModerationExtensionDetail(env, 'moderator-subject', 'extension-id'),
+    ).resolves.toBe(null);
   });
 
   it('treats failed public developer reads as missing profiles', async () => {
