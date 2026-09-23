@@ -19,19 +19,22 @@ const viewParam = Astro.url.searchParams.get('view');
 const view =
   viewParam === 'all'
     ? 'all'
-    : viewParam === 'claims'
-      ? 'claims'
-      : 'unapproved';
+    : viewParam === 'unclaimed'
+      ? 'unclaimed'
+      : viewParam === 'claims'
+        ? 'claims'
+        : 'unapproved';
 const isClaims = view === 'claims';
 
 const api = createApiClient(env, user.sub);
 
 // Claims load on every view: the tab badge needs the pending count even
 // when the claims queue itself isn't showing. Both developer lists load on
-// every view too, so the All and Pending counts stay truthful on the claims
-// tab — the API pages these lists at 100 rows per request, and the client
-// walks every page, so each tab still receives complete lists (All by name,
-// Pending by creation date).
+// every view too, so the All, Pending, and Unclaimed counts stay truthful on
+// the claims tab — the API pages these lists at 100 rows per request, and the
+// client walks every page, so each tab still receives complete lists (All by
+// name, Pending by creation date). Unclaimed is derived client-side from the
+// full list because the API only scopes by all/unapproved.
 let allDevelopers: DeveloperProfile[] = [];
 let unapprovedDevelopers: DeveloperProfile[] = [];
 let developersError = false;
@@ -43,6 +46,7 @@ try {
 } catch {
   developersError = true;
 }
+const unclaimedDevelopers = allDevelopers.filter((d) => d.unclaimed);
 
 let claims: PendingDeveloperClaim[] = [];
 let claimsError = false;
@@ -57,7 +61,11 @@ const pendingClaimCount = claimsError ? 0 : claims.length;
 // substring filter over the loaded rows of the active tab is complete.
 const query = Astro.url.searchParams.get('q')?.trim() || undefined;
 let developers: DeveloperProfile[] =
-  view === 'all' ? allDevelopers : unapprovedDevelopers;
+  view === 'all'
+    ? allDevelopers
+    : view === 'unclaimed'
+      ? unclaimedDevelopers
+      : unapprovedDevelopers;
 if (query) {
   const needle = query.toLowerCase();
   if (isClaims) {
@@ -90,7 +98,7 @@ const pageDescription = isClaims
 <Admin title={pageTitle} active="developers" description={pageDescription}>
   <div class="flex flex-wrap items-center justify-between gap-3">
     <nav class="flex gap-2" aria-label="Developer filter">
-      {(['all', 'unapproved', 'claims'] as const).map((v) => (
+      {(['all', 'unapproved', 'unclaimed', 'claims'] as const).map((v) => (
         <a
           href={filterPageUrl(Astro.url, 'view', v, [])}
           class="btn"
@@ -102,9 +110,11 @@ const pageDescription = isClaims
             ? `All (${allDevelopers.length})`
             : v === 'unapproved'
               ? `Pending (${unapprovedDevelopers.length})`
-              : pendingClaimCount > 0
-                ? `Claims (${pendingClaimCount})`
-                : 'Claims'}
+              : v === 'unclaimed'
+                ? `Unclaimed (${unclaimedDevelopers.length})`
+                : pendingClaimCount > 0
+                  ? `Claims (${pendingClaimCount})`
+                  : 'Claims'}
         </a>
       ))}
     </nav>
@@ -152,7 +162,9 @@ const pageDescription = isClaims
           ? 'No Matching Profiles'
           : view === 'unapproved'
             ? 'No Pending Profiles'
-            : 'No Developer Profiles Yet'
+            : view === 'unclaimed'
+              ? 'No Unclaimed Profiles'
+              : 'No Developer Profiles Yet'
       }
       description={query ? 'Try a different search or clear it.' : undefined}
     />
