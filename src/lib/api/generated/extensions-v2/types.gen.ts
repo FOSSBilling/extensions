@@ -963,7 +963,7 @@ export type GetDevelopersClaimsData = {
      */
     scope: 'mine' | 'pending';
     /**
-     * Filter claims by status (default: all). Only valid with scope=mine.
+     * Filter claims by status (default: all). With scope=mine, narrows claims; with scope=pending, only all or pending is allowed.
      */
     status?: 'pending' | 'approved' | 'rejected' | 'all';
   };

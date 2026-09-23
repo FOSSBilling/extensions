@@ -2485,10 +2485,10 @@
               "type": "string",
               "enum": ["pending", "approved", "rejected", "all"],
               "default": "all",
-              "description": "Filter claims by status (default: all). Only valid with scope=mine."
+              "description": "Filter claims by status (default: all). With scope=mine, narrows claims; with scope=pending, only all or pending is allowed."
             },
             "required": false,
-            "description": "Filter claims by status (default: all). Only valid with scope=mine.",
+            "description": "Filter claims by status (default: all). With scope=mine, narrows claims; with scope=pending, only all or pending is allowed.",
             "name": "status",
             "in": "query"
           }
