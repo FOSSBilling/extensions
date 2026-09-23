@@ -203,7 +203,8 @@ const otherSpdxIds = SPDX_LICENSE_IDS.filter((id) => !popularSpdxIds.has(id));
             <div
               id="readme-preview"
               class="markdown-body break-normal max-h-72 overflow-y-auto overscroll-contain"
-              aria-live="polite"
+              role="region"
+              aria-label="Readme preview"
             ></div>
           </div>
         </fieldset>
@@ -525,7 +526,11 @@ const otherSpdxIds = SPDX_LICENSE_IDS.filter((id) => !popularSpdxIds.has(id));
     const updateReadmePreview = () => {
       readmePreview.innerHTML = renderMarkdown(readmeInput.value);
     };
-    readmeInput.addEventListener('input', updateReadmePreview);
+    let previewTimer: number | undefined;
+    readmeInput.addEventListener('input', () => {
+      window.clearTimeout(previewTimer);
+      previewTimer = window.setTimeout(updateReadmePreview, 250);
+    });
     updateReadmePreview();
   }
 </script>
