@@ -5,9 +5,10 @@ interface Props {
   category?: 'success' | 'error' | 'info' | 'warning';
   title: string;
   description?: string;
+  action?: { label: string; href: string };
 }
 
-const { category = 'success', title, description } = Astro.props;
+const { category = 'success', title, description, action } = Astro.props;
 
 const Icon = {
   success: CircleCheck,
@@ -31,6 +32,11 @@ const Icon = {
       {description && <p>{description}</p>}
     </section>
     <footer>
+      {action && (
+        <a href={action.href} class="btn" data-toast-action>
+          {action.label}
+        </a>
+      )}
       <button type="button" class="btn" data-toast-action>
         Dismiss
       </button>

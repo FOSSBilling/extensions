@@ -140,6 +140,29 @@ describe('takeFlash', () => {
     expect(jar.delete).toHaveBeenCalled();
   });
 
+  it('round-trips a flash with an action link', async () => {
+    const { jar, context } = flashContext();
+    const withAction = {
+      ...MESSAGE,
+      action: { label: 'Reconnect GitHub', href: 'https://auth.example.test/' },
+    };
+    await setFlash(context, SECRET, withAction);
+
+    await expect(takeFlash(jar.cookies, SECRET)).resolves.toEqual(withAction);
+  });
+
+  it('drops flashes whose action link is malformed', async () => {
+    const { jar, context } = flashContext();
+    await setFlash(context, SECRET, {
+      ...MESSAGE,
+      action: { label: '', href: 'https://auth.example.test/' },
+    });
+
+    // setFlash stores whatever the server passes; the shape check on read
+    // rejects it, so a malformed action can never render as a link.
+    await expect(takeFlash(jar.cookies, SECRET)).resolves.toBeUndefined();
+  });
+
   it('drops well-signed payloads with an invalid shape', async () => {
     const { jar, context } = flashContext();
     await setFlash(context, SECRET, MESSAGE);

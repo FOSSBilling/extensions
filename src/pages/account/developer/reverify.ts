@@ -4,6 +4,7 @@ import { getDeveloperByOwner } from '@/lib/extensions-data';
 import { createApiClient, ApiRequestError } from '@/lib/api/client';
 import { purgeCatalogue } from '@/lib/cache-invalidate';
 import { setFlash } from '@/lib/flash';
+import { ISSUER } from '@/lib/oauth';
 import {
   setReverifyCooldown,
   takeReverifyCooldown,
@@ -74,20 +75,34 @@ export const POST: APIRoute = async (context) => {
   // linked GitHub identity — see the api repo's reverifyOwn) rather than an
   // actual mismatch, which is `false`. Conflating the two would show "no
   // longer matches" for a case that isn't a mismatch at all.
+  //
+  // Re-verify only re-checks against the already-synced snapshot, so a
+  // mismatch it reports can't be fixed by retrying — only a re-link (which
+  // re-fetches org memberships from GitHub) can change the outcome. Link
+  // that action directly from the warning toast. Same round-trip as the
+  // account page's reconnect banner: back through our own OIDC login so the
+  // token is re-issued with fresh claims and upsertUser syncs them.
+  const reconnectUrl = `${ISSUER}/account?callbackURL=${encodeURIComponent(
+    `${context.url.origin}/auth/login?redirect=${encodeURIComponent('/account')}`,
+  )}`;
+  const mismatch = result.github_org_verified === false;
   await setFlash(context, env.sessionSecret, {
     category:
       result.github_org_verified === true
         ? 'success'
-        : result.github_org_verified === false
+        : mismatch
           ? 'warning'
           : 'info',
     title: 'GitHub verification re-checked',
     description:
       result.github_org_verified === true
         ? 'Your linked GitHub identity matches this profile.'
-        : result.github_org_verified === false
-          ? "Your linked GitHub identity doesn't currently match this profile."
+        : mismatch
+          ? "Your linked GitHub identity doesn't currently match this profile. If it should (e.g. you rejoined the organization), reconnect GitHub to refresh your organization access, then re-verify."
           : 'No linked GitHub identity was found to check against.',
+    action: mismatch
+      ? { label: 'Reconnect GitHub', href: reconnectUrl }
+      : undefined,
   });
   return context.redirect('/account');
 };

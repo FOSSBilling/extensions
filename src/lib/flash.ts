@@ -11,10 +11,18 @@ import { signPayload, verifyPayloadSignature } from './signed-value';
 // content server-controlled — a tampered cookie simply fails verification,
 // which matters because the toast fragment is rendered from this payload.
 
+export interface FlashAction {
+  label: string;
+  href: string;
+}
+
 export interface FlashMessage {
   category?: 'success' | 'error' | 'info' | 'warning';
   title: string;
   description?: string;
+  // Optional call-to-action rendered next to Dismiss (e.g. deep-linking the
+  // user from a warning to the page that can actually resolve it).
+  action?: FlashAction;
 }
 
 export const FLASH_COOKIE = 'fb_flash';
@@ -45,11 +53,28 @@ function parseFlashPayload(
   if (
     !message ||
     typeof exp !== 'number' ||
-    typeof message.title !== 'string' ||
+    typeof message.title !== 'string'
+  ) {
+    return null;
+  }
+  // The toast renders action.href as a link, so validate it structurally
+  // (non-empty strings, capped length) — content stays server-controlled via
+  // the HMAC signature checked before this runs.
+  const action = message.action;
+  const actionValid =
+    action === undefined ||
+    (typeof action.label === 'string' &&
+      action.label.length > 0 &&
+      action.label.length <= 100 &&
+      typeof action.href === 'string' &&
+      action.href.length > 0 &&
+      action.href.length <= 2048);
+  if (
     (message.category !== undefined &&
       !['success', 'error', 'info', 'warning'].includes(message.category)) ||
     (message.description !== undefined &&
-      typeof message.description !== 'string')
+      typeof message.description !== 'string') ||
+    !actionValid
   ) {
     return null;
   }

@@ -87,6 +87,16 @@ const rawReverifyCooldownUntil = await takeReverifyCooldown(
 const reverifyCooldownUntil =
   rawReverifyCooldownUntil > Date.now() ? rawReverifyCooldownUntil : 0;
 
+// The linked-state "refresh org access" banner is a recovery action, not a
+// standing CTA: Re-verify re-checks against the already-synced snapshot, so
+// it can never fix stale input data — only a re-link can. Show the banner
+// only when there is a reason to act: the stored match says mismatch, or the
+// user is mid-flow with a claim that may hit GITHUB_MISMATCH. Healthy users
+// (and users with no developer profile and no claims) see no banner at all.
+const showOrgRefreshBanner =
+  githubLinked &&
+  (developer?.github_org_verified === false || displayClaim != null);
+
 // After linking GitHub, send the user back through our own OIDC login
 // (rather than stranding them on auth's own /account page) so the ID token
 // is re-issued with the freshly linked github_login/github_orgs claims and
@@ -149,25 +159,27 @@ const reconnectUrl = `${ISSUER}/account?callbackURL=${encodeURIComponent(
         </footer>
       </div>
     ) : (
-      <div class="alert">
-        <h2>GitHub organization access</h2>
-        <section>
-          Missing an organization when creating a developer profile or claim?
-          GitHub only sends the organizations granted to the FOSSBilling OAuth
-          App at sign-in time — granting access later in GitHub settings alone
-          does not refresh it here until you re-link.
-        </section>
-        <footer>
-          <a
-            href={reconnectUrl}
-            class="btn"
-            data-size="sm"
-            data-variant="outline"
-          >
-            Refresh GitHub organization access
-          </a>
-        </footer>
-      </div>
+      showOrgRefreshBanner && (
+        <div class="alert">
+          <h2>GitHub organization access</h2>
+          <section>
+            Missing an organization when creating a developer profile or claim?
+            GitHub only sends the organizations granted to the FOSSBilling OAuth
+            App at sign-in time — granting access later in GitHub settings alone
+            does not refresh it here until you re-link.
+          </section>
+          <footer>
+            <a
+              href={reconnectUrl}
+              class="btn"
+              data-size="sm"
+              data-variant="outline"
+            >
+              Refresh GitHub organization access
+            </a>
+          </footer>
+        </div>
+      )
     )}
 
     <!-- overflow-visible: basecoat's .card sets overflow-hidden (to clip a

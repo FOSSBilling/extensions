@@ -17,5 +17,6 @@ const flash = await takeFlash(Astro.cookies, Astro.locals.env.sessionSecret);
     category={flash.category}
     title={flash.title}
     description={flash.description}
+    action={flash.action}
   />
 )}
