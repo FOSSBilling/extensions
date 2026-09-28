@@ -10,7 +10,7 @@ import {
   getDeveloperByOwner,
   getExtensionsByOwner,
 } from '@/lib/extensions-data';
-import { ISSUER } from '@/lib/oauth';
+import { buildGithubReconnectUrl } from '@/lib/oauth';
 import type { PendingDeveloperClaim } from '@/lib/api/client';
 import { CircleAlert } from '@lucide/astro';
 import ProfileTrustBadge from '@/components/ProfileTrustBadge.astro';
@@ -88,20 +88,19 @@ const reverifyCooldownUntil =
   rawReverifyCooldownUntil > Date.now() ? rawReverifyCooldownUntil : 0;
 
 // The refresh banner is a recovery action, not a standing CTA — show it
-// only on a stored mismatch or when a claim is mid-flow and may hit
-// GITHUB_MISMATCH. Re-verify can't fix stale snapshots, only a re-link can.
+// only on a stored mismatch or while a claim is pending and may hit
+// GITHUB_MISMATCH. (A rejected claim is terminal, so it doesn't qualify.)
+// Re-verify can't fix stale snapshots, only a re-link can.
 const showOrgRefreshBanner =
   githubLinked &&
-  (developer?.github_org_verified === false || displayClaim != null);
+  (developer?.github_org_verified === false || pendingClaim != null);
 
 // After linking GitHub, send the user back through our own OIDC login
 // (rather than stranding them on auth's own /account page) so the ID token
 // is re-issued with the freshly linked github_login/github_orgs claims and
 // upsertUser refreshes our local copy — otherwise the reconnect banner keeps
 // showing until the next unrelated login.
-const reconnectUrl = `${ISSUER}/account?callbackURL=${encodeURIComponent(
-  `${Astro.url.origin}/auth/login?redirect=${encodeURIComponent('/account')}`,
-)}`;
+const reconnectUrl = buildGithubReconnectUrl(Astro.url.origin, '/account');
 ---
 
 <Base title="Your Account — FOSSBilling Extensions">

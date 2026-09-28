@@ -28,6 +28,21 @@ export interface FlashMessage {
 export const FLASH_COOKIE = 'fb_flash';
 const FLASH_MAX_AGE_SECONDS = 120;
 
+// The toast renders action.href as a link, so a malformed action must fail
+// the shape check rather than render (or throw on a null dereference).
+function isFlashAction(value: unknown): value is FlashAction {
+  if (typeof value !== 'object' || value === null) return false;
+  const { label, href } = value as Record<string, unknown>;
+  return (
+    typeof label === 'string' &&
+    label.length > 0 &&
+    label.length <= 100 &&
+    typeof href === 'string' &&
+    href.length > 0 &&
+    href.length <= 2048
+  );
+}
+
 // Structural subset shared by AstroGlobal (in .astro pages) and the
 // destructured or full APIContext (in .ts API routes), so flash helpers work
 // in both.
@@ -57,19 +72,12 @@ function parseFlashPayload(
   ) {
     return null;
   }
-  // The toast renders action.href as a link, so a malformed action must fail
-  // the shape check rather than render.
-  const action = message.action;
   if (
     (message.category !== undefined &&
       !['success', 'error', 'info', 'warning'].includes(message.category)) ||
     (message.description !== undefined &&
       typeof message.description !== 'string') ||
-    (action !== undefined &&
-      (typeof action.label !== 'string' ||
-        action.label.length === 0 ||
-        typeof action.href !== 'string' ||
-        action.href.length === 0))
+    (message.action !== undefined && !isFlashAction(message.action))
   ) {
     return null;
   }

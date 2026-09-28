@@ -151,15 +151,25 @@ describe('takeFlash', () => {
     await expect(takeFlash(jar.cookies, SECRET)).resolves.toEqual(withAction);
   });
 
-  it('drops flashes whose action link is malformed', async () => {
+  it.each([
+    ['null action', null],
+    ['non-object action', 'reconnect'],
+    ['empty label', { label: '', href: 'https://auth.example.test/' }],
+    ['over-long label', { label: 'x'.repeat(101), href: '/' }],
+    ['non-string label', { label: 42, href: '/' }],
+    ['missing label', { href: '/' }],
+    ['empty href', { label: 'Reconnect', href: '' }],
+    ['over-long href', { label: 'Reconnect', href: `/${'x'.repeat(2048)}` }],
+    ['missing href', { label: 'Reconnect' }],
+  ])('drops flashes with a malformed action (%s)', async (_name, action) => {
     const { jar, context } = flashContext();
     await setFlash(context, SECRET, {
       ...MESSAGE,
-      action: { label: '', href: 'https://auth.example.test/' },
+      action: action as unknown as { label: string; href: string },
     });
 
     // setFlash stores anything; the read-time shape check rejects it, so a
-    // malformed action can never render as a link.
+    // malformed action can never render as a link (or throw when read).
     await expect(takeFlash(jar.cookies, SECRET)).resolves.toBeUndefined();
   });
 

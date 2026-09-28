@@ -8,6 +8,19 @@ const AUTHORIZE_ENDPOINT = `${ISSUER}/oauth2/authorize`;
 const TOKEN_ENDPOINT = `${ISSUER}/oauth2/token`;
 const USERINFO_ENDPOINT = `${ISSUER}/oauth2/userinfo`;
 
+// GitHub re-link flow: auth's /account page re-fetches the caller's org
+// memberships, then our own OIDC login re-issues the ID token so the fresh
+// github_login/github_orgs claims sync locally. Redirect targets the page
+// that needs the refreshed snapshot.
+export function buildGithubReconnectUrl(
+  origin: string,
+  redirect: string,
+): string {
+  return `${ISSUER}/account?callbackURL=${encodeURIComponent(
+    `${origin}/auth/login?redirect=${encodeURIComponent(redirect)}`,
+  )}`;
+}
+
 const SCOPE = 'openid profile email github';
 
 // Short-lived cookies that carry the PKCE verifier and CSRF state across the

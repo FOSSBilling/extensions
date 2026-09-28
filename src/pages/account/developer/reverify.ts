@@ -4,7 +4,7 @@ import { getDeveloperByOwner } from '@/lib/extensions-data';
 import { createApiClient, ApiRequestError } from '@/lib/api/client';
 import { purgeCatalogue } from '@/lib/cache-invalidate';
 import { setFlash } from '@/lib/flash';
-import { ISSUER } from '@/lib/oauth';
+import { buildGithubReconnectUrl } from '@/lib/oauth';
 import {
   setReverifyCooldown,
   takeReverifyCooldown,
@@ -79,9 +79,7 @@ export const POST: APIRoute = async (context) => {
   // A reported mismatch can't be fixed by retrying: re-verify only
   // re-checks the already-synced snapshot, so link the re-link flow (which
   // re-fetches org memberships) directly from the warning toast.
-  const reconnectUrl = `${ISSUER}/account?callbackURL=${encodeURIComponent(
-    `${context.url.origin}/auth/login?redirect=${encodeURIComponent('/account')}`,
-  )}`;
+  const reconnectUrl = buildGithubReconnectUrl(context.url.origin, '/account');
   const mismatch = result.github_org_verified === false;
   await setFlash(context, env.sessionSecret, {
     category:
