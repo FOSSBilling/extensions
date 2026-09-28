@@ -140,6 +140,39 @@ describe('takeFlash', () => {
     expect(jar.delete).toHaveBeenCalled();
   });
 
+  it('round-trips a flash with an action link', async () => {
+    const { jar, context } = flashContext();
+    const withAction = {
+      ...MESSAGE,
+      action: { label: 'Reconnect GitHub', href: 'https://auth.example.test/' },
+    };
+    await setFlash(context, SECRET, withAction);
+
+    await expect(takeFlash(jar.cookies, SECRET)).resolves.toEqual(withAction);
+  });
+
+  it.each([
+    ['null action', null],
+    ['non-object action', 'reconnect'],
+    ['empty label', { label: '', href: 'https://auth.example.test/' }],
+    ['over-long label', { label: 'x'.repeat(101), href: '/' }],
+    ['non-string label', { label: 42, href: '/' }],
+    ['missing label', { href: '/' }],
+    ['empty href', { label: 'Reconnect', href: '' }],
+    ['over-long href', { label: 'Reconnect', href: `/${'x'.repeat(2048)}` }],
+    ['missing href', { label: 'Reconnect' }],
+  ])('drops flashes with a malformed action (%s)', async (_name, action) => {
+    const { jar, context } = flashContext();
+    await setFlash(context, SECRET, {
+      ...MESSAGE,
+      action: action as unknown as { label: string; href: string },
+    });
+
+    // setFlash stores anything; the read-time shape check rejects it, so a
+    // malformed action can never render as a link (or throw when read).
+    await expect(takeFlash(jar.cookies, SECRET)).resolves.toBeUndefined();
+  });
+
   it('drops well-signed payloads with an invalid shape', async () => {
     const { jar, context } = flashContext();
     await setFlash(context, SECRET, MESSAGE);

@@ -16,7 +16,7 @@ import {
   DeveloperValidationError,
 } from '@/lib/developer-form';
 import { DEVELOPER_TYPES } from '@/types';
-import { ISSUER } from '@/lib/oauth';
+import { buildGithubReconnectUrl } from '@/lib/oauth';
 import { CircleAlert, CircleCheck, Copy } from '@lucide/astro';
 import ConfirmDeleteDialog from '@/components/ConfirmDeleteDialog.astro';
 import { setFlash } from '@/lib/flash';
@@ -172,9 +172,10 @@ const fields = submitted ?? developer;
 // Sends the user to auth's /account page and back through our own OIDC login
 // so the ID token is re-issued with freshly linked github_orgs — granting the
 // org in GitHub settings alone never refreshes the snapshot served here.
-const reconnectUrl = `${ISSUER}/account?callbackURL=${encodeURIComponent(
-  `${Astro.url.origin}/auth/login?redirect=${encodeURIComponent('/account/developer')}`,
-)}`;
+const reconnectUrl = buildGithubReconnectUrl(
+  Astro.url.origin,
+  '/account/developer',
+);
 ---
 
 <Base title="Developer Profile — FOSSBilling Extensions">

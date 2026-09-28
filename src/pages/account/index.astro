@@ -10,7 +10,7 @@ import {
   getDeveloperByOwner,
   getExtensionsByOwner,
 } from '@/lib/extensions-data';
-import { ISSUER } from '@/lib/oauth';
+import { buildGithubReconnectUrl } from '@/lib/oauth';
 import type { PendingDeveloperClaim } from '@/lib/api/client';
 import { CircleAlert } from '@lucide/astro';
 import ProfileTrustBadge from '@/components/ProfileTrustBadge.astro';
@@ -87,14 +87,20 @@ const rawReverifyCooldownUntil = await takeReverifyCooldown(
 const reverifyCooldownUntil =
   rawReverifyCooldownUntil > Date.now() ? rawReverifyCooldownUntil : 0;
 
+// The refresh banner is a recovery action, not a standing CTA — show it
+// only on a stored mismatch or while a claim is pending and may hit
+// GITHUB_MISMATCH. (A rejected claim is terminal, so it doesn't qualify.)
+// Re-verify can't fix stale snapshots, only a re-link can.
+const showOrgRefreshBanner =
+  githubLinked &&
+  (developer?.github_org_verified === false || pendingClaim != null);
+
 // After linking GitHub, send the user back through our own OIDC login
 // (rather than stranding them on auth's own /account page) so the ID token
 // is re-issued with the freshly linked github_login/github_orgs claims and
 // upsertUser refreshes our local copy — otherwise the reconnect banner keeps
 // showing until the next unrelated login.
-const reconnectUrl = `${ISSUER}/account?callbackURL=${encodeURIComponent(
-  `${Astro.url.origin}/auth/login?redirect=${encodeURIComponent('/account')}`,
-)}`;
+const reconnectUrl = buildGithubReconnectUrl(Astro.url.origin, '/account');
 ---
 
 <Base title="Your Account — FOSSBilling Extensions">
@@ -149,25 +155,27 @@ const reconnectUrl = `${ISSUER}/account?callbackURL=${encodeURIComponent(
         </footer>
       </div>
     ) : (
-      <div class="alert">
-        <h2>GitHub organization access</h2>
-        <section>
-          Missing an organization when creating a developer profile or claim?
-          GitHub only sends the organizations granted to the FOSSBilling OAuth
-          App at sign-in time — granting access later in GitHub settings alone
-          does not refresh it here until you re-link.
-        </section>
-        <footer>
-          <a
-            href={reconnectUrl}
-            class="btn"
-            data-size="sm"
-            data-variant="outline"
-          >
-            Refresh GitHub organization access
-          </a>
-        </footer>
-      </div>
+      showOrgRefreshBanner && (
+        <div class="alert">
+          <h2>GitHub organization access</h2>
+          <section>
+            Missing an organization when creating a developer profile or claim?
+            GitHub only sends the organizations granted to the FOSSBilling OAuth
+            App at sign-in time — granting access later in GitHub settings alone
+            does not refresh it here until you re-link.
+          </section>
+          <footer>
+            <a
+              href={reconnectUrl}
+              class="btn"
+              data-size="sm"
+              data-variant="outline"
+            >
+              Refresh GitHub organization access
+            </a>
+          </footer>
+        </div>
+      )
     )}
 
     <!-- overflow-visible: basecoat's .card sets overflow-hidden (to clip a
