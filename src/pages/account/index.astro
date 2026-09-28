@@ -130,7 +130,7 @@ const reconnectUrl = `${ISSUER}/account?callbackURL=${encodeURIComponent(
       </div>
     </header>
 
-    {!githubLinked && (
+    {!githubLinked ? (
       <div class="alert">
         <h2>Reconnect GitHub</h2>
         <section>
@@ -145,6 +145,26 @@ const reconnectUrl = `${ISSUER}/account?callbackURL=${encodeURIComponent(
             data-variant="outline"
           >
             Reconnect GitHub
+          </a>
+        </footer>
+      </div>
+    ) : (
+      <div class="alert">
+        <h2>GitHub organization access</h2>
+        <section>
+          Missing an organization when creating a developer profile or claim?
+          GitHub only sends the organizations granted to the FOSSBilling OAuth
+          App at sign-in time — granting access later in GitHub settings alone
+          does not refresh it here until you re-link.
+        </section>
+        <footer>
+          <a
+            href={reconnectUrl}
+            class="btn"
+            data-size="sm"
+            data-variant="outline"
+          >
+            Refresh GitHub organization access
           </a>
         </footer>
       </div>
