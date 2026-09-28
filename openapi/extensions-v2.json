@@ -3,7 +3,7 @@
   "info": {
     "title": "FOSSBilling Extensions API (v2)",
     "version": "2.0.0",
-    "description": "x"
+    "description": "Self-service extension publishing, ownership, moderation, and public browsing. v1 (/extensions/v1) remains available for existing integrations."
   },
   "servers": [
     {
