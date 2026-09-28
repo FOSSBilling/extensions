@@ -87,12 +87,9 @@ const rawReverifyCooldownUntil = await takeReverifyCooldown(
 const reverifyCooldownUntil =
   rawReverifyCooldownUntil > Date.now() ? rawReverifyCooldownUntil : 0;
 
-// The linked-state "refresh org access" banner is a recovery action, not a
-// standing CTA: Re-verify re-checks against the already-synced snapshot, so
-// it can never fix stale input data — only a re-link can. Show the banner
-// only when there is a reason to act: the stored match says mismatch, or the
-// user is mid-flow with a claim that may hit GITHUB_MISMATCH. Healthy users
-// (and users with no developer profile and no claims) see no banner at all.
+// The refresh banner is a recovery action, not a standing CTA — show it
+// only on a stored mismatch or when a claim is mid-flow and may hit
+// GITHUB_MISMATCH. Re-verify can't fix stale snapshots, only a re-link can.
 const showOrgRefreshBanner =
   githubLinked &&
   (developer?.github_org_verified === false || displayClaim != null);

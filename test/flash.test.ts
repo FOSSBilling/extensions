@@ -158,8 +158,8 @@ describe('takeFlash', () => {
       action: { label: '', href: 'https://auth.example.test/' },
     });
 
-    // setFlash stores whatever the server passes; the shape check on read
-    // rejects it, so a malformed action can never render as a link.
+    // setFlash stores anything; the read-time shape check rejects it, so a
+    // malformed action can never render as a link.
     await expect(takeFlash(jar.cookies, SECRET)).resolves.toBeUndefined();
   });
 

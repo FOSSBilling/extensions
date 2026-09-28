@@ -76,12 +76,9 @@ export const POST: APIRoute = async (context) => {
   // actual mismatch, which is `false`. Conflating the two would show "no
   // longer matches" for a case that isn't a mismatch at all.
   //
-  // Re-verify only re-checks against the already-synced snapshot, so a
-  // mismatch it reports can't be fixed by retrying — only a re-link (which
-  // re-fetches org memberships from GitHub) can change the outcome. Link
-  // that action directly from the warning toast. Same round-trip as the
-  // account page's reconnect banner: back through our own OIDC login so the
-  // token is re-issued with fresh claims and upsertUser syncs them.
+  // A reported mismatch can't be fixed by retrying: re-verify only
+  // re-checks the already-synced snapshot, so link the re-link flow (which
+  // re-fetches org memberships) directly from the warning toast.
   const reconnectUrl = `${ISSUER}/account?callbackURL=${encodeURIComponent(
     `${context.url.origin}/auth/login?redirect=${encodeURIComponent('/account')}`,
   )}`;

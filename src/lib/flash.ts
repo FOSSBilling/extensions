@@ -57,24 +57,19 @@ function parseFlashPayload(
   ) {
     return null;
   }
-  // The toast renders action.href as a link, so validate it structurally
-  // (non-empty strings, capped length) — content stays server-controlled via
-  // the HMAC signature checked before this runs.
+  // The toast renders action.href as a link, so a malformed action must fail
+  // the shape check rather than render.
   const action = message.action;
-  const actionValid =
-    action === undefined ||
-    (typeof action.label === 'string' &&
-      action.label.length > 0 &&
-      action.label.length <= 100 &&
-      typeof action.href === 'string' &&
-      action.href.length > 0 &&
-      action.href.length <= 2048);
   if (
     (message.category !== undefined &&
       !['success', 'error', 'info', 'warning'].includes(message.category)) ||
     (message.description !== undefined &&
       typeof message.description !== 'string') ||
-    !actionValid
+    (action !== undefined &&
+      (typeof action.label !== 'string' ||
+        action.label.length === 0 ||
+        typeof action.href !== 'string' ||
+        action.href.length === 0))
   ) {
     return null;
   }
