@@ -16,6 +16,7 @@ import {
   DeveloperValidationError,
 } from '@/lib/developer-form';
 import { DEVELOPER_TYPES } from '@/types';
+import { ISSUER } from '@/lib/oauth';
 import { CircleAlert, CircleCheck, Copy } from '@lucide/astro';
 import ConfirmDeleteDialog from '@/components/ConfirmDeleteDialog.astro';
 import { setFlash } from '@/lib/flash';
@@ -77,6 +78,12 @@ let error: string | null = null;
 // unowned profile (e.g. a legacy extension author) — points the user at
 // the claim flow on that profile's public page instead of a dead end.
 let idTaken = false;
+// Set when the API reports GITHUB_MISMATCH: the id is a real GitHub org/user
+// the caller's linked identity doesn't currently evidence. Most often a stale
+// org snapshot — the user granted the org to the GitHub OAuth App after their
+// last sign-in, so auth still serves the old (fresh-but-incomplete) list and
+// plain re-login never re-fetches it. Points at the re-link flow below.
+let githubMismatch = false;
 let transferResult: DeveloperTransfer | null = null;
 // Falls back to the just-submitted values on a failed save, so a rejected
 // submission (e.g. duplicate id) doesn't blank the form and force retyping.
@@ -151,6 +158,9 @@ if (Astro.request.method === 'POST') {
         const conflicting = await getDeveloperById(env, submitted.id);
         idTaken = conflicting?.unclaimed === true;
       }
+      if (e instanceof ApiRequestError && e.code === 'GITHUB_MISMATCH') {
+        githubMismatch = true;
+      }
     }
   }
 }
@@ -158,6 +168,13 @@ if (Astro.request.method === 'POST') {
 // Form field values only — isEdit/preview/transfer sections below still key
 // off the real (saved) `developer`, not a failed, unsaved submission.
 const fields = submitted ?? developer;
+
+// Sends the user to auth's /account page and back through our own OIDC login
+// so the ID token is re-issued with freshly linked github_orgs — granting the
+// org in GitHub settings alone never refreshes the snapshot served here.
+const reconnectUrl = `${ISSUER}/account?callbackURL=${encodeURIComponent(
+  `${Astro.url.origin}/auth/login?redirect=${encodeURIComponent('/account/developer')}`,
+)}`;
 ---
 
 <Base title="Developer Profile — FOSSBilling Extensions">
@@ -238,6 +255,19 @@ const fields = submitted ?? developer;
                 the public profile page for "{submitted.id}"
               </a>{' '}
               and use the "Claim this profile" option.
+            </p>
+          )}
+          {githubMismatch && (
+            <p>
+              If you recently joined the organization or granted it access to
+              the FOSSBilling OAuth App in GitHub settings, that grant is not
+              picked up until you re-link here — re-logging in alone keeps the
+              old organization list.{' '}
+              <a href={reconnectUrl} class="underline">
+                Refresh GitHub organization access
+              </a>{' '}
+              (grant the organization on GitHub when asked), then try saving
+              again.
             </p>
           )}
         </section>
