@@ -29,22 +29,47 @@ const shareImageUrl = image ? new URL(image, Astro.site).href : undefined;
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <!-- Synced with the active theme by the init script below: a
+         media-based pair would follow the OS, not the stored toggle
+         choice. Hex approximations of --background; keep in sync with
+         src/styles/global.css. -->
+    <meta name="theme-color" content="#fafaf9" />
     <meta name="generator" content={Astro.generator} />
     <script is:inline>
       (() => {
+        const syncThemeColor = (dark) => {
+          const meta = document.querySelector('meta[name="theme-color"]');
+          if (meta) meta.content = dark ? '#0a0a0a' : '#fafaf9';
+        };
+
         try {
           const stored = localStorage.getItem('themeMode');
-          if (
-            stored
-              ? stored === 'dark'
-              : matchMedia('(prefers-color-scheme: dark)').matches
-          ) {
-            document.documentElement.classList.add('dark');
-          }
+          const dark = stored
+            ? stored === 'dark'
+            : matchMedia('(prefers-color-scheme: dark)').matches;
+          document.documentElement.classList.toggle('dark', dark);
+          syncThemeColor(dark);
+        } catch (_) {}
+
+        // Follow the OS while no explicit choice is stored, so a
+        // system theme flip applies without a reload. A stored
+        // choice (e.g. from the header toggle) always wins.
+        try {
+          const mq = matchMedia('(prefers-color-scheme: dark)');
+          const sync = (e) => {
+            try {
+              if (!localStorage.getItem('themeMode')) {
+                document.documentElement.classList.toggle('dark', e.matches);
+                syncThemeColor(e.matches);
+              }
+            } catch (_) {}
+          };
+          if (mq.addEventListener) mq.addEventListener('change', sync);
         } catch (_) {}
 
         const apply = (dark) => {
           document.documentElement.classList.toggle('dark', dark);
+          syncThemeColor(dark);
           try {
             localStorage.setItem('themeMode', dark ? 'dark' : 'light');
           } catch (_) {}
@@ -103,7 +128,7 @@ const shareImageUrl = image ? new URL(image, Astro.site).href : undefined;
             <LogoLight class="h-8 w-auto dark:hidden" />
             <LogoDark class="h-8 w-auto hidden dark:block" />
           </a>
-          <span class="ml-3 pl-3 border-s text-sm font-semibold uppercase tracking-wider">
+          <span class="ml-3 pl-3 border-s dark:border-white/20 text-sm font-semibold uppercase tracking-wider">
             Extensions
           </span>
           <span class="ml-2 badge" data-variant="secondary">
