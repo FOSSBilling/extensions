@@ -29,30 +29,26 @@ const shareImageUrl = image ? new URL(image, Astro.site).href : undefined;
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <!-- Hex approximations of the --background token (warm paper light /
-         near-black dark). Keep in sync with src/styles/global.css. -->
-    <meta
-      name="theme-color"
-      media="(prefers-color-scheme: light)"
-      content="#fafaf9"
-    />
-    <meta
-      name="theme-color"
-      media="(prefers-color-scheme: dark)"
-      content="#0a0a0a"
-    />
+    <!-- Synced with the active theme by the init script below: a
+         media-based pair would follow the OS, not the stored toggle
+         choice. Hex approximations of --background; keep in sync with
+         src/styles/global.css. -->
+    <meta name="theme-color" content="#fafaf9" />
     <meta name="generator" content={Astro.generator} />
     <script is:inline>
       (() => {
+        const syncThemeColor = (dark) => {
+          const meta = document.querySelector('meta[name="theme-color"]');
+          if (meta) meta.content = dark ? '#0a0a0a' : '#fafaf9';
+        };
+
         try {
           const stored = localStorage.getItem('themeMode');
-          if (
-            stored
-              ? stored === 'dark'
-              : matchMedia('(prefers-color-scheme: dark)').matches
-          ) {
-            document.documentElement.classList.add('dark');
-          }
+          const dark = stored
+            ? stored === 'dark'
+            : matchMedia('(prefers-color-scheme: dark)').matches;
+          document.documentElement.classList.toggle('dark', dark);
+          syncThemeColor(dark);
         } catch (_) {}
 
         // Follow the OS while no explicit choice is stored, so a
@@ -64,6 +60,7 @@ const shareImageUrl = image ? new URL(image, Astro.site).href : undefined;
             try {
               if (!localStorage.getItem('themeMode')) {
                 document.documentElement.classList.toggle('dark', e.matches);
+                syncThemeColor(e.matches);
               }
             } catch (_) {}
           };
@@ -72,6 +69,7 @@ const shareImageUrl = image ? new URL(image, Astro.site).href : undefined;
 
         const apply = (dark) => {
           document.documentElement.classList.toggle('dark', dark);
+          syncThemeColor(dark);
           try {
             localStorage.setItem('themeMode', dark ? 'dark' : 'light');
           } catch (_) {}
