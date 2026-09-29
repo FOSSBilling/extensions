@@ -37,6 +37,9 @@ try {
   ) {
     detailError = getApiErrorMessage(error);
     Astro.response.status = error.status === 429 ? 429 : 503;
+    // Opt out of the /extension/[id] route rule: cache headers are stamped
+    // after render, so without this the error card stays CDN-cached to maxAge.
+    Astro.cache.set(false);
     Astro.response.headers.set('Cache-Control', 'no-store');
   } else {
     throw error;
