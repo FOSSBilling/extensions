@@ -10,7 +10,14 @@ const { ext } = Astro.props;
 const iconUrl = getOptimizedImageUrl(ext.icon_url, 'icon');
 ---
 
-<a href={`/extension/${ext.id}`} class="block" data-extension-id={ext.id}>
+<!-- Grids render dozens of cards, so hover-prefetching fires a costly SSR
+     render per card. "tap" prefetches only on intent-to-click. -->
+<a
+  href={`/extension/${ext.id}`}
+  class="block"
+  data-extension-id={ext.id}
+  data-astro-prefetch="tap"
+>
   <article class="card hover:bg-muted/50 transition-colors h-full">
     <section class="flex items-start space-x-4">
       <div class="p-2 bg-primary/10 rounded-lg w-14 h-14 flex items-center justify-center shrink-0">

@@ -32,9 +32,10 @@ export default defineConfig({
     '/404': { maxAge: 60 },
   },
   // Hover-prefetch same-origin links so catalogue navigation feels instant;
-  // catalogue and extension pages come from the CDN cache, while surfaces
-  // that render per-hover (developer pages — uncached by design — and OAuth
-  // links) opt out per-link via data-astro-prefetch="false".
+  // catalogue and extension pages come from the CDN cache, while developer
+  // pages (uncached by design) and OAuth links opt out via
+  // data-astro-prefetch="false" and extension cards (dozens of SSR renders
+  // per grid) via data-astro-prefetch="tap".
   prefetch: { prefetchAll: true },
   // Image URLs are served through src/pages/images/[variant].ts. Keep Astro's
   // built-in asset image service as passthrough because pages render ordinary

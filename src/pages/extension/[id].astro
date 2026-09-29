@@ -5,7 +5,11 @@ import DetailsCard from '@/components/DetailsCard.astro';
 import ReleasesCard from '@/components/ReleasesCard.astro';
 import Overview from '@/components/Overview.astro';
 import ReleasesTable from '@/components/ReleasesTable.astro';
-import { ApiRequestError, getExtensionById } from '@/lib/api/client';
+import {
+  ApiRequestError,
+  getApiErrorMessage,
+  getExtensionById,
+} from '@/lib/api/client';
 
 const env = Astro.locals.env;
 const { id } = Astro.params;
@@ -14,34 +18,53 @@ if (!id) {
   return Astro.rewrite('/404');
 }
 
+// Transient upstream failures render a retryable error instead of throwing:
+// prefetch fetches this route directly, so a throw surfaces as console 503s.
 let ext;
+let detailError: string | null = null;
 try {
   ext = await getExtensionById(env, id);
 } catch (error) {
   if (error instanceof ApiRequestError && error.status === 404) {
     return Astro.rewrite('/404');
   }
-  throw error;
+  if (
+    error instanceof ApiRequestError &&
+    (error.status === 429 ||
+      error.status >= 500 ||
+      error.code === 'RATE_LIMITED' ||
+      error.code === 'SERVICE_UNAVAILABLE')
+  ) {
+    detailError = getApiErrorMessage(error);
+    Astro.response.status = error.status === 429 ? 429 : 503;
+    // Opt out of the /extension/[id] route rule: cache headers are stamped
+    // after render, so without this the error card stays CDN-cached to maxAge.
+    Astro.cache.set(false);
+    Astro.response.headers.set('Cache-Control', 'no-store');
+  } else {
+    throw error;
+  }
 }
 
-if (!ext) {
+if (!ext && !detailError) {
   return Astro.rewrite('/404');
 }
 
 // Truncate on code points — UTF-16 slice() can split a surrogate pair and
 // leave a lone surrogate in the shared metadata.
-const descriptionCodePoints = [...ext.description];
-const shareDescription =
-  descriptionCodePoints.length > 160
+const descriptionCodePoints = ext ? [...ext.description] : [];
+const shareDescription = ext
+  ? descriptionCodePoints.length > 160
     ? `${descriptionCodePoints.slice(0, 157).join('')}...`
-    : ext.description;
+    : ext.description
+  : (detailError ?? 'Extension details are temporarily unavailable.');
 // og:image uses the original icon rather than the 64x64 icon variant:
 // social scrapers want the largest available image for large-card previews.
 // Stored URLs arrive unvalidated from upstream, and Base builds the share
 // URL with `new URL(image, Astro.site)` — which throws on malformed input
 // and would 500 the whole page — so only pass cleanly-parseable URLs.
 let shareImage: string | undefined;
-if (ext.icon_url) {
+if (ext?.icon_url) {
   try {
     shareImage = new URL(ext.icon_url).href;
   } catch {
@@ -51,73 +74,92 @@ if (ext.icon_url) {
 ---
 
 <Base
-  title={`${ext.name} | FOSSBilling Extensions`}
+  title={
+    ext
+      ? `${ext.name} | FOSSBilling Extensions`
+      : 'Temporarily Unavailable | FOSSBilling Extensions'
+  }
   description={shareDescription}
   image={shareImage}
 >
-  <ExtensionHeader ext={ext} />
-
-  <div class="tabs mt-6" id="extension-tabs">
-    <nav
-      role="tablist"
-      aria-orientation="horizontal"
-      aria-label="Extension tabs"
+  {detailError || !ext ? (
+    <div
+      class="card flex min-h-32 flex-col items-center justify-center px-6 py-12 text-center"
+      role="alert"
     >
-      <button
-        type="button"
-        role="tab"
-        id="overview-tab"
-        aria-selected="true"
-        aria-controls="overview-panel"
-        tabindex="0"
-      >
-        Overview
-      </button>
-      <button
-        type="button"
-        role="tab"
-        id="release-history-tab"
-        aria-selected="false"
-        aria-controls="release-history-panel"
-        tabindex="0"
-      >
-        Release History
-      </button>
-    </nav>
-
-    <div class="grid gap-6 lg:grid-cols-6 mt-6">
-      <div class="lg:col-span-4">
-        <article class="card h-full">
-          <div class="h-full">
-            <div
-              role="tabpanel"
-              id="overview-panel"
-              class="p-6"
-              aria-labelledby="overview-tab"
-              tabindex="-1"
-              aria-selected="true"
-            >
-              <Overview ext={ext} />
-            </div>
-            <div
-              role="tabpanel"
-              id="release-history-panel"
-              class="p-6"
-              aria-labelledby="release-history-tab"
-              tabindex="-1"
-              aria-selected="false"
-              hidden
-            >
-              <ReleasesTable ext={ext} />
-            </div>
-          </div>
-        </article>
-      </div>
-
-      <div class="lg:col-span-2 space-y-6">
-        <DetailsCard ext={ext} />
-        <ReleasesCard ext={ext} />
-      </div>
+      <h2 class="font-semibold">Extension Temporarily Unavailable</h2>
+      <p class="text-muted-foreground mt-2">{detailError}</p>
+      <a href={Astro.url.pathname} class="btn mt-4">
+        Try Again
+      </a>
     </div>
-  </div>
+  ) : (
+    <>
+      <ExtensionHeader ext={ext} />
+
+      <div class="tabs mt-6" id="extension-tabs">
+        <nav
+          role="tablist"
+          aria-orientation="horizontal"
+          aria-label="Extension tabs"
+        >
+          <button
+            type="button"
+            role="tab"
+            id="overview-tab"
+            aria-selected="true"
+            aria-controls="overview-panel"
+            tabindex="0"
+          >
+            Overview
+          </button>
+          <button
+            type="button"
+            role="tab"
+            id="release-history-tab"
+            aria-selected="false"
+            aria-controls="release-history-panel"
+            tabindex="0"
+          >
+            Release History
+          </button>
+        </nav>
+
+        <div class="grid gap-6 lg:grid-cols-6 mt-6">
+          <div class="lg:col-span-4">
+            <article class="card h-full">
+              <div class="h-full">
+                <div
+                  role="tabpanel"
+                  id="overview-panel"
+                  class="p-6"
+                  aria-labelledby="overview-tab"
+                  tabindex="-1"
+                  aria-selected="true"
+                >
+                  <Overview ext={ext} />
+                </div>
+                <div
+                  role="tabpanel"
+                  id="release-history-panel"
+                  class="p-6"
+                  aria-labelledby="release-history-tab"
+                  tabindex="-1"
+                  aria-selected="false"
+                  hidden
+                >
+                  <ReleasesTable ext={ext} />
+                </div>
+              </div>
+            </article>
+          </div>
+
+          <div class="lg:col-span-2 space-y-6">
+            <DetailsCard ext={ext} />
+            <ReleasesCard ext={ext} />
+          </div>
+        </div>
+      </div>
+    </>
+  )}
 </Base>

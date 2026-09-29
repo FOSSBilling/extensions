@@ -113,6 +113,8 @@ function makeCard(item: CatalogueCardItem): HTMLAnchorElement {
   link.href = `/extension/${encodeURIComponent(item.id)}`;
   link.className = 'block';
   link.dataset.extensionId = item.id;
+  // Match ExtensionCard.astro: tap-prefetch avoids the hover storm.
+  link.setAttribute('data-astro-prefetch', 'tap');
 
   const article = document.createElement('article');
   article.className = 'card hover:bg-muted/50 transition-colors h-full';
