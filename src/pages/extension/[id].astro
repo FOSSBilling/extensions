@@ -19,7 +19,7 @@ if (!id) {
 }
 
 // Transient upstream failures render a retryable error instead of throwing:
-// prefetch fetches this route directly, so a throw surfaces as console 503s.
+// a throw would surface as a bare 500 during real navigation.
 let ext;
 let detailError: string | null = null;
 try {

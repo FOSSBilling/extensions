@@ -10,13 +10,14 @@ const { ext } = Astro.props;
 const iconUrl = getOptimizedImageUrl(ext.icon_url, 'icon');
 ---
 
-<!-- Grids render dozens of cards, so hover-prefetching fires a costly SSR
-     render per card. "tap" prefetches only on intent-to-click. -->
+<!-- Prefetch is disabled: Cloudflare's edge refuses Sec-Purpose: prefetch
+     requests to Worker routes with an empty 503 (cf-speculation-refused),
+     so any prefetch strategy only produces console errors, never speed. -->
 <a
   href={`/extension/${ext.id}`}
   class="block"
   data-extension-id={ext.id}
-  data-astro-prefetch="tap"
+  data-astro-prefetch="false"
 >
   <article class="card hover:bg-muted/50 transition-colors h-full">
     <section class="flex items-start space-x-4">
