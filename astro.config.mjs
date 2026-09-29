@@ -31,12 +31,12 @@ export default defineConfig({
     '/extension/[id]': { maxAge: 300, swr: 120, tags: ['catalogue'] },
     '/404': { maxAge: 60 },
   },
-  // Hover-prefetch same-origin links so catalogue navigation feels instant;
-  // catalogue and extension pages come from the CDN cache, while developer
-  // pages (uncached by design) and OAuth links opt out via
-  // data-astro-prefetch="false" and extension cards (dozens of SSR renders
-  // per grid) via data-astro-prefetch="tap".
-  prefetch: { prefetchAll: true },
+  // Prefetch is disabled entirely: Cloudflare's edge refuses
+  // Sec-Purpose: prefetch requests to Worker routes with an empty 503
+  // (cf-speculation-refused), so prefetching can never speed up navigation
+  // here — it only spams the console. Links carry data-astro-prefetch="false"
+  // explicitly so the intent survives any future re-enabling.
+  prefetch: false,
   // Image URLs are served through src/pages/images/[variant].ts. Keep Astro's
   // built-in asset image service as passthrough because pages render ordinary
   // <img> elements and the custom route owns the fixed image variants.
