@@ -29,6 +29,18 @@ const shareImageUrl = image ? new URL(image, Astro.site).href : undefined;
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <!-- Hex approximations of the --background token (warm paper light /
+         near-black dark). Keep in sync with src/styles/global.css. -->
+    <meta
+      name="theme-color"
+      media="(prefers-color-scheme: light)"
+      content="#fafaf9"
+    />
+    <meta
+      name="theme-color"
+      media="(prefers-color-scheme: dark)"
+      content="#0a0a0a"
+    />
     <meta name="generator" content={Astro.generator} />
     <script is:inline>
       (() => {
@@ -41,6 +53,21 @@ const shareImageUrl = image ? new URL(image, Astro.site).href : undefined;
           ) {
             document.documentElement.classList.add('dark');
           }
+        } catch (_) {}
+
+        // Follow the OS while no explicit choice is stored, so a
+        // system theme flip applies without a reload. A stored
+        // choice (e.g. from the header toggle) always wins.
+        try {
+          const mq = matchMedia('(prefers-color-scheme: dark)');
+          const sync = (e) => {
+            try {
+              if (!localStorage.getItem('themeMode')) {
+                document.documentElement.classList.toggle('dark', e.matches);
+              }
+            } catch (_) {}
+          };
+          if (mq.addEventListener) mq.addEventListener('change', sync);
         } catch (_) {}
 
         const apply = (dark) => {
@@ -103,7 +130,7 @@ const shareImageUrl = image ? new URL(image, Astro.site).href : undefined;
             <LogoLight class="h-8 w-auto dark:hidden" />
             <LogoDark class="h-8 w-auto hidden dark:block" />
           </a>
-          <span class="ml-3 pl-3 border-s text-sm font-semibold uppercase tracking-wider">
+          <span class="ml-3 pl-3 border-s dark:border-white/20 text-sm font-semibold uppercase tracking-wider">
             Extensions
           </span>
           <span class="ml-2 badge" data-variant="secondary">
