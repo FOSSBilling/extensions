@@ -97,6 +97,12 @@ pages against a real database.
 
 Icons and avatars from the known FOSSBilling, GitHub, GitLab, Google, and
 Gravatar origins are resized through the `/images/{variant}` route on Cloudflare.
+The server issues source-and-variant HMAC signatures using `SESSION_SECRET`;
+unsigned or modified transform URLs are rejected before any fetch or cache access.
+Catalogue API responses include `optimized_icon_url` for browser-rendered cards.
+Cache keys contain only the canonical source, variant, and negotiated format.
+Rotating `SESSION_SECRET` invalidates previously issued image URLs, so purge
+cached catalogue pages when rotating it. Custom origins remain direct browser requests.
 Other valid HTTP(S) image URLs remain direct browser requests, so custom-hosted
 images continue to work without turning the route into an arbitrary fetch proxy.
 During local development, allowlisted sources are redirected to the browser

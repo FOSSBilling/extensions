@@ -15,14 +15,18 @@ import type { PendingDeveloperClaim } from '@/lib/api/client';
 import { CircleAlert } from '@lucide/astro';
 import ProfileTrustBadge from '@/components/ProfileTrustBadge.astro';
 import DeveloperAvatar from '@/components/DeveloperAvatar.astro';
-import { getOptimizedImageUrl } from '@/lib/image-url';
+import { getSignedImageUrl } from '@/lib/signed-image-url';
 import { takeReverifyCooldown } from '@/lib/reverify-cooldown';
 
 const env = Astro.locals.env;
 const guard = await requireUser(Astro, env);
 if (guard instanceof Response) return guard;
 const user = guard;
-const userPictureUrl = getOptimizedImageUrl(user.picture, 'avatar');
+const userPictureUrl = await getSignedImageUrl(
+  user.picture,
+  'avatar',
+  env.sessionSecret,
+);
 
 const moderator = user.account.is_moderator;
 const githubLinked = user.account.github_linked;
