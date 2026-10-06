@@ -1,44 +1,36 @@
 import type { APIRoute } from 'astro';
 import { requireModerator } from '@/lib/auth-guard';
-import { createApiClient, ApiRequestError } from '@/lib/api/client';
+import { createApiClient } from '@/lib/api/client';
+import { formAction } from '@/lib/form-action';
 import { formFlag, formString } from '@/lib/form';
 import { purgeCatalogue } from '@/lib/cache-invalidate';
 import { setFlash } from '@/lib/flash';
 
-export const POST: APIRoute = async (context) => {
-  const env = context.locals.env;
-  const guard = await requireModerator(context, env);
-  if (guard instanceof Response) return guard;
-  const user = guard;
-
-  let form: FormData;
-  try {
-    form = await context.request.formData();
-  } catch {
-    await setFlash(context, env.sessionSecret, {
-      category: 'error',
-      title: 'Malformed request.',
-    });
-    return context.redirect('/account/admin/extensions');
-  }
-
-  const id = formString(form, 'id');
-  const reason = formString(form, 'reason');
-  if (!id || !reason) {
-    await setFlash(context, env.sessionSecret, {
-      category: 'error',
-      title: 'An extension id and a reason are both required to delist.',
-    });
-    return context.redirect('/account/admin/extensions');
-  }
-  const notify = formFlag(form, 'notify');
-
-  const api = createApiClient(env, user.sub);
-  try {
-    const result = await api.delistExtension(id, reason, notify);
+export const POST: APIRoute = formAction<{
+  id: string;
+  reason: string;
+  notify: boolean;
+}>({
+  guard: requireModerator,
+  redirect: '/account/admin/extensions',
+  fallbackError: 'Unable to delist extension.',
+  parse: (form) => {
+    const id = formString(form, 'id');
+    const reason = formString(form, 'reason');
+    if (!id || !reason) {
+      return 'An extension id and a reason are both required to delist.';
+    }
+    return { id, reason, notify: formFlag(form, 'notify') };
+  },
+  run: async ({ context, env, user, input }) => {
+    const result = await createApiClient(env, user.sub).delistExtension(
+      input.id,
+      input.reason,
+      input.notify,
+    );
     purgeCatalogue(context);
     let description = 'The author has been emailed.';
-    if (!notify) {
+    if (!input.notify) {
       description = 'The author was not emailed, as requested.';
     } else if (!result.notified) {
       description =
@@ -46,17 +38,8 @@ export const POST: APIRoute = async (context) => {
     }
     await setFlash(context, env.sessionSecret, {
       category: 'success',
-      title: `"${id}" removed from the catalogue.`,
+      title: `"${input.id}" removed from the catalogue.`,
       description,
     });
-  } catch (e) {
-    const message =
-      e instanceof ApiRequestError ? e.message : 'Unable to delist extension.';
-    await setFlash(context, env.sessionSecret, {
-      category: 'error',
-      title: message,
-    });
-  }
-
-  return context.redirect('/account/admin/extensions');
-};
+  },
+});

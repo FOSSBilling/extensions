@@ -1,0 +1,68 @@
+---
+import ExtensionCard from './ExtensionCard.astro';
+import type { ExtensionListResponse } from '@/lib/api/client';
+
+// The server-rendered catalogue skeleton that extension-catalogue.ts wires:
+// the grid, the empty state, and the load-more controls it drives. Shared by
+// the directory index and developer profiles so the data attributes the
+// script selects on can't drift between the two pages.
+interface Props {
+  extensions: ExtensionListResponse['result'];
+  // First page's pagination envelope; without a next cursor the controls
+  // render the "all loaded" state.
+  pagination?: ExtensionListResponse['pagination'];
+  emptyMessage: string;
+  // The directory index renders its empty state as a styled card; developer
+  // profiles use plain text.
+  emptyAsCard?: boolean;
+}
+
+const { extensions, pagination, emptyMessage, emptyAsCard } = Astro.props;
+const hasNextPage = Boolean(
+  pagination?.has_more &&
+  pagination.next_cursor !== null &&
+  pagination.next_cursor.length > 0,
+);
+---
+
+<div
+  data-extension-grid
+  class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+>
+  {extensions.map((ext) => (
+    <ExtensionCard ext={ext} />
+  ))}
+</div>
+
+{extensions.length === 0 &&
+  (emptyAsCard ? (
+    <p
+      class="card flex min-h-32 items-center justify-center px-6 py-12 text-center text-muted-foreground"
+      data-empty-catalogue
+    >
+      {emptyMessage}
+    </p>
+  ) : (
+    <p class="text-sm text-muted-foreground">{emptyMessage}</p>
+  ))}
+
+<div class="mt-8 flex flex-col items-center gap-3">
+  {hasNextPage ? (
+    <button
+      type="button"
+      class="btn"
+      data-variant="outline"
+      data-load-more
+      data-next-cursor={pagination?.next_cursor}
+    >
+      Load more extensions
+    </button>
+  ) : extensions.length > 0 ? (
+    <p class="text-sm text-muted-foreground">All extensions loaded.</p>
+  ) : null}
+  <p
+    data-catalogue-status
+    class="text-sm text-muted-foreground"
+    aria-live="polite"
+  />
+</div>

@@ -1,7 +1,7 @@
 ---
 import Base from '../../layouts/Base.astro';
 import { requireUser } from '@/lib/auth-guard';
-import { ApiRequestError } from '@/lib/api/client';
+import { ApiRequestError, getApiErrorMessage } from '@/lib/api/client';
 import {
   getDeveloperByOwner,
   getExtensionsByOwner,
@@ -39,7 +39,7 @@ if (Astro.request.method === 'POST' && extensions.length === 0) {
   } catch (e) {
     error =
       e instanceof ApiRequestError
-        ? e.message
+        ? getApiErrorMessage(e)
         : 'Unable to delete your account. Please try again.';
   }
 }

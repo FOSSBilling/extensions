@@ -1,57 +1,40 @@
 import type { APIRoute } from 'astro';
 import { requireModerator } from '@/lib/auth-guard';
-import { createApiClient, ApiRequestError } from '@/lib/api/client';
+import { createApiClient } from '@/lib/api/client';
+import { formAction } from '@/lib/form-action';
 import { formFlag, formString } from '@/lib/form';
 import { purgeCatalogue } from '@/lib/cache-invalidate';
 import { setFlash } from '@/lib/flash';
 
-export const POST: APIRoute = async (context) => {
-  const env = context.locals.env;
-  const guard = await requireModerator(context, env);
-  if (guard instanceof Response) return guard;
-  const user = guard;
+export const POST: APIRoute = formAction<{
+  expectedRevision: number;
+  notify: boolean;
+}>({
+  guard: requireModerator,
+  redirect: '/account/admin/developers',
+  fallbackError: 'Unable to approve profile.',
+  parse: (form) => {
+    const expectedRevision = Number(formString(form, 'expected_revision'));
+    if (!Number.isInteger(expectedRevision) || expectedRevision < 1) {
+      return 'Missing or invalid profile revision.';
+    }
+    return { expectedRevision, notify: formFlag(form, 'notify') };
+  },
+  run: async ({ context, env, user, input }) => {
+    const { id } = context.params;
+    if (!id) return '/account/admin/developers';
 
-  const { id } = context.params;
-  if (!id) return context.redirect('/account/admin/developers');
-
-  let form: FormData;
-  try {
-    form = await context.request.formData();
-  } catch {
-    await setFlash(context, env.sessionSecret, {
-      category: 'error',
-      title: 'Malformed request.',
-    });
-    return context.redirect('/account/admin/developers');
-  }
-  const expectedRevision = Number(formString(form, 'expected_revision'));
-  if (!Number.isInteger(expectedRevision) || expectedRevision < 1) {
-    await setFlash(context, env.sessionSecret, {
-      category: 'error',
-      title: 'Missing or invalid profile revision.',
-    });
-    return context.redirect('/account/admin/developers');
-  }
-
-  const api = createApiClient(env, user.sub);
-  const notify = formFlag(form, 'notify');
-  try {
-    const result = await api.approveDeveloper(id, expectedRevision, notify);
+    const result = await createApiClient(env, user.sub).approveDeveloper(
+      id,
+      input.expectedRevision,
+      input.notify,
+    );
     purgeCatalogue(context);
-    if (notify && !result.notified) {
+    if (input.notify && !result.notified) {
       await setFlash(context, env.sessionSecret, {
         category: 'warning',
         title: 'Profile approved, but the owner could not be emailed.',
       });
     }
-  } catch (e) {
-    const message =
-      e instanceof ApiRequestError ? e.message : 'Unable to approve profile.';
-    await setFlash(context, env.sessionSecret, {
-      category: 'error',
-      title: message,
-    });
-  }
-
-  return context.redirect('/account/admin/developers');
-};
+  },
+});

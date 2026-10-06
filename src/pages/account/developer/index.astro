@@ -103,7 +103,7 @@ if (Astro.request.method === 'POST') {
     } catch (e) {
       error =
         e instanceof ApiRequestError
-          ? e.message
+          ? getApiErrorMessage(e)
           : 'Unable to create a transfer link. Please try again.';
     }
   } else if (form.get('intent') === 'delete' && developer) {
@@ -119,7 +119,7 @@ if (Astro.request.method === 'POST') {
       } catch (e) {
         error =
           e instanceof ApiRequestError
-            ? e.message
+            ? getApiErrorMessage(e)
             : 'Unable to delete your developer profile. Please try again.';
       }
     }

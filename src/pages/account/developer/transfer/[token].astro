@@ -1,7 +1,11 @@
 ---
 import Base from '../../../../layouts/Base.astro';
 import { requireUser } from '@/lib/auth-guard';
-import { createApiClient, ApiRequestError } from '@/lib/api/client';
+import {
+  createApiClient,
+  ApiRequestError,
+  getApiErrorMessage,
+} from '@/lib/api/client';
 import { CircleAlert } from '@lucide/astro';
 import { setFlash } from '@/lib/flash';
 
@@ -29,7 +33,7 @@ if (Astro.request.method === 'POST') {
   } catch (e) {
     error =
       e instanceof ApiRequestError
-        ? e.message
+        ? getApiErrorMessage(e)
         : 'Unable to accept this transfer. Please try again.';
   }
 }

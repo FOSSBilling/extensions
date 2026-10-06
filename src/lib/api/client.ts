@@ -8,7 +8,6 @@ import {
   getDevelopersMe,
   getExtensions,
   getExtensionsById,
-  getExtensionsByIdRevisions,
   getModerationCounts,
   getRevisions,
   getUsersMe,
@@ -25,7 +24,6 @@ import {
   postExtensions,
   postExtensionsByIdDelist,
   postExtensionsByIdModeratorCorrect,
-  postExtensionsByIdRelist,
   postExtensionsByIdRevisionsByRevisionIdApprove,
   postExtensionsByIdRevisionsByRevisionIdReject,
   deleteUsersMe,
@@ -43,8 +41,6 @@ import {
   type ExtensionListItem,
   type ExtensionRevision,
   type ExtensionUpdate,
-  type GetExtensionsByIdRevisionsData,
-  type GetExtensionsByIdRevisionsResponse,
   type GetExtensionsData,
   type GetModerationCountsResponse,
   type GetRevisionsData,
@@ -67,38 +63,28 @@ import { dataCacheKey, cachedEdgeRead } from '../cache';
 import { mintBearerAssertion } from '../assertion';
 import type { ApplicationEnv } from '../runtime';
 
-export const DEFAULT_API_PAGE_LIMIT = 50;
-export const MIN_API_PAGE_LIMIT = 1;
-export const MAX_API_PAGE_LIMIT = 100;
+const DEFAULT_API_PAGE_LIMIT = 50;
+const MIN_API_PAGE_LIMIT = 1;
+const MAX_API_PAGE_LIMIT = 100;
 
 type ExtensionListQuery = NonNullable<GetExtensionsData['query']>;
-type RevisionHistoryQuery = NonNullable<
-  GetExtensionsByIdRevisionsData['query']
->;
 type RevisionQueueQuery = NonNullable<GetRevisionsData['query']>;
+type ListFilters = Pick<
+  ExtensionListQuery,
+  'type' | 'developer_id' | 'status' | 'q' | 'limit' | 'cursor'
+>;
 
 export type ExtensionCatalogueFilters = Pick<
   ExtensionListQuery,
   'type' | 'developer_id' | 'limit' | 'cursor'
 >;
 
-export type ExtensionMineFilters = Pick<
-  ExtensionListQuery,
-  'type' | 'limit' | 'cursor'
->;
+type ExtensionMineFilters = Pick<ListFilters, 'type' | 'limit' | 'cursor'>;
 
-export type RevisionHistoryOptions = Pick<
-  RevisionHistoryQuery,
-  'cursor' | 'limit'
->;
+type ModerationQueueOptions = Pick<RevisionQueueQuery, 'cursor' | 'limit'>;
 
-export type ModerationQueueOptions = Pick<
-  RevisionQueueQuery,
-  'cursor' | 'limit'
->;
-
-export type ModerationExtensionFilters = Pick<
-  ExtensionListQuery,
+type ModerationExtensionFilters = Pick<
+  ListFilters,
   'status' | 'type' | 'q' | 'limit' | 'cursor'
 >;
 
@@ -107,7 +93,6 @@ export type ModerationExtensionStatus = Exclude<
   undefined
 >;
 
-export type RevisionHistoryPage = GetExtensionsByIdRevisionsResponse;
 export type ModerationQueuePage = GetRevisionsResponses[200];
 export type DeveloperProfileInput = NonNullable<PutDevelopersMeData['body']>;
 export type RevisionStatus = Exclude<RevisionQueueQuery['status'], undefined>;
@@ -127,8 +112,6 @@ export interface OwnedExtensionListResponse {
 }
 
 export type AccountUser = User;
-export type IdentitySyncInput = UserIdentityInput;
-export type OwnedDeveloper = OwnedDeveloperProfile;
 
 export type {
   Developer,
@@ -187,41 +170,35 @@ export function clampApiPageLimit(limit?: number): number {
   );
 }
 
-export const clampExtensionPageLimit = clampApiPageLimit;
-
-// The cursor-paginated moderator lists (developers, claims, history) cap a
-// single request at 100 rows. The admin surfaces consume whole lists (tab
-// counts, server-side substring search), so the wrappers walk every page
+// Cursor-paginated list endpoints cap a single request at 100 rows. Some
+// surfaces consume whole lists (admin tab counts, server-side substring
+// search, an owner's full set of extensions), so the walks fetch every page
 // with the opaque cursor and concatenate.
 const MODERATOR_LIST_PAGE_LIMIT = 100;
 
-async function fetchWholeList<T>(
+export async function paginateAll<T>(
   fetchPage: (
     cursor: string | undefined,
     limit: number,
-  ) => Promise<{
-    items: T[];
-    nextCursor: string | null;
-    hasMore: boolean;
-  }>,
+  ) => Promise<{ result: T[]; pagination: Pagination }>,
 ): Promise<T[]> {
   const items: T[] = [];
   let cursor: string | undefined;
   for (;;) {
-    const result = await fetchPage(cursor, MODERATOR_LIST_PAGE_LIMIT);
-    items.push(...result.items);
-    if (!result.hasMore) {
+    const page = await fetchPage(cursor, MODERATOR_LIST_PAGE_LIMIT);
+    items.push(...page.result);
+    if (!page.pagination.has_more) {
       return items;
     }
     // Termination is the API reporting has_more=false. The only runaway a
     // client can detect is a page claiming more data but returning no rows
     // or no cursor: without this guard that loop never ends.
-    if (result.items.length === 0 || !result.nextCursor) {
+    if (page.result.length === 0 || !page.pagination.next_cursor) {
       throw new Error(
         'The API reported more pages but returned no rows or cursor for this one.',
       );
     }
-    cursor = result.nextCursor;
+    cursor = page.pagination.next_cursor;
   }
 }
 
@@ -289,9 +266,35 @@ async function unwrap<T>(result: {
   throw apiErrorFrom(result.error, result.response?.status);
 }
 
-function pageQuery(
-  options: RevisionHistoryOptions | ModerationQueueOptions = {},
-): { limit: number; cursor?: string } {
+// Standard facade call: perform an SDK request, normalize its errors, and
+// return the body's `result` field.
+async function callResult<T>(
+  request: Promise<{
+    data?: { result: T };
+    error?: unknown;
+    response?: Response;
+  }>,
+): Promise<T> {
+  return (await unwrap(await request)).result;
+}
+
+// Like callResult, but keeps the pagination envelope that list reads return
+// alongside their rows.
+async function callPage<T>(
+  request: Promise<{
+    data?: { result: T[]; pagination: Pagination };
+    error?: unknown;
+    response?: Response;
+  }>,
+): Promise<{ result: T[]; pagination: Pagination }> {
+  const page = await unwrap(await request);
+  return { result: page.result, pagination: page.pagination };
+}
+
+function pageQuery(options: ModerationQueueOptions = {}): {
+  limit: number;
+  cursor?: string;
+} {
   const query: { limit: number; cursor?: string } = {
     limit: clampApiPageLimit(options.limit),
   };
@@ -323,11 +326,16 @@ function requireOwnedExtension(
   return result;
 }
 
-function extensionQuery(
-  filters: ExtensionCatalogueFilters = {},
+// Builds the query for the role-aware extension list reads. `scope` selects
+// the projection (undefined = public catalogue); callers pass only the
+// filters their surface uses.
+function listQuery(
+  scope: 'mine' | 'all' | undefined,
+  filters: ListFilters = {},
 ): ExtensionListQuery {
   const query: ExtensionListQuery = {
     limit: clampApiPageLimit(filters.limit),
+    ...(scope ? { scope } : {}),
   };
 
   if (filters.type !== undefined) {
@@ -336,44 +344,8 @@ function extensionQuery(
   if (filters.developer_id !== undefined) {
     query.developer_id = filters.developer_id;
   }
-  if (filters.cursor !== undefined) {
-    query.cursor = filters.cursor;
-  }
-
-  return query;
-}
-
-function mineExtensionQuery(
-  filters: ExtensionMineFilters = {},
-): ExtensionListQuery {
-  const query: ExtensionListQuery = {
-    scope: 'mine',
-    limit: clampApiPageLimit(filters.limit),
-  };
-
-  if (filters.type !== undefined) {
-    query.type = filters.type;
-  }
-  if (filters.cursor !== undefined) {
-    query.cursor = filters.cursor;
-  }
-
-  return query;
-}
-
-function moderationExtensionQuery(
-  filters: ModerationExtensionFilters = {},
-): ExtensionListQuery {
-  const query: ExtensionListQuery = {
-    scope: 'all',
-    limit: clampApiPageLimit(filters.limit),
-  };
-
   if (filters.status !== undefined) {
     query.status = filters.status;
-  }
-  if (filters.type !== undefined) {
-    query.type = filters.type;
   }
   if (filters.q !== undefined) {
     query.q = filters.q;
@@ -393,7 +365,7 @@ export async function listExtensions(
   env: ApplicationEnv,
   filters: ExtensionCatalogueFilters = {},
 ): Promise<ExtensionListResponse> {
-  const query = extensionQuery(filters);
+  const query = listQuery(undefined, filters);
   return cachedEdgeRead(
     dataCacheKey('extensions', {
       cursor: query.cursor,
@@ -402,8 +374,8 @@ export async function listExtensions(
       type: query.type,
     }),
     async () => {
-      const page = await unwrap(
-        await getExtensions({
+      const page = await callPage(
+        getExtensions({
           client: createApiTransport(env),
           query,
         }),
@@ -422,14 +394,13 @@ export async function getExtensionById(
 ): Promise<Extension> {
   return cachedEdgeRead(
     dataCacheKey(`extension/${encodeURIComponent(id)}`),
-    async () => {
-      const response = await getExtensionsById({
-        client: createApiTransport(env),
-        path: { id },
-      });
-      const data = await unwrap(response);
-      return data.result as Extension;
-    },
+    async () =>
+      (await callResult(
+        getExtensionsById({
+          client: createApiTransport(env),
+          path: { id },
+        }),
+      )) as Extension,
   );
 }
 
@@ -439,52 +410,60 @@ export async function getDeveloperById(
 ): Promise<PublicDeveloper> {
   return cachedEdgeRead(
     dataCacheKey(`developer/${encodeURIComponent(id)}`),
-    async () => {
-      const response = await getDevelopersById({
-        client: createApiTransport(env),
-        path: { id },
-      });
-      const data = await unwrap(response);
-      return data.result as PublicDeveloper;
-    },
+    async () =>
+      (await callResult(
+        getDevelopersById({
+          client: createApiTransport(env),
+          path: { id },
+        }),
+      )) as PublicDeveloper,
   );
 }
 
 export function createApiClient(env: ApplicationEnv, subject: string) {
   const client = createApiTransport(env, subject);
 
+  // The unapproved/all developer and mine/pending claim walks are the same
+  // whole-list fetch at a different scope literal.
+  const developersByScope = (scope: 'all' | 'unapproved') =>
+    paginateAll<DeveloperProfile>((cursor, limit) =>
+      callPage(
+        getDevelopers({
+          client,
+          query: { scope, limit, ...(cursor ? { cursor } : {}) },
+        }),
+      ),
+    );
+
+  const claimsByScope = (scope: 'mine' | 'pending') =>
+    paginateAll<PendingDeveloperClaim>((cursor, limit) =>
+      callPage(
+        getDevelopersClaims({
+          client,
+          query: { scope, limit, ...(cursor ? { cursor } : {}) },
+        }),
+      ),
+    );
+
   return {
-    syncIdentity: async (identity: IdentitySyncInput): Promise<AccountUser> =>
-      (await unwrap(await putUsersMeIdentity({ client, body: identity })))
-        .result,
+    syncIdentity: (identity: UserIdentityInput): Promise<AccountUser> =>
+      callResult(putUsersMeIdentity({ client, body: identity })),
 
-    getUser: async (): Promise<AccountUser> =>
-      (await unwrap(await getUsersMe({ client }))).result,
+    getUser: (): Promise<AccountUser> => callResult(getUsersMe({ client })),
 
-    updateUserProfile: async (displayName: string | null) =>
-      (
-        await unwrap(
-          await patchUsersMe({
-            client,
-            body: { display_name: displayName },
-          }),
-        )
-      ).result,
+    updateUserProfile: (displayName: string | null) =>
+      callResult(patchUsersMe({ client, body: { display_name: displayName } })),
 
-    deleteUser: async () =>
-      (await unwrap(await deleteUsersMe({ client }))).result,
+    deleteUser: () => callResult(deleteUsersMe({ client })),
 
-    getOwnDeveloper: async (): Promise<OwnedDeveloper | null> =>
-      (await unwrap(await getDevelopersMe({ client }))).result,
+    getOwnDeveloper: (): Promise<OwnedDeveloperProfile | null> =>
+      callResult(getDevelopersMe({ client })),
 
     listMyExtensions: async (
       options: ExtensionMineFilters = {},
     ): Promise<OwnedExtensionListResponse> => {
-      const page = await unwrap(
-        await getExtensions({
-          client,
-          query: mineExtensionQuery(options),
-        }),
+      const page = await callPage(
+        getExtensions({ client, query: listQuery('mine', options) }),
       );
       return {
         result: page.result as OwnedExtensionListItem[],
@@ -494,59 +473,18 @@ export function createApiClient(env: ApplicationEnv, subject: string) {
 
     getMyExtension: async (id: string): Promise<OwnedExtension> =>
       requireOwnedExtension(
-        (
-          await unwrap(
-            await getExtensionsById({
-              client,
-              path: { id },
-            }),
-          )
-        ).result,
+        await callResult(getExtensionsById({ client, path: { id } })),
         id,
       ),
 
-    createExtension: async (payload: ExtensionCreate) =>
-      (
-        await unwrap(
-          await postExtensions({
-            client,
-            body: payload,
-          }),
-        )
-      ).result,
+    createExtension: (payload: ExtensionCreate) =>
+      callResult(postExtensions({ client, body: payload })),
 
-    updateExtension: async (id: string, payload: ExtensionUpdate) =>
-      (
-        await unwrap(
-          await putExtensionsById({
-            client,
-            path: { id },
-            body: payload,
-          }),
-        )
-      ).result,
+    updateExtension: (id: string, payload: ExtensionUpdate) =>
+      callResult(putExtensionsById({ client, path: { id }, body: payload })),
 
-    withdrawExtension: async (id: string) =>
-      (
-        await unwrap(
-          await deleteExtensionsById({
-            client,
-            path: { id },
-          }),
-        )
-      ).result,
-
-    listExtensionRevisions: async (
-      id: string,
-      options: RevisionHistoryOptions = {},
-    ): Promise<RevisionHistoryPage> =>
-      unwrap(
-        await getExtensionsByIdRevisions({
-          client,
-          path: { id },
-          query: pageQuery(options),
-        }),
-      ),
+    withdrawExtension: (id: string) =>
+      callResult(deleteExtensionsById({ client, path: { id } })),
 
     listModerationQueue: async (
       status: RevisionStatus = 'pending',
@@ -562,30 +500,20 @@ export function createApiClient(env: ApplicationEnv, subject: string) {
     // Queue totals behind the admin tabs. Best-effort by design: pages
     // render plain tab labels when it fails rather than erroring the
     // whole queue.
-    getModerationCounts: async (): Promise<ModerationCounts> =>
-      (await unwrap(await getModerationCounts({ client }))).result,
+    getModerationCounts: (): Promise<ModerationCounts> =>
+      callResult(getModerationCounts({ client })),
 
     getModerationExtension: async (id: string): Promise<OwnedExtension> =>
       requireOwnedExtension(
-        (
-          await unwrap(
-            await getExtensionsById({
-              client,
-              path: { id },
-            }),
-          )
-        ).result,
+        await callResult(getExtensionsById({ client, path: { id } })),
         id,
       ),
 
     listAllExtensions: async (
       options: ModerationExtensionFilters = {},
     ): Promise<OwnedExtensionListResponse> => {
-      const page = await unwrap(
-        await getExtensions({
-          client,
-          query: moderationExtensionQuery(options),
-        }),
+      const page = await callPage(
+        getExtensions({ client, query: listQuery('all', options) }),
       );
       return {
         result: page.result as OwnedExtensionListItem[],
@@ -593,290 +521,145 @@ export function createApiClient(env: ApplicationEnv, subject: string) {
       };
     },
 
-    approveRevision: async (
+    approveRevision: (
       extensionId: string,
       revisionId: string,
       reviewNote?: string,
       notify = true,
     ) =>
-      (
-        await unwrap(
-          await postExtensionsByIdRevisionsByRevisionIdApprove({
-            client,
-            path: { id: extensionId, revisionId },
-            ...notifyQuery(notify),
-            ...(reviewNote ? { body: { review_note: reviewNote } } : {}),
-          }),
-        )
-      ).result,
+      callResult(
+        postExtensionsByIdRevisionsByRevisionIdApprove({
+          client,
+          path: { id: extensionId, revisionId },
+          ...notifyQuery(notify),
+          ...(reviewNote ? { body: { review_note: reviewNote } } : {}),
+        }),
+      ),
 
-    rejectRevision: async (
+    rejectRevision: (
       extensionId: string,
       revisionId: string,
       reviewNote: string,
       notify = true,
     ) =>
-      (
-        await unwrap(
-          await postExtensionsByIdRevisionsByRevisionIdReject({
-            client,
-            path: { id: extensionId, revisionId },
-            ...notifyQuery(notify),
-            body: { review_note: reviewNote },
-          }),
-        )
-      ).result,
+      callResult(
+        postExtensionsByIdRevisionsByRevisionIdReject({
+          client,
+          path: { id: extensionId, revisionId },
+          ...notifyQuery(notify),
+          body: { review_note: reviewNote },
+        }),
+      ),
 
-    delistExtension: async (
-      extensionId: string,
-      reason: string,
-      notify = true,
-    ) =>
-      (
-        await unwrap(
-          await postExtensionsByIdDelist({
-            client,
-            path: { id: extensionId },
-            ...notifyQuery(notify),
-            body: { reason },
-          }),
-        )
-      ).result,
+    delistExtension: (extensionId: string, reason: string, notify = true) =>
+      callResult(
+        postExtensionsByIdDelist({
+          client,
+          path: { id: extensionId },
+          ...notifyQuery(notify),
+          body: { reason },
+        }),
+      ),
 
     // Moderator correction of live content (api#251): unlike every other
     // moderation write there is no notify option and no author email — the
     // correction is recorded as an approved moderator revision and surfaced
     // in history by the directory UI.
-    correctExtension: async (
+    correctExtension: (
       extensionId: string,
       payload: ExtensionUpdate,
       correctionNote: string,
     ) =>
-      (
-        await unwrap(
-          await postExtensionsByIdModeratorCorrect({
-            client,
-            path: { id: extensionId },
-            body: { ...payload, correction_note: correctionNote },
-          }),
-        )
-      ).result,
+      callResult(
+        postExtensionsByIdModeratorCorrect({
+          client,
+          path: { id: extensionId },
+          body: { ...payload, correction_note: correctionNote },
+        }),
+      ),
 
-    relistExtension: async (
-      extensionId: string,
-      reviewNote?: string,
-      notify = true,
-    ) =>
-      (
-        await unwrap(
-          await postExtensionsByIdRelist({
-            client,
-            path: { id: extensionId },
-            ...notifyQuery(notify),
-            ...(reviewNote ? { body: { review_note: reviewNote } } : {}),
-          }),
-        )
-      ).result,
+    upsertDeveloperProfile: (developer: Developer) =>
+      callResult(putDevelopersMe({ client, body: developer })),
 
-    upsertDeveloperProfile: async (developer: Developer) =>
-      (
-        await unwrap(
-          await putDevelopersMe({
-            client,
-            body: developer,
-          }),
-        )
-      ).result,
+    deleteDeveloperProfile: () => callResult(deleteDevelopersMe({ client })),
 
-    deleteDeveloperProfile: async () =>
-      (
-        await unwrap(
-          await deleteDevelopersMe({
-            client,
-          }),
-        )
-      ).result,
+    reverifyDeveloper: (checkUrl = false) =>
+      callResult(
+        postDevelopersMeReverify({
+          client,
+          ...(checkUrl ? { query: { check_url: 'true' } } : {}),
+        }),
+      ),
 
-    reverifyDeveloper: async (checkUrl = false) =>
-      (
-        await unwrap(
-          await postDevelopersMeReverify({
-            client,
-            ...(checkUrl ? { query: { check_url: 'true' } } : {}),
-          }),
-        )
-      ).result,
+    listUnapprovedDevelopers: () => developersByScope('unapproved'),
 
-    listUnapprovedDevelopers: async () =>
-      fetchWholeList<DeveloperProfile>(async (cursor, limit) => {
-        const page = await unwrap(
-          await getDevelopers({
-            client,
-            query: {
-              scope: 'unapproved',
-              limit,
-              ...(cursor ? { cursor } : {}),
-            },
-          }),
-        );
-        return {
-          items: page.result,
-          nextCursor: page.pagination.next_cursor,
-          hasMore: page.pagination.has_more,
-        };
-      }),
+    listAllDevelopers: () => developersByScope('all'),
 
-    listAllDevelopers: async () =>
-      fetchWholeList<DeveloperProfile>(async (cursor, limit) => {
-        const page = await unwrap(
-          await getDevelopers({
-            client,
-            query: { scope: 'all', limit, ...(cursor ? { cursor } : {}) },
-          }),
-        );
-        return {
-          items: page.result,
-          nextCursor: page.pagination.next_cursor,
-          hasMore: page.pagination.has_more,
-        };
-      }),
+    approveDeveloper: (id: string, expectedRevision: number, notify = true) =>
+      callResult(
+        postDevelopersByIdApprove({
+          client,
+          path: { id },
+          ...notifyQuery(notify),
+          body: {
+            expected_revision: expectedRevision,
+          } satisfies DeveloperApproval,
+        }),
+      ),
 
-    approveDeveloper: async (
-      id: string,
-      expectedRevision: number,
-      notify = true,
-    ) =>
-      (
-        await unwrap(
-          await postDevelopersByIdApprove({
-            client,
-            path: { id },
-            ...notifyQuery(notify),
-            body: {
-              expected_revision: expectedRevision,
-            } satisfies DeveloperApproval,
-          }),
-        )
-      ).result,
-
-    listDeveloperHistory: async (id: string) =>
-      fetchWholeList<DeveloperHistoryEntry>(async (cursor, limit) => {
-        const page = await unwrap(
-          await getDevelopersByIdHistory({
+    listDeveloperHistory: (id: string) =>
+      paginateAll<DeveloperHistoryEntry>((cursor, limit) =>
+        callPage(
+          getDevelopersByIdHistory({
             client,
             path: { id },
             query: { limit, ...(cursor ? { cursor } : {}) },
           }),
-        );
-        return {
-          items: page.result,
-          nextCursor: page.pagination.next_cursor,
-          hasMore: page.pagination.has_more,
-        };
-      }),
+        ),
+      ),
 
-    initiateTransfer: async (id: string) =>
-      (
-        await unwrap(
-          await postDevelopersByIdTransfer({
-            client,
-            path: { id },
-          }),
-        )
-      ).result,
+    initiateTransfer: (id: string) =>
+      callResult(postDevelopersByIdTransfer({ client, path: { id } })),
 
-    revokeTransfer: async (id: string) =>
-      (
-        await unwrap(
-          await postDevelopersByIdTransferRevoke({
-            client,
-            path: { id },
-          }),
-        )
-      ).result,
+    revokeTransfer: (id: string) =>
+      callResult(postDevelopersByIdTransferRevoke({ client, path: { id } })),
 
-    acceptTransfer: async (token: string) =>
-      (
-        await unwrap(
-          await postDevelopersTransfersAccept({
-            client,
-            body: { token },
-          }),
-        )
-      ).result,
+    acceptTransfer: (token: string) =>
+      callResult(postDevelopersTransfersAccept({ client, body: { token } })),
 
-    claimDeveloper: async (id: string, note?: string) =>
-      (
-        await unwrap(
-          await postDevelopersByIdClaim({
-            client,
-            path: { id },
-            ...(note ? { body: { note } } : {}),
-          }),
-        )
-      ).result,
+    claimDeveloper: (id: string, note?: string) =>
+      callResult(
+        postDevelopersByIdClaim({
+          client,
+          path: { id },
+          ...(note ? { body: { note } } : {}),
+        }),
+      ),
 
-    cancelClaim: async (id: string) =>
-      (
-        await unwrap(
-          await postDevelopersClaimsByIdCancel({
-            client,
-            path: { id },
-          }),
-        )
-      ).result,
+    cancelClaim: (id: string) =>
+      callResult(postDevelopersClaimsByIdCancel({ client, path: { id } })),
 
-    listMyClaims: async () =>
-      fetchWholeList<PendingDeveloperClaim>(async (cursor, limit) => {
-        const page = await unwrap(
-          await getDevelopersClaims({
-            client,
-            query: { scope: 'mine', limit, ...(cursor ? { cursor } : {}) },
-          }),
-        );
-        return {
-          items: page.result,
-          nextCursor: page.pagination.next_cursor,
-          hasMore: page.pagination.has_more,
-        };
-      }),
+    listMyClaims: () => claimsByScope('mine'),
 
-    listPendingClaims: async () =>
-      fetchWholeList<PendingDeveloperClaim>(async (cursor, limit) => {
-        const page = await unwrap(
-          await getDevelopersClaims({
-            client,
-            query: { scope: 'pending', limit, ...(cursor ? { cursor } : {}) },
-          }),
-        );
-        return {
-          items: page.result,
-          nextCursor: page.pagination.next_cursor,
-          hasMore: page.pagination.has_more,
-        };
-      }),
+    listPendingClaims: () => claimsByScope('pending'),
 
-    approveClaim: async (id: string, notify = true) =>
-      (
-        await unwrap(
-          await postDevelopersClaimsByIdApprove({
-            client,
-            path: { id },
-            ...notifyQuery(notify),
-          }),
-        )
-      ).result,
+    approveClaim: (id: string, notify = true) =>
+      callResult(
+        postDevelopersClaimsByIdApprove({
+          client,
+          path: { id },
+          ...notifyQuery(notify),
+        }),
+      ),
 
-    rejectClaim: async (id: string, reviewNote: string, notify = true) =>
-      (
-        await unwrap(
-          await postDevelopersClaimsByIdReject({
-            client,
-            path: { id },
-            ...notifyQuery(notify),
-            body: { review_note: reviewNote },
-          }),
-        )
-      ).result,
+    rejectClaim: (id: string, reviewNote: string, notify = true) =>
+      callResult(
+        postDevelopersClaimsByIdReject({
+          client,
+          path: { id },
+          ...notifyQuery(notify),
+          body: { review_note: reviewNote },
+        }),
+      ),
   };
 }

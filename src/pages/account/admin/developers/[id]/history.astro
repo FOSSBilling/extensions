@@ -1,7 +1,11 @@
 ---
 import Admin from '../../../../../layouts/Admin.astro';
 import { requireModerator } from '@/lib/auth-guard';
-import { createApiClient, ApiRequestError } from '@/lib/api/client';
+import {
+  createApiClient,
+  ApiRequestError,
+  getApiErrorMessage,
+} from '@/lib/api/client';
 import { isSafeHttpUrl } from '@/lib/safe-url';
 import type { DeveloperHistoryEntry } from '@/lib/api/client';
 import { CircleAlert } from '@lucide/astro';
@@ -28,7 +32,7 @@ try {
 } catch (e) {
   loadError =
     e instanceof ApiRequestError
-      ? e.message
+      ? getApiErrorMessage(e)
       : 'Unable to load history for this developer profile.';
 }
 

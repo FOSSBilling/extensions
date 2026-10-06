@@ -1,6 +1,6 @@
 ---
 import Base from '../../layouts/Base.astro';
-import ExtensionCard from '@/components/ExtensionCard.astro';
+import CatalogueSection from '@/components/CatalogueSection.astro';
 import { getDeveloperById } from '@/lib/extensions-data';
 import {
   ApiRequestError,
@@ -9,6 +9,7 @@ import {
   listExtensions,
   type ExtensionListResponse,
 } from '@/lib/api/client';
+import { hasNextPage } from '@/lib/catalogue-pagination';
 import { getSessionUser } from '@/lib/session';
 import { requireUser } from '@/lib/auth-guard';
 import { formString } from '@/lib/form';
@@ -79,11 +80,6 @@ try {
 }
 
 const extensions = extensionsPage?.result ?? [];
-const hasNextPage = Boolean(
-  extensionsPage?.pagination.has_more &&
-  extensionsPage.pagination.next_cursor !== null &&
-  extensionsPage.pagination.next_cursor.length > 0,
-);
 ---
 
 <Base
@@ -194,7 +190,9 @@ const hasNextPage = Boolean(
     data-api-url="/api/extensions"
     data-limit="50"
     data-developer-id={developer.id}
-    data-has-more={hasNextPage}
+    data-has-more={
+      extensionsPage ? hasNextPage(extensionsPage.pagination) : false
+    }
   >
     {extensionsError ? (
       <div class="card" role="alert">
@@ -202,39 +200,11 @@ const hasNextPage = Boolean(
       </div>
     ) : (
       <>
-        <div
-          data-extension-grid
-          class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
-        >
-          {extensions.map((ext) => (
-            <ExtensionCard ext={ext} />
-          ))}
-        </div>
-        {extensions.length === 0 ? (
-          <p class="text-muted-foreground text-sm">
-            No published extensions yet.
-          </p>
-        ) : null}
-        <div class="mt-8 flex flex-col items-center gap-3">
-          {hasNextPage ? (
-            <button
-              type="button"
-              class="btn"
-              data-variant="outline"
-              data-load-more
-              data-next-cursor={extensionsPage?.pagination.next_cursor}
-            >
-              Load more extensions
-            </button>
-          ) : extensions.length > 0 ? (
-            <p class="text-sm text-muted-foreground">All extensions loaded.</p>
-          ) : null}
-          <p
-            data-catalogue-status
-            class="text-sm text-muted-foreground"
-            aria-live="polite"
-          />
-        </div>
+        <CatalogueSection
+          extensions={extensions}
+          pagination={extensionsPage?.pagination}
+          emptyMessage="No published extensions yet."
+        />
       </>
     )}
   </div>
