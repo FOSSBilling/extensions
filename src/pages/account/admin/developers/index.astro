@@ -184,34 +184,7 @@ const pageDescription = isClaims
 
 <script>
   import { initClaimDialogs } from '@/lib/claim-dialogs-client';
+  import { initDeveloperApproveDialog } from '@/lib/developer-approve-dialog-client';
   initClaimDialogs();
-
-  // Single shared approve dialog for the profiles table: each row button
-  // carries its developer on data attributes (same pattern as the delist
-  // confirm on /account/admin/extensions).
-  const dialog = document.querySelector<HTMLDialogElement>(
-    '#admin-approve-developer',
-  );
-
-  document.addEventListener('click', (event) => {
-    const button = (
-      event.target as HTMLElement | null
-    )?.closest<HTMLButtonElement>('button[data-approve-developer]');
-    if (!button || !dialog) return;
-
-    const id = button.dataset.developerId ?? '';
-    const form = dialog.querySelector('form');
-    const titleEl = dialog.querySelector('h2');
-    const revisionInput = dialog.querySelector<HTMLInputElement>(
-      'input[name="expected_revision"]',
-    );
-    if (form) form.action = `/account/admin/developers/${id}/approve`;
-    if (titleEl) {
-      titleEl.textContent = `Approve "${button.dataset.developerName ?? id}"?`;
-    }
-    if (revisionInput) {
-      revisionInput.value = button.dataset.expectedRevision ?? '';
-    }
-    dialog.showModal();
-  });
+  initDeveloperApproveDialog();
 </script>

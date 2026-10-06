@@ -4,6 +4,7 @@
 import {
   createApiClient,
   getDeveloperById as getDeveloperByIdFromApi,
+  paginateAll,
   type DeveloperProfile as ApiDeveloperProfile,
   type Extension as ApiExtension,
   type OwnedExtension as ApiOwnedExtension,
@@ -189,16 +190,9 @@ export async function getExtensionsByOwner(
 ): Promise<OwnedExtensionListItem[]> {
   try {
     const api = createApiClient(env, userId);
-    const extensions: OwnedExtensionListItem[] = [];
-    let cursor: string | undefined;
-    do {
-      const page = await api.listMyExtensions({ limit: 100, cursor });
-      extensions.push(...page.result);
-      cursor = page.pagination.has_more
-        ? (page.pagination.next_cursor ?? undefined)
-        : undefined;
-    } while (cursor !== undefined);
-    return extensions;
+    return await paginateAll<OwnedExtensionListItem>((cursor, limit) =>
+      api.listMyExtensions({ limit, cursor }),
+    );
   } catch (error) {
     if (options.failSoft === false) {
       throw error;

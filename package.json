@@ -2,6 +2,7 @@
   "name": "extensions",
   "license": "AGPL-3.0-only",
   "type": "module",
+  "private": true,
   "scripts": {
     "api:generate": "openapi-ts -f openapi-ts.config.ts",
     "api:update": "node scripts/update-extensions-openapi.mjs && prettier --write openapi/extensions-v2.json && npm run api:generate",

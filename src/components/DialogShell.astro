@@ -5,13 +5,27 @@ interface Props {
   id: string;
   title?: string;
   description: string;
-  formAction: string;
+  // Omitted to post to the current page URL (the destructive delete
+  // confirmations on /account/delete and /account/developer). The admin
+  // queue dialogs instead pass a placeholder action that is replaced
+  // client-side before the dialog opens.
+  formAction?: string;
   submitLabel: string;
   submitVariant?: 'destructive';
+  // When set, the submit button stays disabled until the user types this
+  // exact string — type-to-confirm for destructive actions.
+  typeToConfirm?: string;
 }
 
-const { id, title, description, formAction, submitLabel, submitVariant } =
-  Astro.props;
+const {
+  id,
+  title,
+  description,
+  formAction,
+  submitLabel,
+  submitVariant,
+  typeToConfirm,
+} = Astro.props;
 ---
 
 <dialog
@@ -20,7 +34,11 @@ const { id, title, description, formAction, submitLabel, submitVariant } =
   aria-labelledby={`${id}-title`}
   aria-describedby={`${id}-description`}
   onclick="if (arguments[0].target === this) this.close()"
-  onclose="this.querySelector('form').reset()"
+  onclose={
+    typeToConfirm
+      ? "this.querySelector('form').reset(); this.querySelector('[data-confirm-submit]').disabled = true;"
+      : "this.querySelector('form').reset()"
+  }
 >
   <form method="POST" action={formAction}>
     <header>
@@ -30,6 +48,20 @@ const { id, title, description, formAction, submitLabel, submitVariant } =
       <p id={`${id}-description`}>{description}</p>
     </header>
     <section class="space-y-4">
+      {typeToConfirm && (
+        <div class="field">
+          <label for={`${id}-confirm`}>
+            Type <strong>{typeToConfirm}</strong> to confirm
+          </label>
+          <input
+            class="input"
+            type="text"
+            id={`${id}-confirm`}
+            autocomplete="off"
+            oninput={`this.closest('form').querySelector('[data-confirm-submit]').disabled = this.value !== ${JSON.stringify(typeToConfirm)}`}
+          />
+        </div>
+      )}
       <slot />
     </section>
     <footer>
@@ -41,7 +73,13 @@ const { id, title, description, formAction, submitLabel, submitVariant } =
       >
         Cancel
       </button>
-      <button type="submit" class="btn" data-variant={submitVariant}>
+      <button
+        type="submit"
+        class="btn"
+        data-variant={submitVariant}
+        data-confirm-submit={typeToConfirm ? '' : undefined}
+        disabled={typeToConfirm ? true : undefined}
+      >
         {submitLabel}
       </button>
     </footer>

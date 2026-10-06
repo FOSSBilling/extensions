@@ -2,7 +2,11 @@
 import Base from '../../../layouts/Base.astro';
 import ExtensionForm from '@/components/ExtensionForm.astro';
 import { requireUser } from '@/lib/auth-guard';
-import { createApiClient, ApiRequestError } from '@/lib/api/client';
+import {
+  createApiClient,
+  ApiRequestError,
+  getApiErrorMessage,
+} from '@/lib/api/client';
 import { getDeveloperByOwner } from '@/lib/extensions-data';
 import {
   buildExtensionCreatePayload,
@@ -34,9 +38,11 @@ if (Astro.request.method === 'POST') {
     return Astro.redirect('/account');
   } catch (e) {
     error =
-      e instanceof ApiRequestError || e instanceof ExtensionValidationError
-        ? e.message
-        : 'Something went wrong submitting your extension. Please try again.';
+      e instanceof ApiRequestError
+        ? getApiErrorMessage(e)
+        : e instanceof ExtensionValidationError
+          ? e.message
+          : 'Something went wrong submitting your extension. Please try again.';
   }
 }
 ---

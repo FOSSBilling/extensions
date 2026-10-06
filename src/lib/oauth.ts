@@ -1,12 +1,11 @@
-import { base64urlDecode, base64urlEncode } from './base64url';
-import { signPayload, verifyPayloadSignature } from './signed-value';
+import { decodeSignedValue, encodeSignedValue } from './signed-value';
 
 // Client for FOSSBilling's central auth service (auth.fossbilling.net).
 // Identity only — see that repo's README for the identity/authorization boundary.
 // Roles, permissions, and extension ownership are modeled in the API's domain
 // projection (see users.ts), never requested from or trusted to the auth service.
 
-export const ISSUER = 'https://auth.fossbilling.net';
+const ISSUER = 'https://auth.fossbilling.net';
 const AUTHORIZE_ENDPOINT = `${ISSUER}/oauth2/authorize`;
 const TOKEN_ENDPOINT = `${ISSUER}/oauth2/token`;
 const USERINFO_ENDPOINT = `${ISSUER}/oauth2/userinfo`;
@@ -26,7 +25,7 @@ export function buildGithubReconnectUrl(
 
 const SCOPE = 'openid profile email github';
 
-export const OAUTH_COOKIE_MAX_AGE = 60 * 10; // 10 minutes
+const OAUTH_COOKIE_MAX_AGE = 60 * 10; // 10 minutes
 
 // The host prefix prevents sibling-domain injection, including transplantation
 // of a genuine signed transaction. Only HTTP loopback development uses an
@@ -71,10 +70,7 @@ export async function createOAuthTransaction(
     redirect,
     exp: Math.floor(Date.now() / 1000) + OAUTH_COOKIE_MAX_AGE,
   };
-  const encoded = base64urlEncode(
-    new TextEncoder().encode(JSON.stringify(payload)),
-  );
-  return `${encoded}.${await signPayload(encoded, secret)}`;
+  return encodeSignedValue(payload, secret);
 }
 
 export async function readOAuthTransaction(
@@ -83,31 +79,25 @@ export async function readOAuthTransaction(
   secret: string,
 ): Promise<OAuthTransaction | null> {
   if (!value) return null;
-  const parts = value.split('.');
-  if (parts.length !== 2 || !parts[0] || !parts[1]) return null;
-  if (!(await verifyPayloadSignature(parts[0], parts[1], secret))) return null;
-  try {
-    const payload = JSON.parse(
-      new TextDecoder().decode(base64urlDecode(parts[0])),
-    );
-    if (
-      !payload ||
-      payload.kind !== 'oauth-transaction' ||
-      payload.origin !== url.origin ||
-      typeof payload.verifier !== 'string' ||
-      !/^[A-Za-z0-9_-]{43}$/.test(payload.verifier) ||
-      typeof payload.state !== 'string' ||
-      !/^[A-Za-z0-9_-]{22}$/.test(payload.state) ||
-      typeof payload.redirect !== 'string' ||
-      !isSafeRedirectPath(payload.redirect) ||
-      !Number.isSafeInteger(payload.exp) ||
-      payload.exp <= Math.floor(Date.now() / 1000)
-    )
-      return null;
-    return payload;
-  } catch {
+  const payload = await decodeSignedValue(value, secret);
+  if (!payload || typeof payload !== 'object') return null;
+  const transaction = payload as Partial<OAuthTransaction>;
+  if (
+    transaction.kind !== 'oauth-transaction' ||
+    transaction.origin !== url.origin ||
+    typeof transaction.verifier !== 'string' ||
+    !/^[A-Za-z0-9_-]{43}$/.test(transaction.verifier) ||
+    typeof transaction.state !== 'string' ||
+    !/^[A-Za-z0-9_-]{22}$/.test(transaction.state) ||
+    typeof transaction.redirect !== 'string' ||
+    !isSafeRedirectPath(transaction.redirect) ||
+    typeof transaction.exp !== 'number' ||
+    !Number.isSafeInteger(transaction.exp) ||
+    transaction.exp <= Math.floor(Date.now() / 1000)
+  ) {
     return null;
   }
+  return transaction as OAuthTransaction;
 }
 
 // Only a same-origin relative path is a valid post-login redirect target —

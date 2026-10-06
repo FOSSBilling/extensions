@@ -1,3 +1,5 @@
+import { daysInMonth } from './calendar';
+
 const DATE_FORMAT_OPTIONS = {
   day: 'numeric',
   month: 'long',
@@ -46,22 +48,7 @@ type ZonedFormatters = {
 const zonedFormatters = new Map<string, ZonedFormatters>();
 
 function validateCalendarDate(year: number, month: number, day: number): void {
-  const daysInMonth = [
-    31,
-    year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0) ? 29 : 28,
-    31,
-    30,
-    31,
-    30,
-    31,
-    31,
-    30,
-    31,
-    30,
-    31,
-  ][month - 1];
-
-  if (month < 1 || month > 12 || day < 1 || day > (daysInMonth ?? 0)) {
+  if (month < 1 || month > 12 || day < 1 || day > daysInMonth(year, month)) {
     throw new RangeError('Invalid time value');
   }
 }
@@ -95,7 +82,9 @@ function toDate(value: string | Date): Date {
   if (value instanceof Date) {
     date = value;
   } else {
-    const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+    // "YYYY-MM-DD" prefix (date-only strings are exactly this long). The
+    // calendar date is validated up front: the Date constructor silently
+    // rolls impossible dates like 2026-02-30 forward instead of failing.
     const isoDate = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
     if (isoDate) {
       validateCalendarDate(
@@ -107,7 +96,10 @@ function toDate(value: string | Date): Date {
 
     // Date-only ISO strings are parsed as UTC by the built-in Date
     // constructor, while the previous parser treats them as local dates.
-    date = dateOnly ? new Date(`${value}T00:00:00`) : new Date(value);
+    date =
+      isoDate && value.length === 10
+        ? new Date(`${value}T00:00:00`)
+        : new Date(value);
   }
 
   if (Number.isNaN(date.getTime())) {

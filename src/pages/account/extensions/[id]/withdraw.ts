@@ -1,34 +1,28 @@
 import type { APIRoute } from 'astro';
 import { requireUser } from '@/lib/auth-guard';
-import { createApiClient, ApiRequestError } from '@/lib/api/client';
+import { createApiClient } from '@/lib/api/client';
+import { formAction } from '@/lib/form-action';
 import { purgeCatalogue } from '@/lib/cache-invalidate';
 import { setFlash } from '@/lib/flash';
 
-export const POST: APIRoute = async (context) => {
-  const env = context.locals.env;
-  const guard = await requireUser(context, env);
-  if (guard instanceof Response) return guard;
-  const user = guard;
+export const POST: APIRoute = formAction({
+  guard: requireUser,
+  // A failure lands back on the edit form so the author can retry; the
+  // success path below overrides this with the account overview.
+  redirect: (context) => {
+    const { id } = context.params;
+    return id ? `/account/extensions/${id}/edit` : '/account';
+  },
+  fallbackError: 'Unable to withdraw extension.',
+  run: async ({ context, env, user }) => {
+    const { id } = context.params;
+    if (!id) return '/account';
 
-  const { id } = context.params;
-  if (!id) return context.redirect('/account');
-
-  const api = createApiClient(env, user.sub);
-  try {
-    await api.withdrawExtension(id);
+    await createApiClient(env, user.sub).withdrawExtension(id);
     purgeCatalogue(context);
-  } catch (e) {
-    const message =
-      e instanceof ApiRequestError
-        ? e.message
-        : 'Unable to withdraw extension.';
     await setFlash(context, env.sessionSecret, {
-      category: 'error',
-      title: message,
+      title: 'Extension withdrawn.',
     });
-    return context.redirect(`/account/extensions/${id}/edit`);
-  }
-
-  await setFlash(context, env.sessionSecret, { title: 'Extension withdrawn.' });
-  return context.redirect('/account');
-};
+    return '/account';
+  },
+});

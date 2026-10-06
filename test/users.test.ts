@@ -11,19 +11,9 @@ vi.mock('@/lib/api/client', () => ({
 
 import { upsertUser } from '@/lib/users';
 import type { UserInfo } from '@/lib/oauth';
-import type { ApplicationEnv } from '@/lib/runtime';
+import { makeEnv } from './helpers/env';
 
-const env: ApplicationEnv = {
-  extensionsApi: {
-    baseUrl: 'https://api.example.test',
-    fetch: (...args) => globalThis.fetch(...args),
-  },
-  authClientId: 'client-id',
-  authClientSecret: 'client-secret',
-  sessionSecret: 'session-secret',
-  assertionSigningSecret: 'assertion-secret',
-  revalidateSecret: 'revalidate-secret',
-};
+const env = makeEnv();
 
 const baseInfo: UserInfo = {
   sub: 'user-subject',
@@ -65,7 +55,28 @@ describe('upsertUser', () => {
   });
 
   it.each([
+    ['a numeric-offset expiry', '2099-01-01T00:00:00+05:00'],
+    ['an expiry with fractional seconds', '2099-01-01T00:00:00.123Z'],
+  ])('synchronizes evidence for %s', async (_description, expiry) => {
+    const info: UserInfo = {
+      ...baseInfo,
+      [orgsClaim]: ['fossbilling'],
+      [expiryClaim]: expiry,
+    };
+
+    await upsertUser(env, info);
+
+    expect(mocks.syncIdentity).toHaveBeenCalledWith(
+      expect.objectContaining({
+        github_orgs: ['fossbilling'],
+        github_orgs_expires_at: expiry,
+      }),
+    );
+  });
+
+  it.each([
     ['an expired expiry', '2020-01-01T00:00:00Z', ['fossbilling']],
+    ['a calendar-invalid expiry', '2021-02-30T00:00:00Z', ['fossbilling']],
     ['a malformed expiry', 'not-a-timestamp', ['fossbilling']],
     ['a malformed organization list', futureExpiry, ['fossbilling', 42]],
     ['a non-array organization list', futureExpiry, 'fossbilling'],

@@ -1,30 +1,18 @@
 import type { APIRoute } from 'astro';
 import { requireUser } from '@/lib/auth-guard';
-import { createApiClient, ApiRequestError } from '@/lib/api/client';
+import { createApiClient } from '@/lib/api/client';
+import { formAction } from '@/lib/form-action';
 import { setFlash } from '@/lib/flash';
 
-export const POST: APIRoute = async (context) => {
-  const env = context.locals.env;
-  const guard = await requireUser(context, env);
-  if (guard instanceof Response) return guard;
-  const user = guard;
+export const POST: APIRoute = formAction({
+  guard: requireUser,
+  redirect: '/account',
+  fallbackError: 'Unable to cancel claim.',
+  run: async ({ context, env, user }) => {
+    const { id } = context.params;
+    if (!id) return '/account';
 
-  const { id } = context.params;
-  if (!id) return context.redirect('/account');
-
-  const api = createApiClient(env, user.sub);
-  try {
-    await api.cancelClaim(id);
-  } catch (e) {
-    const message =
-      e instanceof ApiRequestError ? e.message : 'Unable to cancel claim.';
-    await setFlash(context, env.sessionSecret, {
-      category: 'error',
-      title: message,
-    });
-    return context.redirect('/account');
-  }
-
-  await setFlash(context, env.sessionSecret, { title: 'Claim Cancelled.' });
-  return context.redirect('/account');
-};
+    await createApiClient(env, user.sub).cancelClaim(id);
+    await setFlash(context, env.sessionSecret, { title: 'Claim Cancelled.' });
+  },
+});

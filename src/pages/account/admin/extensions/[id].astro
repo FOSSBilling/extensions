@@ -1,7 +1,11 @@
 ---
 import Admin from '../../../../layouts/Admin.astro';
 import { requireModerator } from '@/lib/auth-guard';
-import { createApiClient, ApiRequestError } from '@/lib/api/client';
+import {
+  createApiClient,
+  ApiRequestError,
+  getApiErrorMessage,
+} from '@/lib/api/client';
 import { isSafeHttpUrl } from '@/lib/safe-url';
 import { repositoryURL } from '@/types';
 import type { OwnedExtension } from '@/lib/api/client';
@@ -33,7 +37,7 @@ try {
     e instanceof ApiRequestError && e.status === 404
       ? `No extension found with id "${id}".`
       : e instanceof ApiRequestError
-        ? e.message
+        ? getApiErrorMessage(e)
         : 'Unable to load this extension.';
 }
 
@@ -289,22 +293,7 @@ const correctable = Boolean(
 </Admin>
 
 <script>
-  document.addEventListener('click', (event) => {
-    const target = event.target as HTMLElement | null;
+  import { initTruncateToggles } from '@/lib/truncate-toggles';
 
-    const truncateToggle = target?.closest<HTMLButtonElement>(
-      '[data-truncate-toggle]',
-    );
-    if (truncateToggle) {
-      const cell = truncateToggle.closest('td');
-      const short = cell?.querySelector<HTMLElement>('[data-truncate-short]');
-      const full = cell?.querySelector<HTMLElement>('[data-truncate-full]');
-      if (!short || !full) return;
-      const expanded = full.hidden;
-      full.hidden = !expanded;
-      short.hidden = expanded;
-      truncateToggle.textContent = expanded ? 'Show Less' : 'Show More';
-      truncateToggle.setAttribute('aria-expanded', String(expanded));
-    }
-  });
+  initTruncateToggles();
 </script>

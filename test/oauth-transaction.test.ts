@@ -44,6 +44,29 @@ describe('OAuth login transaction', () => {
       expect(await readOAuthTransaction(value, url, 'wrong-secret')).toBeNull();
     },
   );
+  it('stores an unsafe redirect as the root path fallback', async () => {
+    // The write-side open-redirect guard: ?redirect=//evil.test must never
+    // enter the signed transaction — the callback would bounce the user
+    // off-site after a successful login.
+    const url = new URL(
+      '/auth/login?redirect=%2F%2Fevil.test',
+      'https://extensions.example.test',
+    );
+    const cookies = { set: vi.fn(), delete: vi.fn() };
+    const ctx = {
+      url,
+      cookies,
+      locals: { env: { sessionSecret: 'secret', authClientId: 'client' } },
+      redirect: (location: string) =>
+        new Response(null, { status: 302, headers: { location } }),
+    } as unknown as Parameters<typeof GET>[0];
+    await GET(ctx);
+
+    const [name, value] = cookies.set.mock.calls[0];
+    const transaction = await readOAuthTransaction(value, url, 'secret');
+    expect(name).toBe('__Host-fb_oauth_transaction');
+    expect(transaction?.redirect).toBe('/');
+  });
   it('warns when the transaction cookie will be refused on plain HTTP', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const url = new URL(

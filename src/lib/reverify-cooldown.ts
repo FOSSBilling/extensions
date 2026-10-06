@@ -1,6 +1,5 @@
 import type { AstroCookies } from 'astro';
-import { base64urlDecode, base64urlEncode } from './base64url';
-import { signPayload, verifyPayloadSignature } from './signed-value';
+import { decodeSignedValue, encodeSignedValue } from './signed-value';
 
 // The GitHub re-verify cooldown is the last piece of per-visitor state that
 // used to live in the KV-backed Astro session. It is just a timestamp, so
@@ -26,10 +25,7 @@ export async function setReverifyCooldown(
   secret: string,
 ): Promise<void> {
   const until = Date.now() + COOLDOWN_MS;
-  const payloadB64 = base64urlEncode(
-    new TextEncoder().encode(JSON.stringify({ until })),
-  );
-  const value = `${payloadB64}.${await signPayload(payloadB64, secret)}`;
+  const value = await encodeSignedValue({ until }, secret);
 
   context.cookies.set(REVERIFY_COOLDOWN_COOKIE, value, {
     httpOnly: true,
@@ -49,18 +45,8 @@ export async function takeReverifyCooldown(
   const value = cookies.get(REVERIFY_COOLDOWN_COOKIE)?.value;
   if (!value) return 0;
 
-  const [payloadB64, signatureB64] = value.split('.');
-  if (!payloadB64 || !signatureB64) return 0;
-  if (!(await verifyPayloadSignature(payloadB64, signatureB64, secret))) {
-    return 0;
-  }
-
-  try {
-    const payload: { until?: unknown } = JSON.parse(
-      new TextDecoder().decode(base64urlDecode(payloadB64)),
-    );
-    return typeof payload.until === 'number' ? payload.until : 0;
-  } catch {
-    return 0;
-  }
+  const payload = await decodeSignedValue(value, secret);
+  if (!payload || typeof payload !== 'object') return 0;
+  const { until } = payload as { until?: unknown };
+  return typeof until === 'number' ? until : 0;
 }

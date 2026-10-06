@@ -1,22 +1,28 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { POST } from '@/pages/api/revalidate';
 import type { ApplicationEnv } from '@/lib/runtime';
+import { makeEnv } from './helpers/env';
+
+const cacheMocks = vi.hoisted(() => ({ markEdgeCachePurged: vi.fn() }));
+
+vi.mock('@/lib/cache', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/cache')>()),
+  markEdgeCachePurged: cacheMocks.markEdgeCachePurged,
+}));
+
+beforeEach(() => {
+  // mockReset also drops implementations set by earlier tests (the purge
+  // test's order recorder), restoring the plain no-op mock.
+  cacheMocks.markEdgeCachePurged.mockReset();
+});
 
 const SECRET = 'test-revalidate-secret';
 
-function makeEnv(overrides: Partial<ApplicationEnv> = {}): ApplicationEnv {
-  return {
-    extensionsApi: {
-      baseUrl: 'https://api.example.test',
-      fetch: globalThis.fetch,
-    },
-    authClientId: 'id',
-    authClientSecret: 'secret',
-    sessionSecret: 'session-secret',
-    assertionSigningSecret: 'assertion-secret',
+function makeRevalidateEnv(overrides = {}): ReturnType<typeof makeEnv> {
+  return makeEnv({
     revalidateSecret: SECRET,
     ...overrides,
-  };
+  });
 }
 
 function makeRequest(
@@ -54,7 +60,11 @@ describe('POST /api/revalidate', () => {
   it('rejects requests without a bearer token', async () => {
     const cache = makeCache();
     const response = await POST(
-      makeContext(makeRequest({ tags: ['catalogue'] }), makeEnv(), cache),
+      makeContext(
+        makeRequest({ tags: ['catalogue'] }),
+        makeRevalidateEnv(),
+        cache,
+      ),
     );
 
     expect(response.status).toBe(401);
@@ -69,7 +79,7 @@ describe('POST /api/revalidate', () => {
           { tags: ['catalogue'] },
           { authorization: `Bearer wrong-token` },
         ),
-        makeEnv(),
+        makeRevalidateEnv(),
         cache,
       ),
     );
@@ -86,7 +96,7 @@ describe('POST /api/revalidate', () => {
           { tags: ['catalogue'] },
           { authorization: `Bearer ${SECRET}` },
         ),
-        makeEnv({ revalidateSecret: '' }),
+        makeRevalidateEnv({ revalidateSecret: '' }),
         cache,
       ),
     );
@@ -100,7 +110,7 @@ describe('POST /api/revalidate', () => {
     const response = await POST(
       makeContext(
         makeRequest('not-json', { authorization: `Bearer ${SECRET}` }),
-        makeEnv(),
+        makeRevalidateEnv(),
         cache,
       ),
     );
@@ -115,7 +125,7 @@ describe('POST /api/revalidate', () => {
       const response = await POST(
         makeContext(
           makeRequest({ tags }, { authorization: `Bearer ${SECRET}` }),
-          makeEnv(),
+          makeRevalidateEnv(),
           cache,
         ),
       );
@@ -125,14 +135,24 @@ describe('POST /api/revalidate', () => {
   });
 
   it('purges allowlisted tags and reports them', async () => {
+    // The purge marker must land before the CDN invalidation: it is what
+    // ages out same-isolate data-cache entries after the purge — dropping
+    // it (or reordering) would silently break freshness.
+    const order: string[] = [];
+    cacheMocks.markEdgeCachePurged.mockImplementation(() => {
+      order.push('marker');
+    });
     const cache = makeCache();
+    cache.invalidate.mockImplementation(async () => {
+      order.push('invalidate');
+    });
     const response = await POST(
       makeContext(
         makeRequest(
           { tags: ['catalogue', 'developers'] },
           { authorization: `Bearer ${SECRET}` },
         ),
-        makeEnv(),
+        makeRevalidateEnv(),
         cache,
       ),
     );
@@ -141,6 +161,7 @@ describe('POST /api/revalidate', () => {
     await expect(response.json()).resolves.toEqual({
       purged: ['catalogue', 'developers'],
     });
+    expect(order).toEqual(['marker', 'invalidate']);
     expect(cache.invalidate).toHaveBeenCalledWith({
       tags: ['catalogue', 'developers'],
     });
@@ -154,7 +175,7 @@ describe('POST /api/revalidate', () => {
           { tags: ['catalogue'] },
           { authorization: `Bearer ${SECRET}` },
         ),
-        makeEnv(),
+        makeRevalidateEnv(),
         cache,
       ),
     );
@@ -172,7 +193,7 @@ describe('POST /api/revalidate', () => {
           { tags: ['catalogue'] },
           { authorization: `Bearer ${SECRET}` },
         ),
-        makeEnv(),
+        makeRevalidateEnv(),
         cache,
       ),
     );
@@ -194,7 +215,7 @@ describe('POST /api/revalidate', () => {
           { tags: ['catalogue'] },
           { authorization: `Bearer ${SECRET}` },
         ),
-        makeEnv(),
+        makeRevalidateEnv(),
         cache,
       ),
     );
@@ -215,7 +236,7 @@ describe('POST /api/revalidate', () => {
           { authorization: `Bearer ${SECRET}` },
           'http://localhost:4321/api/revalidate',
         ),
-        makeEnv(),
+        makeRevalidateEnv(),
         cache,
       ),
     );

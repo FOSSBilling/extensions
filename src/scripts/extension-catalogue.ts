@@ -1,69 +1,29 @@
+// Client-side behaviour for the catalogue's Load More control. Appended
+// cards come from /api/extensions/cards, which renders the same
+// ExtensionCard component as the server-rendered grid — card markup and
+// server-signed icon URLs cannot drift between the first page and the rest.
+// Kept in a module (rather than inline in the .astro file) so it gets full
+// TypeScript checking like any other lib file.
+
 import {
   createCataloguePagerFromIds,
   type CataloguePageRequest,
-} from '@/lib/cataloguePagination';
-import type {
-  ExtensionListItem,
-  ExtensionListResponse,
-} from '@/lib/api/client';
-import { getOptimizedImageUrl } from '@/lib/image-url';
+} from '@/lib/catalogue-pagination';
+import type { ExtensionListResponse } from '@/lib/api/client';
 
 const DEFAULT_PAGE_LIMIT = 50;
 
-type CatalogueCardItem = Pick<
-  ExtensionListItem,
-  'id' | 'name' | 'description' | 'version' | 'icon_url'
-> & { optimized_icon_url?: string };
-
-type CatalogueCardPage = {
-  result: CatalogueCardItem[];
-  pagination: ExtensionListResponse['pagination'];
+// A rendered card and its extension id. The id backs the pager's dedupe;
+// the markup is appended as-is.
+type CatalogueCard = {
+  id: string;
+  html: string;
 };
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
-}
-
-function isCatalogueCardItem(value: unknown): value is CatalogueCardItem {
-  if (!isRecord(value)) return false;
-
-  return (
-    typeof value.id === 'string' &&
-    typeof value.name === 'string' &&
-    typeof value.description === 'string' &&
-    typeof value.version === 'string' &&
-    (value.icon_url === undefined || typeof value.icon_url === 'string') &&
-    (value.optimized_icon_url === undefined ||
-      typeof value.optimized_icon_url === 'string')
-  );
-}
-
-export function isCatalogueCardPage(
-  value: unknown,
-): value is CatalogueCardPage {
-  if (!isRecord(value) || !isRecord(value.pagination)) {
-    return false;
-  }
-
-  return (
-    Array.isArray(value.result) &&
-    value.result.every(isCatalogueCardItem) &&
-    ((typeof value.pagination.next_cursor === 'string' &&
-      value.pagination.next_cursor.length > 0) ||
-      value.pagination.next_cursor === null) &&
-    typeof value.pagination.has_more === 'boolean'
-  );
-}
-
-function catalogueErrorMessage(value: unknown): string | undefined {
-  if (!isRecord(value) || !isRecord(value.error)) {
-    return undefined;
-  }
-
-  return typeof value.error.message === 'string'
-    ? value.error.message
-    : undefined;
-}
+type CatalogueCardPage = {
+  result: CatalogueCard[];
+  pagination: ExtensionListResponse['pagination'];
+};
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof Error) {
@@ -89,91 +49,44 @@ async function loadPage(
   params.set('cursor', request.cursor);
 
   const response = await fetch(`${apiUrl}?${params.toString()}`);
-  let body: unknown;
-  try {
-    body = await response.json();
-  } catch {
-    throw new Error('The extensions API returned an unexpected response.');
-  }
+  const html = await response.text();
+
+  const fragment = document.createElement('template');
+  // Parsing untrusted HTML? The fragment endpoint is this site's own render
+  // of ExtensionCard; template parsing never executes scripts anyway.
+  fragment.innerHTML = html;
 
   if (!response.ok) {
-    const message = catalogueErrorMessage(body);
+    const errorEl = fragment.content.querySelector<HTMLElement>(
+      '[data-catalogue-error]',
+    );
     throw new Error(
-      message || `The extensions API returned ${response.status}.`,
+      errorEl?.dataset.catalogueError ??
+        `The extensions API returned ${response.status}.`,
     );
   }
 
-  if (!isCatalogueCardPage(body)) {
+  const wrapper = fragment.content.querySelector<HTMLElement>(
+    '[data-catalogue-page]',
+  );
+  if (!wrapper) {
     throw new Error('The extensions API returned an unexpected response.');
   }
 
-  return body;
-}
+  const cards = Array.from(
+    wrapper.querySelectorAll<HTMLElement>('[data-extension-id]'),
+  ).map((card) => ({
+    id: card.dataset.extensionId ?? '',
+    html: card.outerHTML,
+  }));
 
-function makeCard(item: CatalogueCardItem): HTMLAnchorElement {
-  const link = document.createElement('a');
-  link.href = `/extension/${encodeURIComponent(item.id)}`;
-  link.className = 'block';
-  link.dataset.extensionId = item.id;
-  // Match ExtensionCard.astro: prefetch is refused at the edge (503).
-  link.setAttribute('data-astro-prefetch', 'false');
-
-  const article = document.createElement('article');
-  article.className = 'card hover:bg-muted/50 transition-colors h-full';
-
-  const section = document.createElement('section');
-  section.className = 'flex items-start space-x-4';
-
-  const iconContainer = document.createElement('div');
-  iconContainer.className =
-    'p-2 bg-primary/10 rounded-lg w-14 h-14 flex items-center justify-center shrink-0';
-  const iconUrl =
-    item.optimized_icon_url ?? getOptimizedImageUrl(item.icon_url, 'icon');
-  if (iconUrl) {
-    const icon = document.createElement('img');
-    icon.src = iconUrl;
-    icon.width = 40;
-    icon.height = 40;
-    icon.className = 'w-10 h-10 object-contain';
-    icon.alt = `${item.name} icon`;
-    icon.loading = 'lazy';
-    icon.decoding = 'async';
-    iconContainer.appendChild(icon);
-  } else {
-    const placeholder = document.createElement('span');
-    placeholder.className = 'w-10 h-10';
-    placeholder.setAttribute('aria-hidden', 'true');
-    iconContainer.appendChild(placeholder);
-  }
-
-  const content = document.createElement('div');
-  content.className = 'flex-1 min-w-0';
-
-  const heading = document.createElement('div');
-  heading.className = 'flex items-baseline space-x-2';
-
-  const name = document.createElement('h3');
-  name.className = 'text-xl font-semibold leading-none tracking-tight';
-  name.textContent = item.name;
-
-  const version = document.createElement('span');
-  version.className = 'text-sm text-muted-foreground';
-  version.textContent = `v${item.version || 'unknown'}`;
-
-  const description = document.createElement('p');
-  description.className = 'text-sm text-muted-foreground mt-1 truncate';
-  description.textContent = item.description;
-
-  heading.appendChild(name);
-  heading.appendChild(version);
-  content.appendChild(heading);
-  content.appendChild(description);
-  section.appendChild(iconContainer);
-  section.appendChild(content);
-  article.appendChild(section);
-  link.appendChild(article);
-
-  return link;
+  return {
+    result: cards,
+    pagination: {
+      next_cursor: wrapper.dataset.nextCursor || null,
+      has_more: wrapper.dataset.hasMore === 'true',
+    },
+  };
 }
 
 function installCatalogue(root: HTMLElement): void {
@@ -200,17 +113,16 @@ function installCatalogue(root: HTMLElement): void {
     developer_id: root.dataset.developerId,
     limit: Number(root.dataset.limit) || DEFAULT_PAGE_LIMIT,
   };
-  const pager = createCataloguePagerFromIds(
+  const pager = createCataloguePagerFromIds<CatalogueCard>(
     initialIds,
     pagination,
     filters,
-    (request) => loadPage(root.dataset.apiUrl ?? '/api/extensions', request),
+    (request) =>
+      loadPage(root.dataset.apiUrl ?? '/api/extensions/cards', request),
   );
 
-  const updateControls = (itemsBeforeLoad: number) => {
+  const updateControls = () => {
     const state = pager.getState();
-    const newItems = state.items.slice(itemsBeforeLoad);
-    newItems.forEach((item) => grid.appendChild(makeCard(item)));
     if (emptyState && state.items.length > 0) {
       emptyState.hidden = true;
     }
@@ -233,10 +145,6 @@ function installCatalogue(root: HTMLElement): void {
       loadMore.hidden = false;
       status.textContent = '';
     }
-
-    if (!state.isLoading && state.error) {
-      loadMore.disabled = false;
-    }
   };
 
   loadMore.addEventListener('click', async () => {
@@ -251,11 +159,20 @@ function installCatalogue(root: HTMLElement): void {
       return;
     }
 
-    const itemsBeforeLoad = pager.getState().items.length;
+    const cardsBefore = pager.getState().items.length;
     const request = pager.loadNextPage();
-    updateControls(itemsBeforeLoad);
+    updateControls();
     await request;
-    updateControls(itemsBeforeLoad);
+    const newCards = pager.getState().items.slice(cardsBefore);
+    if (newCards.length > 0) {
+      const template = document.createElement('template');
+      template.innerHTML = newCards.map((card) => card.html).join('');
+      const nodes = Array.from(template.content.children);
+      for (const node of nodes) {
+        grid.appendChild(node);
+      }
+    }
+    updateControls();
   });
 }
 

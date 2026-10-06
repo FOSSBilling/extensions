@@ -1,16 +1,17 @@
 ---
+import { TRUNCATE_AT, TRUNCATE_EXPAND_LABEL } from '@/lib/revision-diff-shared';
+
 // Long plain-text diff values (e.g. description) render truncated with a
 // Show More/Less toggle. Markup only — the toggle is wired by shared click
-// delegation on [data-truncate-toggle] (admin-revisions-client.ts, plus the
-// extension detail page for its own table). Markdown values use
-// MarkdownValue, URL fields use DiffValue's link branch.
+// delegation on [data-truncate-toggle] (lib/truncate-toggles.ts). Markdown
+// values use MarkdownValue, URL fields use DiffValue's link branch.
 interface Props {
   value: string;
   limit?: number;
   id?: string;
 }
 
-const { value, limit = 400, id } = Astro.props;
+const { value, limit = TRUNCATE_AT, id } = Astro.props;
 const truncated = value.length > limit;
 ---
 
@@ -29,7 +30,7 @@ const truncated = value.length > limit;
       aria-expanded="false"
       aria-controls={id}
     >
-      Show More
+      {TRUNCATE_EXPAND_LABEL}
     </button>
   </>
 ) : (

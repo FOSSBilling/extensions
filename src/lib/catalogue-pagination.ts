@@ -1,15 +1,15 @@
 import type { ExtensionListItem, ExtensionListResponse } from './api/client';
 
-export type CatalogueItem = {
+type CatalogueItem = {
   id: string;
 };
 
-export type CataloguePage<Item extends CatalogueItem = ExtensionListItem> = {
+type CataloguePage<Item extends CatalogueItem = ExtensionListItem> = {
   result: Item[];
   pagination: ExtensionListResponse['pagination'];
 };
 
-export type CataloguePageFilters = {
+type CataloguePageFilters = {
   type?: string;
   developer_id?: string;
   limit?: number;
@@ -19,9 +19,7 @@ export type CataloguePageRequest = CataloguePageFilters & {
   cursor: string;
 };
 
-export type CataloguePagerState<
-  Item extends CatalogueItem = ExtensionListItem,
-> = {
+type CataloguePagerState<Item extends CatalogueItem = ExtensionListItem> = {
   items: Item[];
   nextCursor: string | null;
   hasMore: boolean;
@@ -29,9 +27,9 @@ export type CataloguePagerState<
   error: unknown | null;
 };
 
-export type CataloguePageLoader<
-  Item extends CatalogueItem = ExtensionListItem,
-> = (request: CataloguePageRequest) => Promise<CataloguePage<Item>>;
+type CataloguePageLoader<Item extends CatalogueItem = ExtensionListItem> = (
+  request: CataloguePageRequest,
+) => Promise<CataloguePage<Item>>;
 
 export function createCataloguePager<
   Item extends CatalogueItem = ExtensionListItem,
@@ -154,7 +152,11 @@ export function appendPage<Item extends CatalogueItem = ExtensionListItem>(
   };
 }
 
-function hasNextPage(pagination: ExtensionListResponse['pagination']): boolean {
+// Whether another page exists at all. Shared with the server-rendered
+// catalogue wrappers, whose data-has-more attribute seeds the client pager.
+export function hasNextPage(
+  pagination: ExtensionListResponse['pagination'],
+): boolean {
   return (
     pagination.has_more &&
     pagination.next_cursor !== null &&

@@ -6,10 +6,15 @@
 
 import { renderMarkdown } from '@/lib/markdown';
 import { isSafeHttpUrl } from '@/lib/safe-url';
+import { initTruncateToggles } from '@/lib/truncate-toggles';
 import {
   DIFF_FIELDS,
   FIELD_LABELS,
-  fieldCompareKey,
+  MARKDOWN_SCROLL_CLASS,
+  TRUNCATE_AT,
+  TRUNCATE_EXPAND_LABEL,
+  URL_FIELDS,
+  fieldChanged,
   fieldDisplay,
   fieldUrl,
 } from '@/lib/revision-diff-shared';
@@ -32,24 +37,18 @@ interface RevisionDetailResult {
   published: PublishedContent | null;
 }
 
-const TRUNCATE_AT = 400;
+// Uniqueness for aria-controls targets within one page's diff tables.
+let truncateSequence = 0;
 
 function markdownCell(value: string, className: string): HTMLTableCellElement {
   const td = document.createElement('td');
   td.className = className;
   const body = document.createElement('div');
-  body.className =
-    'markdown-body break-normal max-h-72 overflow-y-auto overscroll-contain';
+  body.className = MARKDOWN_SCROLL_CLASS;
   body.innerHTML = renderMarkdown(value);
   td.appendChild(body);
   return td;
 }
-
-const URL_FIELDS: ReadonlySet<string> = new Set([
-  'website',
-  'download_url',
-  'icon_url',
-]);
 
 function valueCell(
   value: string | null,
@@ -80,9 +79,16 @@ function valueCell(
     td.textContent = value;
     return td;
   }
+  // Same markup protocol as TruncatedText.astro, so the shared delegation
+  // (initTruncateToggles) wires the toggle. Like TruncatedText, the toggle
+  // links to the region it expands via aria-controls.
+  const fullId = `truncate-full-${++truncateSequence}`;
   const short = document.createElement('span');
+  short.setAttribute('data-truncate-short', '');
   short.textContent = `${value.slice(0, TRUNCATE_AT)}…`;
   const full = document.createElement('span');
+  full.setAttribute('data-truncate-full', '');
+  full.id = fullId;
   full.textContent = value;
   full.hidden = true;
   const toggle = document.createElement('button');
@@ -90,13 +96,10 @@ function valueCell(
   toggle.className = 'btn ml-2';
   toggle.setAttribute('data-size', 'sm');
   toggle.setAttribute('data-variant', 'ghost');
-  toggle.textContent = 'Show More';
-  toggle.addEventListener('click', () => {
-    const expanded = full.hidden;
-    full.hidden = !expanded;
-    short.hidden = expanded;
-    toggle.textContent = expanded ? 'Show Less' : 'Show More';
-  });
+  toggle.setAttribute('data-truncate-toggle', '');
+  toggle.setAttribute('aria-expanded', 'false');
+  toggle.setAttribute('aria-controls', fullId);
+  toggle.textContent = TRUNCATE_EXPAND_LABEL;
   td.appendChild(short);
   td.appendChild(document.createTextNode(' '));
   td.appendChild(full);
@@ -117,9 +120,7 @@ function renderDiff(
     const label = FIELD_LABELS[field];
     const oldValue = fieldDisplay(field, published);
     const newValue = fieldDisplay(field, revision);
-    const isChanged = isNew
-      ? newValue !== null
-      : fieldCompareKey(field, published) !== fieldCompareKey(field, revision);
+    const isChanged = fieldChanged(field, published, revision, isNew);
     if (isChanged) changed += 1;
     const tr = document.createElement('tr');
     tr.className =
@@ -170,45 +171,36 @@ function renderDiff(
   }
 }
 
+// The expandable detail row always directly follows its summary row and is
+// marked with the wrap attribute (see the [data-*-wrap] rows in the admin
+// tables) — that adjacency is how a toggle button finds its wrap, verified
+// by the attribute so a stray sibling can never be toggled by mistake.
+function findDetailWrap(
+  button: HTMLElement,
+  wrapAttr: string,
+): HTMLElement | null {
+  const row = button.closest('tr');
+  const wrap = row?.nextElementSibling;
+  return wrap instanceof HTMLElement && wrap.hasAttribute(wrapAttr)
+    ? wrap
+    : null;
+}
+
 export function initRevisionQueue(): void {
+  initTruncateToggles();
+
   const detailCache = new Map<string, PublishedContent | null>();
 
   document.addEventListener('click', (event: MouseEvent) => {
     const target = event.target as HTMLElement | null;
-
-    // Long plain-text values render truncated with a toggle (TruncatedText).
-    // Shared delegation so every table using it gets a working toggle —
-    // the extension detail page wires the same behaviour inline for its
-    // own table.
-    const truncateToggle = target?.closest<HTMLButtonElement>(
-      '[data-truncate-toggle]',
-    );
-    if (truncateToggle) {
-      const cell = truncateToggle.closest('td');
-      const short = cell?.querySelector<HTMLElement>('[data-truncate-short]');
-      const full = cell?.querySelector<HTMLElement>('[data-truncate-full]');
-      if (!short || !full) return;
-      const expanded = full.hidden;
-      full.hidden = !expanded;
-      short.hidden = expanded;
-      truncateToggle.textContent = expanded ? 'Show Less' : 'Show More';
-      truncateToggle.setAttribute('aria-expanded', String(expanded));
-      return;
-    }
 
     // Frozen content is server-rendered — this just toggles the next sibling
     // detail row, with no fetch involved (unlike [data-compare] below).
     // Labels come from data-show/data-hide.
     const frozenBtn = target?.closest<HTMLButtonElement>('[data-frozen]');
     if (frozenBtn) {
-      const row = frozenBtn.closest('tr');
-      const wrap = row?.nextElementSibling;
-      if (
-        !(wrap instanceof HTMLElement) ||
-        !wrap.hasAttribute('data-frozen-wrap')
-      ) {
-        return;
-      }
+      const wrap = findDetailWrap(frozenBtn, 'data-frozen-wrap');
+      if (!wrap) return;
       const showing = !wrap.hidden;
       wrap.hidden = showing;
       frozenBtn.setAttribute('aria-expanded', String(!showing));
@@ -223,14 +215,9 @@ export function initRevisionQueue(): void {
     // on the summary row's dataset; only the published side is fetched.
     const compareBtn = target?.closest<HTMLButtonElement>('[data-compare]');
     if (compareBtn) {
+      const wrap = findDetailWrap(compareBtn, 'data-diff-table-wrap');
+      if (!wrap) return;
       const row = compareBtn.closest('tr');
-      const wrap = row?.nextElementSibling;
-      if (
-        !(wrap instanceof HTMLElement) ||
-        !wrap.hasAttribute('data-diff-table-wrap')
-      ) {
-        return;
-      }
       const body = wrap.querySelector('[data-diff-body]');
       const hint = wrap.querySelector<HTMLElement>('[data-diff-hint]');
       const errorEl = wrap.querySelector<HTMLElement>('[data-diff-error]');

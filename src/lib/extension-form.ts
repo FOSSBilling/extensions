@@ -157,3 +157,66 @@ export function buildExtensionUpdatePayload(
     !existing?.releases.length,
   );
 }
+
+// Best-effort echo of what the user submitted, spread over the extension's
+// current content for redisplay when an edit or correction is rejected.
+// Mirrors buildLicense(), minus the validation — this is not the payload
+// itself, so an incomplete choice here is fine to redisplay as-is rather
+// than reject. Shared by the author edit page and the moderator correction
+// page so a new form field only needs adding here.
+export function echoExtensionFromForm(
+  form: FormData,
+  base: Extension,
+): Extension {
+  const selectedLicenseId = formString(form, 'license_spdx_id');
+  const isRecognizedLicense =
+    selectedLicenseId !== OTHER_LICENSE &&
+    SPDX_LICENSE_IDS.includes(selectedLicenseId);
+  return {
+    ...base,
+    type: formString(form, 'type') as Extension['type'],
+    name: formString(form, 'name'),
+    description: formString(form, 'description'),
+    website: formString(form, 'website'),
+    icon_url: formString(form, 'icon_url') || undefined,
+    readme: formString(form, 'readme'),
+    license: isRecognizedLicense
+      ? {
+          name: selectedLicenseId,
+          spdx_id: selectedLicenseId,
+          URL: formString(form, 'license_url') || undefined,
+        }
+      : {
+          name: formString(form, 'license_name_custom'),
+          URL: formString(form, 'license_url') || undefined,
+        },
+    source: {
+      type: formString(form, 'source_type') as Extension['source']['type'],
+      repo: formString(form, 'source_repo'),
+    },
+  };
+}
+
+// The release-section input values as submitted, echoed alongside
+// echoExtensionFromForm: the Extension model has nowhere to hold a pending
+// release draft (version tag, date, URLs, minimum version), so without this
+// a failed submission would redisplay that fieldset blank and discard it.
+// Values are echoed exactly as typed — no scheme normalization — matching
+// the best-effort redisplay contract above.
+export interface ReleaseDraft {
+  version_tag: string;
+  release_date: string;
+  download_url: string;
+  changelog_url: string;
+  min_fossbilling_version: string;
+}
+
+export function echoReleaseDraftFromForm(form: FormData): ReleaseDraft {
+  return {
+    version_tag: formString(form, 'version_tag'),
+    release_date: formString(form, 'release_date'),
+    download_url: formString(form, 'download_url'),
+    changelog_url: formString(form, 'changelog_url'),
+    min_fossbilling_version: formString(form, 'min_fossbilling_version'),
+  };
+}

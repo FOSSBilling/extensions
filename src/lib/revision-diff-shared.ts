@@ -10,22 +10,22 @@
 // changed even though its visible text is identical. Link targets are
 // returned raw; renderers still validate the scheme before linking.
 
-export interface DiffSource {
+interface DiffSource {
   type?: string;
   repo?: string;
 }
 
-export interface DiffLicense {
+interface DiffLicense {
   name?: string;
   spdx_id?: string;
   URL?: string;
 }
 
-export interface DiffRelease {
+interface DiffRelease {
   tag?: string;
 }
 
-export interface DiffContent {
+interface DiffContent {
   license?: DiffLicense | null;
   source?: DiffSource | null;
   releases?: Array<DiffRelease | null> | null;
@@ -51,6 +51,27 @@ export const DIFF_FIELDS = [
 
 export type DiffField = (typeof DIFF_FIELDS)[number];
 
+// Fields whose plain values render as clickable links. DiffValue.astro and
+// the browser queue renderer both check this set.
+export const URL_FIELDS: ReadonlySet<string> = new Set([
+  'website',
+  'download_url',
+  'icon_url',
+]);
+
+// Plain-text diff values longer than this render truncated behind a
+// Show More/Less toggle (TruncatedText.astro and the browser renderer).
+export const TRUNCATE_AT = 400;
+export const TRUNCATE_EXPAND_LABEL = 'Show More';
+export const TRUNCATE_COLLAPSE_LABEL = 'Show Less';
+
+// Class for capped scrollable markdown regions — MarkdownValue.astro and the
+// browser renderer's readme cell must stay visually identical. `break-normal`:
+// diff cells use break-all for long URLs, which markdown prose must not
+// inherit.
+export const MARKDOWN_SCROLL_CLASS =
+  'markdown-body break-normal max-h-72 overflow-y-auto overscroll-contain';
+
 export const FIELD_LABELS: Record<DiffField, string> = {
   name: 'Name',
   type: 'Type',
@@ -65,13 +86,13 @@ export const FIELD_LABELS: Record<DiffField, string> = {
   readme: 'Readme',
 };
 
-export function scalarLabel(value: unknown): string | null {
+function scalarLabel(value: unknown): string | null {
   if (value === undefined || value === null) return null;
   const text = String(value).trim();
   return text.length > 0 ? text : null;
 }
 
-export function licenseLabel(license?: DiffLicense | null): string | null {
+function licenseLabel(license?: DiffLicense | null): string | null {
   if (!license) return null;
   if (typeof license.name === 'string' && license.name.length > 0) {
     return license.spdx_id
@@ -81,12 +102,12 @@ export function licenseLabel(license?: DiffLicense | null): string | null {
   return null;
 }
 
-export function licenseUrl(license?: DiffLicense | null): string | null {
+function licenseUrl(license?: DiffLicense | null): string | null {
   if (!license || typeof license.URL !== 'string') return null;
   return license.URL.length > 0 ? license.URL : null;
 }
 
-export function licenseCompareKey(license?: DiffLicense | null): string | null {
+function licenseCompareKey(license?: DiffLicense | null): string | null {
   if (!license) return null;
   const parts = [license.name, license.spdx_id, license.URL].filter(
     (part): part is string => typeof part === 'string' && part.length > 0,
@@ -94,12 +115,12 @@ export function licenseCompareKey(license?: DiffLicense | null): string | null {
   return parts.length > 0 ? JSON.stringify(parts) : null;
 }
 
-export function sourceLabel(source?: DiffSource | null): string | null {
+function sourceLabel(source?: DiffSource | null): string | null {
   if (!source || typeof source.repo !== 'string') return null;
   return source.repo.length > 0 ? source.repo : null;
 }
 
-export function sourceCompareKey(source?: DiffSource | null): string | null {
+function sourceCompareKey(source?: DiffSource | null): string | null {
   if (!source || typeof source.repo !== 'string' || source.repo.length === 0)
     return null;
   return typeof source.type === 'string' && source.type.length > 0
@@ -110,7 +131,7 @@ export function sourceCompareKey(source?: DiffSource | null): string | null {
 // Same mapping as repositoryURL (@/types), reimplemented here so the
 // browser client doesn't pull semver into its bundle. Keeps GitLab/custom
 // sources linking correctly.
-export function sourceHref(source?: DiffSource | null): string | null {
+function sourceHref(source?: DiffSource | null): string | null {
   if (
     !source ||
     typeof source.repo !== 'string' ||
@@ -131,7 +152,7 @@ export function sourceHref(source?: DiffSource | null): string | null {
   }
 }
 
-export function releasesLabel(
+function releasesLabel(
   releases?: Array<DiffRelease | null> | null,
 ): string | null {
   if (!releases) return null;
@@ -176,6 +197,20 @@ export function fieldCompareKey(
     default:
       return fieldDisplay(field, content);
   }
+}
+
+// The one "changed" rule both renderers (server and browser) must agree on:
+// a brand-new extension's rows count as changed whenever they carry a value;
+// otherwise a field changed when its comparison keys differ.
+export function fieldChanged(
+  field: DiffField,
+  published: DiffContent | null,
+  revision: DiffContent | null,
+  isNew: boolean,
+): boolean {
+  return isNew
+    ? fieldDisplay(field, revision) !== null
+    : fieldCompareKey(field, published) !== fieldCompareKey(field, revision);
 }
 
 export function fieldUrl(

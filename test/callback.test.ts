@@ -36,19 +36,9 @@ vi.mock('@/lib/flash', () => ({ setFlash: mocks.setFlash }));
 
 import { createOAuthTransaction, oauthTransactionCookie } from '@/lib/oauth';
 import { GET } from '@/pages/auth/callback';
-import type { ApplicationEnv } from '@/lib/runtime';
+import { makeEnv } from './helpers/env';
 
-const env: ApplicationEnv = {
-  extensionsApi: {
-    baseUrl: 'https://api.example.test',
-    fetch: (...args) => globalThis.fetch(...args),
-  },
-  authClientId: 'client-id',
-  authClientSecret: 'client-secret',
-  sessionSecret: 'session-secret',
-  assertionSigningSecret: 'assertion-secret',
-  revalidateSecret: 'revalidate-secret',
-};
+const env = makeEnv();
 
 const userInfo = {
   sub: 'user-subject',
@@ -304,6 +294,25 @@ describe('GET /auth/callback', () => {
       'fb_session',
       'session-value',
       expect.objectContaining({ httpOnly: true, path: '/' }),
+    );
+    expect(result.headers.get('location')).toBe('/account');
+  });
+
+  it('skips opportunistic re-verification when the profile was verified recently', async () => {
+    // Within RECENT_VERIFICATION_MS (one hour): repeated logins must not
+    // each pay an extra API round-trip.
+    mocks.getDeveloperByOwner.mockResolvedValue({
+      github_verified_at: new Date(Date.now() - 60 * 1000).toISOString(),
+    });
+    const ctx = await context({ redirectTo: '/account' });
+
+    const result = await GET(ctx);
+
+    expect(mocks.reverifyDeveloper).not.toHaveBeenCalled();
+    expect(ctx.cookies.set).toHaveBeenCalledWith(
+      'fb_session',
+      'session-value',
+      expect.anything(),
     );
     expect(result.headers.get('location')).toBe('/account');
   });

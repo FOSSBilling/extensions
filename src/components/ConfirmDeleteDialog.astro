@@ -1,6 +1,9 @@
 ---
-import { X } from '@lucide/astro';
+import DialogShell from './DialogShell.astro';
 
+// Destructive deletion confirm: DialogShell with type-to-confirm enabled.
+// The submit button stays disabled until the exact confirm text is typed;
+// closing resets the form and re-disables the button (DialogShell's onclose).
 interface Props {
   id: string;
   title: string;
@@ -20,66 +23,33 @@ const {
   formAction,
   submitLabel = 'Delete',
 } = Astro.props;
+
+// Fail closed: DialogShell only renders the type-to-confirm guard (and
+// starts the submit button disabled) for a truthy value, so an empty
+// confirmText would silently produce a destructive dialog with the guard
+// omitted. Loudly refuse instead.
+if (!confirmText.trim()) {
+  throw new Error(
+    'ConfirmDeleteDialog requires a non-empty confirmText to confirm.',
+  );
+}
 ---
 
-<dialog
+<DialogShell
   id={id}
-  class="dialog"
-  aria-labelledby={`${id}-title`}
-  aria-describedby={`${id}-description`}
-  onclick="if (arguments[0].target === this) this.close()"
-  onclose="this.querySelector('form').reset(); this.querySelector('[data-confirm-submit]').disabled = true;"
+  title={title}
+  description={description}
+  formAction={formAction}
+  submitLabel={submitLabel}
+  submitVariant="destructive"
+  typeToConfirm={confirmText}
 >
-  <form method="POST" action={formAction}>
-    {intentField && (
-      <input type="hidden" name={intentField.name} value={intentField.value} />
-    )}
-    <header>
-      <h2 id={`${id}-title`}>{title}</h2>
-      <p id={`${id}-description`}>{description}</p>
-    </header>
-    <section>
-      <div class="field">
-        <label for={`${id}-confirm`}>
-          Type <strong>{confirmText}</strong> to confirm
-        </label>
-        <input
-          class="input"
-          type="text"
-          id={`${id}-confirm`}
-          autocomplete="off"
-          oninput={`this.closest('form').querySelector('[data-confirm-submit]').disabled = this.value !== ${JSON.stringify(confirmText)}`}
-        />
-      </div>
-    </section>
-    <footer>
-      <button
-        type="button"
-        class="btn"
-        data-variant="outline"
-        onclick="this.closest('dialog').close()"
-      >
-        Cancel
-      </button>
-      <button
-        type="submit"
-        class="btn"
-        data-variant="destructive"
-        data-confirm-submit
-        disabled
-      >
-        {submitLabel}
-      </button>
-    </footer>
-    <button
-      type="button"
-      class="btn"
-      data-variant="ghost"
-      data-size="icon-sm"
-      aria-label="Close dialog"
-      onclick="this.closest('dialog').close()"
-    >
-      <X class="size-4" />
-    </button>
-  </form>
-</dialog>
+  {intentField && (
+    <input
+      slot="extra"
+      type="hidden"
+      name={intentField.name}
+      value={intentField.value}
+    />
+  )}
+</DialogShell>

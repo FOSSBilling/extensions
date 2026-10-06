@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { AstroCookies } from 'astro';
 import { FLASH_COOKIE, setFlash, takeFlash } from '@/lib/flash';
+import { fakeCookies } from './helpers/fake-cookies';
 
 const SECRET = 'flash-test-secret';
 const MESSAGE = {
@@ -8,27 +8,6 @@ const MESSAGE = {
   title: 'Profile Updated.',
   description: 'Changes are live.',
 };
-
-function fakeCookies() {
-  const jar = new Map<string, string>();
-  const set = vi.fn(
-    (name: string, value: string, _options?: Record<string, unknown>) => {
-      jar.set(name, value);
-    },
-  );
-  const remove = vi.fn((name: string) => jar.delete(name));
-  const get = vi.fn((name: string) => {
-    const value = jar.get(name);
-    return value === undefined ? undefined : { value };
-  });
-  return {
-    jar,
-    set,
-    delete: remove,
-    get,
-    cookies: { get, set, delete: remove } as unknown as AstroCookies,
-  };
-}
 
 function flashContext(secure = true) {
   const jar = fakeCookies();
@@ -151,16 +130,19 @@ describe('takeFlash', () => {
     await expect(takeFlash(jar.cookies, SECRET)).resolves.toEqual(withAction);
   });
 
+  // The action shape check guards two distinct things: cross-cookie payload
+  // replay (every signed cookie shares this key, so a foreign payload must
+  // fail the shape check) and server bugs — setFlash is typed, so a
+  // malformed action can only enter a validly-signed cookie through one of
+  // those. Two representative cases cover the branch; the well-signed
+  // invalid-shape test below isolates it from signature failure.
   it.each([
-    ['null action', null],
     ['non-object action', 'reconnect'],
-    ['empty label', { label: '', href: 'https://auth.example.test/' }],
-    ['over-long label', { label: 'x'.repeat(101), href: '/' }],
+    ['empty label', { label: '', href: '/' }],
     ['non-string label', { label: 42, href: '/' }],
-    ['missing label', { href: '/' }],
     ['empty href', { label: 'Reconnect', href: '' }],
-    ['over-long href', { label: 'Reconnect', href: `/${'x'.repeat(2048)}` }],
     ['missing href', { label: 'Reconnect' }],
+    ['over-long href', { label: 'Reconnect', href: `/${'x'.repeat(2048)}` }],
   ])('drops flashes with a malformed action (%s)', async (_name, action) => {
     const { jar, context } = flashContext();
     await setFlash(context, SECRET, {
@@ -170,6 +152,16 @@ describe('takeFlash', () => {
 
     // setFlash stores anything; the read-time shape check rejects it, so a
     // malformed action can never render as a link (or throw when read).
+    await expect(takeFlash(jar.cookies, SECRET)).resolves.toBeUndefined();
+  });
+
+  it('drops flashes whose category is not one of the known ones', async () => {
+    const { jar, context } = flashContext();
+    await setFlash(context, SECRET, {
+      ...MESSAGE,
+      category: 'urgent' as unknown as 'success',
+    });
+
     await expect(takeFlash(jar.cookies, SECRET)).resolves.toBeUndefined();
   });
 

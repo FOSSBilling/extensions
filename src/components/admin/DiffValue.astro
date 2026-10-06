@@ -2,6 +2,7 @@
 import MarkdownValue from './MarkdownValue.astro';
 import TruncatedText from './TruncatedText.astro';
 import { isSafeHttpUrl } from '@/lib/safe-url';
+import { URL_FIELDS } from '@/lib/revision-diff-shared';
 
 // Renders one side of a revision diff row according to its field type:
 // readme as rendered markdown, URL fields and explicit hrefs (e.g. the
@@ -17,7 +18,6 @@ interface Props {
 }
 
 const { field, value, emptyLabel = '—', href = null, id } = Astro.props;
-const URL_FIELDS = new Set(['website', 'download_url', 'icon_url']);
 const link =
   href && isSafeHttpUrl(href)
     ? href

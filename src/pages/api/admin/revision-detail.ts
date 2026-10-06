@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 import { requireModerator } from '@/lib/auth-guard';
-import { ApiRequestError, createApiClient } from '@/lib/api/client';
+import { apiErrorResponse, createApiClient } from '@/lib/api/client';
 
 // On-demand published content for the revision queue's "compare with live"
 // affordance. The queue page itself makes zero detail queries; the client
@@ -31,23 +31,6 @@ export const GET: APIRoute = async (context) => {
       },
     });
   } catch (error) {
-    if (error instanceof ApiRequestError) {
-      return Response.json(
-        {
-          error: {
-            code: error.code,
-            message: error.message,
-            ...(error.details ? { details: error.details } : {}),
-          },
-        },
-        { status: error.status >= 400 ? error.status : 502 },
-      );
-    }
-    return Response.json(
-      {
-        error: { code: 'request_failed', message: 'Unable to load extension.' },
-      },
-      { status: 502 },
-    );
+    return apiErrorResponse(error, 'Unable to load extension.');
   }
 };

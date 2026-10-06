@@ -2,21 +2,26 @@
 import Admin from '../../../../../layouts/Admin.astro';
 import ExtensionForm from '@/components/ExtensionForm.astro';
 import { requireModerator } from '@/lib/auth-guard';
-import { createApiClient, ApiRequestError } from '@/lib/api/client';
+import {
+  createApiClient,
+  ApiRequestError,
+  getApiErrorMessage,
+} from '@/lib/api/client';
 import {
   toOwnedExtensionDetail,
   type OwnedExtensionDetail,
 } from '@/lib/extensions-data';
 import {
   buildExtensionUpdatePayload,
+  echoExtensionFromForm,
+  echoReleaseDraftFromForm,
   ExtensionValidationError,
-  OTHER_LICENSE,
+  type ReleaseDraft,
 } from '@/lib/extension-form';
 import { formString } from '@/lib/form';
 import { formatDate } from '@/lib/format-date';
 import { setFlash } from '@/lib/flash';
 import { purgeCatalogue } from '@/lib/cache-invalidate';
-import { SPDX_LICENSE_IDS } from '@/types';
 import type { Extension } from '@/types';
 import { CircleAlert } from '@lucide/astro';
 import DateTime from '@/components/admin/DateTime.astro';
@@ -46,7 +51,7 @@ try {
     e instanceof ApiRequestError && e.status === 404
       ? `No extension found with id "${id}".`
       : e instanceof ApiRequestError
-        ? e.message
+        ? getApiErrorMessage(e)
         : 'Unable to load this extension.';
 }
 
@@ -64,6 +69,7 @@ let error: string | null = null;
 // submitted echo as the author edit page.
 let submitted: Extension | null = null;
 let submittedNote = '';
+let submittedReleaseDraft: ReleaseDraft | null = null;
 
 if (
   !loadError &&
@@ -73,36 +79,8 @@ if (
   Astro.request.method === 'POST'
 ) {
   const form = await Astro.request.formData();
-  // Mirrors buildLicense() in extension-form.ts, minus the validation —
-  // this is a best-effort echo of what was submitted, not the payload
-  // itself, so an incomplete choice here is fine to redisplay as-is.
-  const selectedLicenseId = formString(form, 'license_spdx_id');
-  const isRecognizedLicense =
-    selectedLicenseId !== OTHER_LICENSE &&
-    SPDX_LICENSE_IDS.includes(selectedLicenseId);
-  submitted = {
-    ...base,
-    type: formString(form, 'type') as Extension['type'],
-    name: formString(form, 'name'),
-    description: formString(form, 'description'),
-    website: formString(form, 'website'),
-    icon_url: formString(form, 'icon_url') || undefined,
-    readme: formString(form, 'readme'),
-    license: isRecognizedLicense
-      ? {
-          name: selectedLicenseId,
-          spdx_id: selectedLicenseId,
-          URL: formString(form, 'license_url') || undefined,
-        }
-      : {
-          name: formString(form, 'license_name_custom'),
-          URL: formString(form, 'license_url') || undefined,
-        },
-    source: {
-      type: formString(form, 'source_type') as Extension['source']['type'],
-      repo: formString(form, 'source_repo'),
-    },
-  };
+  submitted = echoExtensionFromForm(form, base);
+  submittedReleaseDraft = echoReleaseDraftFromForm(form);
   submittedNote = formString(form, 'correction_note');
 
   try {
@@ -121,9 +99,11 @@ if (
     return Astro.redirect(`/account/admin/extensions/${owned.id}`);
   } catch (e) {
     error =
-      e instanceof ApiRequestError || e instanceof ExtensionValidationError
-        ? e.message
-        : 'Something went wrong correcting this extension. Please try again.';
+      e instanceof ApiRequestError
+        ? getApiErrorMessage(e)
+        : e instanceof ExtensionValidationError
+          ? e.message
+          : 'Something went wrong correcting this extension. Please try again.';
   }
 }
 
@@ -213,6 +193,7 @@ const title = base?.name || owned?.id || id;
             <ExtensionForm
               developer={owned.developer}
               extension={fields}
+              releaseDraft={submittedReleaseDraft ?? undefined}
               error={error}
               submitLabel="Correct Live Listing"
               cancelHref={`/account/admin/extensions/${owned.id}`}

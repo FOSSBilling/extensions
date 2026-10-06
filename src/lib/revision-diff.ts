@@ -5,13 +5,11 @@ import type {
 import {
   DIFF_FIELDS,
   FIELD_LABELS,
-  fieldCompareKey,
+  fieldChanged,
   fieldDisplay,
   fieldUrl,
   type DiffField,
 } from './revision-diff-shared';
-
-export type { DiffField };
 
 export interface RevisionDiffRow {
   field: DiffField;
@@ -43,10 +41,7 @@ export function diffRevisionContent(
       newValue,
       oldUrl: fieldUrl(field, published),
       newUrl: fieldUrl(field, revision),
-      changed: isNew
-        ? newValue !== null
-        : fieldCompareKey(field, published) !==
-          fieldCompareKey(field, revision),
+      changed: fieldChanged(field, published, revision, isNew),
       isNew,
     };
   });

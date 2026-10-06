@@ -1,4 +1,5 @@
 import type { UserInfo } from './oauth';
+import { daysInMonth } from './calendar';
 import { createApiClient, type AccountUser } from './api/client';
 import type { ApplicationEnv } from './runtime';
 
@@ -33,21 +34,7 @@ function parseRfc3339Timestamp(value: string): number | null {
     return null;
   }
 
-  const daysInMonth = [
-    31,
-    year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0) ? 29 : 28,
-    31,
-    30,
-    31,
-    30,
-    31,
-    31,
-    30,
-    31,
-    30,
-    31,
-  ][month - 1];
-  if (day > daysInMonth) return null;
+  if (day > daysInMonth(year, month)) return null;
 
   if (match[7] !== 'Z') {
     const offset = /[+-](\d{2}):(\d{2})/.exec(match[7]);
@@ -62,13 +49,10 @@ function parseRfc3339Timestamp(value: string): number | null {
   return Number.isFinite(timestamp) ? timestamp : null;
 }
 
-function isFutureGithubOrgsExpiry(
-  value: unknown,
-  now = Date.now(),
-): value is string {
+function isFutureGithubOrgsExpiry(value: unknown): value is string {
   if (typeof value !== 'string') return false;
   const expiresAt = parseRfc3339Timestamp(value);
-  return expiresAt !== null && expiresAt > now;
+  return expiresAt !== null && expiresAt > Date.now();
 }
 
 function isGithubOrgList(value: unknown): value is string[] {
@@ -123,7 +107,7 @@ export async function deleteUser(
   await createApiClient(env, userId).deleteUser();
 }
 
-export type UserProfile = {
+type UserProfile = {
   display_name: string | null;
 };
 

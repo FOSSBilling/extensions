@@ -5,7 +5,10 @@ const mocks = vi.hoisted(() => ({
   getDeveloperById: vi.fn(),
 }));
 
-vi.mock('@/lib/api/client', () => ({
+// paginateAll stays real: the adapters under test route their whole-list
+// walks through it, and only the facade boundary is mocked out.
+vi.mock('@/lib/api/client', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/api/client')>()),
   createApiClient: mocks.createApiClient,
   getDeveloperById: mocks.getDeveloperById,
 }));
@@ -17,19 +20,9 @@ import {
   getOwnedExtension,
   toOwnedExtensionDetail,
 } from '@/lib/extensions-data';
-import type { ApplicationEnv } from '@/lib/runtime';
+import { makeEnv } from './helpers/env';
 
-const env: ApplicationEnv = {
-  extensionsApi: {
-    baseUrl: 'https://api.example.test',
-    fetch: (...args) => globalThis.fetch(...args),
-  },
-  authClientId: 'client-id',
-  authClientSecret: 'client-secret',
-  sessionSecret: 'session-secret',
-  assertionSigningSecret: 'assertion-secret',
-  revalidateSecret: 'revalidate-secret',
-};
+const env = makeEnv();
 
 const developer = {
   id: 'developer',

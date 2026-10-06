@@ -1,6 +1,5 @@
 import type { AstroCookies } from 'astro';
-import { base64urlEncode, base64urlDecode } from './base64url';
-import { signPayload, verifyPayloadSignature } from './signed-value';
+import { decodeSignedValue, encodeSignedValue } from './signed-value';
 
 // A self-contained, HMAC-signed session cookie. Deliberately does not persist
 // or depend on the auth service's own tokens past the initial code exchange —
@@ -33,43 +32,32 @@ export async function createSessionCookieValue(
     ...user,
     exp: Math.floor(Date.now() / 1000) + SESSION_MAX_AGE,
   };
-  const payloadB64 = base64urlEncode(
-    new TextEncoder().encode(JSON.stringify(payload)),
+  return encodeSignedValue(payload, secret);
+}
+
+// Require the session shape, not just a valid signature: every signed
+// cookie (flash, cooldown) shares this key, and only the session payload
+// carries these identity fields.
+function isSessionPayload(value: unknown): value is SessionPayload {
+  if (typeof value !== 'object' || value === null) return false;
+  const payload = value as Partial<SessionPayload>;
+  return (
+    typeof payload.exp === 'number' &&
+    typeof payload.sub === 'string' &&
+    payload.sub !== '' &&
+    typeof payload.name === 'string' &&
+    payload.name !== '' &&
+    typeof payload.email === 'string' &&
+    payload.email !== ''
   );
-  return `${payloadB64}.${await signPayload(payloadB64, secret)}`;
 }
 
 async function verifySessionCookieValue(
   value: string,
   secret: string,
 ): Promise<SessionUser | null> {
-  const [payloadB64, signatureB64] = value.split('.');
-  if (!payloadB64 || !signatureB64) return null;
-  if (!(await verifyPayloadSignature(payloadB64, signatureB64, secret))) {
-    return null;
-  }
-
-  let payload: SessionPayload;
-  try {
-    payload = JSON.parse(new TextDecoder().decode(base64urlDecode(payloadB64)));
-  } catch {
-    return null;
-  }
-
-  // Require the session shape, not just a valid signature: every signed
-  // cookie (flash, cooldown) shares this key, and only the session payload
-  // carries these identity fields.
-  if (
-    typeof payload.exp !== 'number' ||
-    typeof payload.sub !== 'string' ||
-    payload.sub === '' ||
-    typeof payload.name !== 'string' ||
-    payload.name === '' ||
-    typeof payload.email !== 'string' ||
-    payload.email === ''
-  ) {
-    return null;
-  }
+  const payload = await decodeSignedValue(value, secret);
+  if (!isSessionPayload(payload)) return null;
 
   if (payload.exp < Math.floor(Date.now() / 1000)) {
     return null;

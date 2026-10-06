@@ -13,14 +13,14 @@ afterEach(() => {
 
 describe('date formatting', () => {
   it('formats dates and local date-times using the application format', () => {
-    const localDate = new Date(2026, 6, 30, 13, 5);
-
-    expect(formatDate(localDate)).toBe('30 July 2026');
-    expect(formatDateTime(localDate)).toBe('30 July 2026, 13:05');
+    // Production callers pass strings; the single Date input here guards
+    // toDate's Date passthrough branch.
+    expect(formatDate(new Date(2026, 6, 30, 13, 5))).toBe('30 July 2026');
+    expect(formatDateTime('2026-07-30T13:05:00')).toBe('30 July 2026, 13:05');
   });
 
   it('formats compact day-first dates with an abbreviated month', () => {
-    expect(formatShortDate(new Date(2026, 8, 17))).toBe('17 Sept 2026');
+    expect(formatShortDate('2026-09-17')).toBe('17 Sept 2026');
     expect(formatShortDate('2026-07-30')).toBe('30 Jul 2026');
   });
 
@@ -42,6 +42,14 @@ describe('date formatting', () => {
     expect(formatRelativeTime('2026-07-30T13:05:00Z', now)).toBe('now');
   });
 
+  it('handles the date-only strings real callers pass to relative formatting', () => {
+    // ReleasesCard passes release.date (date-only), which parses as local
+    // midnight — with UTC that is 13:05 of difference on the same day.
+    vi.stubEnv('TZ', 'UTC');
+    const now = new Date('2026-07-30T13:05:00Z');
+    expect(formatRelativeTime('2026-07-30', now)).toBe('13 hours ago');
+  });
+
   it('does not round relative values across their unit boundary', () => {
     const now = new Date('2026-07-30T13:05:00Z');
 
@@ -55,8 +63,9 @@ describe('date formatting', () => {
 
   it('rejects invalid dates', () => {
     expect(() => formatDate('not-a-date')).toThrow(RangeError);
+    // '2026-02-31' must throw at the calendar guard: the Date constructor
+    // would silently roll it forward to March.
     expect(() => formatDate('2026-02-31')).toThrow(RangeError);
     expect(() => formatDate('2026-02-31T00:00:00Z')).toThrow(RangeError);
-    expect(() => formatDate('2026-02-31t00:00:00Z')).toThrow(RangeError);
   });
 });

@@ -1,33 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cachedEdgeRead, dataCacheKey, markEdgeCachePurged } from '@/lib/cache';
+import { stubEdgeCache } from './helpers/edge-cache';
 
 const PRODUCER_VALUE = {
   result: ['extension-1'],
   pagination: { has_more: false },
 };
-
-function fakeEdgeCache() {
-  const entries = new Map<string, { body: string; headers: Headers }>();
-  const match = vi.fn(async (key: Request) => {
-    const entry = entries.get(key.url);
-    return entry
-      ? new Response(entry.body, { headers: entry.headers })
-      : undefined;
-  });
-  const put = vi.fn(async (key: Request, response: Response) => {
-    entries.set(key.url, {
-      body: await response.clone().text(),
-      headers: response.headers,
-    });
-  });
-  return { entries, match, put };
-}
-
-function stubEdgeCache() {
-  const cache = fakeEdgeCache();
-  vi.stubGlobal('caches', { default: cache });
-  return cache;
-}
 
 afterEach(() => {
   // Also restores timers for any test that enabled fake ones but failed
@@ -140,6 +118,23 @@ describe('cachedEdgeRead', () => {
     vi.stubGlobal('caches', {
       default: {
         match: vi.fn().mockResolvedValue(new Response('not-json')),
+        put: vi.fn(),
+      },
+    });
+    const producer = vi.fn().mockResolvedValue(PRODUCER_VALUE);
+
+    await expect(
+      cachedEdgeRead(dataCacheKey('extensions'), producer),
+    ).resolves.toEqual(PRODUCER_VALUE);
+    expect(producer).toHaveBeenCalledOnce();
+  });
+
+  // Valid JSON that lacks the writtenAt envelope is also a miss: entries
+  // expire within the TTL, so unversioned values are never served.
+  it('treats a valid-JSON entry without a writtenAt envelope as a miss', async () => {
+    vi.stubGlobal('caches', {
+      default: {
+        match: vi.fn().mockResolvedValue(Response.json(PRODUCER_VALUE)),
         put: vi.fn(),
       },
     });

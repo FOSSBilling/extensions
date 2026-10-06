@@ -1,12 +1,13 @@
 ---
 import Base from '../layouts/Base.astro';
-import ExtensionCard from '../components/ExtensionCard.astro';
+import CatalogueSection from '../components/CatalogueSection.astro';
 import {
-  clampExtensionPageLimit,
+  clampApiPageLimit,
   ApiRequestError,
   listExtensions,
   type ExtensionListResponse,
 } from '@/lib/api/client';
+import { hasNextPage } from '@/lib/catalogue-pagination';
 import { EXTENSION_TYPES, isExtensionType } from '@/types';
 
 const env = Astro.locals.env;
@@ -15,7 +16,7 @@ const activeType = isExtensionType(requestedType) ? requestedType : undefined;
 const requestedDeveloperId = Astro.url.searchParams.get('developer_id');
 const activeDeveloperId = requestedDeveloperId || undefined;
 const requestedLimit = Astro.url.searchParams.get('limit');
-const activeLimit = clampExtensionPageLimit(
+const activeLimit = clampApiPageLimit(
   requestedLimit === null ? undefined : Number(requestedLimit),
 );
 
@@ -38,11 +39,6 @@ try {
 const extensions = cataloguePage?.result ?? [];
 const activeFilterCount =
   Number(Boolean(activeType)) + Number(Boolean(activeDeveloperId));
-const hasNextPage = Boolean(
-  cataloguePage?.pagination.has_more &&
-  cataloguePage.pagination.next_cursor !== null &&
-  cataloguePage.pagination.next_cursor.length > 0,
-);
 ---
 
 <Base
@@ -71,11 +67,13 @@ const hasNextPage = Boolean(
 
   <div
     data-extension-catalogue
-    data-api-url="/api/extensions"
+    data-api-url="/api/extensions/cards"
     data-limit={activeLimit}
     data-type={activeType}
     data-developer-id={activeDeveloperId}
-    data-has-more={hasNextPage}
+    data-has-more={
+      cataloguePage ? hasNextPage(cataloguePage.pagination) : false
+    }
   >
     <details class="mb-8 w-full" open={activeFilterCount > 0}>
       <summary
@@ -139,44 +137,12 @@ const hasNextPage = Boolean(
       </div>
     ) : (
       <>
-        <div
-          data-extension-grid
-          class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
-        >
-          {extensions.map((ext) => (
-            <ExtensionCard ext={ext} />
-          ))}
-        </div>
-
-        {extensions.length === 0 ? (
-          <p
-            class="card flex min-h-32 items-center justify-center px-6 py-12 text-center text-muted-foreground"
-            data-empty-catalogue
-          >
-            No Extensions Match the Selected Filters
-          </p>
-        ) : null}
-
-        <div class="mt-8 flex flex-col items-center gap-3">
-          {hasNextPage ? (
-            <button
-              type="button"
-              class="btn"
-              data-variant="outline"
-              data-load-more
-              data-next-cursor={cataloguePage?.pagination.next_cursor}
-            >
-              Load More Extensions
-            </button>
-          ) : extensions.length > 0 ? (
-            <p class="text-sm text-muted-foreground">All Extensions Loaded</p>
-          ) : null}
-          <p
-            data-catalogue-status
-            class="text-sm text-muted-foreground"
-            aria-live="polite"
-          />
-        </div>
+        <CatalogueSection
+          extensions={extensions}
+          pagination={cataloguePage?.pagination}
+          emptyMessage="No Extensions Match the Selected Filters"
+          emptyAsCard
+        />
       </>
     )}
   </div>

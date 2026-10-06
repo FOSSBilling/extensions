@@ -2,32 +2,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { getOptimizedImageUrl, type ImageVariant } from '@/lib/image-url';
 import { getSignedImageUrl } from '@/lib/signed-image-url';
 import { handleImageRequest } from '@/pages/images/[variant]';
+import { stubEdgeCache } from './helpers/edge-cache';
 
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
 });
-
-function stubEdgeCache() {
-  const entries = new Map<string, { body: string; headers: Headers }>();
-  const cache = {
-    entries,
-    match: vi.fn(async (key: Request) => {
-      const entry = entries.get(`${key.url}|${key.headers.get('accept')}`);
-      return entry
-        ? new Response(entry.body, { headers: entry.headers })
-        : undefined;
-    }),
-    put: vi.fn(async (key: Request, response: Response) => {
-      entries.set(`${key.url}|${key.headers.get('accept')}`, {
-        body: await response.clone().text(),
-        headers: response.headers,
-      });
-    }),
-  };
-  vi.stubGlobal('caches', { default: cache });
-  return cache;
-}
 
 const ICON_REQUEST_URL =
   'https://extensions.example.test/images/icon?src=https%3A%2F%2Fraw.githubusercontent.com%2Ffossbilling%2Flogo.png';
@@ -101,10 +81,7 @@ describe('image transformation route', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const response = await handleImageRequest(
-      await requestContext(
-        'icon',
-        'https://extensions.example.test/images/icon?src=https%3A%2F%2Fraw.githubusercontent.com%2Ffossbilling%2Flogo.png',
-      ),
+      await requestContext('icon', ICON_REQUEST_URL),
     );
 
     expect(response.status).toBe(307);
@@ -123,10 +100,7 @@ describe('image transformation route', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const response = await handleImageRequest(
-      await requestContext(
-        'icon',
-        'https://extensions.example.test/images/icon?src=https%3A%2F%2Fraw.githubusercontent.com%2Ffossbilling%2Flogo.png',
-      ),
+      await requestContext('icon', ICON_REQUEST_URL),
     );
 
     expect(response.status).toBe(200);
@@ -169,10 +143,7 @@ describe('image transformation route', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const response = await handleImageRequest(
-      await requestContext(
-        'icon',
-        'https://extensions.example.test/images/icon?src=https%3A%2F%2Fraw.githubusercontent.com%2Ffossbilling%2Flogo.png',
-      ),
+      await requestContext('icon', ICON_REQUEST_URL),
     );
 
     expect(response.status).toBe(200);
@@ -235,7 +206,7 @@ describe('image transformation route', () => {
     const response = await handleImageRequest(
       await requestContext(
         'icon',
-        'https://extensions.example.test/images/icon?src=https%3A%2F%2Fraw.githubusercontent.com%2Ffossbilling%2Flogo.png',
+        ICON_REQUEST_URL,
         'image/avif,image/webp,image/*,*/*;q=0.8',
         {
           'if-none-match': '"image-version"',
@@ -281,9 +252,25 @@ describe('image transformation route', () => {
     expect(await response.text()).toBe('Image unavailable.');
   });
 
+  // The signature issuer refuses non-allowlisted hosts (signed-image-url
+  // falls through to the unsigned URL), so such a request dies at source
+  // parsing — no `sig` is even present to verify. This pins that
+  // unapproved sources never reach an upstream fetch.
   it('rejects unapproved sources before making a fetch request', async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
+
+    const source = new URL('https://127.0.0.1/avatar.png');
+    // The issuer's refusal is the actual security property: for a host
+    // outside the allowlist it returns the unsigned URL — no `sig` param
+    // exists to forge a request from.
+    const issued = await getSignedImageUrl(
+      source.toString(),
+      'avatar',
+      'test-secret',
+    );
+    expect(issued).toBe(getOptimizedImageUrl(source.toString(), 'avatar'));
+    expect(issued).not.toContain('sig=');
 
     const response = await handleImageRequest(
       await requestContext(
@@ -344,10 +331,7 @@ describe('image transformation route', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const response = await handleImageRequest(
-      await requestContext(
-        'icon',
-        'https://extensions.example.test/images/icon?src=https%3A%2F%2Fraw.githubusercontent.com%2Ffossbilling%2Flogo.png',
-      ),
+      await requestContext('icon', ICON_REQUEST_URL),
     );
 
     expect(response.status).toBe(307);
@@ -367,7 +351,7 @@ describe('image transformation route', () => {
     await handleImageRequest(
       await requestContext(
         'icon',
-        'https://extensions.example.test/images/icon?src=https%3A%2F%2Fraw.githubusercontent.com%2Ffossbilling%2Flogo.png',
+        ICON_REQUEST_URL,
         'image/avif;q=0,image/webp;q=0.8,image/*;q=0.5',
       ),
     );
@@ -411,27 +395,18 @@ describe('image transformation route', () => {
     expect(response.status).toBe(404);
   });
 
-  it('rejects unsigned transform URLs before cache access or fetch', async () => {
-    const cache = stubEdgeCache();
-    const fetchMock = vi.fn();
-    vi.stubGlobal('fetch', fetchMock);
-
-    const response = await handleImageRequest({
-      params: { variant: 'icon' },
-      locals: { env: { sessionSecret: 'image-test-secret' } } as App.Locals,
-      request: new Request(ICON_REQUEST_URL),
-    });
-
-    expect(response.status).toBe(403);
-    expect(fetchMock).not.toHaveBeenCalled();
-    expect(cache.put).not.toHaveBeenCalled();
-  });
-
-  it('rejects tampered signatures and signatures for other variants', async () => {
+  // Absent, tampered, and cross-variant signatures are three different
+  // tamper actions, but all die at the same signature gate before any cache
+  // access or upstream fetch.
+  it('rejects absent, tampered, and cross-variant signatures before cache access or fetch', async () => {
+    const cache = stubEdgeCache(
+      (key) => `${key.url}|${key.headers.get('accept')}`,
+    );
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
     const source = 'https://raw.githubusercontent.com/fossbilling/logo.png';
 
+    const unsigned = ICON_REQUEST_URL;
     const tampered = new URL(
       (await getSignedImageUrl(source, 'icon', 'image-test-secret'))!,
       ICON_REQUEST_URL,
@@ -443,7 +418,7 @@ describe('image transformation route', () => {
       ICON_REQUEST_URL,
     );
 
-    for (const url of [tampered.href, crossVariant.href]) {
+    for (const url of [unsigned, tampered.href, crossVariant.href]) {
       const response = await handleImageRequest({
         params: { variant: 'icon' },
         locals: { env: { sessionSecret: 'image-test-secret' } } as App.Locals,
@@ -452,12 +427,16 @@ describe('image transformation route', () => {
       expect(response.status).toBe(403);
     }
     expect(fetchMock).not.toHaveBeenCalled();
+    expect(cache.match).not.toHaveBeenCalled();
+    expect(cache.put).not.toHaveBeenCalled();
   });
 });
 
 describe('image transformation edge cache', () => {
   it('transforms once, then serves later requests from the cache', async () => {
-    const cache = stubEdgeCache();
+    const cache = stubEdgeCache(
+      (key) => `${key.url}|${key.headers.get('accept')}`,
+    );
     const fetchMock = vi.fn().mockResolvedValue(
       new Response('transformed image', {
         headers: { 'content-type': 'image/png' },
@@ -480,7 +459,9 @@ describe('image transformation edge cache', () => {
   });
 
   it('shares one transform across irrelevant query parameters and URL aliases', async () => {
-    const cache = stubEdgeCache();
+    const cache = stubEdgeCache(
+      (key) => `${key.url}|${key.headers.get('accept')}`,
+    );
     const fetchMock = vi.fn().mockImplementation(
       async () =>
         new Response('transformed image', {
@@ -518,7 +499,9 @@ describe('image transformation edge cache', () => {
   });
 
   it('keeps distinct sources, source queries, and variants separate', async () => {
-    const cache = stubEdgeCache();
+    const cache = stubEdgeCache(
+      (key) => `${key.url}|${key.headers.get('accept')}`,
+    );
     const fetchMock = vi.fn().mockImplementation(
       async () =>
         new Response('transformed image', {
@@ -549,7 +532,9 @@ describe('image transformation edge cache', () => {
   });
 
   it('preserves validators on canonical cache lookups', async () => {
-    const cache = stubEdgeCache();
+    const cache = stubEdgeCache(
+      (key) => `${key.url}|${key.headers.get('accept')}`,
+    );
     const fetchMock = vi.fn().mockResolvedValue(
       new Response('transformed image', {
         headers: { 'content-type': 'image/png', etag: '"version"' },
@@ -583,7 +568,9 @@ describe('image transformation edge cache', () => {
   });
 
   it('stores only successful transformations', async () => {
-    const cache = stubEdgeCache();
+    const cache = stubEdgeCache(
+      (key) => `${key.url}|${key.headers.get('accept')}`,
+    );
     const fetchMock = vi.fn().mockResolvedValue(
       new Response('not an image', {
         headers: { 'content-type': 'text/html' },
@@ -597,7 +584,9 @@ describe('image transformation edge cache', () => {
   });
 
   it('separates cache entries by negotiated format via Accept', async () => {
-    const cache = stubEdgeCache();
+    const cache = stubEdgeCache(
+      (key) => `${key.url}|${key.headers.get('accept')}`,
+    );
     const fetchMock = vi.fn().mockImplementation(() =>
       Promise.resolve(
         new Response('avif image', {

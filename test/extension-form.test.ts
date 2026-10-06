@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   buildExtensionCreatePayload,
   buildExtensionUpdatePayload,
+  echoExtensionFromForm,
+  echoReleaseDraftFromForm,
   ExtensionValidationError,
 } from '@/lib/extension-form';
 import type { Extension } from '@/types';
@@ -194,5 +196,105 @@ describe('buildExtensionUpdatePayload', () => {
     expect(() => buildExtensionUpdatePayload(extensionForm(), atLimit)).toThrow(
       ExtensionValidationError,
     );
+  });
+});
+
+describe('echoExtensionFromForm', () => {
+  // The submitted echo is a best-effort redisplay spread over the
+  // extension's current content — never the validated payload — so an
+  // incomplete license choice must redisplay as-is instead of throwing.
+  it('echoes submitted fields over the base and keeps base-only fields', () => {
+    const form = extensionForm({ name: 'Renamed', icon_url: '' });
+
+    const echo = echoExtensionFromForm(form, publishedExtension);
+
+    expect(echo).toMatchObject({
+      id: 'example',
+      name: 'Renamed',
+      description: 'An example extension.',
+      // Base-only content survives: the echo never touches releases.
+      releases: publishedExtension.releases,
+      version: '0.9.0',
+      license: { name: 'MIT', spdx_id: 'MIT' },
+      // An empty icon input echoes as absent, not as an empty string.
+      icon_url: undefined,
+    });
+  });
+
+  it('echoes a recognized SPDX license as name and spdx_id', () => {
+    const echo = echoExtensionFromForm(extensionForm(), publishedExtension);
+
+    expect(echo.license).toEqual({
+      name: 'MIT',
+      spdx_id: 'MIT',
+      URL: 'https://example.test/license',
+    });
+  });
+
+  it('echoes the custom-license branch without validating it', () => {
+    const echo = echoExtensionFromForm(
+      extensionForm({ license_spdx_id: 'other', license_name_custom: 'Mine' }),
+      publishedExtension,
+    );
+
+    expect(echo.license).toEqual({
+      name: 'Mine',
+      URL: 'https://example.test/license',
+    });
+    expect(echo.license).not.toHaveProperty('spdx_id');
+  });
+
+  it('never throws on an incomplete license choice', () => {
+    // Unlike buildLicense, the echo is a best-effort redisplay: a blank
+    // custom name for "other", or an unrecognized selection, must echo
+    // as-is rather than reject the redisplay.
+    const blankCustom = echoExtensionFromForm(
+      extensionForm({ license_spdx_id: 'other', license_name_custom: '' }),
+      publishedExtension,
+    );
+    expect(blankCustom.license).toEqual({
+      name: '',
+      URL: 'https://example.test/license',
+    });
+
+    const unrecognized = echoExtensionFromForm(
+      extensionForm({ license_spdx_id: 'not-a-license' }),
+      publishedExtension,
+    );
+    expect(unrecognized.license).toEqual({
+      name: '',
+      URL: 'https://example.test/license',
+    });
+  });
+});
+
+describe('echoReleaseDraftFromForm', () => {
+  it('carries the release-section inputs exactly as typed', () => {
+    const form = extensionForm({
+      version_tag: '1.1.0',
+      release_date: '2026-02-01',
+      // No scheme normalization on redisplay: echo what the user typed.
+      download_url: 'example.test/1.1.0.zip',
+      changelog_url: '',
+      min_fossbilling_version: '0.6.0',
+    });
+
+    expect(echoReleaseDraftFromForm(form)).toEqual({
+      version_tag: '1.1.0',
+      release_date: '2026-02-01',
+      download_url: 'example.test/1.1.0.zip',
+      changelog_url: '',
+      min_fossbilling_version: '0.6.0',
+    });
+  });
+
+  it('returns blank fields when the form omits the release section', () => {
+    expect(echoReleaseDraftFromForm(new FormData())).toEqual({
+      version_tag: '',
+      release_date: '',
+      download_url: '',
+      changelog_url: '',
+      min_fossbilling_version: '',
+    });
   });
 });
