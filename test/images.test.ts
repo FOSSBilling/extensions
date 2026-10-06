@@ -252,9 +252,25 @@ describe('image transformation route', () => {
     expect(await response.text()).toBe('Image unavailable.');
   });
 
+  // The signature issuer refuses non-allowlisted hosts (signed-image-url
+  // falls through to the unsigned URL), so such a request dies at source
+  // parsing — no `sig` is even present to verify. This pins that
+  // unapproved sources never reach an upstream fetch.
   it('rejects unapproved sources before making a fetch request', async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
+
+    const source = new URL('https://127.0.0.1/avatar.png');
+    // The issuer's refusal is the actual security property: for a host
+    // outside the allowlist it returns the unsigned URL — no `sig` param
+    // exists to forge a request from.
+    const issued = await getSignedImageUrl(
+      source.toString(),
+      'avatar',
+      'test-secret',
+    );
+    expect(issued).toBe(getOptimizedImageUrl(source.toString(), 'avatar'));
+    expect(issued).not.toContain('sig=');
 
     const response = await handleImageRequest(
       await requestContext(

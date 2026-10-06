@@ -129,6 +129,23 @@ describe('cachedEdgeRead', () => {
     expect(producer).toHaveBeenCalledOnce();
   });
 
+  // Valid JSON that lacks the writtenAt envelope is also a miss: entries
+  // expire within the TTL, so unversioned values are never served.
+  it('treats a valid-JSON entry without a writtenAt envelope as a miss', async () => {
+    vi.stubGlobal('caches', {
+      default: {
+        match: vi.fn().mockResolvedValue(Response.json(PRODUCER_VALUE)),
+        put: vi.fn(),
+      },
+    });
+    const producer = vi.fn().mockResolvedValue(PRODUCER_VALUE);
+
+    await expect(
+      cachedEdgeRead(dataCacheKey('extensions'), producer),
+    ).resolves.toEqual(PRODUCER_VALUE);
+    expect(producer).toHaveBeenCalledOnce();
+  });
+
   // Deterministic via fake timers: writes are stamped with the miss-start
   // time, so the clock must advance between the purge and the repopulating
   // read for the new entry to count as post-purge.

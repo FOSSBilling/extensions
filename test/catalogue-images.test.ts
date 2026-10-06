@@ -23,7 +23,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
-function isCatalogueCardItem(value: unknown): value is CatalogueCardItem {
+function isCatalogueJsonItem(value: unknown): value is CatalogueCardItem {
   if (!isRecord(value)) return false;
 
   return (
@@ -37,7 +37,7 @@ function isCatalogueCardItem(value: unknown): value is CatalogueCardItem {
   );
 }
 
-function isCatalogueCardPage(value: unknown): value is {
+function isCatalogueJsonPage(value: unknown): value is {
   result: CatalogueCardItem[];
   pagination: ExtensionListResponse['pagination'];
 } {
@@ -47,7 +47,7 @@ function isCatalogueCardPage(value: unknown): value is {
 
   return (
     Array.isArray(value.result) &&
-    value.result.every(isCatalogueCardItem) &&
+    value.result.every(isCatalogueJsonItem) &&
     ((typeof value.pagination.next_cursor === 'string' &&
       value.pagination.next_cursor.length > 0) ||
       value.pagination.next_cursor === null) &&
@@ -76,12 +76,11 @@ describe('catalogue image issuance', () => {
       locals: { env: { sessionSecret: 'catalogue-test-secret' } },
     } as Parameters<typeof GET>[0]);
     const body = await response.json();
-    if (!isCatalogueCardPage(body))
+    if (!isCatalogueJsonPage(body))
       throw new Error('Invalid catalogue response');
     expect(response.status).toBe(200);
     expect(body.pagination).toEqual(pagination);
     expect(body.result[0]).toMatchObject(item);
-    expect(isCatalogueCardPage(body)).toBe(true);
     const image = new URL(
       body.result[0].optimized_icon_url!,
       'https://extensions.example',

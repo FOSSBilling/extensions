@@ -131,25 +131,25 @@ describe('server-rendered cursor links', () => {
   });
 
   it('drops the cursor and its back-stack when a filter changes', () => {
+    // Production nulls only the q param (the Clear link); typed filters are
+    // always set, never cleared.
     expect(
       filterPageUrl(
         new URL(
-          'https://example.test/account/moderate?extStatus=published&extCursor=page-2&extCursors=page-1',
+          'https://example.test/account/moderate?q=example&cursor=page-2&cursors=page-1',
         ),
-        'extStatus',
-        'delisted',
-        ['extCursor', 'extCursors'],
+        'q',
+        null,
+        ['cursor', 'cursors'],
       ),
-    ).toBe('/account/moderate?extStatus=delisted');
+    ).toBe('/account/moderate');
 
     expect(
       filterPageUrl(
-        new URL(
-          'https://example.test/account/moderate?extStatus=delisted&extCursor=page-2',
-        ),
-        'extStatus',
+        new URL('https://example.test/account/moderate?q=example'),
+        'q',
         null,
-        ['extCursor', 'extCursors'],
+        [],
       ),
     ).toBe('/account/moderate');
   });

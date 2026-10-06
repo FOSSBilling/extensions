@@ -14,8 +14,10 @@ vi.mock('@/lib/assertion', () => ({
 
 import {
   ApiRequestError,
+  apiErrorResponse,
   clampApiPageLimit,
   createApiClient,
+  getApiErrorMessage,
   getExtensionById,
   listExtensions,
   type Extension,
@@ -332,27 +334,11 @@ describe('generated Extensions v2 façade', () => {
       'opaque cursor',
     );
     expect(requestUrl(fetchMock, 1).searchParams.has('cursor')).toBe(false);
-  });
-
-  it('keeps owner extension listing query separate from public filters', async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValue(apiResponse(page([], null, false)));
-    vi.stubGlobal('fetch', fetchMock);
-
-    await createApiClient(authenticatedEnv, 'user-sub').listMyExtensions({
-      type: 'theme',
-      limit: 100,
-      cursor: 'mine-cursor',
-    });
-
-    const url = requestUrl(fetchMock);
-    expect(url.pathname).toBe('/extensions/v2/extensions');
-    expect(url.searchParams.get('scope')).toBe('mine');
-    expect(url.searchParams.get('type')).toBe('theme');
-    expect(url.searchParams.get('limit')).toBe('100');
-    expect(url.searchParams.get('cursor')).toBe('mine-cursor');
-    expect(url.searchParams.has('developer_id')).toBe(false);
+    // The mine scope never carries the public catalogue's developer_id
+    // filter, and the owner listing sends no type filter.
+    expect(requestUrl(fetchMock, 0).searchParams.has('developer_id')).toBe(
+      false,
+    );
   });
 
   it('serializes a create payload with no developer field and reports the new revision', async () => {
@@ -463,6 +449,8 @@ describe('generated Extensions v2 façade', () => {
   });
 
   it('approves and rejects a revision by extension id + revision id', async () => {
+    // Mirrors the approve route: the approve dialog posts no review note, so
+    // the body must be absent — only rejections carry one.
     const approveFetch = vi
       .fn()
       .mockResolvedValue(
@@ -472,13 +460,14 @@ describe('generated Extensions v2 façade', () => {
     await createApiClient(authenticatedEnv, 'moderator-sub').approveRevision(
       'body-extension',
       'r-1',
-      'looks good',
+      undefined,
+      true,
     );
     const approveRequest = requestFrom(approveFetch);
     expect(new URL(approveRequest.url).pathname).toBe(
       '/extensions/v2/extensions/body-extension/revisions/r-1/approve',
     );
-    expect(await approveRequest.json()).toEqual({ review_note: 'looks good' });
+    expect(approveRequest.body).toBeNull();
 
     const rejectFetch = vi
       .fn()
@@ -700,6 +689,62 @@ describe('generated Extensions v2 façade', () => {
     expectTypeOf<
       ReturnType<ReturnType<typeof createApiClient>['listModerationQueue']>
     >().resolves.toEqualTypeOf<ModerationQueuePage>();
+  });
+});
+
+describe('error presentation helpers', () => {
+  it('maps transient codes to retry copy and passes other messages through', () => {
+    expect(
+      getApiErrorMessage(new ApiRequestError(429, 'RATE_LIMITED', 'upstream')),
+    ).toBe(
+      'Too many requests were made. Please wait a few minutes and try again.',
+    );
+    expect(
+      getApiErrorMessage(
+        new ApiRequestError(503, 'SERVICE_UNAVAILABLE', 'upstream'),
+      ),
+    ).toBe(
+      'The service is temporarily unavailable. Please try again manually in a few minutes.',
+    );
+    expect(
+      getApiErrorMessage(
+        new ApiRequestError(422, 'INVALID_CURSOR', 'Cursor is invalid.'),
+      ),
+    ).toBe('Cursor is invalid.');
+  });
+
+  it('shapes API error responses with a status floor and a generic fallback', async () => {
+    const structured = apiErrorResponse(
+      new ApiRequestError(422, 'INVALID_CURSOR', 'Cursor is invalid.', [
+        'expired',
+      ]),
+      'fallback message',
+    );
+    expect(structured.status).toBe(422);
+    await expect(structured.json()).resolves.toEqual({
+      error: {
+        code: 'INVALID_CURSOR',
+        message: 'Cursor is invalid.',
+        details: ['expired'],
+      },
+    });
+
+    // A status below 400 (transport dropped mid-error) is presented as 502,
+    // never as success-shaped.
+    const floored = apiErrorResponse(
+      new ApiRequestError(0, 'weird', 'boom'),
+      'fallback message',
+    );
+    expect(floored.status).toBe(502);
+
+    const fallback = apiErrorResponse(
+      new Error('network down'),
+      'Unable to load extensions.',
+    );
+    expect(fallback.status).toBe(502);
+    await expect(fallback.json()).resolves.toEqual({
+      error: { code: 'request_failed', message: 'Unable to load extensions.' },
+    });
   });
 });
 

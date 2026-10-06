@@ -1,17 +1,24 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { POST } from '@/pages/api/revalidate';
 import type { ApplicationEnv } from '@/lib/runtime';
 import { makeEnv } from './helpers/env';
+
+const cacheMocks = vi.hoisted(() => ({ markEdgeCachePurged: vi.fn() }));
+
+vi.mock('@/lib/cache', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/cache')>()),
+  markEdgeCachePurged: cacheMocks.markEdgeCachePurged,
+}));
+
+beforeEach(() => {
+  cacheMocks.markEdgeCachePurged.mockClear();
+});
 
 const SECRET = 'test-revalidate-secret';
 
 function makeRevalidateEnv(overrides = {}): ReturnType<typeof makeEnv> {
   return makeEnv({
     revalidateSecret: SECRET,
-    extensionsApi: {
-      baseUrl: 'https://api.example.test',
-      fetch: globalThis.fetch,
-    },
     ...overrides,
   });
 }
@@ -126,7 +133,17 @@ describe('POST /api/revalidate', () => {
   });
 
   it('purges allowlisted tags and reports them', async () => {
+    // The purge marker must land before the CDN invalidation: it is what
+    // ages out same-isolate data-cache entries after the purge — dropping
+    // it (or reordering) would silently break freshness.
+    const order: string[] = [];
+    cacheMocks.markEdgeCachePurged.mockImplementation(() => {
+      order.push('marker');
+    });
     const cache = makeCache();
+    cache.invalidate.mockImplementation(async () => {
+      order.push('invalidate');
+    });
     const response = await POST(
       makeContext(
         makeRequest(
@@ -142,6 +159,7 @@ describe('POST /api/revalidate', () => {
     await expect(response.json()).resolves.toEqual({
       purged: ['catalogue', 'developers'],
     });
+    expect(order).toEqual(['marker', 'invalidate']);
     expect(cache.invalidate).toHaveBeenCalledWith({
       tags: ['catalogue', 'developers'],
     });

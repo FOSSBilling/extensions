@@ -297,4 +297,23 @@ describe('GET /auth/callback', () => {
     );
     expect(result.headers.get('location')).toBe('/account');
   });
+
+  it('skips opportunistic re-verification when the profile was verified recently', async () => {
+    // Within RECENT_VERIFICATION_MS (one hour): repeated logins must not
+    // each pay an extra API round-trip.
+    mocks.getDeveloperByOwner.mockResolvedValue({
+      github_verified_at: new Date(Date.now() - 60 * 1000).toISOString(),
+    });
+    const ctx = await context({ redirectTo: '/account' });
+
+    const result = await GET(ctx);
+
+    expect(mocks.reverifyDeveloper).not.toHaveBeenCalled();
+    expect(ctx.cookies.set).toHaveBeenCalledWith(
+      'fb_session',
+      'session-value',
+      expect.anything(),
+    );
+    expect(result.headers.get('location')).toBe('/account');
+  });
 });

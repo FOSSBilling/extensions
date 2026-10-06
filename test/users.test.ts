@@ -55,7 +55,28 @@ describe('upsertUser', () => {
   });
 
   it.each([
+    ['a numeric-offset expiry', '2099-01-01T00:00:00+05:00'],
+    ['an expiry with fractional seconds', '2099-01-01T00:00:00.123Z'],
+  ])('synchronizes evidence for %s', async (_description, expiry) => {
+    const info: UserInfo = {
+      ...baseInfo,
+      [orgsClaim]: ['fossbilling'],
+      [expiryClaim]: expiry,
+    };
+
+    await upsertUser(env, info);
+
+    expect(mocks.syncIdentity).toHaveBeenCalledWith(
+      expect.objectContaining({
+        github_orgs: ['fossbilling'],
+        github_orgs_expires_at: expiry,
+      }),
+    );
+  });
+
+  it.each([
     ['an expired expiry', '2020-01-01T00:00:00Z', ['fossbilling']],
+    ['a calendar-invalid expiry', '2021-02-30T00:00:00Z', ['fossbilling']],
     ['a malformed expiry', 'not-a-timestamp', ['fossbilling']],
     ['a malformed organization list', futureExpiry, ['fossbilling', 42]],
     ['a non-array organization list', futureExpiry, 'fossbilling'],
