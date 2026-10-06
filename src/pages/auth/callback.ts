@@ -2,10 +2,8 @@ import type { APIRoute } from 'astro';
 import {
   exchangeCodeForToken,
   fetchUserInfo,
-  isSafeRedirectPath,
-  OAUTH_VERIFIER_COOKIE,
-  OAUTH_STATE_COOKIE,
-  OAUTH_REDIRECT_COOKIE,
+  oauthTransactionCookie,
+  readOAuthTransaction,
 } from '@/lib/oauth';
 import {
   createSessionCookieValue,
@@ -25,12 +23,10 @@ const AUTH_ERROR_FLASH = {
 
 export const GET: APIRoute = async ({ cookies, redirect, url, locals }) => {
   const env = locals.env;
-  const verifier = cookies.get(OAUTH_VERIFIER_COOKIE)?.value;
-  const expectedState = cookies.get(OAUTH_STATE_COOKIE)?.value;
-  const redirectTo = cookies.get(OAUTH_REDIRECT_COOKIE)?.value;
-  cookies.delete(OAUTH_VERIFIER_COOKIE, { path: '/' });
-  cookies.delete(OAUTH_STATE_COOKIE, { path: '/' });
-  cookies.delete(OAUTH_REDIRECT_COOKIE, { path: '/' });
+  const cookie = oauthTransactionCookie(url);
+  const value = cookies.get(cookie.name)?.value;
+  cookies.delete(cookie.name, { path: '/', secure: cookie.options.secure });
+  const transaction = await readOAuthTransaction(value, url, env.sessionSecret);
 
   const code = url.searchParams.get('code');
   const state = url.searchParams.get('state');
@@ -39,7 +35,7 @@ export const GET: APIRoute = async ({ cookies, redirect, url, locals }) => {
   // CSRF check comes first: never act on a callback — including a provider
   // error response, which echoes state per RFC 6749 section 4.1.2.1 — without
   // valid state.
-  if (!state || !verifier || !expectedState || state !== expectedState) {
+  if (!state || !transaction || state !== transaction.state) {
     await setFlash({ cookies, url }, env.sessionSecret, AUTH_ERROR_FLASH);
     return redirect('/');
   }
@@ -61,7 +57,7 @@ export const GET: APIRoute = async ({ cookies, redirect, url, locals }) => {
     const token = await exchangeCodeForToken({
       code,
       redirectUri,
-      codeVerifier: verifier,
+      codeVerifier: transaction.verifier,
       clientId: env.authClientId,
       clientSecret: env.authClientSecret,
     });
@@ -131,7 +127,5 @@ export const GET: APIRoute = async ({ cookies, redirect, url, locals }) => {
     maxAge: SESSION_MAX_AGE,
   });
 
-  return redirect(
-    redirectTo && isSafeRedirectPath(redirectTo) ? redirectTo : '/',
-  );
+  return redirect(transaction.redirect);
 };

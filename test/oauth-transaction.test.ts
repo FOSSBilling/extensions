@@ -1,0 +1,56 @@
+import { describe, expect, it, vi } from 'vitest';
+import { GET } from '@/pages/auth/login';
+import { readOAuthTransaction, oauthTransactionCookie } from '@/lib/oauth';
+
+describe('OAuth login transaction', () => {
+  it.each(['https://extensions.example.test', 'http://localhost:4321'])(
+    'preserves login on %s',
+    async (origin) => {
+      const url = new URL('/auth/login?redirect=%2Faccount', origin);
+      const cookies = { set: vi.fn(), delete: vi.fn() };
+      const ctx = {
+        url,
+        cookies,
+        locals: { env: { sessionSecret: 'secret', authClientId: 'client' } },
+        redirect: (location: string) =>
+          new Response(null, { status: 302, headers: { location } }),
+      } as unknown as Parameters<typeof GET>[0];
+      const response = await GET(ctx);
+      const [name, value, options] = cookies.set.mock.calls[0];
+      expect(name).toBe(
+        origin.startsWith('https:')
+          ? '__Host-fb_oauth_transaction'
+          : 'fb_oauth_transaction',
+      );
+      expect(options).toEqual({
+        httpOnly: true,
+        secure: origin.startsWith('https:'),
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 600,
+      });
+      expect(options).not.toHaveProperty('domain');
+      const transaction = await readOAuthTransaction(value, url, 'secret');
+      const authorize = new URL(response.headers.get('location')!);
+      expect(transaction?.state).toBe(authorize.searchParams.get('state'));
+      expect(transaction?.redirect).toBe('/account');
+      const digest = await crypto.subtle.digest(
+        'SHA-256',
+        new TextEncoder().encode(transaction!.verifier),
+      );
+      expect(Buffer.from(digest).toString('base64url')).toBe(
+        authorize.searchParams.get('code_challenge'),
+      );
+      expect(await readOAuthTransaction(value, url, 'wrong-secret')).toBeNull();
+    },
+  );
+  it('never permits an unprefixed transaction on non-loopback HTTP', () => {
+    expect(
+      oauthTransactionCookie(new URL('http://extensions.example.test')).options
+        .secure,
+    ).toBe(true);
+    expect(
+      oauthTransactionCookie(new URL('http://extensions.example.test')).name,
+    ).toBe('__Host-fb_oauth_transaction');
+  });
+});

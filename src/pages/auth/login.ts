@@ -7,10 +7,8 @@ import {
 import {
   buildAuthorizeUrl,
   isSafeRedirectPath,
-  OAUTH_VERIFIER_COOKIE,
-  OAUTH_STATE_COOKIE,
-  OAUTH_REDIRECT_COOKIE,
-  OAUTH_COOKIE_MAX_AGE,
+  oauthTransactionCookie,
+  createOAuthTransaction,
 } from '@/lib/oauth';
 
 export const GET: APIRoute = async ({ cookies, redirect, url, locals }) => {
@@ -18,37 +16,16 @@ export const GET: APIRoute = async ({ cookies, redirect, url, locals }) => {
   const verifier = generateCodeVerifier();
   const challenge = await generateCodeChallenge(verifier);
   const state = generateState();
-  const secure = url.protocol === 'https:';
-
-  cookies.set(OAUTH_VERIFIER_COOKIE, verifier, {
-    httpOnly: true,
-    secure,
-    sameSite: 'lax',
-    path: '/',
-    maxAge: OAUTH_COOKIE_MAX_AGE,
-  });
-  cookies.set(OAUTH_STATE_COOKIE, state, {
-    httpOnly: true,
-    secure,
-    sameSite: 'lax',
-    path: '/',
-    maxAge: OAUTH_COOKIE_MAX_AGE,
-  });
-
   const redirectTo = url.searchParams.get('redirect');
-  if (redirectTo && isSafeRedirectPath(redirectTo)) {
-    cookies.set(OAUTH_REDIRECT_COOKIE, redirectTo, {
-      httpOnly: true,
-      secure,
-      sameSite: 'lax',
-      path: '/',
-      maxAge: OAUTH_COOKIE_MAX_AGE,
-    });
-  } else {
-    // Otherwise a stale cookie from an earlier, abandoned login attempt
-    // would linger and redirect this attempt somewhere it didn't ask for.
-    cookies.delete(OAUTH_REDIRECT_COOKIE, { path: '/' });
-  }
+  const transaction = await createOAuthTransaction(
+    url,
+    verifier,
+    state,
+    redirectTo && isSafeRedirectPath(redirectTo) ? redirectTo : '/',
+    env.sessionSecret,
+  );
+  const cookie = oauthTransactionCookie(url);
+  cookies.set(cookie.name, transaction, cookie.options);
 
   const redirectUri = `${url.origin}/auth/callback`;
   const authorizeUrl = buildAuthorizeUrl({
