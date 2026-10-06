@@ -1,9 +1,9 @@
 import { base64urlDecode, base64urlEncode } from './base64url';
 
 // HMAC signing for every signed cookie (auth session, flash messages,
-// re-verify cooldown). One module owns the key cache and the sign/verify
-// primitives so the cookie format — base64url(payload) + "." +
-// base64url(HMAC(payloadB64)) — stays identical everywhere.
+// re-verify cooldown, OAuth transaction). One module owns the key cache, the
+// sign/verify primitives, and the envelope format — base64url(payload) + "." +
+// base64url(HMAC(payloadB64)) — so it stays identical everywhere.
 //
 // All signed cookies share SESSION_SECRET's key material. Domain separation
 // comes from each consumer validating its own payload shape strictly (see
@@ -59,5 +59,37 @@ export async function verifyPayloadSignature(
     );
   } catch {
     return false;
+  }
+}
+
+// Envelope form shared by every signed cookie: encode the payload, sign it,
+// join the two parts with a ".". Consumers own their payload shape.
+export async function encodeSignedValue(
+  payload: unknown,
+  secret: string,
+): Promise<string> {
+  const payloadB64 = base64urlEncode(
+    new TextEncoder().encode(JSON.stringify(payload)),
+  );
+  return `${payloadB64}.${await signPayload(payloadB64, secret)}`;
+}
+
+// Verifies and decodes a signed cookie value, returning the parsed payload,
+// or null when the envelope is malformed, fails verification, or does not
+// parse as JSON. Consumers validate the decoded shape for their cookie type.
+export async function decodeSignedValue(
+  value: string,
+  secret: string,
+): Promise<unknown | null> {
+  const [payloadB64, signatureB64] = value.split('.');
+  if (!payloadB64 || !signatureB64) return null;
+  if (!(await verifyPayloadSignature(payloadB64, signatureB64, secret))) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(new TextDecoder().decode(base64urlDecode(payloadB64)));
+  } catch {
+    return null;
   }
 }

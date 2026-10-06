@@ -1,4 +1,5 @@
 import { SignJWT } from 'jose';
+import { importSigningKey } from './signed-value';
 
 // Mints a short-lived compact HS256 assertion (header.payload.signature) that
 // the api repo's bearerAssertionVerifier verifies — see that repo's
@@ -9,27 +10,6 @@ const ASSERTION_ISSUER = 'fossbilling-extensions';
 const ASSERTION_AUDIENCE = 'fossbilling-api/extensions-v2';
 const ASSERTION_PURPOSE = 'user-authentication';
 const ASSERTION_VERSION = 1;
-
-// Assertions are minted per authenticated API request; importing the HMAC
-// key each time is wasted work for the lifetime of the isolate, so the
-// imported key is cached per secret (secrets only change across deploys).
-const assertionKeys = new Map<string, Promise<CryptoKey>>();
-
-function assertionSigningKey(secret: string): Promise<CryptoKey> {
-  let key = assertionKeys.get(secret);
-  if (!key) {
-    key = crypto.subtle.importKey(
-      'raw',
-      new TextEncoder().encode(secret),
-      { name: 'HMAC', hash: 'SHA-256' },
-      false,
-      ['sign'],
-    );
-    key.catch(() => assertionKeys.delete(secret));
-    assertionKeys.set(secret, key);
-  }
-  return key;
-}
 
 export async function mintBearerAssertion(
   sub: string,
@@ -47,5 +27,5 @@ export async function mintBearerAssertion(
     .setIssuer(ASSERTION_ISSUER)
     .setAudience(ASSERTION_AUDIENCE)
     .setExpirationTime(iat + ASSERTION_TTL_SECONDS)
-    .sign(await assertionSigningKey(secret));
+    .sign(await importSigningKey(secret));
 }

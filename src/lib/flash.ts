@@ -1,6 +1,5 @@
 import type { AstroCookies } from 'astro';
-import { base64urlDecode, base64urlEncode } from './base64url';
-import { signPayload, verifyPayloadSignature } from './signed-value';
+import { decodeSignedValue, encodeSignedValue } from './signed-value';
 
 // One-shot flash messages carried across a POST -> redirect -> GET cycle via
 // a short-lived, HMAC-signed cookie — distinct from the signed auth-cookie
@@ -52,19 +51,13 @@ interface FlashContext {
 }
 
 function parseFlashPayload(
-  value: string,
+  payload: unknown,
 ): { message: FlashMessage; exp: number } | null {
-  const [payloadB64, signatureB64] = value.split('.');
-  if (!payloadB64 || !signatureB64) return null;
-
-  let payload: { message?: FlashMessage; exp?: number };
-  try {
-    payload = JSON.parse(new TextDecoder().decode(base64urlDecode(payloadB64)));
-  } catch {
-    return null;
-  }
-
-  const { message, exp } = payload;
+  if (typeof payload !== 'object' || payload === null) return null;
+  const { message, exp } = payload as {
+    message?: FlashMessage;
+    exp?: number;
+  };
   if (
     !message ||
     typeof exp !== 'number' ||
@@ -91,10 +84,7 @@ export async function setFlash(
   message: FlashMessage,
 ): Promise<void> {
   const exp = Math.floor(Date.now() / 1000) + FLASH_MAX_AGE_SECONDS;
-  const payloadB64 = base64urlEncode(
-    new TextEncoder().encode(JSON.stringify({ message, exp })),
-  );
-  const value = `${payloadB64}.${await signPayload(payloadB64, secret)}`;
+  const value = await encodeSignedValue({ message, exp }, secret);
 
   context.cookies.set(FLASH_COOKIE, value, {
     httpOnly: true,
@@ -118,13 +108,7 @@ export async function takeFlash(
   if (!value) return undefined;
   cookies.delete(FLASH_COOKIE, { path: '/' });
 
-  const [payloadB64, signatureB64] = value.split('.');
-  if (!payloadB64 || !signatureB64) return undefined;
-  if (!(await verifyPayloadSignature(payloadB64, signatureB64, secret))) {
-    return undefined;
-  }
-
-  const payload = parseFlashPayload(value);
+  const payload = parseFlashPayload(await decodeSignedValue(value, secret));
   if (!payload) return undefined;
   if (payload.exp < Math.floor(Date.now() / 1000)) return undefined;
 

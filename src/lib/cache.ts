@@ -84,19 +84,17 @@ export async function cachedEdgeRead<T>(
           writtenAt: number;
           value: T;
         };
-        if (writtenAt <= lastPurgeAtEpochMs) {
-          // Written before (or racing with) the most recent purge: treat as
-          // a miss so the re-render repopulates from the producer with
-          // post-purge data. Erring toward freshness here only costs an
-          // extra producer call in a same-millisecond race.
-        } else {
+        if (writtenAt > lastPurgeAtEpochMs) {
           return value;
         }
-      } else {
-        // Entry from before the writtenAt format existed: no age is known,
-        // so serve it — its remaining TTL bounds any staleness.
-        return parsed as T;
+        // Written before (or racing with) the most recent purge: treat as
+        // a miss so the re-render repopulates from the producer with
+        // post-purge data. Erring toward freshness here only costs an
+        // extra producer call in a same-millisecond race.
       }
+      // Anything else (malformed or pre-writtenAt body) is a miss; entries
+      // expire within the TTL below, so no legacy format survives long
+      // enough to need serving.
     }
   } catch {
     // A malformed or unreadable cache entry is treated as a miss.
