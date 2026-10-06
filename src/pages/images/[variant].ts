@@ -35,9 +35,9 @@ function imageCacheRequest(
   conditionalRequest?: Request,
 ): Request {
   // Cache only transformation inputs, ignoring outer query parameters and
-  // route aliases. Parsed source URLs normalize equivalent spellings, while
-  // source queries still select distinct images; fragments are never sent
-  // upstream and cannot change the image.
+  // route aliases, and serialize the parsed source URL. Equivalent spellings
+  // normalize, while source queries still select distinct images; fragments
+  // are never sent upstream and cannot change the image.
   const cacheUrl = new URL(`/images/${variant}`, requestUrl.origin);
   const cacheSource = new URL(sourceUrl);
   cacheSource.hash = '';

@@ -441,6 +441,7 @@ describe('image transformation edge cache', () => {
       `${ICON_REQUEST_URL}&src=https%3A%2F%2Fgithub.com%2Fignored.png`,
       `${ICON_REQUEST_URL}%23fragment-one`,
       `${ICON_REQUEST_URL}%23fragment-two`,
+      `${ICON_REQUEST_URL}#unused`,
       ICON_REQUEST_URL.replace('https%3A%2F%2Fraw.', 'https://raw.'),
       `https://extensions.example.test/images/icon?src=${encodeURIComponent('https://RAW.GITHUBUSERCONTENT.COM:443/fossbilling/logo.png#unused')}`,
       `https://extensions.example.test/images/icon?src=${source}`,
