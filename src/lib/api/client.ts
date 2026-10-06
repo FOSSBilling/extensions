@@ -159,6 +159,32 @@ export function getApiErrorMessage(error: ApiRequestError): string {
   }
 }
 
+// Shapes the JSON API routes' error responses: ApiRequestErrors keep their
+// upstream code/message/details (with a 4xx/5xx status floor), and anything
+// else falls back to a generic request_failed 502.
+export function apiErrorResponse(
+  error: unknown,
+  fallbackMessage: string,
+): Response {
+  if (error instanceof ApiRequestError) {
+    return Response.json(
+      {
+        error: {
+          code: error.code,
+          message: error.message,
+          ...(error.details ? { details: error.details } : {}),
+        },
+      },
+      { status: error.status >= 400 ? error.status : 502 },
+    );
+  }
+
+  return Response.json(
+    { error: { code: 'request_failed', message: fallbackMessage } },
+    { status: 502 },
+  );
+}
+
 export function clampApiPageLimit(limit?: number): number {
   if (limit === undefined || !Number.isFinite(limit)) {
     return DEFAULT_API_PAGE_LIMIT;
