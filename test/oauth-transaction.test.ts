@@ -46,7 +46,10 @@ describe('OAuth login transaction', () => {
   );
   it('warns when the transaction cookie will be refused on plain HTTP', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const url = new URL('/auth/login?redirect=%2Faccount', 'http://192.168.1.20:4321');
+    const url = new URL(
+      '/auth/login?redirect=%2Faccount',
+      'http://192.168.1.20:4321',
+    );
     const cookies = { set: vi.fn(), delete: vi.fn() };
     const ctx = {
       url,

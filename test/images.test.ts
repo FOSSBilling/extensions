@@ -504,7 +504,9 @@ describe('image transformation edge cache', () => {
       `https://extensions.example.test/images/icon?src=${source}`,
     ];
     for (const url of aliases) {
-      const response = await handleImageRequest(await requestContext('icon', url));
+      const response = await handleImageRequest(
+        await requestContext('icon', url),
+      );
       expect(response.status).toBe(200);
       expect(await response.text()).toBe('transformed image');
     }
@@ -527,10 +529,16 @@ describe('image transformation edge cache', () => {
 
     const contexts = [
       await requestContext('icon', ICON_REQUEST_URL),
-      await requestContext('icon', ICON_REQUEST_URL.replace('logo.png', 'other.png')),
+      await requestContext(
+        'icon',
+        ICON_REQUEST_URL.replace('logo.png', 'other.png'),
+      ),
       await requestContext('icon', `${ICON_REQUEST_URL}%3Frevision%3D1`),
       await requestContext('icon', `${ICON_REQUEST_URL}%3Frevision%3D2`),
-      await requestContext('avatar', ICON_REQUEST_URL.replace('/icon?', '/avatar?')),
+      await requestContext(
+        'avatar',
+        ICON_REQUEST_URL.replace('/icon?', '/avatar?'),
+      ),
     ];
     for (const context of contexts) {
       expect((await handleImageRequest(context)).status).toBe(200);
@@ -560,10 +568,15 @@ describe('image transformation edge cache', () => {
     });
 
     const response = await handleImageRequest(
-      await requestContext('icon', `${ICON_REQUEST_URL}&nonce=new`, 'image/avif', {
-        'if-none-match': '"version"',
-        'if-modified-since': 'Thu, 30 Jul 2026 13:05:00 GMT',
-      }),
+      await requestContext(
+        'icon',
+        `${ICON_REQUEST_URL}&nonce=new`,
+        'image/avif',
+        {
+          'if-none-match': '"version"',
+          'if-modified-since': 'Thu, 30 Jul 2026 13:05:00 GMT',
+        },
+      ),
     );
     expect(response.status).toBe(304);
     expect(fetchMock).toHaveBeenCalledOnce();
@@ -595,10 +608,18 @@ describe('image transformation edge cache', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     await handleImageRequest(
-      await requestContext('icon', ICON_REQUEST_URL, 'image/avif,image/*;q=0.8'),
+      await requestContext(
+        'icon',
+        ICON_REQUEST_URL,
+        'image/avif,image/*;q=0.8',
+      ),
     );
     await handleImageRequest(
-      await requestContext('icon', ICON_REQUEST_URL, 'image/webp,image/*;q=0.8'),
+      await requestContext(
+        'icon',
+        ICON_REQUEST_URL,
+        'image/webp,image/*;q=0.8',
+      ),
     );
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
