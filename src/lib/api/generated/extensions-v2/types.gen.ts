@@ -713,6 +713,10 @@ export type PutUsersMeIdentityData = {
 
 export type PutUsersMeIdentityErrors = {
   /**
+   * Request body could not be read
+   */
+  400: Error;
+  /**
    * Missing or invalid bearer token
    */
   401: Error;
@@ -893,7 +897,7 @@ export type PostDevelopersByIdClaimErrors = {
    */
   422: Error;
   /**
-   * GitHub verification is temporarily rate limited
+   * Claim allowance exhausted or GitHub verification is temporarily rate limited
    */
   429: Error;
   /**
@@ -1982,7 +1986,7 @@ export type PutDevelopersMeErrors = {
    */
   422: Error;
   /**
-   * The account exhausted its profile-creation allowance, or GitHub verification is temporarily rate limited
+   * The account exhausted its profile creation or daily write allowance, or GitHub verification is temporarily rate limited
    */
   429: Error;
   /**

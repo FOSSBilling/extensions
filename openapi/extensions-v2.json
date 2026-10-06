@@ -2040,6 +2040,16 @@
               }
             }
           },
+          "400": {
+            "description": "Request body could not be read",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
           "401": {
             "description": "Missing or invalid bearer token",
             "content": {
@@ -2389,7 +2399,7 @@
             }
           },
           "429": {
-            "description": "GitHub verification is temporarily rate limited",
+            "description": "Claim allowance exhausted or GitHub verification is temporarily rate limited",
             "content": {
               "application/json": {
                 "schema": {
@@ -4590,7 +4600,7 @@
             }
           },
           "429": {
-            "description": "The account exhausted its profile-creation allowance, or GitHub verification is temporarily rate limited",
+            "description": "The account exhausted its profile creation or daily write allowance, or GitHub verification is temporarily rate limited",
             "content": {
               "application/json": {
                 "schema": {
