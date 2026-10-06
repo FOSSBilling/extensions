@@ -1,5 +1,5 @@
 ---
-import { Building2, CircleUserRound } from '@lucide/astro';
+import { BuildingComplex, CircleUserRound } from '@lucide/astro';
 import { getSignedImageUrl } from '@/lib/signed-image-url';
 
 interface Props {
@@ -32,7 +32,7 @@ const imageUrl = await getSignedImageUrl(
   ) : (
     <span>
       {type === 'organization' ? (
-        <Building2 class={iconSize} />
+        <BuildingComplex class={iconSize} />
       ) : (
         <CircleUserRound class={iconSize} />
       )}
