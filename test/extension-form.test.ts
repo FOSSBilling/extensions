@@ -3,6 +3,7 @@ import {
   buildExtensionCreatePayload,
   buildExtensionUpdatePayload,
   echoExtensionFromForm,
+  echoNewExtensionFromForm,
   echoReleaseDraftFromForm,
   ExtensionValidationError,
 } from '@/lib/extension-form';
@@ -290,6 +291,56 @@ describe('echoReleaseDraftFromForm', () => {
 
   it('returns blank fields when the form omits the release section', () => {
     expect(echoReleaseDraftFromForm(new FormData())).toEqual({
+      version_tag: '',
+      release_date: '',
+      download_url: '',
+      changelog_url: '',
+      min_fossbilling_version: '',
+    });
+  });
+});
+
+describe('echoNewExtensionFromForm', () => {
+  const developer = {
+    id: 'developer',
+    type: 'organization' as const,
+    name: 'Example developer',
+  };
+
+  it('builds a blank base with the lowercased form id and echoes the submission', () => {
+    const form = extensionForm({
+      extension_id: 'Mixed-Case',
+      name: 'New name',
+      version_tag: '1.0.0',
+    });
+
+    const { extension, releaseDraft } = echoNewExtensionFromForm(
+      form,
+      developer,
+    );
+
+    expect(extension).toMatchObject({
+      // Lowercased to match what a successful submit would store.
+      id: 'mixed-case',
+      name: 'New name',
+      description: 'An example extension.',
+      developer,
+      releases: [],
+      version: '',
+    });
+    expect(releaseDraft.version_tag).toBe('1.0.0');
+  });
+
+  it('echoes a blank form without throwing', () => {
+    const { extension, releaseDraft } = echoNewExtensionFromForm(
+      new FormData(),
+      developer,
+    );
+
+    expect(extension.id).toBe('');
+    expect(extension.name).toBe('');
+    expect(extension.releases).toEqual([]);
+    expect(releaseDraft).toEqual({
       version_tag: '',
       release_date: '',
       download_url: '',
