@@ -3,7 +3,7 @@ import { EXTENSION_TYPES, SOURCE_TYPES, SPDX_LICENSE_IDS } from '@/types';
 import type { Developer, Extension } from '@/types';
 import { CircleAlert, SquarePen, ChevronDown } from '@lucide/astro';
 import { stripUrlScheme } from '@/lib/url-prefix';
-import { OTHER_LICENSE } from '@/lib/extension-form';
+import { OTHER_LICENSE, type ReleaseDraft } from '@/lib/extension-form';
 import { MARKDOWN_SCROLL_CLASS } from '@/lib/revision-diff-shared';
 
 interface Props {
@@ -15,6 +15,9 @@ interface Props {
   // When present, renders the required moderator correction-note field
   // (api#251). Author flows leave it undefined and the form is unchanged.
   correctionNote?: string;
+  // Best-effort redisplay of the release-section inputs after a failed
+  // submission (see echoReleaseDraftFromForm in extension-form.ts).
+  releaseDraft?: ReleaseDraft;
 }
 
 const {
@@ -24,6 +27,7 @@ const {
   submitLabel,
   cancelHref = '/account',
   correctionNote,
+  releaseDraft,
 } = Astro.props;
 const isEdit = Boolean(extension);
 // A release is required, same as a brand new extension, whenever there's
@@ -414,6 +418,7 @@ const otherSpdxIds = SPDX_LICENSE_IDS.filter((id) => !popularSpdxIds.has(id));
               name="version_tag"
               required={requireRelease}
               placeholder="1.0.0"
+              value={releaseDraft?.version_tag ?? ''}
             />
           </div>
           <div class="field">
@@ -427,6 +432,7 @@ const otherSpdxIds = SPDX_LICENSE_IDS.filter((id) => !popularSpdxIds.has(id));
               id="release_date"
               name="release_date"
               required={requireRelease}
+              value={releaseDraft?.release_date ?? ''}
             />
           </div>
           <div class="field">
@@ -443,6 +449,7 @@ const otherSpdxIds = SPDX_LICENSE_IDS.filter((id) => !popularSpdxIds.has(id));
                 id="download_url"
                 name="download_url"
                 required={requireRelease}
+                value={releaseDraft?.download_url ?? ''}
               />
             </div>
           </div>
@@ -457,7 +464,12 @@ const otherSpdxIds = SPDX_LICENSE_IDS.filter((id) => !popularSpdxIds.has(id));
               <span data-align="start" class="text-muted-foreground">
                 https://
               </span>
-              <input type="text" id="changelog_url" name="changelog_url" />
+              <input
+                type="text"
+                id="changelog_url"
+                name="changelog_url"
+                value={releaseDraft?.changelog_url ?? ''}
+              />
             </div>
           </div>
           <div class="field">
@@ -472,6 +484,7 @@ const otherSpdxIds = SPDX_LICENSE_IDS.filter((id) => !popularSpdxIds.has(id));
               name="min_fossbilling_version"
               required={requireRelease}
               placeholder="1.0.0"
+              value={releaseDraft?.min_fossbilling_version ?? ''}
             />
           </div>
         </fieldset>

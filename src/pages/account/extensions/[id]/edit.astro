@@ -12,7 +12,9 @@ import { getOwnedExtension } from '@/lib/extensions-data';
 import {
   buildExtensionUpdatePayload,
   echoExtensionFromForm,
+  echoReleaseDraftFromForm,
   ExtensionValidationError,
+  type ReleaseDraft,
 } from '@/lib/extension-form';
 import { formatDate } from '@/lib/format-date';
 import { setFlash } from '@/lib/flash';
@@ -60,6 +62,7 @@ let error: string | null = null;
 // Falls back to the just-submitted values on a rejected edit, so the form
 // doesn't reset to the previous content and discard the edit.
 let submitted: Extension | null = null;
+let submittedReleaseDraft: ReleaseDraft | null = null;
 
 // Only one revision may be unreviewed at a time — the api rejects a second
 // edit with 409 while one is pending, so this page doesn't even offer the
@@ -67,6 +70,7 @@ let submitted: Extension | null = null;
 if (!owned.pendingRevision && Astro.request.method === 'POST') {
   const form = await Astro.request.formData();
   submitted = echoExtensionFromForm(form, base);
+  submittedReleaseDraft = echoReleaseDraftFromForm(form);
 
   const api = createApiClient(env, user.sub);
   try {
@@ -111,6 +115,7 @@ const title = base.name || owned.id;
         <ExtensionForm
           developer={owned.developer}
           extension={fields}
+          releaseDraft={submittedReleaseDraft ?? undefined}
           error={error}
         />
       </Fragment>

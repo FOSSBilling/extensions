@@ -3,6 +3,7 @@ import {
   buildExtensionCreatePayload,
   buildExtensionUpdatePayload,
   echoExtensionFromForm,
+  echoReleaseDraftFromForm,
   ExtensionValidationError,
 } from '@/lib/extension-form';
 import type { Extension } from '@/types';
@@ -263,6 +264,37 @@ describe('echoExtensionFromForm', () => {
     expect(unrecognized.license).toEqual({
       name: '',
       URL: 'https://example.test/license',
+    });
+  });
+});
+
+describe('echoReleaseDraftFromForm', () => {
+  it('carries the release-section inputs exactly as typed', () => {
+    const form = extensionForm({
+      version_tag: '1.1.0',
+      release_date: '2026-02-01',
+      // No scheme normalization on redisplay: echo what the user typed.
+      download_url: 'example.test/1.1.0.zip',
+      changelog_url: '',
+      min_fossbilling_version: '0.6.0',
+    });
+
+    expect(echoReleaseDraftFromForm(form)).toEqual({
+      version_tag: '1.1.0',
+      release_date: '2026-02-01',
+      download_url: 'example.test/1.1.0.zip',
+      changelog_url: '',
+      min_fossbilling_version: '0.6.0',
+    });
+  });
+
+  it('returns blank fields when the form omits the release section', () => {
+    expect(echoReleaseDraftFromForm(new FormData())).toEqual({
+      version_tag: '',
+      release_date: '',
+      download_url: '',
+      changelog_url: '',
+      min_fossbilling_version: '',
     });
   });
 });

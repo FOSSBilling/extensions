@@ -196,3 +196,27 @@ export function echoExtensionFromForm(
     },
   };
 }
+
+// The release-section input values as submitted, echoed alongside
+// echoExtensionFromForm: the Extension model has nowhere to hold a pending
+// release draft (version tag, date, URLs, minimum version), so without this
+// a failed submission would redisplay that fieldset blank and discard it.
+// Values are echoed exactly as typed — no scheme normalization — matching
+// the best-effort redisplay contract above.
+export interface ReleaseDraft {
+  version_tag: string;
+  release_date: string;
+  download_url: string;
+  changelog_url: string;
+  min_fossbilling_version: string;
+}
+
+export function echoReleaseDraftFromForm(form: FormData): ReleaseDraft {
+  return {
+    version_tag: formString(form, 'version_tag'),
+    release_date: formString(form, 'release_date'),
+    download_url: formString(form, 'download_url'),
+    changelog_url: formString(form, 'changelog_url'),
+    min_fossbilling_version: formString(form, 'min_fossbilling_version'),
+  };
+}
