@@ -220,3 +220,33 @@ export function echoReleaseDraftFromForm(form: FormData): ReleaseDraft {
     min_fossbilling_version: formString(form, 'min_fossbilling_version'),
   };
 }
+
+// Best-effort echo for the create page: there is no existing extension to
+// spread over, so the base is a blank, submission-shaped extension — the id
+// comes from the form (lowercased, matching what a successful submit would
+// store) and the developer is the submitter's own profile. Returns both the
+// field echo and the release draft for ExtensionForm's redisplay props.
+export function echoNewExtensionFromForm(
+  form: FormData,
+  developer: Extension['developer'],
+): { extension: Extension; releaseDraft: ReleaseDraft } {
+  const base: Extension = {
+    id: formString(form, 'extension_id').toLowerCase(),
+    type: 'mod',
+    name: '',
+    description: '',
+    releases: [],
+    website: '',
+    license: { name: '' },
+    readme: '',
+    source: { type: 'github', repo: '' },
+    version: '',
+    download_url: '',
+    developer,
+  };
+
+  return {
+    extension: echoExtensionFromForm(form, base),
+    releaseDraft: echoReleaseDraftFromForm(form),
+  };
+}

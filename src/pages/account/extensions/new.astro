@@ -10,6 +10,7 @@ import {
 import { getDeveloperByOwner } from '@/lib/extensions-data';
 import {
   buildExtensionCreatePayload,
+  echoNewExtensionFromForm,
   ExtensionValidationError,
 } from '@/lib/extension-form';
 import { setFlash } from '@/lib/flash';
@@ -25,9 +26,13 @@ if (!developer) {
 }
 
 let error: string | null = null;
+// Falls back to the just-submitted values on a failed submission, so the
+// form doesn't reset and discard the draft (same echo as the edit page).
+let submitted: ReturnType<typeof echoNewExtensionFromForm> | null = null;
 
 if (Astro.request.method === 'POST') {
   const form = await Astro.request.formData();
+  submitted = echoNewExtensionFromForm(form, developer);
   const api = createApiClient(env, user.sub);
   try {
     const payload = buildExtensionCreatePayload(form);
@@ -54,6 +59,11 @@ if (Astro.request.method === 'POST') {
       Submissions are reviewed by a moderator before appearing in the public
       directory.
     </p>
-    <ExtensionForm developer={developer} error={error} />
+    <ExtensionForm
+      developer={developer}
+      extension={submitted?.extension}
+      releaseDraft={submitted?.releaseDraft}
+      error={error}
+    />
   </div>
 </Base>
