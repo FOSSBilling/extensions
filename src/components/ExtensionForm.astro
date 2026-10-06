@@ -564,7 +564,10 @@ const otherSpdxIds = SPDX_LICENSE_IDS.filter((id) => !popularSpdxIds.has(id));
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/^-+|-+$/g, '');
 
-    let idEditedByUser = false;
+    let idEditedByUser = idInput.value.length > 0;
+    // A prefilled id is a previously submitted one (the failed-create echo):
+    // treat it as user-authored so a later name edit doesn't silently
+    // replace the id the submitter already chose.
     idInput.addEventListener('input', () => {
       idEditedByUser = true;
     });
