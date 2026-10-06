@@ -44,16 +44,17 @@ export const POST: APIRoute = async (context) => {
 
     if (e instanceof ApiRequestError) {
       switch (e.code) {
+        // Both transient conditions share the cooldown: retrying within a
+        // minute cannot succeed, so the retry button is suppressed until it
+        // lapses (see the cooldown check at the top).
         case 'RATE_LIMITED':
-          description =
-            'GitHub verification is temporarily rate limited. Please wait one minute, then retry manually.';
+        case 'SERVICE_UNAVAILABLE': {
           await setReverifyCooldown(context, env.sessionSecret);
+          const condition =
+            e.code === 'RATE_LIMITED' ? 'rate limited' : 'unavailable';
+          description = `GitHub verification is temporarily ${condition}. Please wait one minute, then retry manually.`;
           break;
-        case 'SERVICE_UNAVAILABLE':
-          description =
-            'GitHub verification is temporarily unavailable. Please wait one minute, then retry manually.';
-          await setReverifyCooldown(context, env.sessionSecret);
-          break;
+        }
         case 'GITHUB_ENTITY_UNSUPPORTED':
           description =
             'This type of GitHub entity is not supported. Change the linked GitHub account or Publisher ID before re-verifying; retrying unchanged will not help.';
