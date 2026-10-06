@@ -75,14 +75,16 @@ export async function encodeSignedValue(
 }
 
 // Verifies and decodes a signed cookie value, returning the parsed payload,
-// or null when the envelope is malformed, fails verification, or does not
-// parse as JSON. Consumers validate the decoded shape for their cookie type.
+// or null when the envelope is malformed (including trailing segments),
+// fails verification, or does not parse as JSON. Consumers validate the
+// decoded shape for their cookie type.
 export async function decodeSignedValue(
   value: string,
   secret: string,
 ): Promise<unknown | null> {
-  const [payloadB64, signatureB64] = value.split('.');
-  if (!payloadB64 || !signatureB64) return null;
+  const parts = value.split('.');
+  if (parts.length !== 2 || !parts[0] || !parts[1]) return null;
+  const [payloadB64, signatureB64] = parts;
   if (!(await verifyPayloadSignature(payloadB64, signatureB64, secret))) {
     return null;
   }

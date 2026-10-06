@@ -11,7 +11,9 @@ vi.mock('@/lib/cache', async (importOriginal) => ({
 }));
 
 beforeEach(() => {
-  cacheMocks.markEdgeCachePurged.mockClear();
+  // mockReset also drops implementations set by earlier tests (the purge
+  // test's order recorder), restoring the plain no-op mock.
+  cacheMocks.markEdgeCachePurged.mockReset();
 });
 
 const SECRET = 'test-revalidate-secret';

@@ -133,6 +133,9 @@ describe('requireUser', () => {
     expect(requestContext.cookies.delete).toHaveBeenCalledWith('fb_session', {
       path: '/',
     });
+    expect(requestContext.cookies.delete).toHaveBeenCalledWith(FLASH_COOKIE, {
+      path: '/',
+    });
     expect(requestContext.redirect).toHaveBeenCalledOnce();
   });
 });

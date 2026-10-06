@@ -138,6 +138,10 @@ describe('takeFlash', () => {
   // invalid-shape test below isolates it from signature failure.
   it.each([
     ['non-object action', 'reconnect'],
+    ['empty label', { label: '', href: '/' }],
+    ['non-string label', { label: 42, href: '/' }],
+    ['empty href', { label: 'Reconnect', href: '' }],
+    ['missing href', { label: 'Reconnect' }],
     ['over-long href', { label: 'Reconnect', href: `/${'x'.repeat(2048)}` }],
   ])('drops flashes with a malformed action (%s)', async (_name, action) => {
     const { jar, context } = flashContext();

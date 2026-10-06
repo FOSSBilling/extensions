@@ -312,7 +312,11 @@ describe('generated Extensions v2 façade', () => {
       .mockResolvedValueOnce('token-two');
 
     const api = createApiClient(authenticatedEnv, 'user-sub');
-    await api.listMyExtensions({ limit: 100, cursor: 'opaque cursor' });
+    await api.listMyExtensions({
+      type: 'theme',
+      limit: 100,
+      cursor: 'opaque cursor',
+    });
     await api.listMyExtensions({ limit: 100 });
 
     expect(mintBearerAssertion).toHaveBeenCalledTimes(2);
@@ -333,12 +337,13 @@ describe('generated Extensions v2 façade', () => {
     expect(requestUrl(fetchMock, 0).searchParams.get('cursor')).toBe(
       'opaque cursor',
     );
-    expect(requestUrl(fetchMock, 1).searchParams.has('cursor')).toBe(false);
-    // The mine scope never carries the public catalogue's developer_id
-    // filter, and the owner listing sends no type filter.
+    // The mine scope forwards a type filter when asked, and never carries
+    // the public catalogue's developer_id filter.
+    expect(requestUrl(fetchMock, 0).searchParams.get('type')).toBe('theme');
     expect(requestUrl(fetchMock, 0).searchParams.has('developer_id')).toBe(
       false,
     );
+    expect(requestUrl(fetchMock, 1).searchParams.has('cursor')).toBe(false);
   });
 
   it('serializes a create payload with no developer field and reports the new revision', async () => {
@@ -875,6 +880,26 @@ describe('cursor-paginated moderator lists', () => {
     const api = createApiClient(authenticatedEnv, 'moderator-sub');
     await expect(api.listAllDevelopers()).rejects.toThrow(/returned no rows/);
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('throws instead of looping forever on a page that repeats its own cursor', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(() =>
+        Promise.resolve(apiResponse(page([item('a')], 'cursor-2', true))),
+      );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const api = createApiClient(authenticatedEnv, 'moderator-sub');
+    await expect(api.listAllDevelopers()).rejects.toThrow(
+      /returned the same cursor twice/,
+    );
+    // The first request runs with no cursor, the second with the repeated
+    // one — then the walk stops instead of appending that page forever.
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(
+      new URL(requestFrom(fetchMock, 1).url).searchParams.get('cursor'),
+    ).toBe('cursor-2');
   });
 
   it('walks every page of my own claims like the other lists', async () => {

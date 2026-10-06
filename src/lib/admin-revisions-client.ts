@@ -37,6 +37,9 @@ interface RevisionDetailResult {
   published: PublishedContent | null;
 }
 
+// Uniqueness for aria-controls targets within one page's diff tables.
+let truncateSequence = 0;
+
 function markdownCell(value: string, className: string): HTMLTableCellElement {
   const td = document.createElement('td');
   td.className = className;
@@ -77,12 +80,15 @@ function valueCell(
     return td;
   }
   // Same markup protocol as TruncatedText.astro, so the shared delegation
-  // (initTruncateToggles) wires the toggle.
+  // (initTruncateToggles) wires the toggle. Like TruncatedText, the toggle
+  // links to the region it expands via aria-controls.
+  const fullId = `truncate-full-${++truncateSequence}`;
   const short = document.createElement('span');
   short.setAttribute('data-truncate-short', '');
   short.textContent = `${value.slice(0, TRUNCATE_AT)}…`;
   const full = document.createElement('span');
   full.setAttribute('data-truncate-full', '');
+  full.id = fullId;
   full.textContent = value;
   full.hidden = true;
   const toggle = document.createElement('button');
@@ -92,6 +98,7 @@ function valueCell(
   toggle.setAttribute('data-variant', 'ghost');
   toggle.setAttribute('data-truncate-toggle', '');
   toggle.setAttribute('aria-expanded', 'false');
+  toggle.setAttribute('aria-controls', fullId);
   toggle.textContent = TRUNCATE_EXPAND_LABEL;
   td.appendChild(short);
   td.appendChild(document.createTextNode(' '));

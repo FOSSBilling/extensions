@@ -23,6 +23,7 @@ const { placeholder, value, resetParams = [] } = Astro.props;
     type="text"
     name="q"
     placeholder={placeholder}
+    aria-label={placeholder}
     value={value ?? ''}
   />
   <button type="submit" class="btn" data-size="sm" data-variant="outline">

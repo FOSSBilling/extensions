@@ -23,6 +23,16 @@ const {
   formAction,
   submitLabel = 'Delete',
 } = Astro.props;
+
+// Fail closed: DialogShell only renders the type-to-confirm guard (and
+// starts the submit button disabled) for a truthy value, so an empty
+// confirmText would silently produce a destructive dialog with the guard
+// omitted. Loudly refuse instead.
+if (!confirmText.trim()) {
+  throw new Error(
+    'ConfirmDeleteDialog requires a non-empty confirmText to confirm.',
+  );
+}
 ---
 
 <DialogShell

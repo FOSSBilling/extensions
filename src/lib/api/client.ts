@@ -216,12 +216,19 @@ export async function paginateAll<T>(
     if (!page.pagination.has_more) {
       return items;
     }
-    // Termination is the API reporting has_more=false. The only runaway a
-    // client can detect is a page claiming more data but returning no rows
-    // or no cursor: without this guard that loop never ends.
+    // Termination is the API reporting has_more=false. Two runaways are
+    // client-detectable and must end the loop: a page claiming more data
+    // but returning no rows or no cursor, and a page handing back the same
+    // cursor it was just called with (the same page would be appended
+    // forever).
     if (page.result.length === 0 || !page.pagination.next_cursor) {
       throw new Error(
         'The API reported more pages but returned no rows or cursor for this one.',
+      );
+    }
+    if (page.pagination.next_cursor === cursor) {
+      throw new Error(
+        'The API returned the same cursor twice, so walking it would never end.',
       );
     }
     cursor = page.pagination.next_cursor;

@@ -77,4 +77,20 @@ describe('setReverifyCooldown / takeReverifyCooldown', () => {
     const { jar } = cooldownContext();
     await expect(takeReverifyCooldown(jar.cookies, SECRET)).resolves.toBe(0);
   });
+
+  it('returns 0 for tampered, wrong-secret, and malformed cookies', async () => {
+    // The envelope's rejection paths are owned by signed-value's own suite;
+    // this pins that the consumer surfaces them as "no cooldown".
+    const { jar, context } = cooldownContext();
+    await setReverifyCooldown(context, SECRET);
+    const value = jar.get(REVERIFY_COOLDOWN_COOKIE)!.value;
+
+    const tampered = `${value.slice(0, -2)}xx`;
+    await expect(takeReverifyCooldown(jar.cookies, tampered)).resolves.toBe(0);
+    await expect(
+      takeReverifyCooldown(jar.cookies, 'other-secret'),
+    ).resolves.toBe(0);
+    jar.set(REVERIFY_COOLDOWN_COOKIE, 'garbage');
+    await expect(takeReverifyCooldown(jar.cookies, SECRET)).resolves.toBe(0);
+  });
 });

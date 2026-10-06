@@ -242,4 +242,27 @@ describe('echoExtensionFromForm', () => {
     });
     expect(echo.license).not.toHaveProperty('spdx_id');
   });
+
+  it('never throws on an incomplete license choice', () => {
+    // Unlike buildLicense, the echo is a best-effort redisplay: a blank
+    // custom name for "other", or an unrecognized selection, must echo
+    // as-is rather than reject the redisplay.
+    const blankCustom = echoExtensionFromForm(
+      extensionForm({ license_spdx_id: 'other', license_name_custom: '' }),
+      publishedExtension,
+    );
+    expect(blankCustom.license).toEqual({
+      name: '',
+      URL: 'https://example.test/license',
+    });
+
+    const unrecognized = echoExtensionFromForm(
+      extensionForm({ license_spdx_id: 'not-a-license' }),
+      publishedExtension,
+    );
+    expect(unrecognized.license).toEqual({
+      name: '',
+      URL: 'https://example.test/license',
+    });
+  });
 });

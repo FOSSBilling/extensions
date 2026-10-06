@@ -71,7 +71,16 @@ export function formAction<P = undefined>(options: {
       if (form === undefined) {
         input = options.fallback as P;
       } else {
-        const parsed = options.parse(form);
+        // A throwing parser is a handler bug, but it must still land on the
+        // friendly-error path rather than escape as an unhandled 500.
+        let parsed: P | string;
+        try {
+          parsed = options.parse(form);
+        } catch (e) {
+          console.error('[form-action] parse failed:', e);
+          await flashError(options.fallbackError);
+          return redirectTo();
+        }
         if (typeof parsed === 'string') {
           await flashError(parsed);
           return redirectTo();
@@ -85,6 +94,12 @@ export function formAction<P = undefined>(options: {
       if (result instanceof Response) return result;
       if (typeof result === 'string') return context.redirect(result);
     } catch (e) {
+      // A non-ApiRequestError here is a bug in the handler (or the runtime),
+      // not a condition the user caused: flash the fallback copy, but log it
+      // — a bare "Unable to…" toast would otherwise be undiagnosable.
+      if (!(e instanceof ApiRequestError)) {
+        console.error('[form-action] handler failed:', e);
+      }
       await flashError(
         e instanceof ApiRequestError
           ? getApiErrorMessage(e)

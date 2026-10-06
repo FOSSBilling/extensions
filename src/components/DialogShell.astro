@@ -5,8 +5,10 @@ interface Props {
   id: string;
   title?: string;
   description: string;
-  // Omitted for placeholder actions that are filled in client-side before
-  // the dialog opens (see the admin queue dialogs).
+  // Omitted to post to the current page URL (the destructive delete
+  // confirmations on /account/delete and /account/developer). The admin
+  // queue dialogs instead pass a placeholder action that is replaced
+  // client-side before the dialog opens.
   formAction?: string;
   submitLabel: string;
   submitVariant?: 'destructive';

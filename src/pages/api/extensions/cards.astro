@@ -29,11 +29,15 @@ if (parsed.error !== null) {
     // the underlying read lives in the client-layer catalogue wrapper.
     Astro.response.headers.set('cache-control', 'public, max-age=30');
   } catch (e) {
-    error =
-      e instanceof ApiRequestError
-        ? getApiErrorMessage(e)
-        : 'Unable to load more extensions. Please try again.';
-    Astro.response.status = 502;
+    if (e instanceof ApiRequestError) {
+      error = getApiErrorMessage(e);
+      // Preserve the upstream status (429 stays 429) so clients can apply
+      // the right retry semantics; only non-API failures are 502.
+      Astro.response.status = e.status >= 400 ? e.status : 502;
+    } else {
+      error = 'Unable to load more extensions. Please try again.';
+      Astro.response.status = 502;
+    }
   }
 }
 ---

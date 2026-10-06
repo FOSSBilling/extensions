@@ -58,8 +58,8 @@ npm install
 The `overrides.vite` entry in `package.json` pins one vite version across
 astro, vitest, and tailwind so the worker bundle and test runner agree.
 
-Run the checks locally — the test suite and the Astro/TypeScript diagnostics
-CI runs on every pull request:
+Run the checks locally before pushing — the CI workflow runs this same
+suite on pushes to `main` and on pull requests from forks:
 
 ```bash
 npm test        # vitest suite

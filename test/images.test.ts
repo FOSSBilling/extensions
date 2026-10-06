@@ -427,6 +427,7 @@ describe('image transformation route', () => {
       expect(response.status).toBe(403);
     }
     expect(fetchMock).not.toHaveBeenCalled();
+    expect(cache.match).not.toHaveBeenCalled();
     expect(cache.put).not.toHaveBeenCalled();
   });
 });

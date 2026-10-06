@@ -3,7 +3,7 @@ import { isDeveloperType, isExtensionType, isSourceType } from '@/types';
 import { parseCatalogueFilters } from '@/lib/catalogue-filters';
 
 describe('application boundary validation', () => {
-  it('keeps runtime filter validation independent from generated DTO imports', () => {
+  it('validates extension, source, and developer type guards', () => {
     expect(isExtensionType('mod')).toBe(true);
     expect(isExtensionType('not-a-type')).toBe(false);
     expect(isSourceType('github')).toBe(true);
