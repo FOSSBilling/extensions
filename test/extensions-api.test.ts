@@ -717,17 +717,6 @@ describe('cursor-paginated moderator lists', () => {
     };
   }
 
-  function cursorPage<T>(
-    items: T[],
-    nextCursor: string | null,
-    hasMore: boolean,
-  ) {
-    return {
-      result: items,
-      pagination: { next_cursor: nextCursor, has_more: hasMore },
-    };
-  }
-
   function myClaim(id: string): PendingDeveloperClaim {
     return {
       id,
@@ -746,10 +735,10 @@ describe('cursor-paginated moderator lists', () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(
-        apiResponse(cursorPage([developerProfile('a')], 'cursor-1', true)),
+        apiResponse(page([developerProfile('a')], 'cursor-1', true)),
       )
       .mockResolvedValueOnce(
-        apiResponse(cursorPage([developerProfile('b')], null, false)),
+        apiResponse(page([developerProfile('b')], null, false)),
       );
     vi.stubGlobal('fetch', fetchMock);
 
@@ -771,7 +760,7 @@ describe('cursor-paginated moderator lists', () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValue(
-        apiResponse(cursorPage([developerProfile('only')], null, false)),
+        apiResponse(page([developerProfile('only')], null, false)),
       );
     vi.stubGlobal('fetch', fetchMock);
 
@@ -784,17 +773,7 @@ describe('cursor-paginated moderator lists', () => {
   });
 
   it('walks the claims queue and profile history with explicit pages', async () => {
-    const claim: PendingDeveloperClaim = {
-      id: 'claim-1',
-      developer_id: 'dev-1',
-      claimant_id: 'user-1',
-      status: 'pending',
-      created_at: '2026-01-01T00:00:00Z',
-      developer_name: 'Dev One',
-      developer_type: 'user',
-      claimant_name: null,
-      claimant_github_login: null,
-    };
+    const claim = myClaim('claim-1');
     const entry: DeveloperHistoryEntry = {
       developer_id: 'dev-1',
       type: 'user',
@@ -809,10 +788,10 @@ describe('cursor-paginated moderator lists', () => {
         typeof input === 'string' ? input : (input as Request).url,
       );
       if (url.pathname.endsWith('/developers/claims')) {
-        return Promise.resolve(apiResponse(cursorPage([claim], null, false)));
+        return Promise.resolve(apiResponse(page([claim], null, false)));
       }
       if (url.pathname.endsWith('/history')) {
-        return Promise.resolve(apiResponse(cursorPage([entry], null, false)));
+        return Promise.resolve(apiResponse(page([entry], null, false)));
       }
       return Promise.reject(new Error(`unexpected path: ${url.pathname}`));
     });
@@ -844,7 +823,7 @@ describe('cursor-paginated moderator lists', () => {
     const fetchMock = vi
       .fn()
       .mockImplementation(() =>
-        Promise.resolve(apiResponse(cursorPage([], null, true))),
+        Promise.resolve(apiResponse(page([], null, true))),
       );
     vi.stubGlobal('fetch', fetchMock);
 
@@ -857,10 +836,10 @@ describe('cursor-paginated moderator lists', () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(
-        apiResponse(cursorPage([myClaim('older')], 'cursor-1', true)),
+        apiResponse(page([myClaim('older')], 'cursor-1', true)),
       )
       .mockResolvedValueOnce(
-        apiResponse(cursorPage([myClaim('newer')], null, false)),
+        apiResponse(page([myClaim('newer')], null, false)),
       );
     vi.stubGlobal('fetch', fetchMock);
 

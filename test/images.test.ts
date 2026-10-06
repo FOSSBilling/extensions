@@ -81,10 +81,7 @@ describe('image transformation route', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const response = await handleImageRequest(
-      await requestContext(
-        'icon',
-        'https://extensions.example.test/images/icon?src=https%3A%2F%2Fraw.githubusercontent.com%2Ffossbilling%2Flogo.png',
-      ),
+      await requestContext('icon', ICON_REQUEST_URL),
     );
 
     expect(response.status).toBe(307);
@@ -103,10 +100,7 @@ describe('image transformation route', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const response = await handleImageRequest(
-      await requestContext(
-        'icon',
-        'https://extensions.example.test/images/icon?src=https%3A%2F%2Fraw.githubusercontent.com%2Ffossbilling%2Flogo.png',
-      ),
+      await requestContext('icon', ICON_REQUEST_URL),
     );
 
     expect(response.status).toBe(200);
@@ -149,10 +143,7 @@ describe('image transformation route', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const response = await handleImageRequest(
-      await requestContext(
-        'icon',
-        'https://extensions.example.test/images/icon?src=https%3A%2F%2Fraw.githubusercontent.com%2Ffossbilling%2Flogo.png',
-      ),
+      await requestContext('icon', ICON_REQUEST_URL),
     );
 
     expect(response.status).toBe(200);
@@ -215,7 +206,7 @@ describe('image transformation route', () => {
     const response = await handleImageRequest(
       await requestContext(
         'icon',
-        'https://extensions.example.test/images/icon?src=https%3A%2F%2Fraw.githubusercontent.com%2Ffossbilling%2Flogo.png',
+        ICON_REQUEST_URL,
         'image/avif,image/webp,image/*,*/*;q=0.8',
         {
           'if-none-match': '"image-version"',
@@ -324,10 +315,7 @@ describe('image transformation route', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const response = await handleImageRequest(
-      await requestContext(
-        'icon',
-        'https://extensions.example.test/images/icon?src=https%3A%2F%2Fraw.githubusercontent.com%2Ffossbilling%2Flogo.png',
-      ),
+      await requestContext('icon', ICON_REQUEST_URL),
     );
 
     expect(response.status).toBe(307);
@@ -347,7 +335,7 @@ describe('image transformation route', () => {
     await handleImageRequest(
       await requestContext(
         'icon',
-        'https://extensions.example.test/images/icon?src=https%3A%2F%2Fraw.githubusercontent.com%2Ffossbilling%2Flogo.png',
+        ICON_REQUEST_URL,
         'image/avif;q=0,image/webp;q=0.8,image/*;q=0.5',
       ),
     );

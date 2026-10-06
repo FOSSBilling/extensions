@@ -181,6 +181,10 @@ function imageResponseHeaders(response: Response): Headers {
 }
 
 async function readBoundedBody(response: Response): Promise<Uint8Array | null> {
+  // Requires hasAcceptableContentLength() to have run first: the
+  // content-length parse below doubles as buffer capacity and is only
+  // trusted because that check already validated it (numeric, <= max).
+  // Callers must keep that ordering (see the fetch path below).
   if (!response.body) {
     return new Uint8Array();
   }
