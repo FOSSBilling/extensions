@@ -29,9 +29,19 @@ function edgeCache(): Cache | undefined {
 
 function imageCacheRequest(
   requestUrl: URL,
+  variant: ImageVariant,
+  sourceUrl: URL,
   accept: string,
   conditionalRequest?: Request,
 ): Request {
+  // Cache only transformation inputs, ignoring outer query and route aliases.
+  // Parsed source URLs normalize equivalent spellings; fragments are never
+  // sent upstream and cannot change the image.
+  const cacheUrl = new URL(`/images/${variant}`, requestUrl.origin);
+  const cacheSource = new URL(sourceUrl);
+  cacheSource.hash = '';
+  cacheUrl.searchParams.set('src', cacheSource.href);
+
   const headers = new Headers({ accept });
   // Carrying the client's validators on the look-up key lets cache.match()
   // evaluate If-None-Match/If-Modified-Since against the stored ETag and
@@ -44,7 +54,7 @@ function imageCacheRequest(
       }
     }
   }
-  return new Request(requestUrl, { method: 'GET', headers });
+  return new Request(cacheUrl, { method: 'GET', headers });
 }
 
 function isImageRoutePath(pathname: string): boolean {
@@ -281,7 +291,7 @@ export async function handleImageRequest({
   // then compares equal for every client negotiating the same format.
   const cacheAccept = format ? `image/${format}` : 'image/*';
   const cacheKey = cache
-    ? imageCacheRequest(requestUrl, cacheAccept, request)
+    ? imageCacheRequest(requestUrl, variant, sourceUrl, cacheAccept, request)
     : null;
   if (cache && cacheKey) {
     try {
