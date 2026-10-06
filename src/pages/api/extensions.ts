@@ -4,6 +4,7 @@ import {
   listExtensions,
   type ExtensionCatalogueFilters,
 } from '@/lib/api/client';
+import { getSignedImageUrl } from '@/lib/signed-image-url';
 import { isExtensionType } from '@/types';
 
 export const GET: APIRoute = async ({ url, locals }) => {
@@ -44,9 +45,23 @@ export const GET: APIRoute = async ({ url, locals }) => {
     // Short browser TTL so repeated Load-more/filter requests reuse the same
     // cursor page; the edge cache for the underlying read lives in the
     // client-layer catalogue wrapper.
-    return Response.json(await listExtensions(env, filters), {
-      headers: { 'cache-control': 'public, max-age=30' },
-    });
+    const page = await listExtensions(env, filters);
+    const result = await Promise.all(
+      page.result.map(async (item) => ({
+        ...item,
+        optimized_icon_url: await getSignedImageUrl(
+          item.icon_url,
+          'icon',
+          env.sessionSecret,
+        ),
+      })),
+    );
+    return Response.json(
+      { ...page, result },
+      {
+        headers: { 'cache-control': 'public, max-age=30' },
+      },
+    );
   } catch (error) {
     if (error instanceof ApiRequestError) {
       return Response.json(

@@ -34,6 +34,7 @@ vi.mock('@/lib/session', async (importOriginal) => {
 });
 vi.mock('@/lib/flash', () => ({ setFlash: mocks.setFlash }));
 
+import { createOAuthTransaction, oauthTransactionCookie } from '@/lib/oauth';
 import { GET } from '@/pages/auth/callback';
 import type { ApplicationEnv } from '@/lib/runtime';
 
@@ -55,13 +56,22 @@ const userInfo = {
   email: 'user@example.test',
 };
 
-function context(overrides: { redirectTo?: string; url?: string } = {}) {
+async function context(overrides: { redirectTo?: string; url?: string } = {}) {
   const store = new Map<string, string>();
-  store.set('fb_oauth_verifier', 'verifier');
-  store.set('fb_oauth_state', 'state');
-  if (overrides.redirectTo !== undefined) {
-    store.set('fb_oauth_redirect', overrides.redirectTo);
-  }
+  const url = new URL(
+    overrides.url ??
+      'https://extensions.example.test/auth/callback?code=code&state=ssssssssssssssssssssss',
+  );
+  store.set(
+    oauthTransactionCookie(url).name,
+    await createOAuthTransaction(
+      url,
+      'v'.repeat(43),
+      's'.repeat(22),
+      overrides.redirectTo ?? '/',
+      env.sessionSecret,
+    ),
+  );
   const cookies = {
     get: vi.fn((name: string) =>
       store.has(name) ? { value: store.get(name) } : undefined,
@@ -77,7 +87,7 @@ function context(overrides: { redirectTo?: string; url?: string } = {}) {
     ),
     url: new URL(
       overrides.url ??
-        'https://extensions.example.test/auth/callback?code=code&state=state',
+        'https://extensions.example.test/auth/callback?code=code&state=ssssssssssssssssssssss',
     ),
     session: {},
     locals: { env },
@@ -99,9 +109,64 @@ afterEach(() => {
 });
 
 describe('GET /auth/callback', () => {
+  it.each([
+    'legacy',
+    'development',
+    'unsigned',
+    'tampered',
+    'expired',
+    'other-origin',
+  ])('rejects %s transaction injection before exchange', async (attack) => {
+    const ctx = await context();
+    const valid = await createOAuthTransaction(
+      ctx.url,
+      'v'.repeat(43),
+      's'.repeat(22),
+      '/account',
+      env.sessionSecret,
+    );
+    const value =
+      attack === 'tampered'
+        ? valid.replace(/^./, valid[0] === 'A' ? 'B' : 'A')
+        : attack === 'unsigned'
+          ? 'attacker-state.attacker-verifier'
+          : attack === 'other-origin'
+            ? await createOAuthTransaction(
+                new URL('https://sibling.example.test'),
+                'v'.repeat(43),
+                's'.repeat(22),
+                '/',
+                env.sessionSecret,
+              )
+            : valid;
+    if (attack === 'expired')
+      vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 601_000);
+    vi.mocked(ctx.cookies.get).mockImplementation((name) => {
+      if (attack === 'legacy')
+        return name === 'fb_oauth_state'
+          ? ({ value: 's'.repeat(22) } as never)
+          : name === 'fb_oauth_verifier'
+            ? ({ value: 'v'.repeat(43) } as never)
+            : undefined;
+      if (attack === 'development')
+        return name === 'fb_oauth_transaction'
+          ? ({ value } as never)
+          : undefined;
+      return { value } as never;
+    });
+    const result = await GET(ctx);
+    expect(result.headers.get('location')).toBe('/');
+    expect(mocks.exchangeCodeForToken).not.toHaveBeenCalled();
+    expect(mocks.createSessionCookieValue).not.toHaveBeenCalled();
+    expect(ctx.cookies.delete).toHaveBeenCalledWith(
+      '__Host-fb_oauth_transaction',
+      { path: '/', secure: true },
+    );
+  });
+
   it('redirects with a flash instead of throwing when session mint fails', async () => {
     mocks.createSessionCookieValue.mockRejectedValue(new Error('bad secret'));
-    const ctx = context();
+    const ctx = await context();
 
     const result = await GET(ctx);
 
@@ -117,7 +182,7 @@ describe('GET /auth/callback', () => {
 
   it('redirects with a flash when token exchange fails', async () => {
     mocks.exchangeCodeForToken.mockRejectedValue(new Error('upstream 500'));
-    const ctx = context();
+    const ctx = await context();
 
     const result = await GET(ctx);
 
@@ -129,7 +194,7 @@ describe('GET /auth/callback', () => {
 
   it('redirects with a flash when identity sync fails', async () => {
     mocks.upsertUser.mockRejectedValue(new Error('api down'));
-    const ctx = context();
+    const ctx = await context();
 
     const result = await GET(ctx);
 
@@ -140,7 +205,7 @@ describe('GET /auth/callback', () => {
   });
 
   it('sets the session and follows a safe redirect on success', async () => {
-    const ctx = context({ redirectTo: '/account' });
+    const ctx = await context({ redirectTo: '/account' });
 
     const result = await GET(ctx);
 
@@ -154,7 +219,7 @@ describe('GET /auth/callback', () => {
 
   it('mints the moderator flag from the synced account projection', async () => {
     mocks.upsertUser.mockResolvedValue({ is_moderator: true });
-    const ctx = context({ redirectTo: '/account/admin' });
+    const ctx = await context({ redirectTo: '/account/admin' });
 
     const result = await GET(ctx);
 
@@ -166,7 +231,7 @@ describe('GET /auth/callback', () => {
   });
 
   it('mints a non-moderator session when the account is not flagged', async () => {
-    const ctx = context({ redirectTo: '/account' });
+    const ctx = await context({ redirectTo: '/account' });
 
     const result = await GET(ctx);
 
@@ -177,17 +242,18 @@ describe('GET /auth/callback', () => {
     expect(result.headers.get('location')).toBe('/account');
   });
 
-  it('falls back to / for an unsafe redirect target', async () => {
-    const ctx = context({ redirectTo: '//evil.test' });
+  it('rejects a signed transaction with an unsafe redirect target', async () => {
+    const ctx = await context({ redirectTo: '//evil.test' });
 
     const result = await GET(ctx);
 
     expect(result.headers.get('location')).toBe('/');
+    expect(mocks.exchangeCodeForToken).not.toHaveBeenCalled();
   });
 
   it('redirects with a flash when the provider returns an error', async () => {
-    const ctx = context({
-      url: 'https://extensions.example.test/auth/callback?error=access_denied&state=state',
+    const ctx = await context({
+      url: 'https://extensions.example.test/auth/callback?error=access_denied&state=ssssssssssssssssssssss',
     });
 
     const result = await GET(ctx);
@@ -199,7 +265,7 @@ describe('GET /auth/callback', () => {
   });
 
   it('rejects a provider error without valid state', async () => {
-    const ctx = context({
+    const ctx = await context({
       url: 'https://extensions.example.test/auth/callback?error=access_denied&state=wrong',
     });
 
@@ -212,7 +278,7 @@ describe('GET /auth/callback', () => {
   });
 
   it('redirects with a flash on CSRF state mismatch', async () => {
-    const ctx = context({
+    const ctx = await context({
       url: 'https://extensions.example.test/auth/callback?code=code&state=wrong',
     });
 
@@ -229,7 +295,7 @@ describe('GET /auth/callback', () => {
       github_verified_at: '2020-01-01T00:00:00Z',
     });
     mocks.reverifyDeveloper.mockRejectedValue(new Error('api down'));
-    const ctx = context({ redirectTo: '/account' });
+    const ctx = await context({ redirectTo: '/account' });
 
     const result = await GET(ctx);
 

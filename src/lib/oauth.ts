@@ -1,3 +1,6 @@
+import { base64urlDecode, base64urlEncode } from './base64url';
+import { signPayload, verifyPayloadSignature } from './signed-value';
+
 // Client for FOSSBilling's central auth service (auth.fossbilling.net).
 // Identity only — see that repo's README for the identity/authorization boundary.
 // Roles, permissions, and extension ownership are modeled in the API's domain
@@ -23,13 +26,89 @@ export function buildGithubReconnectUrl(
 
 const SCOPE = 'openid profile email github';
 
-// Short-lived cookies that carry the PKCE verifier and CSRF state across the
-// redirect to the auth service and back. Cleared as soon as the callback
-// consumes them.
-export const OAUTH_VERIFIER_COOKIE = 'fb_oauth_verifier';
-export const OAUTH_STATE_COOKIE = 'fb_oauth_state';
-export const OAUTH_REDIRECT_COOKIE = 'fb_oauth_redirect';
 export const OAUTH_COOKIE_MAX_AGE = 60 * 10; // 10 minutes
+
+// The host prefix prevents sibling-domain injection, including transplantation
+// of a genuine signed transaction. Only HTTP loopback development uses an
+// unprefixed cookie; callbacks never fall back to legacy transaction cookies.
+export function oauthTransactionCookie(url: URL) {
+  const localHttp =
+    url.protocol === 'http:' &&
+    ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
+  return {
+    name: localHttp ? 'fb_oauth_transaction' : '__Host-fb_oauth_transaction',
+    options: {
+      httpOnly: true,
+      secure: !localHttp,
+      sameSite: 'lax' as const,
+      path: '/',
+      maxAge: OAUTH_COOKIE_MAX_AGE,
+    },
+  };
+}
+
+type OAuthTransaction = {
+  kind: 'oauth-transaction';
+  origin: string;
+  verifier: string;
+  state: string;
+  redirect: string;
+  exp: number;
+};
+
+export async function createOAuthTransaction(
+  url: URL,
+  verifier: string,
+  state: string,
+  redirect: string,
+  secret: string,
+): Promise<string> {
+  const payload: OAuthTransaction = {
+    kind: 'oauth-transaction',
+    origin: url.origin,
+    verifier,
+    state,
+    redirect,
+    exp: Math.floor(Date.now() / 1000) + OAUTH_COOKIE_MAX_AGE,
+  };
+  const encoded = base64urlEncode(
+    new TextEncoder().encode(JSON.stringify(payload)),
+  );
+  return `${encoded}.${await signPayload(encoded, secret)}`;
+}
+
+export async function readOAuthTransaction(
+  value: string | undefined,
+  url: URL,
+  secret: string,
+): Promise<OAuthTransaction | null> {
+  if (!value) return null;
+  const parts = value.split('.');
+  if (parts.length !== 2 || !parts[0] || !parts[1]) return null;
+  if (!(await verifyPayloadSignature(parts[0], parts[1], secret))) return null;
+  try {
+    const payload = JSON.parse(
+      new TextDecoder().decode(base64urlDecode(parts[0])),
+    );
+    if (
+      !payload ||
+      payload.kind !== 'oauth-transaction' ||
+      payload.origin !== url.origin ||
+      typeof payload.verifier !== 'string' ||
+      !/^[A-Za-z0-9_-]{43}$/.test(payload.verifier) ||
+      typeof payload.state !== 'string' ||
+      !/^[A-Za-z0-9_-]{22}$/.test(payload.state) ||
+      typeof payload.redirect !== 'string' ||
+      !isSafeRedirectPath(payload.redirect) ||
+      !Number.isSafeInteger(payload.exp) ||
+      payload.exp <= Math.floor(Date.now() / 1000)
+    )
+      return null;
+    return payload;
+  } catch {
+    return null;
+  }
+}
 
 // Only a same-origin relative path is a valid post-login redirect target —
 // rejects absolute/protocol-relative URLs (open-redirect) and backslashes

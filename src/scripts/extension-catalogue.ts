@@ -13,7 +13,7 @@ const DEFAULT_PAGE_LIMIT = 50;
 type CatalogueCardItem = Pick<
   ExtensionListItem,
   'id' | 'name' | 'description' | 'version' | 'icon_url'
->;
+> & { optimized_icon_url?: string };
 
 type CatalogueCardPage = {
   result: CatalogueCardItem[];
@@ -32,7 +32,9 @@ function isCatalogueCardItem(value: unknown): value is CatalogueCardItem {
     typeof value.name === 'string' &&
     typeof value.description === 'string' &&
     typeof value.version === 'string' &&
-    (value.icon_url === undefined || typeof value.icon_url === 'string')
+    (value.icon_url === undefined || typeof value.icon_url === 'string') &&
+    (value.optimized_icon_url === undefined ||
+      typeof value.optimized_icon_url === 'string')
   );
 }
 
@@ -125,7 +127,8 @@ function makeCard(item: CatalogueCardItem): HTMLAnchorElement {
   const iconContainer = document.createElement('div');
   iconContainer.className =
     'p-2 bg-primary/10 rounded-lg w-14 h-14 flex items-center justify-center shrink-0';
-  const iconUrl = getOptimizedImageUrl(item.icon_url, 'icon');
+  const iconUrl =
+    item.optimized_icon_url ?? getOptimizedImageUrl(item.icon_url, 'icon');
   if (iconUrl) {
     const icon = document.createElement('img');
     icon.src = iconUrl;

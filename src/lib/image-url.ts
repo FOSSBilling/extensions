@@ -55,6 +55,7 @@ export function isTransformableImageSource(sourceUrl: string): boolean {
 export function getOptimizedImageUrl(
   sourceUrl: string | null | undefined,
   variant: ImageVariant,
+  signature?: string,
 ): string | undefined {
   const source = sourceUrl?.trim();
   if (!source) {
@@ -75,12 +76,13 @@ export function getOptimizedImageUrl(
   }
 
   if (
+    !signature ||
     !isTransformableImageSource(source) ||
     source.length > MAX_IMAGE_SOURCE_URL_LENGTH
   ) {
     return source;
   }
 
-  const params = new URLSearchParams({ src: source });
+  const params = new URLSearchParams({ src: source, sig: signature });
   return `/images/${variant}?${params.toString()}`;
 }

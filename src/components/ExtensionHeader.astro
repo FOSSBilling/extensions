@@ -1,14 +1,18 @@
 ---
 import type { Extension } from '@/types';
 import { ArrowLeft } from '@lucide/astro';
-import { getOptimizedImageUrl } from '@/lib/image-url';
+import { getSignedImageUrl } from '@/lib/signed-image-url';
 
 interface Props {
   ext: Extension;
 }
 
 const { ext } = Astro.props;
-const iconUrl = getOptimizedImageUrl(ext.icon_url, 'icon');
+const iconUrl = await getSignedImageUrl(
+  ext.icon_url,
+  'icon',
+  Astro.locals.env.sessionSecret,
+);
 ---
 
 <div class="flex items-start space-x-4">

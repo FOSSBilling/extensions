@@ -1,13 +1,17 @@
 ---
 import type { ExtensionListItem } from '@/lib/api/client';
-import { getOptimizedImageUrl } from '@/lib/image-url';
+import { getSignedImageUrl } from '@/lib/signed-image-url';
 
 interface Props {
   ext: ExtensionListItem;
 }
 
 const { ext } = Astro.props;
-const iconUrl = getOptimizedImageUrl(ext.icon_url, 'icon');
+const iconUrl = await getSignedImageUrl(
+  ext.icon_url,
+  'icon',
+  Astro.locals.env.sessionSecret,
+);
 ---
 
 <!-- Prefetch is disabled: Cloudflare's edge refuses Sec-Purpose: prefetch

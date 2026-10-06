@@ -7,6 +7,8 @@ import {
   type ImageVariant,
 } from '@/lib/image-url';
 
+import { verifyImageSignature } from '@/lib/signed-image-url';
+
 const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
 const INITIAL_IMAGE_BUFFER_BYTES = 64 * 1024;
 const CACHE_CONTROL = 'public, max-age=3600, s-maxage=86400';
@@ -29,9 +31,20 @@ function edgeCache(): Cache | undefined {
 
 function imageCacheRequest(
   requestUrl: URL,
+  variant: ImageVariant,
+  sourceUrl: URL,
   accept: string,
   conditionalRequest?: Request,
 ): Request {
+  // Cache only transformation inputs, ignoring outer query parameters and
+  // route aliases, and serialize the parsed source URL. Equivalent spellings
+  // normalize, while source queries still select distinct images; fragments
+  // are never sent upstream and cannot change the image.
+  const cacheUrl = new URL(`/images/${variant}`, requestUrl.origin);
+  const cacheSource = new URL(sourceUrl);
+  cacheSource.hash = '';
+  cacheUrl.searchParams.set('src', cacheSource.href);
+
   const headers = new Headers({ accept });
   // Carrying the client's validators on the look-up key lets cache.match()
   // evaluate If-None-Match/If-Modified-Since against the stored ETag and
@@ -44,7 +57,7 @@ function imageCacheRequest(
       }
     }
   }
-  return new Request(requestUrl, { method: 'GET', headers });
+  return new Request(cacheUrl, { method: 'GET', headers });
 }
 
 function isImageRoutePath(pathname: string): boolean {
@@ -243,7 +256,8 @@ async function cacheImageResponse(response: Response): Promise<Response> {
 export async function handleImageRequest({
   params,
   request,
-}: Pick<APIContext, 'params' | 'request'>): Promise<Response> {
+  locals,
+}: Pick<APIContext, 'params' | 'request' | 'locals'>): Promise<Response> {
   if (!isImageVariant(params.variant)) {
     return new Response('Unknown image variant.', { status: 404 });
   }
@@ -255,6 +269,17 @@ export async function handleImageRequest({
   );
   if (!sourceUrl) {
     return new Response('Invalid image source.', { status: 400 });
+  }
+
+  if (
+    !(await verifyImageSignature(
+      sourceUrl,
+      params.variant,
+      requestUrl.searchParams.get('sig'),
+      locals.env.sessionSecret,
+    ))
+  ) {
+    return new Response('Unauthorized image source.', { status: 403 });
   }
 
   if (import.meta.env.MODE === 'development') {
@@ -281,7 +306,7 @@ export async function handleImageRequest({
   // then compares equal for every client negotiating the same format.
   const cacheAccept = format ? `image/${format}` : 'image/*';
   const cacheKey = cache
-    ? imageCacheRequest(requestUrl, cacheAccept, request)
+    ? imageCacheRequest(requestUrl, variant, sourceUrl, cacheAccept, request)
     : null;
   if (cache && cacheKey) {
     try {
