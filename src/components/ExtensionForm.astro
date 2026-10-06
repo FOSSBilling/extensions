@@ -8,7 +8,14 @@ import { MARKDOWN_SCROLL_CLASS } from '@/lib/revision-diff-shared';
 
 interface Props {
   developer: Developer;
+  // The extension being edited. Omitted on the create form — passing this
+  // flips the form into edit mode (locked id, edit submit semantics).
   extension?: Extension;
+  // Best-effort redisplay of a failed submission's values (see
+  // echoNewExtensionFromForm and echoExtensionFromForm). Values only:
+  // passing an echo never flips the form into edit mode, so create keeps
+  // its writable extension_id and create submit semantics.
+  echo?: Extension;
   error?: string | null;
   submitLabel?: string;
   cancelHref?: string;
@@ -23,6 +30,7 @@ interface Props {
 const {
   developer,
   extension,
+  echo,
   error,
   submitLabel,
   cancelHref = '/account',
@@ -30,18 +38,24 @@ const {
   releaseDraft,
 } = Astro.props;
 const isEdit = Boolean(extension);
+// Redisplay values: a failed submission's echo wins over the extension being
+// edited, so a rejected edit shows what the user typed.
+const shown = echo ?? extension;
 // A release is required, same as a brand new extension, whenever there's
 // nothing already published to carry through — an extension can reach this
 // form with no releases yet (rejected and never resubmitted).
 const requireRelease = !isEdit || extension!.releases.length === 0;
 
-const existingSpdxId = extension?.license.spdx_id;
+const existingSpdxId = shown?.license.spdx_id;
 // An existing license only lands in the custom bucket when it truly isn't
 // one of the ids this form offers — covers both genuinely custom/proprietary
 // licenses and (defensively) a stored spdx_id this deployed list doesn't
-// recognize, e.g. after a downgrade.
+// recognize, e.g. after a downgrade. Classifies whenever there are values to
+// display (an edit, or a failed create's echo); a fresh create form has
+// nothing to classify.
 const isCustomLicense =
-  isEdit && (!existingSpdxId || !SPDX_LICENSE_IDS.includes(existingSpdxId));
+  shown !== undefined &&
+  (!existingSpdxId || !SPDX_LICENSE_IDS.includes(existingSpdxId));
 const licenseSelectValue = isCustomLicense
   ? OTHER_LICENSE
   : (existingSpdxId ?? '');
@@ -114,7 +128,7 @@ const otherSpdxIds = SPDX_LICENSE_IDS.filter((id) => !popularSpdxIds.has(id));
               id="name"
               name="name"
               required
-              value={extension?.name}
+              value={shown?.name}
             />
           </div>
           <div class="field">
@@ -128,7 +142,7 @@ const otherSpdxIds = SPDX_LICENSE_IDS.filter((id) => !popularSpdxIds.has(id));
               name="extension_id"
               required
               pattern="[a-z0-9]+(-[a-z0-9]+)*"
-              value={extension?.id}
+              value={shown?.id}
               disabled={isEdit}
             />
             {isEdit ? (
@@ -146,7 +160,7 @@ const otherSpdxIds = SPDX_LICENSE_IDS.filter((id) => !popularSpdxIds.has(id));
             </label>
             <select class="select w-full" id="type" name="type" required>
               {EXTENSION_TYPES.map((t) => (
-                <option value={t} selected={extension?.type === t}>
+                <option value={t} selected={shown?.type === t}>
                   {t}
                 </option>
               ))}
@@ -162,7 +176,7 @@ const otherSpdxIds = SPDX_LICENSE_IDS.filter((id) => !popularSpdxIds.has(id));
               id="description"
               name="description"
               required
-              value={extension?.description}
+              value={shown?.description}
             />
           </div>
           <div class="field">
@@ -178,7 +192,7 @@ const otherSpdxIds = SPDX_LICENSE_IDS.filter((id) => !popularSpdxIds.has(id));
                 id="website"
                 name="website"
                 required
-                value={stripUrlScheme(extension?.website)}
+                value={stripUrlScheme(shown?.website)}
               />
             </div>
           </div>
@@ -197,7 +211,7 @@ const otherSpdxIds = SPDX_LICENSE_IDS.filter((id) => !popularSpdxIds.has(id));
                 type="text"
                 id="icon_url"
                 name="icon_url"
-                value={stripUrlScheme(extension?.icon_url)}
+                value={stripUrlScheme(shown?.icon_url)}
               />
             </div>
           </div>
@@ -211,7 +225,7 @@ const otherSpdxIds = SPDX_LICENSE_IDS.filter((id) => !popularSpdxIds.has(id));
               name="readme"
               required
               rows="8"
-              set:text={extension?.readme}
+              set:text={shown?.readme}
             ></textarea>
             <p class="text-muted-foreground">
               Use fenced code blocks for snippets. The preview below renders
@@ -320,7 +334,7 @@ const otherSpdxIds = SPDX_LICENSE_IDS.filter((id) => !popularSpdxIds.has(id));
               id="license_name_custom"
               name="license_name_custom"
               required={isCustomLicense}
-              value={isCustomLicense ? extension?.license.name : undefined}
+              value={isCustomLicense ? shown?.license.name : undefined}
             />
           </div>
           <div class="field">
@@ -338,7 +352,7 @@ const otherSpdxIds = SPDX_LICENSE_IDS.filter((id) => !popularSpdxIds.has(id));
                 type="text"
                 id="license_url"
                 name="license_url"
-                value={stripUrlScheme(extension?.license.URL)}
+                value={stripUrlScheme(shown?.license.URL)}
               />
             </div>
           </div>
@@ -354,7 +368,7 @@ const otherSpdxIds = SPDX_LICENSE_IDS.filter((id) => !popularSpdxIds.has(id));
             <label for="source_type">Repository Host</label>
             <select class="select w-full" id="source_type" name="source_type">
               {SOURCE_TYPES.map((t) => (
-                <option value={t} selected={extension?.source.type === t}>
+                <option value={t} selected={shown?.source.type === t}>
                   {t}
                 </option>
               ))}
@@ -370,7 +384,7 @@ const otherSpdxIds = SPDX_LICENSE_IDS.filter((id) => !popularSpdxIds.has(id));
               id="source_repo"
               name="source_repo"
               required
-              value={extension?.source.repo}
+              value={shown?.source.repo}
               placeholder="owner/repo, or a full URL for 'custom'"
             />
           </div>
@@ -550,7 +564,10 @@ const otherSpdxIds = SPDX_LICENSE_IDS.filter((id) => !popularSpdxIds.has(id));
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/^-+|-+$/g, '');
 
-    let idEditedByUser = false;
+    let idEditedByUser = idInput.value.length > 0;
+    // A prefilled id is a previously submitted one (the failed-create echo):
+    // treat it as user-authored so a later name edit doesn't silently
+    // replace the id the submitter already chose.
     idInput.addEventListener('input', () => {
       idEditedByUser = true;
     });
