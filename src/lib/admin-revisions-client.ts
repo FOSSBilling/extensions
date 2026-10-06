@@ -164,6 +164,21 @@ function renderDiff(
   }
 }
 
+// The expandable detail row always directly follows its summary row and is
+// marked with the wrap attribute (see the [data-*-wrap] rows in the admin
+// tables) — that adjacency is how a toggle button finds its wrap, verified
+// by the attribute so a stray sibling can never be toggled by mistake.
+function findDetailWrap(
+  button: HTMLElement,
+  wrapAttr: string,
+): HTMLElement | null {
+  const row = button.closest('tr');
+  const wrap = row?.nextElementSibling;
+  return wrap instanceof HTMLElement && wrap.hasAttribute(wrapAttr)
+    ? wrap
+    : null;
+}
+
 export function initRevisionQueue(): void {
   initTruncateToggles();
 
@@ -177,14 +192,8 @@ export function initRevisionQueue(): void {
     // Labels come from data-show/data-hide.
     const frozenBtn = target?.closest<HTMLButtonElement>('[data-frozen]');
     if (frozenBtn) {
-      const row = frozenBtn.closest('tr');
-      const wrap = row?.nextElementSibling;
-      if (
-        !(wrap instanceof HTMLElement) ||
-        !wrap.hasAttribute('data-frozen-wrap')
-      ) {
-        return;
-      }
+      const wrap = findDetailWrap(frozenBtn, 'data-frozen-wrap');
+      if (!wrap) return;
       const showing = !wrap.hidden;
       wrap.hidden = showing;
       frozenBtn.setAttribute('aria-expanded', String(!showing));
@@ -199,14 +208,9 @@ export function initRevisionQueue(): void {
     // on the summary row's dataset; only the published side is fetched.
     const compareBtn = target?.closest<HTMLButtonElement>('[data-compare]');
     if (compareBtn) {
+      const wrap = findDetailWrap(compareBtn, 'data-diff-table-wrap');
+      if (!wrap) return;
       const row = compareBtn.closest('tr');
-      const wrap = row?.nextElementSibling;
-      if (
-        !(wrap instanceof HTMLElement) ||
-        !wrap.hasAttribute('data-diff-table-wrap')
-      ) {
-        return;
-      }
       const body = wrap.querySelector('[data-diff-body]');
       const hint = wrap.querySelector<HTMLElement>('[data-diff-hint]');
       const errorEl = wrap.querySelector<HTMLElement>('[data-diff-error]');
