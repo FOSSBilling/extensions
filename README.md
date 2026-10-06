@@ -59,7 +59,7 @@ The `overrides.vite` entry in `package.json` pins one vite version across
 astro, vitest, and tailwind so the worker bundle and test runner agree.
 
 Run the checks locally before pushing — the CI workflow runs this same
-suite on pushes to `main` and on pull requests from forks:
+suite on pushes to `main` and on pull requests targeting `main`:
 
 ```bash
 npm test        # vitest suite
