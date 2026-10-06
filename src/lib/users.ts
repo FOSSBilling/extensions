@@ -49,13 +49,10 @@ function parseRfc3339Timestamp(value: string): number | null {
   return Number.isFinite(timestamp) ? timestamp : null;
 }
 
-function isFutureGithubOrgsExpiry(
-  value: unknown,
-  now = Date.now(),
-): value is string {
+function isFutureGithubOrgsExpiry(value: unknown): value is string {
   if (typeof value !== 'string') return false;
   const expiresAt = parseRfc3339Timestamp(value);
-  return expiresAt !== null && expiresAt > now;
+  return expiresAt !== null && expiresAt > Date.now();
 }
 
 function isGithubOrgList(value: unknown): value is string[] {

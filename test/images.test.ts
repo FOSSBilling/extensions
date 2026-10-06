@@ -395,29 +395,18 @@ describe('image transformation route', () => {
     expect(response.status).toBe(404);
   });
 
-  it('rejects unsigned transform URLs before cache access or fetch', async () => {
+  // Absent, tampered, and cross-variant signatures are three different
+  // tamper actions, but all die at the same signature gate before any cache
+  // access or upstream fetch.
+  it('rejects absent, tampered, and cross-variant signatures before cache access or fetch', async () => {
     const cache = stubEdgeCache(
       (key) => `${key.url}|${key.headers.get('accept')}`,
     );
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
-
-    const response = await handleImageRequest({
-      params: { variant: 'icon' },
-      locals: { env: { sessionSecret: 'image-test-secret' } } as App.Locals,
-      request: new Request(ICON_REQUEST_URL),
-    });
-
-    expect(response.status).toBe(403);
-    expect(fetchMock).not.toHaveBeenCalled();
-    expect(cache.put).not.toHaveBeenCalled();
-  });
-
-  it('rejects tampered signatures and signatures for other variants', async () => {
-    const fetchMock = vi.fn();
-    vi.stubGlobal('fetch', fetchMock);
     const source = 'https://raw.githubusercontent.com/fossbilling/logo.png';
 
+    const unsigned = ICON_REQUEST_URL;
     const tampered = new URL(
       (await getSignedImageUrl(source, 'icon', 'image-test-secret'))!,
       ICON_REQUEST_URL,
@@ -429,7 +418,7 @@ describe('image transformation route', () => {
       ICON_REQUEST_URL,
     );
 
-    for (const url of [tampered.href, crossVariant.href]) {
+    for (const url of [unsigned, tampered.href, crossVariant.href]) {
       const response = await handleImageRequest({
         params: { variant: 'icon' },
         locals: { env: { sessionSecret: 'image-test-secret' } } as App.Locals,
@@ -438,6 +427,7 @@ describe('image transformation route', () => {
       expect(response.status).toBe(403);
     }
     expect(fetchMock).not.toHaveBeenCalled();
+    expect(cache.put).not.toHaveBeenCalled();
   });
 });
 
