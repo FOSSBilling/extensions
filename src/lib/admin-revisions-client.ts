@@ -6,10 +6,15 @@
 
 import { renderMarkdown } from '@/lib/markdown';
 import { isSafeHttpUrl } from '@/lib/safe-url';
+import { initTruncateToggles } from '@/lib/truncate-toggles';
 import {
   DIFF_FIELDS,
   FIELD_LABELS,
-  fieldCompareKey,
+  MARKDOWN_SCROLL_CLASS,
+  TRUNCATE_AT,
+  TRUNCATE_EXPAND_LABEL,
+  URL_FIELDS,
+  fieldChanged,
   fieldDisplay,
   fieldUrl,
 } from '@/lib/revision-diff-shared';
@@ -32,24 +37,15 @@ interface RevisionDetailResult {
   published: PublishedContent | null;
 }
 
-const TRUNCATE_AT = 400;
-
 function markdownCell(value: string, className: string): HTMLTableCellElement {
   const td = document.createElement('td');
   td.className = className;
   const body = document.createElement('div');
-  body.className =
-    'markdown-body break-normal max-h-72 overflow-y-auto overscroll-contain';
+  body.className = MARKDOWN_SCROLL_CLASS;
   body.innerHTML = renderMarkdown(value);
   td.appendChild(body);
   return td;
 }
-
-const URL_FIELDS: ReadonlySet<string> = new Set([
-  'website',
-  'download_url',
-  'icon_url',
-]);
 
 function valueCell(
   value: string | null,
@@ -80,9 +76,13 @@ function valueCell(
     td.textContent = value;
     return td;
   }
+  // Same markup protocol as TruncatedText.astro, so the shared delegation
+  // (initTruncateToggles) wires the toggle.
   const short = document.createElement('span');
+  short.setAttribute('data-truncate-short', '');
   short.textContent = `${value.slice(0, TRUNCATE_AT)}…`;
   const full = document.createElement('span');
+  full.setAttribute('data-truncate-full', '');
   full.textContent = value;
   full.hidden = true;
   const toggle = document.createElement('button');
@@ -90,13 +90,9 @@ function valueCell(
   toggle.className = 'btn ml-2';
   toggle.setAttribute('data-size', 'sm');
   toggle.setAttribute('data-variant', 'ghost');
-  toggle.textContent = 'Show More';
-  toggle.addEventListener('click', () => {
-    const expanded = full.hidden;
-    full.hidden = !expanded;
-    short.hidden = expanded;
-    toggle.textContent = expanded ? 'Show Less' : 'Show More';
-  });
+  toggle.setAttribute('data-truncate-toggle', '');
+  toggle.setAttribute('aria-expanded', 'false');
+  toggle.textContent = TRUNCATE_EXPAND_LABEL;
   td.appendChild(short);
   td.appendChild(document.createTextNode(' '));
   td.appendChild(full);
@@ -117,9 +113,7 @@ function renderDiff(
     const label = FIELD_LABELS[field];
     const oldValue = fieldDisplay(field, published);
     const newValue = fieldDisplay(field, revision);
-    const isChanged = isNew
-      ? newValue !== null
-      : fieldCompareKey(field, published) !== fieldCompareKey(field, revision);
+    const isChanged = fieldChanged(field, published, revision, isNew);
     if (isChanged) changed += 1;
     const tr = document.createElement('tr');
     tr.className =
@@ -171,30 +165,12 @@ function renderDiff(
 }
 
 export function initRevisionQueue(): void {
+  initTruncateToggles();
+
   const detailCache = new Map<string, PublishedContent | null>();
 
   document.addEventListener('click', (event: MouseEvent) => {
     const target = event.target as HTMLElement | null;
-
-    // Long plain-text values render truncated with a toggle (TruncatedText).
-    // Shared delegation so every table using it gets a working toggle —
-    // the extension detail page wires the same behaviour inline for its
-    // own table.
-    const truncateToggle = target?.closest<HTMLButtonElement>(
-      '[data-truncate-toggle]',
-    );
-    if (truncateToggle) {
-      const cell = truncateToggle.closest('td');
-      const short = cell?.querySelector<HTMLElement>('[data-truncate-short]');
-      const full = cell?.querySelector<HTMLElement>('[data-truncate-full]');
-      if (!short || !full) return;
-      const expanded = full.hidden;
-      full.hidden = !expanded;
-      short.hidden = expanded;
-      truncateToggle.textContent = expanded ? 'Show Less' : 'Show More';
-      truncateToggle.setAttribute('aria-expanded', String(expanded));
-      return;
-    }
 
     // Frozen content is server-rendered — this just toggles the next sibling
     // detail row, with no fetch involved (unlike [data-compare] below).

@@ -1,16 +1,19 @@
 ---
 // GET-style `?q=` search that keeps the page's other params. One delegated
-// listener covers every instance; empty input clears `q`.
+// listener covers every instance; empty input clears `q`. Params named in
+// `resetParams` are always dropped — cursors a new search would strand.
 interface Props {
   placeholder: string;
   value?: string;
+  resetParams?: string[];
 }
 
-const { placeholder, value } = Astro.props;
+const { placeholder, value, resetParams = [] } = Astro.props;
 ---
 
 <form
   data-search-form
+  data-reset-params={resetParams.length > 0 ? resetParams.join(',') : undefined}
   class="flex gap-2"
   role="search"
   aria-label={placeholder}
@@ -46,6 +49,12 @@ const { placeholder, value } = Astro.props;
         url.searchParams.set('q', query);
       } else {
         url.searchParams.delete('q');
+      }
+      const reset = (form.getAttribute('data-reset-params') ?? '')
+        .split(',')
+        .filter(Boolean);
+      for (const name of reset) {
+        url.searchParams.delete(name);
       }
       window.location.href = url.pathname + url.search;
     });

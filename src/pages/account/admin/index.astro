@@ -189,35 +189,8 @@ const stats = [
 <script>
   import { initRevisionQueue } from '@/lib/admin-revisions-client';
   import { initClaimDialogs } from '@/lib/claim-dialogs-client';
+  import { initDeveloperApproveDialog } from '@/lib/developer-approve-dialog-client';
   initRevisionQueue();
   initClaimDialogs();
-
-  // Single shared approve dialog for the developers table above: each row
-  // button carries its developer on data attributes (same as
-  // /account/admin/developers).
-  const developerDialog = document.querySelector<HTMLDialogElement>(
-    '#admin-approve-developer',
-  );
-
-  document.addEventListener('click', (event) => {
-    const button = (
-      event.target as HTMLElement | null
-    )?.closest<HTMLButtonElement>('button[data-approve-developer]');
-    if (!button || !developerDialog) return;
-
-    const id = button.dataset.developerId ?? '';
-    const form = developerDialog.querySelector('form');
-    const titleEl = developerDialog.querySelector('h2');
-    const revisionInput = developerDialog.querySelector<HTMLInputElement>(
-      'input[name="expected_revision"]',
-    );
-    if (form) form.action = `/account/admin/developers/${id}/approve`;
-    if (titleEl) {
-      titleEl.textContent = `Approve "${button.dataset.developerName ?? id}"?`;
-    }
-    if (revisionInput) {
-      revisionInput.value = button.dataset.expectedRevision ?? '';
-    }
-    developerDialog.showModal();
-  });
+  initDeveloperApproveDialog();
 </script>

@@ -1,9 +1,10 @@
 ---
 import { EXTENSION_TYPES, SOURCE_TYPES, SPDX_LICENSE_IDS } from '@/types';
 import type { Developer, Extension } from '@/types';
-import { CircleAlert, SquarePen } from '@lucide/astro';
+import { CircleAlert, SquarePen, ChevronDown } from '@lucide/astro';
 import { stripUrlScheme } from '@/lib/url-prefix';
 import { OTHER_LICENSE } from '@/lib/extension-form';
+import { MARKDOWN_SCROLL_CLASS } from '@/lib/revision-diff-shared';
 
 interface Props {
   developer: Developer;
@@ -214,7 +215,7 @@ const otherSpdxIds = SPDX_LICENSE_IDS.filter((id) => !popularSpdxIds.has(id));
             </p>
             <div
               id="readme-preview"
-              class="markdown-body break-normal max-h-72 overflow-y-auto overscroll-contain"
+              class={MARKDOWN_SCROLL_CLASS}
               role="region"
               aria-label="Readme preview"
             ></div>
@@ -249,21 +250,11 @@ const otherSpdxIds = SPDX_LICENSE_IDS.filter((id) => !popularSpdxIds.has(id));
                 aria-expanded="false"
                 aria-controls="license-combobox-listbox"
               />
-              <svg
+              <ChevronDown
                 aria-hidden="true"
-                xmlns="http://www.w3.org/2000/svg"
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
                 class="combobox-trigger-icon"
-              >
-                <path d="m6 9 6 6 6-6"></path>
-              </svg>
+                size={24}
+              />
               <div
                 id="license-combobox-popover"
                 data-popover

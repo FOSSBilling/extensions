@@ -15,6 +15,7 @@ import DialogShell from '@/components/DialogShell.astro';
 import NotifyField from '@/components/NotifyField.astro';
 import EmptyState from '@/components/admin/EmptyState.astro';
 import ExtensionAdminTable from '@/components/admin/ExtensionAdminTable.astro';
+import SearchForm from '@/components/admin/SearchForm.astro';
 import {
   cursorPageUrl,
   filterPageUrl,
@@ -102,19 +103,11 @@ try {
         </a>
       ))}
     </nav>
-    <form id="extension-search-form" class="flex gap-2" role="search">
-      <input
-        class="input"
-        type="text"
-        id="extension-search-input"
-        name="q"
-        placeholder="Search by ID…"
-        value={extQuery ?? ''}
-      />
-      <button type="submit" class="btn" data-size="sm" data-variant="outline">
-        Search
-      </button>
-    </form>
+    <SearchForm
+      placeholder="Search by ID…"
+      value={extQuery}
+      resetParams={['extCursor', 'extCursors']}
+    />
   </div>
   {extQuery && (
     <p class="text-sm text-muted-foreground">
@@ -203,26 +196,5 @@ try {
     if (reasonInput) reasonInput.value = '';
     if (notifyInput) notifyInput.checked = true;
     dialog.showModal();
-  });
-
-  const searchForm = document.querySelector<HTMLFormElement>(
-    '#extension-search-form',
-  );
-  const searchInput = document.querySelector<HTMLInputElement>(
-    '#extension-search-input',
-  );
-
-  searchForm?.addEventListener('submit', (event) => {
-    event.preventDefault();
-    const url = new URL(window.location.href);
-    const value = searchInput?.value.trim();
-    if (value) {
-      url.searchParams.set('q', value);
-    } else {
-      url.searchParams.delete('q');
-    }
-    url.searchParams.delete('extCursor');
-    url.searchParams.delete('extCursors');
-    window.location.href = url.pathname + url.search;
   });
 </script>
