@@ -11,19 +11,9 @@ vi.mock('@/lib/api/client', () => ({
 
 import { upsertUser } from '@/lib/users';
 import type { UserInfo } from '@/lib/oauth';
-import type { ApplicationEnv } from '@/lib/runtime';
+import { makeEnv } from './helpers/env';
 
-const env: ApplicationEnv = {
-  extensionsApi: {
-    baseUrl: 'https://api.example.test',
-    fetch: (...args) => globalThis.fetch(...args),
-  },
-  authClientId: 'client-id',
-  authClientSecret: 'client-secret',
-  sessionSecret: 'session-secret',
-  assertionSigningSecret: 'assertion-secret',
-  revalidateSecret: 'revalidate-secret',
-};
+const env = makeEnv();
 
 const baseInfo: UserInfo = {
   sub: 'user-subject',

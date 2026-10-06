@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { AstroCookies } from 'astro';
 import { FLASH_COOKIE, setFlash, takeFlash } from '@/lib/flash';
+import { fakeCookies } from './helpers/fake-cookies';
 
 const SECRET = 'flash-test-secret';
 const MESSAGE = {
@@ -8,27 +8,6 @@ const MESSAGE = {
   title: 'Profile Updated.',
   description: 'Changes are live.',
 };
-
-function fakeCookies() {
-  const jar = new Map<string, string>();
-  const set = vi.fn(
-    (name: string, value: string, _options?: Record<string, unknown>) => {
-      jar.set(name, value);
-    },
-  );
-  const remove = vi.fn((name: string) => jar.delete(name));
-  const get = vi.fn((name: string) => {
-    const value = jar.get(name);
-    return value === undefined ? undefined : { value };
-  });
-  return {
-    jar,
-    set,
-    delete: remove,
-    get,
-    cookies: { get, set, delete: remove } as unknown as AstroCookies,
-  };
-}
 
 function flashContext(secure = true) {
   const jar = fakeCookies();

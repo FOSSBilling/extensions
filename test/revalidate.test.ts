@@ -1,22 +1,19 @@
 import { describe, expect, it, vi } from 'vitest';
 import { POST } from '@/pages/api/revalidate';
 import type { ApplicationEnv } from '@/lib/runtime';
+import { makeEnv } from './helpers/env';
 
 const SECRET = 'test-revalidate-secret';
 
-function makeEnv(overrides: Partial<ApplicationEnv> = {}): ApplicationEnv {
-  return {
+function makeRevalidateEnv(overrides = {}): ReturnType<typeof makeEnv> {
+  return makeEnv({
+    revalidateSecret: SECRET,
     extensionsApi: {
       baseUrl: 'https://api.example.test',
       fetch: globalThis.fetch,
     },
-    authClientId: 'id',
-    authClientSecret: 'secret',
-    sessionSecret: 'session-secret',
-    assertionSigningSecret: 'assertion-secret',
-    revalidateSecret: SECRET,
     ...overrides,
-  };
+  });
 }
 
 function makeRequest(
@@ -54,7 +51,11 @@ describe('POST /api/revalidate', () => {
   it('rejects requests without a bearer token', async () => {
     const cache = makeCache();
     const response = await POST(
-      makeContext(makeRequest({ tags: ['catalogue'] }), makeEnv(), cache),
+      makeContext(
+        makeRequest({ tags: ['catalogue'] }),
+        makeRevalidateEnv(),
+        cache,
+      ),
     );
 
     expect(response.status).toBe(401);
@@ -69,7 +70,7 @@ describe('POST /api/revalidate', () => {
           { tags: ['catalogue'] },
           { authorization: `Bearer wrong-token` },
         ),
-        makeEnv(),
+        makeRevalidateEnv(),
         cache,
       ),
     );
@@ -86,7 +87,7 @@ describe('POST /api/revalidate', () => {
           { tags: ['catalogue'] },
           { authorization: `Bearer ${SECRET}` },
         ),
-        makeEnv({ revalidateSecret: '' }),
+        makeRevalidateEnv({ revalidateSecret: '' }),
         cache,
       ),
     );
@@ -100,7 +101,7 @@ describe('POST /api/revalidate', () => {
     const response = await POST(
       makeContext(
         makeRequest('not-json', { authorization: `Bearer ${SECRET}` }),
-        makeEnv(),
+        makeRevalidateEnv(),
         cache,
       ),
     );
@@ -115,7 +116,7 @@ describe('POST /api/revalidate', () => {
       const response = await POST(
         makeContext(
           makeRequest({ tags }, { authorization: `Bearer ${SECRET}` }),
-          makeEnv(),
+          makeRevalidateEnv(),
           cache,
         ),
       );
@@ -132,7 +133,7 @@ describe('POST /api/revalidate', () => {
           { tags: ['catalogue', 'developers'] },
           { authorization: `Bearer ${SECRET}` },
         ),
-        makeEnv(),
+        makeRevalidateEnv(),
         cache,
       ),
     );
@@ -154,7 +155,7 @@ describe('POST /api/revalidate', () => {
           { tags: ['catalogue'] },
           { authorization: `Bearer ${SECRET}` },
         ),
-        makeEnv(),
+        makeRevalidateEnv(),
         cache,
       ),
     );
@@ -172,7 +173,7 @@ describe('POST /api/revalidate', () => {
           { tags: ['catalogue'] },
           { authorization: `Bearer ${SECRET}` },
         ),
-        makeEnv(),
+        makeRevalidateEnv(),
         cache,
       ),
     );
@@ -194,7 +195,7 @@ describe('POST /api/revalidate', () => {
           { tags: ['catalogue'] },
           { authorization: `Bearer ${SECRET}` },
         ),
-        makeEnv(),
+        makeRevalidateEnv(),
         cache,
       ),
     );
@@ -215,7 +216,7 @@ describe('POST /api/revalidate', () => {
           { authorization: `Bearer ${SECRET}` },
           'http://localhost:4321/api/revalidate',
         ),
-        makeEnv(),
+        makeRevalidateEnv(),
         cache,
       ),
     );

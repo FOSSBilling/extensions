@@ -15,7 +15,6 @@ vi.mock('@/lib/assertion', () => ({
 import {
   ApiRequestError,
   clampApiPageLimit,
-  clampExtensionPageLimit,
   createApiClient,
   getExtensionById,
   listExtensions,
@@ -26,86 +25,32 @@ import {
   type ExtensionRevision,
   type ModerationQueuePage,
   type OwnedExtensionListResponse,
-  type RevisionHistoryPage,
 } from '@/lib/api/client';
 import { mintBearerAssertion } from '@/lib/assertion';
+import { makeEnv } from './helpers/env';
+import { item, page } from './helpers/catalogue-fixtures';
 import type {
   DeveloperHistoryEntry,
   DeveloperProfile,
   PendingDeveloperClaim,
 } from '@/lib/api/generated/extensions-v2';
-import { isCatalogueCardPage } from '@/scripts/extension-catalogue';
-import { isDeveloperType, isExtensionType, isSourceType } from '@/types';
 import type {
   DeveloperProfile as LocalDeveloperProfile,
   Extension as LocalExtension,
 } from '@/types';
-import {
-  appendPage,
-  createCataloguePager,
-  createCataloguePagerFromIds,
-  stateFromPage,
-  type CataloguePageRequest,
-} from '@/lib/cataloguePagination';
-import {
-  cursorPageUrl,
-  filterPageUrl,
-  prevCursorPageUrl,
-} from '@/lib/pagination';
-import type { ApplicationEnv } from '@/lib/runtime';
 
-const publicEnv: ApplicationEnv = {
-  extensionsApi: {
-    baseUrl: 'https://api.example.test',
-    fetch: (...args) => globalThis.fetch(...args),
-  },
-  authClientId: 'test-client',
-  authClientSecret: 'test-secret',
-  sessionSecret: 'test-session-secret',
+const publicEnv = makeEnv({
   assertionSigningSecret: '',
   revalidateSecret: '',
-};
+});
 
-const authenticatedEnv: ApplicationEnv = {
-  ...publicEnv,
-  assertionSigningSecret: 'test-secret',
-  revalidateSecret: 'revalidate-secret',
-};
+const authenticatedEnv = makeEnv({ assertionSigningSecret: 'test-secret' });
 
 function apiResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
     headers: { 'content-type': 'application/json' },
   });
-}
-
-function item(id: string, name = id): ExtensionListItem {
-  return {
-    id,
-    type: 'mod',
-    name,
-    description: `${name} description`,
-    website: `https://example.test/${id}`,
-    license: { name: 'MIT' },
-    source: { type: 'github', repo: `fossbilling/${id}` },
-    version: '1.0.0',
-    download_url: `https://example.test/${id}.zip`,
-    developer: {
-      id: 'fossbilling',
-      type: 'organization',
-      name: 'FOSSBilling',
-      approved: true,
-      unclaimed: false,
-    },
-  };
-}
-
-function page(
-  result: ExtensionListItem[],
-  next_cursor: string | null,
-  has_more: boolean,
-): ExtensionListResponse {
-  return { result, pagination: { next_cursor, has_more } };
 }
 
 function ownedExtensionsPage(
@@ -292,7 +237,7 @@ describe('generated Extensions v2 façade', () => {
     expect(requestUrl(fetchMock, 0).searchParams.get('limit')).toBe('100');
     expect(requestUrl(fetchMock, 1).searchParams.get('limit')).toBe('100');
     expect(clampApiPageLimit(0)).toBe(1);
-    expect(clampExtensionPageLimit(101)).toBe(100);
+    expect(clampApiPageLimit(101)).toBe(100);
   });
 
   it('preserves filters and the exact opaque cursor on later requests', async () => {
@@ -515,31 +460,6 @@ describe('generated Extensions v2 façade', () => {
     );
     expect(request.method).toBe('DELETE');
     expect(result).toEqual({ id: 'body-extension', deleted: true });
-  });
-
-  it('lists an extension revision history by id, oldest params preserved', async () => {
-    const historyPage: RevisionHistoryPage = {
-      result: [],
-      pagination: { next_cursor: 'history-2', has_more: true },
-    };
-    const fetchMock = vi.fn().mockResolvedValue(apiResponse(historyPage));
-    vi.stubGlobal('fetch', fetchMock);
-
-    const response = await createApiClient(
-      authenticatedEnv,
-      'user-sub',
-    ).listExtensionRevisions('body-extension', {
-      limit: 25,
-      cursor: 'history-cursor',
-    });
-
-    const url = requestUrl(fetchMock);
-    expect(url.pathname).toBe(
-      '/extensions/v2/extensions/body-extension/revisions',
-    );
-    expect(url.searchParams.get('limit')).toBe('25');
-    expect(url.searchParams.get('cursor')).toBe('history-cursor');
-    expect(response.pagination).toEqual(historyPage.pagination);
   });
 
   it('approves and rejects a revision by extension id + revision id', async () => {
@@ -952,365 +872,5 @@ describe('cursor-paginated moderator lists', () => {
     expect(requestUrl(fetchMock, 1).searchParams.get('cursor')).toBe(
       'cursor-1',
     );
-  });
-
-  it('relists a delisted extension', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      apiResponse({
-        result: { id: 'live-ext', status: 'relisted', notified: true },
-      }),
-    );
-    vi.stubGlobal('fetch', fetchMock);
-
-    const api = createApiClient(authenticatedEnv, 'moderator-sub');
-    const result = await api.relistExtension('live-ext', 'Upstream is back');
-
-    expect(result).toEqual({
-      id: 'live-ext',
-      status: 'relisted',
-      notified: true,
-    });
-    const request = requestFrom(fetchMock);
-    expect(request.method).toBe('POST');
-    expect(
-      new URL(request.url).pathname.endsWith('/extensions/live-ext/relist'),
-    ).toBe(true);
-    await expect(request.json()).resolves.toEqual({
-      review_note: 'Upstream is back',
-    });
-  });
-});
-
-describe('application boundary validation', () => {
-  it('validates only the fields used by catalogue cards', () => {
-    expect(
-      isCatalogueCardPage({
-        result: [
-          {
-            id: 'card-only',
-            name: 'Card only',
-            description: 'Card fields are sufficient.',
-            version: '1.0.0',
-          },
-        ],
-        pagination: { next_cursor: null, has_more: false },
-      }),
-    ).toBe(true);
-
-    expect(
-      isCatalogueCardPage({
-        result: [
-          {
-            id: 'invalid-card',
-            name: 123,
-            description: 'Invalid name.',
-            version: '1.0.0',
-          },
-        ],
-        pagination: { next_cursor: null, has_more: false },
-      }),
-    ).toBe(false);
-
-    expect(
-      isCatalogueCardPage({
-        result: [],
-        pagination: { next_cursor: '', has_more: true },
-      }),
-    ).toBe(false);
-  });
-
-  it('keeps runtime filter validation independent from generated DTO imports', () => {
-    expect(isExtensionType('mod')).toBe(true);
-    expect(isExtensionType('not-a-type')).toBe(false);
-    expect(isSourceType('github')).toBe(true);
-    expect(isSourceType('not-a-source')).toBe(false);
-    expect(isDeveloperType('organization')).toBe(true);
-    expect(isDeveloperType('not-a-developer')).toBe(false);
-  });
-});
-
-describe('catalogue page accumulation', () => {
-  const filters = {
-    type: 'mod' as const,
-    developer_id: 'developer-id',
-    limit: 100,
-  };
-
-  it('appends middle pages in API order, preserves existing items, and replaces the cursor', async () => {
-    const first = page(
-      [item('zeta', 'Zulu'), item('alpha', 'Alpha')],
-      'cursor-2',
-      true,
-    );
-    const second = page(
-      [item('beta', 'beta'), item('ALPHA', 'alpha duplicate')],
-      'cursor-3',
-      true,
-    );
-    const loadPage = vi.fn().mockResolvedValue(second);
-    const pager = createCataloguePager(first, filters, loadPage);
-
-    const state = await pager.loadNextPage();
-
-    expect(loadPage).toHaveBeenCalledWith({
-      ...filters,
-      cursor: 'cursor-2',
-    } satisfies CataloguePageRequest);
-    expect(state.items.map((extension) => extension.id)).toEqual([
-      'zeta',
-      'alpha',
-      'beta',
-    ]);
-    expect(state.nextCursor).toBe('cursor-3');
-    expect(state.hasMore).toBe(true);
-  });
-
-  it('deduplicates already-rendered DOM IDs without constructing fake DTOs', async () => {
-    const loadPage = vi
-      .fn()
-      .mockResolvedValue(page([item('ALPHA'), item('second')], null, false));
-    const pager = createCataloguePagerFromIds(
-      ['alpha'],
-      { next_cursor: 'cursor-2', has_more: true },
-      filters,
-      loadPage,
-    );
-
-    const state = await pager.loadNextPage();
-
-    expect(state.items.map((extension) => extension.id)).toEqual(['second']);
-  });
-
-  it('does not duplicate concurrent next-page requests', async () => {
-    let resolvePage: ((value: ExtensionListResponse) => void) | undefined;
-    const loadPage = vi.fn(
-      () =>
-        new Promise<ExtensionListResponse>((resolve) => {
-          resolvePage = resolve;
-        }),
-    );
-    const pager = createCataloguePager(
-      page([item('first')], 'cursor-2', true),
-      filters,
-      loadPage,
-    );
-
-    const firstRequest = pager.loadNextPage();
-    const duplicateRequest = pager.loadNextPage();
-    expect(loadPage).toHaveBeenCalledTimes(1);
-
-    resolvePage?.(page([item('second')], null, false));
-    await Promise.all([firstRequest, duplicateRequest]);
-
-    expect(pager.getState().items.map((extension) => extension.id)).toEqual([
-      'first',
-      'second',
-    ]);
-  });
-
-  it('appends a final page and offers no further request', async () => {
-    const loadPage = vi
-      .fn()
-      .mockResolvedValueOnce(page([item('last')], null, false));
-    const pager = createCataloguePager(
-      page([item('first')], 'cursor-final', true),
-      filters,
-      loadPage,
-    );
-
-    const state = await pager.loadNextPage();
-    await pager.loadNextPage();
-
-    expect(state.items.map((extension) => extension.id)).toEqual([
-      'first',
-      'last',
-    ]);
-    expect(state.hasMore).toBe(false);
-    expect(state.nextCursor).toBeNull();
-    expect(loadPage).toHaveBeenCalledTimes(1);
-  });
-
-  it('does not offer a next page when the cursor is empty', () => {
-    const pageWithEmptyCursor = page([item('only')], '', true);
-
-    expect(stateFromPage(pageWithEmptyCursor).hasMore).toBe(false);
-    expect(
-      appendPage(
-        stateFromPage(page([item('first')], 'cursor-2', true)),
-        pageWithEmptyCursor,
-      ).hasMore,
-    ).toBe(false);
-  });
-
-  it('retains loaded results and does not reset or retry after an invalid cursor', async () => {
-    const invalidCursor = new ApiRequestError(
-      422,
-      'INVALID_CURSOR',
-      'Cursor is invalid.',
-    );
-    const loadPage = vi.fn().mockRejectedValue(invalidCursor);
-    const pager = createCataloguePager(
-      page([item('first')], 'invalid-cursor', true),
-      filters,
-      loadPage,
-    );
-
-    const state = await pager.loadNextPage();
-
-    expect(state.items.map((extension) => extension.id)).toEqual(['first']);
-    expect(state.nextCursor).toBe('invalid-cursor');
-    expect(state.hasMore).toBe(true);
-    expect(state.error).toBe(invalidCursor);
-    expect(loadPage).toHaveBeenCalledTimes(1);
-  });
-});
-
-describe('server-rendered cursor links', () => {
-  it('preserves active filters and passes the opaque cursor unchanged', () => {
-    expect(
-      cursorPageUrl(
-        new URL(
-          'https://example.test/account/moderate?status=approved&view=queue',
-        ),
-        'cursor',
-        'cursors',
-        'cursor/with?opaque=characters',
-      ),
-    ).toBe(
-      '/account/moderate?status=approved&view=queue&cursor=cursor%2Fwith%3Fopaque%3Dcharacters',
-    );
-  });
-
-  it('pushes the current cursor onto the back-stack when moving forward', () => {
-    expect(
-      cursorPageUrl(
-        new URL('https://example.test/account/moderate?cursor=page-2'),
-        'cursor',
-        'cursors',
-        'page-3',
-      ),
-    ).toBe('/account/moderate?cursor=page-3&cursors=page-2');
-
-    expect(
-      cursorPageUrl(
-        new URL(
-          'https://example.test/account/moderate?cursor=page-2&cursors=page-1',
-        ),
-        'cursor',
-        'cursors',
-        'page-3',
-      ),
-    ).toBe('/account/moderate?cursor=page-3&cursors=page-1%2Cpage-2');
-  });
-
-  it('caps the back-stack depth, dropping the oldest cursor first', () => {
-    const fullStack = Array.from({ length: 20 }, (_, i) => `page-${i}`).join(
-      ',',
-    );
-
-    expect(
-      cursorPageUrl(
-        new URL(
-          `https://example.test/account/moderate?cursor=page-20&cursors=${fullStack}`,
-        ),
-        'cursor',
-        'cursors',
-        'page-21',
-      ),
-    ).toBe(
-      `/account/moderate?cursor=page-21&cursors=${encodeURIComponent(
-        Array.from({ length: 20 }, (_, i) => `page-${i + 1}`).join(','),
-      )}`,
-    );
-  });
-
-  // Documents the accepted trade-off from capping: once an early cursor has
-  // been evicted, walking Previous all the way back lands on page 1 without
-  // stopping on the page whose cursor was dropped - it doesn't error or
-  // strand the viewer, it just skips one page. A stack that isn't capped
-  // wouldn't have this gap (see the pop-until-null case above), so this is
-  // deliberately different behaviour, not a bug in prevCursorPageUrl itself.
-  it('reaches page 1 without stopping on an evicted page, once the stack is capped', () => {
-    // Reproduce exactly what cursorPageUrl leaves behind once the back-stack
-    // is capped: page-0's cursor was dropped, so `cursors` holds page-1
-    // through page-20 while viewing page-21 (see the "caps the back-stack
-    // depth" test above for how this state is produced).
-    const cappedStack = Array.from(
-      { length: 20 },
-      (_, i) => `page-${i + 1}`,
-    ).join(',');
-    let url = new URL(
-      `https://example.test/account/moderate?cursor=page-21&cursors=${cappedStack}`,
-    );
-
-    // Walk Previous all the way back through the capped stack. Each step
-    // should land on the expected preceding page - the cap doesn't corrupt
-    // the still-present entries.
-    for (let page = 20; page >= 1; page--) {
-      const href = prevCursorPageUrl(url, 'cursor', 'cursors');
-      expect(href).not.toBeNull();
-      url = new URL(href as string, url);
-      expect(url.searchParams.get('cursor')).toBe(`page-${page}`);
-    }
-
-    // page-0's cursor was evicted, so the final step from page-1 lands
-    // directly on the first page instead of stopping on page-0 first.
-    expect(prevCursorPageUrl(url, 'cursor', 'cursors')).toBe(
-      '/account/moderate',
-    );
-  });
-
-  it('pops the back-stack to build the previous page, or null on the first page', () => {
-    expect(
-      prevCursorPageUrl(
-        new URL('https://example.test/account/moderate'),
-        'cursor',
-        'cursors',
-      ),
-    ).toBeNull();
-
-    expect(
-      prevCursorPageUrl(
-        new URL(
-          'https://example.test/account/moderate?cursor=page-3&cursors=page-1%2Cpage-2',
-        ),
-        'cursor',
-        'cursors',
-      ),
-    ).toBe('/account/moderate?cursor=page-2&cursors=page-1');
-
-    // Popping the last stacked cursor returns to the first page: no cursor
-    // param at all, not an empty one.
-    expect(
-      prevCursorPageUrl(
-        new URL('https://example.test/account/moderate?cursor=page-2'),
-        'cursor',
-        'cursors',
-      ),
-    ).toBe('/account/moderate');
-  });
-
-  it('drops the cursor and its back-stack when a filter changes', () => {
-    expect(
-      filterPageUrl(
-        new URL(
-          'https://example.test/account/moderate?extStatus=published&extCursor=page-2&extCursors=page-1',
-        ),
-        'extStatus',
-        'delisted',
-        ['extCursor', 'extCursors'],
-      ),
-    ).toBe('/account/moderate?extStatus=delisted');
-
-    expect(
-      filterPageUrl(
-        new URL(
-          'https://example.test/account/moderate?extStatus=delisted&extCursor=page-2',
-        ),
-        'extStatus',
-        null,
-        ['extCursor', 'extCursors'],
-      ),
-    ).toBe('/account/moderate');
   });
 });

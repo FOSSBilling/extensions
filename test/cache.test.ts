@@ -1,33 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cachedEdgeRead, dataCacheKey, markEdgeCachePurged } from '@/lib/cache';
+import { stubEdgeCache } from './helpers/edge-cache';
 
 const PRODUCER_VALUE = {
   result: ['extension-1'],
   pagination: { has_more: false },
 };
-
-function fakeEdgeCache() {
-  const entries = new Map<string, { body: string; headers: Headers }>();
-  const match = vi.fn(async (key: Request) => {
-    const entry = entries.get(key.url);
-    return entry
-      ? new Response(entry.body, { headers: entry.headers })
-      : undefined;
-  });
-  const put = vi.fn(async (key: Request, response: Response) => {
-    entries.set(key.url, {
-      body: await response.clone().text(),
-      headers: response.headers,
-    });
-  });
-  return { entries, match, put };
-}
-
-function stubEdgeCache() {
-  const cache = fakeEdgeCache();
-  vi.stubGlobal('caches', { default: cache });
-  return cache;
-}
 
 afterEach(() => {
   // Also restores timers for any test that enabled fake ones but failed

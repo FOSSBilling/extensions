@@ -1,7 +1,7 @@
 import {
   createCataloguePagerFromIds,
   type CataloguePageRequest,
-} from '@/lib/cataloguePagination';
+} from '@/lib/catalogue-pagination';
 import type {
   ExtensionListItem,
   ExtensionListResponse,
@@ -232,10 +232,6 @@ function installCatalogue(root: HTMLElement): void {
     } else if (!state.isLoading) {
       loadMore.hidden = false;
       status.textContent = '';
-    }
-
-    if (!state.isLoading && state.error) {
-      loadMore.disabled = false;
     }
   };
 

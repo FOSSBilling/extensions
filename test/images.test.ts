@@ -2,32 +2,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { getOptimizedImageUrl, type ImageVariant } from '@/lib/image-url';
 import { getSignedImageUrl } from '@/lib/signed-image-url';
 import { handleImageRequest } from '@/pages/images/[variant]';
+import { stubEdgeCache } from './helpers/edge-cache';
 
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
 });
-
-function stubEdgeCache() {
-  const entries = new Map<string, { body: string; headers: Headers }>();
-  const cache = {
-    entries,
-    match: vi.fn(async (key: Request) => {
-      const entry = entries.get(`${key.url}|${key.headers.get('accept')}`);
-      return entry
-        ? new Response(entry.body, { headers: entry.headers })
-        : undefined;
-    }),
-    put: vi.fn(async (key: Request, response: Response) => {
-      entries.set(`${key.url}|${key.headers.get('accept')}`, {
-        body: await response.clone().text(),
-        headers: response.headers,
-      });
-    }),
-  };
-  vi.stubGlobal('caches', { default: cache });
-  return cache;
-}
 
 const ICON_REQUEST_URL =
   'https://extensions.example.test/images/icon?src=https%3A%2F%2Fraw.githubusercontent.com%2Ffossbilling%2Flogo.png';
@@ -412,7 +392,9 @@ describe('image transformation route', () => {
   });
 
   it('rejects unsigned transform URLs before cache access or fetch', async () => {
-    const cache = stubEdgeCache();
+    const cache = stubEdgeCache(
+      (key) => `${key.url}|${key.headers.get('accept')}`,
+    );
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
 
@@ -457,7 +439,9 @@ describe('image transformation route', () => {
 
 describe('image transformation edge cache', () => {
   it('transforms once, then serves later requests from the cache', async () => {
-    const cache = stubEdgeCache();
+    const cache = stubEdgeCache(
+      (key) => `${key.url}|${key.headers.get('accept')}`,
+    );
     const fetchMock = vi.fn().mockResolvedValue(
       new Response('transformed image', {
         headers: { 'content-type': 'image/png' },
@@ -480,7 +464,9 @@ describe('image transformation edge cache', () => {
   });
 
   it('shares one transform across irrelevant query parameters and URL aliases', async () => {
-    const cache = stubEdgeCache();
+    const cache = stubEdgeCache(
+      (key) => `${key.url}|${key.headers.get('accept')}`,
+    );
     const fetchMock = vi.fn().mockImplementation(
       async () =>
         new Response('transformed image', {
@@ -518,7 +504,9 @@ describe('image transformation edge cache', () => {
   });
 
   it('keeps distinct sources, source queries, and variants separate', async () => {
-    const cache = stubEdgeCache();
+    const cache = stubEdgeCache(
+      (key) => `${key.url}|${key.headers.get('accept')}`,
+    );
     const fetchMock = vi.fn().mockImplementation(
       async () =>
         new Response('transformed image', {
@@ -549,7 +537,9 @@ describe('image transformation edge cache', () => {
   });
 
   it('preserves validators on canonical cache lookups', async () => {
-    const cache = stubEdgeCache();
+    const cache = stubEdgeCache(
+      (key) => `${key.url}|${key.headers.get('accept')}`,
+    );
     const fetchMock = vi.fn().mockResolvedValue(
       new Response('transformed image', {
         headers: { 'content-type': 'image/png', etag: '"version"' },
@@ -583,7 +573,9 @@ describe('image transformation edge cache', () => {
   });
 
   it('stores only successful transformations', async () => {
-    const cache = stubEdgeCache();
+    const cache = stubEdgeCache(
+      (key) => `${key.url}|${key.headers.get('accept')}`,
+    );
     const fetchMock = vi.fn().mockResolvedValue(
       new Response('not an image', {
         headers: { 'content-type': 'text/html' },
@@ -597,7 +589,9 @@ describe('image transformation edge cache', () => {
   });
 
   it('separates cache entries by negotiated format via Accept', async () => {
-    const cache = stubEdgeCache();
+    const cache = stubEdgeCache(
+      (key) => `${key.url}|${key.headers.get('accept')}`,
+    );
     const fetchMock = vi.fn().mockImplementation(() =>
       Promise.resolve(
         new Response('avif image', {

@@ -13,23 +13,13 @@ vi.mock('@/lib/users', () => ({ getUser: mocks.getUser }));
 
 import { ApiRequestError } from '@/lib/api/client';
 import { requireUser } from '@/lib/auth-guard';
-import type { ApplicationEnv } from '@/lib/runtime';
+import { makeEnv } from './helpers/env';
 
 type TestContext = Parameters<typeof requireUser>[0] & {
   cookies: { delete: ReturnType<typeof vi.fn> };
 };
 
-const env: ApplicationEnv = {
-  extensionsApi: {
-    baseUrl: 'https://api.example.test',
-    fetch: (...args) => globalThis.fetch(...args),
-  },
-  authClientId: 'client-id',
-  authClientSecret: 'client-secret',
-  sessionSecret: 'session-secret',
-  assertionSigningSecret: 'assertion-secret',
-  revalidateSecret: 'revalidate-secret',
-};
+const env = makeEnv();
 
 function context() {
   const cookies = { delete: vi.fn() };

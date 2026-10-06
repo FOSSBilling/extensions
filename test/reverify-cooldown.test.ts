@@ -1,33 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { AstroCookies } from 'astro';
 import {
   REVERIFY_COOLDOWN_COOKIE,
   setReverifyCooldown,
   takeReverifyCooldown,
 } from '@/lib/reverify-cooldown';
+import { fakeCookies } from './helpers/fake-cookies';
 
 const SECRET = 'cooldown-test-secret';
-
-function fakeCookies() {
-  const jar = new Map<string, string>();
-  const set = vi.fn(
-    (name: string, value: string, _options?: Record<string, unknown>) => {
-      jar.set(name, value);
-    },
-  );
-  const remove = vi.fn((name: string) => jar.delete(name));
-  const get = vi.fn((name: string) => {
-    const value = jar.get(name);
-    return value === undefined ? undefined : { value };
-  });
-  return {
-    jar,
-    set,
-    delete: remove,
-    get,
-    cookies: { get, set, delete: remove } as unknown as AstroCookies,
-  };
-}
 
 function cooldownContext(secure = true) {
   const jar = fakeCookies();
