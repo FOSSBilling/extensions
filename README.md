@@ -55,6 +55,9 @@ Install dependencies:
 npm install
 ```
 
+The `overrides.vite` entry in `package.json` pins one vite version across
+astro, vitest, and tailwind so the worker bundle and test runner agree.
+
 Create local secrets:
 
 ```bash
