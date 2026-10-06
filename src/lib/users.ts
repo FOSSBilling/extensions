@@ -110,7 +110,7 @@ export async function deleteUser(
   await createApiClient(env, userId).deleteUser();
 }
 
-export type UserProfile = {
+type UserProfile = {
   display_name: string | null;
 };
 

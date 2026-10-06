@@ -10,7 +10,7 @@ import { decodeSignedValue, encodeSignedValue } from './signed-value';
 // content server-controlled — a tampered cookie simply fails verification,
 // which matters because the toast fragment is rendered from this payload.
 
-export interface FlashAction {
+interface FlashAction {
   label: string;
   href: string;
 }

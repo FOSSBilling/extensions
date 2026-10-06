@@ -1,12 +1,12 @@
 // Application-facing runtime dependencies. Provider adapters translate their
 // bindings into this small interface before requests reach application code.
 
-export interface ExtensionsApiTransport {
+interface ExtensionsApiTransport {
   baseUrl: string;
   fetch: typeof globalThis.fetch;
 }
 
-export type ExtensionsApiTransportMode = 'binding' | 'http';
+type ExtensionsApiTransportMode = 'binding' | 'http';
 
 export function parseExtensionsApiTransportMode(
   mode: string | undefined,

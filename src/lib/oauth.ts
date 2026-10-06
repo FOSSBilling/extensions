@@ -5,7 +5,7 @@ import { decodeSignedValue, encodeSignedValue } from './signed-value';
 // Roles, permissions, and extension ownership are modeled in the API's domain
 // projection (see users.ts), never requested from or trusted to the auth service.
 
-export const ISSUER = 'https://auth.fossbilling.net';
+const ISSUER = 'https://auth.fossbilling.net';
 const AUTHORIZE_ENDPOINT = `${ISSUER}/oauth2/authorize`;
 const TOKEN_ENDPOINT = `${ISSUER}/oauth2/token`;
 const USERINFO_ENDPOINT = `${ISSUER}/oauth2/userinfo`;
@@ -25,7 +25,7 @@ export function buildGithubReconnectUrl(
 
 const SCOPE = 'openid profile email github';
 
-export const OAUTH_COOKIE_MAX_AGE = 60 * 10; // 10 minutes
+const OAUTH_COOKIE_MAX_AGE = 60 * 10; // 10 minutes
 
 // The host prefix prevents sibling-domain injection, including transplantation
 // of a genuine signed transaction. Only HTTP loopback development uses an

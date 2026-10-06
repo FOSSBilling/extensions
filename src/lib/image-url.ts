@@ -8,7 +8,7 @@ export const MAX_IMAGE_SOURCE_URL_LENGTH = 2048;
 // Only these origins are sent through the server-side transformer. Other
 // valid HTTP(S) image URLs are left as direct browser requests so custom
 // developer-hosted images continue to work without creating an open proxy.
-export const IMAGE_SOURCE_HOSTS = [
+const IMAGE_SOURCE_HOSTS = [
   'fossbilling.net',
   'fossbilling.org',
   'github.com',
