@@ -44,6 +44,22 @@ describe('OAuth login transaction', () => {
       expect(await readOAuthTransaction(value, url, 'wrong-secret')).toBeNull();
     },
   );
+  it('warns when the transaction cookie will be refused on plain HTTP', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const url = new URL('/auth/login?redirect=%2Faccount', 'http://192.168.1.20:4321');
+    const cookies = { set: vi.fn(), delete: vi.fn() };
+    const ctx = {
+      url,
+      cookies,
+      locals: { env: { sessionSecret: 'secret', authClientId: 'client' } },
+      redirect: (location: string) =>
+        new Response(null, { status: 302, headers: { location } }),
+    } as unknown as Parameters<typeof GET>[0];
+    await GET(ctx);
+    expect(cookies.set.mock.calls[0][0]).toBe('__Host-fb_oauth_transaction');
+    expect(warn).toHaveBeenCalledOnce();
+    warn.mockRestore();
+  });
   it('never permits an unprefixed transaction on non-loopback HTTP', () => {
     expect(
       oauthTransactionCookie(new URL('http://extensions.example.test')).options

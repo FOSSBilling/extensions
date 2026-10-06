@@ -25,6 +25,13 @@ export const GET: APIRoute = async ({ cookies, redirect, url, locals }) => {
     env.sessionSecret,
   );
   const cookie = oauthTransactionCookie(url);
+  if (url.protocol === 'http:' && cookie.options.secure) {
+    // Browsers refuse Secure cookies over insecure schemes, so the callback
+    // would never see this transaction and login would fail generically.
+    console.warn(
+      '[auth/login] plain-HTTP non-loopback origin; the Secure transaction cookie will be refused — serve over HTTPS or use a loopback host for local development',
+    );
+  }
   cookies.set(cookie.name, transaction, cookie.options);
 
   const redirectUri = `${url.origin}/auth/callback`;

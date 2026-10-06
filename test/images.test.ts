@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { getOptimizedImageUrl } from '@/lib/image-url';
+import { getOptimizedImageUrl, type ImageVariant } from '@/lib/image-url';
+import { getSignedImageUrl } from '@/lib/signed-image-url';
 import { handleImageRequest } from '@/pages/images/[variant]';
 
 afterEach(() => {
@@ -31,15 +32,28 @@ function stubEdgeCache() {
 const ICON_REQUEST_URL =
   'https://extensions.example.test/images/icon?src=https%3A%2F%2Fraw.githubusercontent.com%2Ffossbilling%2Flogo.png';
 
-function requestContext(
+async function requestContext(
   variant: string,
   url: string,
   accept = 'image/avif,image/webp,image/*,*/*;q=0.8',
   additionalHeaders: Record<string, string> = {},
-): Parameters<typeof handleImageRequest>[0] {
+): Promise<Parameters<typeof handleImageRequest>[0]> {
+  const parsed = new URL(url);
+  const signedUrl = await getSignedImageUrl(
+    parsed.searchParams.get('src'),
+    variant as ImageVariant,
+    'image-test-secret',
+  );
+  if (signedUrl?.startsWith('/images/')) {
+    parsed.searchParams.set(
+      'sig',
+      new URL(signedUrl, parsed).searchParams.get('sig')!,
+    );
+  }
   return {
     params: { variant },
-    request: new Request(url, { headers: { accept, ...additionalHeaders } }),
+    locals: { env: { sessionSecret: 'image-test-secret' } } as App.Locals,
+    request: new Request(parsed, { headers: { accept, ...additionalHeaders } }),
   };
 }
 
@@ -87,7 +101,7 @@ describe('image transformation route', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const response = await handleImageRequest(
-      requestContext(
+      await requestContext(
         'icon',
         'https://extensions.example.test/images/icon?src=https%3A%2F%2Fraw.githubusercontent.com%2Ffossbilling%2Flogo.png',
       ),
@@ -109,7 +123,7 @@ describe('image transformation route', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const response = await handleImageRequest(
-      requestContext(
+      await requestContext(
         'icon',
         'https://extensions.example.test/images/icon?src=https%3A%2F%2Fraw.githubusercontent.com%2Ffossbilling%2Flogo.png',
       ),
@@ -155,7 +169,7 @@ describe('image transformation route', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const response = await handleImageRequest(
-      requestContext(
+      await requestContext(
         'icon',
         'https://extensions.example.test/images/icon?src=https%3A%2F%2Fraw.githubusercontent.com%2Ffossbilling%2Flogo.png',
       ),
@@ -178,7 +192,7 @@ describe('image transformation route', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const response = await handleImageRequest(
-      requestContext(
+      await requestContext(
         'icon',
         'https://extensions.fossbilling.org/images/icon?src=https%3A%2F%2Fextensions.fossbilling.org%2Fassets%2Flogo.png',
       ),
@@ -196,7 +210,7 @@ describe('image transformation route', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const response = await handleImageRequest(
-      requestContext(
+      await requestContext(
         'icon',
         'https://extensions.fossbilling.org/images/icon?src=https%3A%2F%2Fextensions.fossbilling.org%2Fimages%2F%2569con%2F%3Fsrc%3Dhttps%253A%252F%252Fraw.githubusercontent.com%252Ffossbilling%252Flogo.png',
       ),
@@ -219,7 +233,7 @@ describe('image transformation route', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const response = await handleImageRequest(
-      requestContext(
+      await requestContext(
         'icon',
         'https://extensions.example.test/images/icon?src=https%3A%2F%2Fraw.githubusercontent.com%2Ffossbilling%2Flogo.png',
         'image/avif,image/webp,image/*,*/*;q=0.8',
@@ -257,7 +271,7 @@ describe('image transformation route', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const response = await handleImageRequest(
-      requestContext(
+      await requestContext(
         'icon',
         'https://extensions.example.test/images/icon?src=https%3A%2F%2Fraw.githubusercontent.com%2Ffossbilling%2Flarge.png',
       ),
@@ -272,7 +286,7 @@ describe('image transformation route', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const response = await handleImageRequest(
-      requestContext(
+      await requestContext(
         'avatar',
         'https://extensions.example.test/images/avatar?src=https%3A%2F%2F127.0.0.1%2Favatar.png',
       ),
@@ -291,7 +305,7 @@ describe('image transformation route', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const response = await handleImageRequest(
-      requestContext(
+      await requestContext(
         'avatar',
         'https://extensions.example.test/images/avatar?src=https%3A%2F%2Fraw.githubusercontent.com%2Ffossbilling%2Favatar.png',
       ),
@@ -313,7 +327,7 @@ describe('image transformation route', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const response = await handleImageRequest(
-      requestContext(
+      await requestContext(
         'icon',
         'https://extensions.example.test/images/icon?src=https%3A%2F%2Fraw.githubusercontent.com%2Ffossbilling%2Ficon.svg',
       ),
@@ -330,7 +344,7 @@ describe('image transformation route', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const response = await handleImageRequest(
-      requestContext(
+      await requestContext(
         'icon',
         'https://extensions.example.test/images/icon?src=https%3A%2F%2Fraw.githubusercontent.com%2Ffossbilling%2Flogo.png',
       ),
@@ -351,7 +365,7 @@ describe('image transformation route', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     await handleImageRequest(
-      requestContext(
+      await requestContext(
         'icon',
         'https://extensions.example.test/images/icon?src=https%3A%2F%2Fraw.githubusercontent.com%2Ffossbilling%2Flogo.png',
         'image/avif;q=0,image/webp;q=0.8,image/*;q=0.5',
@@ -376,7 +390,7 @@ describe('image transformation route', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const response = await handleImageRequest(
-      requestContext(
+      await requestContext(
         'icon',
         'https://extensions.example.test/images/icon?src=https%3A%2F%2Fraw.githubusercontent.com%2Ffossbilling%2Flarge.png',
       ),
@@ -388,13 +402,56 @@ describe('image transformation route', () => {
 
   it('does not expose arbitrary variants', async () => {
     const response = await handleImageRequest(
-      requestContext(
+      await requestContext(
         'original',
         'https://extensions.example.test/images/original?src=https%3A%2F%2Fcdn.example.test%2Fimage.png',
       ),
     );
 
     expect(response.status).toBe(404);
+  });
+
+  it('rejects unsigned transform URLs before cache access or fetch', async () => {
+    const cache = stubEdgeCache();
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await handleImageRequest({
+      params: { variant: 'icon' },
+      locals: { env: { sessionSecret: 'image-test-secret' } } as App.Locals,
+      request: new Request(ICON_REQUEST_URL),
+    });
+
+    expect(response.status).toBe(403);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(cache.put).not.toHaveBeenCalled();
+  });
+
+  it('rejects tampered signatures and signatures for other variants', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    const source = 'https://raw.githubusercontent.com/fossbilling/logo.png';
+
+    const tampered = new URL(
+      (await getSignedImageUrl(source, 'icon', 'image-test-secret'))!,
+      ICON_REQUEST_URL,
+    );
+    tampered.searchParams.set('sig', 'A'.repeat(43));
+
+    const crossVariant = new URL(
+      (await getSignedImageUrl(source, 'avatar', 'image-test-secret'))!,
+      ICON_REQUEST_URL,
+    );
+
+    for (const url of [tampered.href, crossVariant.href]) {
+      const response = await handleImageRequest({
+        params: { variant: 'icon' },
+        locals: { env: { sessionSecret: 'image-test-secret' } } as App.Locals,
+        request: new Request(url),
+      });
+      expect(response.status).toBe(403);
+    }
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });
 
@@ -409,10 +466,10 @@ describe('image transformation edge cache', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const first = await handleImageRequest(
-      requestContext('icon', ICON_REQUEST_URL),
+      await requestContext('icon', ICON_REQUEST_URL),
     );
     const second = await handleImageRequest(
-      requestContext('icon', ICON_REQUEST_URL),
+      await requestContext('icon', ICON_REQUEST_URL),
     );
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -447,7 +504,7 @@ describe('image transformation edge cache', () => {
       `https://extensions.example.test/images/icon?src=${source}`,
     ];
     for (const url of aliases) {
-      const response = await handleImageRequest(requestContext('icon', url));
+      const response = await handleImageRequest(await requestContext('icon', url));
       expect(response.status).toBe(200);
       expect(await response.text()).toBe('transformed image');
     }
@@ -469,11 +526,11 @@ describe('image transformation edge cache', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const contexts = [
-      requestContext('icon', ICON_REQUEST_URL),
-      requestContext('icon', ICON_REQUEST_URL.replace('logo.png', 'other.png')),
-      requestContext('icon', `${ICON_REQUEST_URL}%3Frevision%3D1`),
-      requestContext('icon', `${ICON_REQUEST_URL}%3Frevision%3D2`),
-      requestContext('avatar', ICON_REQUEST_URL.replace('/icon?', '/avatar?')),
+      await requestContext('icon', ICON_REQUEST_URL),
+      await requestContext('icon', ICON_REQUEST_URL.replace('logo.png', 'other.png')),
+      await requestContext('icon', `${ICON_REQUEST_URL}%3Frevision%3D1`),
+      await requestContext('icon', `${ICON_REQUEST_URL}%3Frevision%3D2`),
+      await requestContext('avatar', ICON_REQUEST_URL.replace('/icon?', '/avatar?')),
     ];
     for (const context of contexts) {
       expect((await handleImageRequest(context)).status).toBe(200);
@@ -491,7 +548,7 @@ describe('image transformation edge cache', () => {
       }),
     );
     vi.stubGlobal('fetch', fetchMock);
-    await handleImageRequest(requestContext('icon', ICON_REQUEST_URL));
+    await handleImageRequest(await requestContext('icon', ICON_REQUEST_URL));
     expect(cache.put.mock.calls[0][0].url).toBe(ICON_REQUEST_URL);
     cache.match.mockImplementationOnce(async (key: Request) => {
       expect(key.url).toBe(cache.put.mock.calls[0][0].url);
@@ -503,7 +560,7 @@ describe('image transformation edge cache', () => {
     });
 
     const response = await handleImageRequest(
-      requestContext('icon', `${ICON_REQUEST_URL}&nonce=new`, 'image/avif', {
+      await requestContext('icon', `${ICON_REQUEST_URL}&nonce=new`, 'image/avif', {
         'if-none-match': '"version"',
         'if-modified-since': 'Thu, 30 Jul 2026 13:05:00 GMT',
       }),
@@ -521,7 +578,7 @@ describe('image transformation edge cache', () => {
     );
     vi.stubGlobal('fetch', fetchMock);
 
-    await handleImageRequest(requestContext('icon', ICON_REQUEST_URL));
+    await handleImageRequest(await requestContext('icon', ICON_REQUEST_URL));
 
     expect(cache.put).not.toHaveBeenCalled();
   });
@@ -538,10 +595,10 @@ describe('image transformation edge cache', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     await handleImageRequest(
-      requestContext('icon', ICON_REQUEST_URL, 'image/avif,image/*;q=0.8'),
+      await requestContext('icon', ICON_REQUEST_URL, 'image/avif,image/*;q=0.8'),
     );
     await handleImageRequest(
-      requestContext('icon', ICON_REQUEST_URL, 'image/webp,image/*;q=0.8'),
+      await requestContext('icon', ICON_REQUEST_URL, 'image/webp,image/*;q=0.8'),
     );
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
@@ -563,7 +620,7 @@ describe('image transformation edge cache', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const response = await handleImageRequest(
-      requestContext('icon', ICON_REQUEST_URL),
+      await requestContext('icon', ICON_REQUEST_URL),
     );
 
     expect(response.status).toBe(200);
