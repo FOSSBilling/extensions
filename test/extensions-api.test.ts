@@ -265,6 +265,8 @@ describe('generated Extensions v2 façade', () => {
   it('returns the complete detail DTO by ID', async () => {
     const detail: Extension = {
       ...item('full-extension'),
+      website: 'https://example.test/full-extension',
+      download_url: 'https://example.test/full-extension.zip',
       readme: '# Full extension\n\nREADME content',
       releases: [
         {
@@ -648,6 +650,52 @@ describe('generated Extensions v2 façade', () => {
     );
   });
 
+  it('preserves unavailable legacy-card links without treating them as detail URLs', async () => {
+    const card: ExtensionListItem = {
+      ...item('legacy'),
+      website: null,
+      download_url: null,
+    };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(apiResponse(page([card], null, false))),
+    );
+    expect((await listExtensions(publicEnv)).result[0]).toEqual(card);
+    expectTypeOf<ExtensionListItem['website']>().toEqualTypeOf<string | null>();
+    expectTypeOf<Extension['website']>().toEqualTypeOf<string>();
+  });
+
+  it('fetches one revision on demand and supports compacted content', async () => {
+    const compacted = {
+      id: 'revision-1',
+      extension_id: 'extension-1',
+      content: null,
+      content_available: false,
+      content_hash: 'hash',
+      compacted_at: '2026-01-01',
+    };
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(apiResponse({ result: compacted }));
+    vi.stubGlobal('fetch', fetchMock);
+    const api = createApiClient(authenticatedEnv, 'moderator-sub');
+    expectTypeOf<
+      null extends Awaited<ReturnType<typeof api.getRevision>>['content']
+        ? true
+        : false
+    >().toEqualTypeOf<true>();
+    expect(await api.getRevision('extension-1', 'revision-1')).toEqual(
+      compacted,
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(requestUrl(fetchMock).pathname).toBe(
+      '/extensions/v2/extensions/extension-1/revisions/revision-1',
+    );
+    expect(requestFrom(fetchMock).headers.get('Authorization')).toBe(
+      'Bearer test-token',
+    );
+  });
+
   it('keeps list consumers on ExtensionListItem rather than Extension', () => {
     expectTypeOf<ExtensionListItem[]>().toEqualTypeOf<
       ExtensionListResponse['result']
@@ -673,10 +721,14 @@ describe('generated Extensions v2 façade', () => {
 
   it('keeps every revision content field optional, unlike published Extension content', () => {
     expectTypeOf<
-      undefined extends ExtensionRevision['content']['name'] ? true : false
+      undefined extends NonNullable<ExtensionRevision['content']>['name']
+        ? true
+        : false
     >().toEqualTypeOf<true>();
     expectTypeOf<
-      undefined extends ExtensionRevision['content']['readme'] ? true : false
+      undefined extends NonNullable<ExtensionRevision['content']>['readme']
+        ? true
+        : false
     >().toEqualTypeOf<true>();
     expectTypeOf<
       undefined extends Extension['name'] ? true : false

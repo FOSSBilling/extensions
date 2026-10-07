@@ -20,12 +20,18 @@ export type ExtensionListItem = {
     | 'translation';
   name: string;
   description: string;
-  website: string;
+  /**
+   * Null when a legacy URL exceeds the card length bound
+   */
+  website: string | null;
   license: License;
   icon_url?: string;
   source: Repository;
   version: string;
-  download_url: string;
+  /**
+   * Null when a legacy URL exceeds the card length bound
+   */
+  download_url: string | null;
   id: string;
   developer: PublicDeveloper;
 };
@@ -68,12 +74,18 @@ export type OwnedExtensionListItem = {
       | 'translation';
     name: string;
     description: string;
-    website: string;
+    /**
+     * Null when a legacy URL exceeds the card length bound
+     */
+    website: string | null;
     license: License;
     icon_url?: string;
     source: Repository;
     version: string;
-    download_url: string;
+    /**
+     * Null when a legacy URL exceeds the card length bound
+     */
+    download_url: string | null;
   } | null;
   pending_revision: PendingRevisionRef;
   last_review: RevisionReview;
@@ -162,7 +174,14 @@ export type ExtensionContent = {
 export type OwnedExtension = OwnedExtensionListItem & {
   published?: ExtensionContent &
     ({
-      releases?: Array<Release>;
+      releases?: Array<
+        Release & {
+          /**
+           * At most 100 Unicode code points in historical content
+           */
+          tag?: string;
+        }
+      >;
     } | null);
   pending_revision?: PendingRevisionRef &
     ({
@@ -181,7 +200,14 @@ export type StoredExtensionContent = {
     | 'translation';
   name?: string;
   description?: string;
-  releases?: Array<Release>;
+  releases?: Array<
+    Release & {
+      /**
+       * At most 100 Unicode code points in historical content
+       */
+      tag?: string;
+    }
+  >;
   website?: string;
   license?: License;
   icon_url?: string;
@@ -234,13 +260,42 @@ export type ExtensionUpdate = {
   download_url: string;
 };
 
+export type ExtensionRevisionSummary = {
+  id: string;
+  extension_id: string;
+  developer_id: string;
+  submitted_by: string;
+  status: 'pending' | 'approved' | 'rejected';
+  name: string | null;
+  version: string | null;
+  description: string | null;
+  content_bytes: number;
+  content_available: boolean;
+  content_hash: string | null;
+  compacted_at: string | null;
+  reviewer_id: string | null;
+  review_note: string | null;
+  created_at: string;
+  reviewed_at: string | null;
+};
+
 export type ExtensionRevision = {
   id: string;
   extension_id: string;
   developer_id: string;
   submitted_by: string;
   status: 'pending' | 'approved' | 'rejected';
-  content: StoredExtensionContent;
+  content: StoredExtensionContent &
+    ({
+      [key: string]: unknown;
+    } | null);
+  name: string | null;
+  version: string | null;
+  description: string | null;
+  content_bytes: number;
+  content_available: boolean;
+  content_hash: string | null;
+  compacted_at: string | null;
   reviewer_id: string | null;
   review_note: string | null;
   created_at: string;
@@ -479,13 +534,25 @@ export type PostExtensionsErrors = {
    */
   409: Error;
   /**
+   * Raw request exceeds 512 KiB
+   */
+  413: Error;
+  /**
    * Body failed validation
    */
   422: Error;
   /**
+   * Extension write allowance exhausted; see Retry-After
+   */
+  429: Error;
+  /**
    * Database error
    */
   500: Error;
+  /**
+   * Write admission unavailable
+   */
+  503: Error;
 };
 
 export type PostExtensionsError =
@@ -576,6 +643,10 @@ export type GetExtensionsByIdErrors = {
    */
   404: Error;
   /**
+   * Oversized legacy content requires resubmission
+   */
+  409: Error;
+  /**
    * id param failed validation
    */
   422: Error;
@@ -625,13 +696,25 @@ export type PutExtensionsByIdErrors = {
    */
   409: Error;
   /**
+   * Raw request exceeds 512 KiB
+   */
+  413: Error;
+  /**
    * Body failed validation
    */
   422: Error;
   /**
+   * Extension write allowance exhausted; see Retry-After
+   */
+  429: Error;
+  /**
    * Database error
    */
   500: Error;
+  /**
+   * Write admission unavailable
+   */
+  503: Error;
 };
 
 export type PutExtensionsByIdError =
@@ -696,13 +779,65 @@ export type GetExtensionsByIdRevisionsResponses = {
    * Every version proposed for this extension, with its review outcome
    */
   200: {
-    result: Array<ExtensionRevision>;
+    result: Array<ExtensionRevisionSummary>;
     pagination: Pagination;
   };
 };
 
 export type GetExtensionsByIdRevisionsResponse =
   GetExtensionsByIdRevisionsResponses[keyof GetExtensionsByIdRevisionsResponses];
+
+export type GetExtensionsByIdRevisionsByRevisionIdData = {
+  body?: never;
+  path: {
+    id: string;
+    revisionId: string;
+  };
+  query?: never;
+  url: '/extensions/{id}/revisions/{revisionId}';
+};
+
+export type GetExtensionsByIdRevisionsByRevisionIdErrors = {
+  /**
+   * Missing or invalid bearer token
+   */
+  401: Error;
+  /**
+   * The account is inactive, or the caller neither owns this extension nor moderates
+   */
+  403: Error;
+  /**
+   * No extension or revision with that id
+   */
+  404: Error;
+  /**
+   * Oversized legacy content requires administrative export or resubmission
+   */
+  409: Error;
+  /**
+   * Path failed validation
+   */
+  422: Error;
+  /**
+   * Database error
+   */
+  500: Error;
+};
+
+export type GetExtensionsByIdRevisionsByRevisionIdError =
+  GetExtensionsByIdRevisionsByRevisionIdErrors[keyof GetExtensionsByIdRevisionsByRevisionIdErrors];
+
+export type GetExtensionsByIdRevisionsByRevisionIdResponses = {
+  /**
+   * One revision with its review outcome; content is null when compacted
+   */
+  200: {
+    result: ExtensionRevision;
+  };
+};
+
+export type GetExtensionsByIdRevisionsByRevisionIdResponse =
+  GetExtensionsByIdRevisionsByRevisionIdResponses[keyof GetExtensionsByIdRevisionsByRevisionIdResponses];
 
 export type PutUsersMeIdentityData = {
   body?: UserIdentityInput;
@@ -1568,6 +1703,10 @@ export type PostExtensionsByIdModeratorCorrectData = {
 
 export type PostExtensionsByIdModeratorCorrectErrors = {
   /**
+   * Unable to read request body
+   */
+  400: Error;
+  /**
    * Missing or invalid bearer token
    */
   401: Error;
@@ -1584,13 +1723,25 @@ export type PostExtensionsByIdModeratorCorrectErrors = {
    */
   409: Error;
   /**
+   * Raw request exceeds 512 KiB
+   */
+  413: Error;
+  /**
    * Path params, content, or correction_note failed validation
    */
   422: Error;
   /**
+   * Extension write allowance exhausted; see Retry-After
+   */
+  429: Error;
+  /**
    * Database error
    */
   500: Error;
+  /**
+   * Write admission unavailable
+   */
+  503: Error;
 };
 
 export type PostExtensionsByIdModeratorCorrectError =
@@ -1811,7 +1962,7 @@ export type GetRevisionsResponses = {
    * Revisions matching the requested status (default: pending), oldest first
    */
   200: {
-    result: Array<ExtensionRevision>;
+    result: Array<ExtensionRevisionSummary>;
     pagination: Pagination;
   };
 };

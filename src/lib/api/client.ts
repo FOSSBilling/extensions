@@ -8,6 +8,7 @@ import {
   getDevelopersMe,
   getExtensions,
   getExtensionsById,
+  getExtensionsByIdRevisionsByRevisionId,
   getModerationCounts,
   getRevisions,
   getUsersMe,
@@ -39,7 +40,8 @@ import {
   type Extension,
   type ExtensionCreate,
   type ExtensionListItem,
-  type ExtensionRevision,
+  type ExtensionRevision as GeneratedExtensionRevision,
+  type ExtensionRevisionSummary,
   type ExtensionUpdate,
   type GetExtensionsData,
   type GetModerationCountsResponse,
@@ -113,6 +115,11 @@ export interface OwnedExtensionListResponse {
 
 export type AccountUser = User;
 
+// The generated allOf intersection drops null from compacted revision content.
+export type ExtensionRevision = Omit<GeneratedExtensionRevision, 'content'> & {
+  content: GeneratedExtensionRevision['content'] | null;
+};
+
 export type {
   Developer,
   DeveloperApproval,
@@ -122,7 +129,7 @@ export type {
   Extension,
   ExtensionCreate,
   ExtensionListItem,
-  ExtensionRevision,
+  ExtensionRevisionSummary,
   ExtensionUpdate,
   OwnedExtension,
   OwnedExtensionListItem,
@@ -518,6 +525,14 @@ export function createApiClient(env: ApplicationEnv, subject: string) {
 
     withdrawExtension: (id: string) =>
       callResult(deleteExtensionsById({ client, path: { id } })),
+
+    getRevision: (id: string, revisionId: string): Promise<ExtensionRevision> =>
+      callResult(
+        getExtensionsByIdRevisionsByRevisionId({
+          client,
+          path: { id, revisionId },
+        }),
+      ),
 
     listModerationQueue: async (
       status: RevisionStatus = 'pending',

@@ -1,6 +1,6 @@
 // Client-side behaviour for /account/admin/revisions: on-demand
 // "compare with live" (one GET /api/admin/revision-detail per expanded row,
-// cached per extension id) plus wiring the row buttons to the single shared
+// cached per revision id) plus wiring the row buttons to the single shared
 // approve/reject dialog pair. Kept in a module (rather than inline in the
 // .astro file) so it gets full TypeScript checking like any other lib file.
 
@@ -35,6 +35,7 @@ type PublishedContent = {
 
 interface RevisionDetailResult {
   published: PublishedContent | null;
+  revision: PublishedContent;
 }
 
 // Uniqueness for aria-controls targets within one page's diff tables.
@@ -171,17 +172,13 @@ function renderDiff(
   }
 }
 
-// The expandable detail row always directly follows its summary row and is
-// marked with the wrap attribute (see the [data-*-wrap] rows in the admin
-// tables) — that adjacency is how a toggle button finds its wrap, verified
-// by the attribute so a stray sibling can never be toggled by mistake.
+// Detail rows immediately follow their summary row; verify the marker.
 function findDetailWrap(
   button: HTMLElement,
-  wrapAttr: string,
+  attribute: string,
 ): HTMLElement | null {
-  const row = button.closest('tr');
-  const wrap = row?.nextElementSibling;
-  return wrap instanceof HTMLElement && wrap.hasAttribute(wrapAttr)
+  const wrap = button.closest('tr')?.nextElementSibling;
+  return wrap instanceof HTMLElement && wrap.hasAttribute(attribute)
     ? wrap
     : null;
 }
@@ -189,30 +186,98 @@ function findDetailWrap(
 export function initRevisionQueue(): void {
   initTruncateToggles();
 
-  const detailCache = new Map<string, PublishedContent | null>();
+  const detailCache = new Map<string, RevisionDetailResult>();
 
   document.addEventListener('click', (event: MouseEvent) => {
     const target = event.target as HTMLElement | null;
 
-    // Frozen content is server-rendered — this just toggles the next sibling
-    // detail row, with no fetch involved (unlike [data-compare] below).
-    // Labels come from data-show/data-hide.
+    // Both pending and reviewed content are loaded on demand by revision id.
     const frozenBtn = target?.closest<HTMLButtonElement>('[data-frozen]');
     if (frozenBtn) {
       const wrap = findDetailWrap(frozenBtn, 'data-frozen-wrap');
       if (!wrap) return;
-      const showing = !wrap.hidden;
-      wrap.hidden = showing;
-      frozenBtn.setAttribute('aria-expanded', String(!showing));
-      frozenBtn.textContent = showing
-        ? (frozenBtn.dataset.show ?? 'Show')
-        : (frozenBtn.dataset.hide ?? 'Hide');
+      const row = frozenBtn.closest('tr') as HTMLElement | null;
+      const body = wrap.querySelector('[data-frozen-body]');
+      const errorEl = wrap.querySelector<HTMLElement>('[data-frozen-error]');
+      const extensionId = row?.dataset.extensionId ?? '';
+      const revisionId = row?.dataset.revisionId ?? '';
+      if (!body) return;
+      if (!wrap.hidden) {
+        wrap.hidden = true;
+        frozenBtn.setAttribute('aria-expanded', 'false');
+        frozenBtn.textContent = frozenBtn.dataset.show ?? 'Show';
+        return;
+      }
+      frozenBtn.disabled = true;
+      frozenBtn.textContent = 'Loading Reviewed Content…';
+      if (errorEl) errorEl.hidden = true;
+      void (async () => {
+        try {
+          const key = `reviewed:${revisionId}`;
+          if (!detailCache.has(key)) {
+            const res = await fetch(
+              `/api/admin/revision-detail?extensionId=${encodeURIComponent(extensionId)}&revisionId=${encodeURIComponent(revisionId)}`,
+            );
+            const json = (await res.json()) as {
+              result?: RevisionDetailResult;
+              error?: { message?: string };
+            };
+            if (!res.ok || !json.result)
+              throw new Error(
+                json.error?.message ?? 'Unable to load reviewed content.',
+              );
+            detailCache.set(key, json.result);
+          }
+          body.innerHTML = '';
+          const revision = detailCache.get(key)!.revision;
+          for (const field of DIFF_FIELDS) {
+            const tr = document.createElement('tr');
+            tr.className = 'border-t border-border align-top';
+            const label = document.createElement('td');
+            label.className = 'py-1 pr-3 font-medium';
+            label.textContent = FIELD_LABELS[field];
+            const value = fieldDisplay(field, revision);
+            const href =
+              field === 'source' || field === 'license'
+                ? fieldUrl(field, revision)
+                : URL_FIELDS.has(field)
+                  ? value
+                  : null;
+            tr.appendChild(label);
+            tr.appendChild(
+              field === 'readme' && value !== null
+                ? markdownCell(value, 'py-1 break-all')
+                : valueCell(value, 'py-1 break-all', '—', href),
+            );
+            body.appendChild(tr);
+          }
+          if (errorEl) errorEl.hidden = true;
+          wrap.hidden = false;
+          frozenBtn.setAttribute('aria-expanded', 'true');
+          frozenBtn.textContent = frozenBtn.dataset.hide ?? 'Hide';
+        } catch (error) {
+          if (errorEl) {
+            errorEl.textContent =
+              error instanceof Error
+                ? error.message
+                : 'Unable to load reviewed content.';
+            errorEl.hidden = false;
+          }
+          wrap.hidden = false;
+          frozenBtn.setAttribute('aria-expanded', 'true');
+          frozenBtn.textContent =
+            frozenBtn.dataset.hide || 'Hide Reviewed Content';
+        } finally {
+          frozenBtn.disabled = false;
+        }
+      })();
+
       return;
     }
 
     // Pending rows: the button lives in the summary row; the detail row
-    // itself is the wrap (verified by attribute). Revision content travels
-    // on the summary row's dataset; only the published side is fetched.
+    // itself is the wrap (verified by attribute). Both sides are fetched only
+    // when expanded; list rows never embed revision bodies.
     const compareBtn = target?.closest<HTMLButtonElement>('[data-compare]');
     if (compareBtn) {
       const wrap = findDetailWrap(compareBtn, 'data-diff-table-wrap');
@@ -223,14 +288,7 @@ export function initRevisionQueue(): void {
       const errorEl = wrap.querySelector<HTMLElement>('[data-diff-error]');
       const host = row as HTMLElement | null;
       const extensionId = host?.dataset.extensionId ?? '';
-      let revision: PublishedContent = {};
-      try {
-        revision = JSON.parse(
-          host?.dataset.revisionJson ?? '{}',
-        ) as PublishedContent;
-      } catch {
-        revision = {};
-      }
+      const revisionId = host?.dataset.revisionId ?? '';
       if (!body) return;
       if (!wrap.hidden) {
         wrap.hidden = true;
@@ -243,26 +301,27 @@ export function initRevisionQueue(): void {
       if (errorEl) errorEl.hidden = true;
       void (async () => {
         try {
-          if (!detailCache.has(extensionId)) {
+          const key = `compare:${revisionId}`;
+          if (!detailCache.has(key)) {
             const res = await fetch(
-              `/api/admin/revision-detail?extensionId=${encodeURIComponent(extensionId)}`,
+              `/api/admin/revision-detail?extensionId=${encodeURIComponent(extensionId)}&revisionId=${encodeURIComponent(revisionId)}&compare=1`,
             );
             const json = (await res.json()) as {
               result?: RevisionDetailResult;
               error?: { message?: string };
             };
-            if (!res.ok) {
+            if (!res.ok || !json.result) {
               throw new Error(
                 json?.error?.message ?? 'Unable to load live version.',
               );
             }
-            detailCache.set(extensionId, json.result?.published ?? null);
+            detailCache.set(key, json.result);
           }
           renderDiff(
             body,
             hint,
-            revision,
-            detailCache.get(extensionId) ?? null,
+            detailCache.get(key)!.revision,
+            detailCache.get(key)!.published,
           );
           wrap.hidden = false;
           compareBtn.setAttribute('aria-expanded', 'true');
@@ -275,8 +334,9 @@ export function initRevisionQueue(): void {
                 : 'Unable to load live version.';
             errorEl.hidden = false;
           }
-          compareBtn.setAttribute('aria-expanded', 'false');
-          compareBtn.textContent = 'Retry';
+          wrap.hidden = false;
+          compareBtn.setAttribute('aria-expanded', 'true');
+          compareBtn.textContent = 'Hide Changes';
         } finally {
           compareBtn.disabled = false;
         }

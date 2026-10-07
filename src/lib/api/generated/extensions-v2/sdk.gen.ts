@@ -36,6 +36,9 @@ import type {
   GetExtensionsByIdData,
   GetExtensionsByIdErrors,
   GetExtensionsByIdResponses,
+  GetExtensionsByIdRevisionsByRevisionIdData,
+  GetExtensionsByIdRevisionsByRevisionIdErrors,
+  GetExtensionsByIdRevisionsByRevisionIdResponses,
   GetExtensionsByIdRevisionsData,
   GetExtensionsByIdRevisionsErrors,
   GetExtensionsByIdRevisionsResponses,
@@ -247,6 +250,28 @@ export const getExtensionsByIdRevisions = <
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/extensions/{id}/revisions',
+    ...options,
+  });
+
+/**
+ * Read one revision; compacted content is null
+ */
+export const getExtensionsByIdRevisionsByRevisionId = <
+  ThrowOnError extends boolean = false,
+>(
+  options: Options<GetExtensionsByIdRevisionsByRevisionIdData, ThrowOnError>,
+): RequestResult<
+  GetExtensionsByIdRevisionsByRevisionIdResponses,
+  GetExtensionsByIdRevisionsByRevisionIdErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    GetExtensionsByIdRevisionsByRevisionIdResponses,
+    GetExtensionsByIdRevisionsByRevisionIdErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/extensions/{id}/revisions/{revisionId}',
     ...options,
   });
 
