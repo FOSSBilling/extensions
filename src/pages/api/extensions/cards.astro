@@ -38,10 +38,14 @@ if (parsed.error !== null) {
       error = 'Unable to load more extensions. Please try again.';
       Astro.response.status = 502;
     }
-    // Never cache the error fragment: without this a transient upstream
-    // failure could be reused for repeated load-more requests.
-    Astro.response.headers.set('Cache-Control', 'no-store');
   }
+}
+
+// Never cache the error fragment: without this a transient upstream
+// failure — or a deterministic 422 from the branch above — could be
+// reused for repeated load-more requests.
+if (error !== null) {
+  Astro.response.headers.set('Cache-Control', 'no-store');
 }
 ---
 
