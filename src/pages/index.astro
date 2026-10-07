@@ -4,6 +4,7 @@ import CatalogueSection from '../components/CatalogueSection.astro';
 import {
   clampApiPageLimit,
   ApiRequestError,
+  getApiErrorMessage,
   listExtensions,
   type ExtensionListResponse,
 } from '@/lib/api/client';
@@ -30,10 +31,18 @@ try {
     limit: activeLimit,
   });
 } catch (error) {
-  catalogueError =
-    error instanceof ApiRequestError
-      ? error.message
-      : 'Unable to load the extension catalogue. Please try again.';
+  if (error instanceof ApiRequestError) {
+    catalogueError = getApiErrorMessage(error);
+    Astro.response.status = error.status >= 400 ? error.status : 502;
+  } else {
+    catalogueError =
+      'Unable to load the extension catalogue. Please try again.';
+    Astro.response.status = 502;
+  }
+  // Opt out of the '/' route rule: cache headers are stamped after render,
+  // so without this the error card stays CDN-cached to maxAge.
+  Astro.cache.set(false);
+  Astro.response.headers.set('Cache-Control', 'no-store');
 }
 
 const extensions = cataloguePage?.result ?? [];
