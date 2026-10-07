@@ -66,9 +66,10 @@
             "maxLength": 4000
           },
           "website": {
-            "type": "string",
+            "type": ["string", "null"],
             "maxLength": 2048,
-            "format": "uri"
+            "format": "uri",
+            "description": "Null when a legacy URL exceeds the card length bound"
           },
           "license": {
             "$ref": "#/components/schemas/License"
@@ -87,9 +88,10 @@
             "maxLength": 100
           },
           "download_url": {
-            "type": "string",
+            "type": ["string", "null"],
             "maxLength": 2048,
-            "format": "uri"
+            "format": "uri",
+            "description": "Null when a legacy URL exceeds the card length bound"
           },
           "id": {
             "type": "string"
@@ -219,9 +221,10 @@
                 "maxLength": 4000
               },
               "website": {
-                "type": "string",
+                "type": ["string", "null"],
                 "maxLength": 2048,
-                "format": "uri"
+                "format": "uri",
+                "description": "Null when a legacy URL exceeds the card length bound"
               },
               "license": {
                 "$ref": "#/components/schemas/License"
@@ -240,9 +243,10 @@
                 "maxLength": 100
               },
               "download_url": {
-                "type": "string",
+                "type": ["string", "null"],
                 "maxLength": 2048,
-                "format": "uri"
+                "format": "uri",
+                "description": "Null when a legacy URL exceeds the card length bound"
               }
             },
             "required": [
@@ -533,7 +537,23 @@
                       "releases": {
                         "type": "array",
                         "items": {
-                          "$ref": "#/components/schemas/Release"
+                          "allOf": [
+                            {
+                              "$ref": "#/components/schemas/Release"
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "tag": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 200,
+                                  "description": "At most 100 Unicode code points in historical content"
+                                }
+                              },
+                              "additionalProperties": false
+                            }
+                          ]
                         },
                         "maxItems": 100
                       }
@@ -589,7 +609,23 @@
           "releases": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/Release"
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Release"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "tag": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "description": "At most 100 Unicode code points in historical content"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              ]
             },
             "maxItems": 100
           },
@@ -692,6 +728,7 @@
           },
           "id": {
             "type": "string",
+            "maxLength": 200,
             "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
           }
         },
@@ -789,6 +826,82 @@
         ],
         "additionalProperties": false
       },
+      "ExtensionRevisionSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "extension_id": {
+            "type": "string"
+          },
+          "developer_id": {
+            "type": "string"
+          },
+          "submitted_by": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "approved", "rejected"]
+          },
+          "name": {
+            "type": ["string", "null"],
+            "maxLength": 120
+          },
+          "version": {
+            "type": ["string", "null"],
+            "maxLength": 100
+          },
+          "description": {
+            "type": ["string", "null"],
+            "maxLength": 4000
+          },
+          "content_bytes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "content_available": {
+            "type": "boolean"
+          },
+          "content_hash": {
+            "type": ["string", "null"]
+          },
+          "compacted_at": {
+            "type": ["string", "null"]
+          },
+          "reviewer_id": {
+            "type": ["string", "null"]
+          },
+          "review_note": {
+            "type": ["string", "null"]
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "reviewed_at": {
+            "type": ["string", "null"]
+          }
+        },
+        "required": [
+          "id",
+          "extension_id",
+          "developer_id",
+          "submitted_by",
+          "status",
+          "name",
+          "version",
+          "description",
+          "content_bytes",
+          "content_available",
+          "content_hash",
+          "compacted_at",
+          "reviewer_id",
+          "review_note",
+          "created_at",
+          "reviewed_at"
+        ]
+      },
       "ExtensionRevision": {
         "type": "object",
         "properties": {
@@ -809,7 +922,39 @@
             "enum": ["pending", "approved", "rejected"]
           },
           "content": {
-            "$ref": "#/components/schemas/StoredExtensionContent"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StoredExtensionContent"
+              },
+              {
+                "type": ["object", "null"]
+              }
+            ]
+          },
+          "name": {
+            "type": ["string", "null"],
+            "maxLength": 120
+          },
+          "version": {
+            "type": ["string", "null"],
+            "maxLength": 100
+          },
+          "description": {
+            "type": ["string", "null"],
+            "maxLength": 4000
+          },
+          "content_bytes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "content_available": {
+            "type": "boolean"
+          },
+          "content_hash": {
+            "type": ["string", "null"]
+          },
+          "compacted_at": {
+            "type": ["string", "null"]
           },
           "reviewer_id": {
             "type": ["string", "null"]
@@ -831,6 +976,13 @@
           "submitted_by",
           "status",
           "content",
+          "name",
+          "version",
+          "description",
+          "content_bytes",
+          "content_available",
+          "content_hash",
+          "compacted_at",
           "reviewer_id",
           "review_note",
           "created_at",
@@ -1573,6 +1725,16 @@
               }
             }
           },
+          "413": {
+            "description": "Raw request exceeds 512 KiB",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
           "422": {
             "description": "Body failed validation",
             "content": {
@@ -1583,8 +1745,28 @@
               }
             }
           },
+          "429": {
+            "description": "Extension write allowance exhausted; see Retry-After",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
           "500": {
             "description": "Database error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Write admission unavailable",
             "content": {
               "application/json": {
                 "schema": {
@@ -1639,6 +1821,16 @@
           },
           "404": {
             "description": "No extension with that id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Oversized legacy content requires resubmission",
             "content": {
               "application/json": {
                 "schema": {
@@ -1767,6 +1959,16 @@
               }
             }
           },
+          "413": {
+            "description": "Raw request exceeds 512 KiB",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
           "422": {
             "description": "Body failed validation",
             "content": {
@@ -1777,8 +1979,28 @@
               }
             }
           },
+          "429": {
+            "description": "Extension write allowance exhausted; see Retry-After",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
           "500": {
             "description": "Database error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Write admission unavailable",
             "content": {
               "application/json": {
                 "schema": {
@@ -1940,7 +2162,7 @@
                     "result": {
                       "type": "array",
                       "items": {
-                        "$ref": "#/components/schemas/ExtensionRevision"
+                        "$ref": "#/components/schemas/ExtensionRevisionSummary"
                       }
                     },
                     "pagination": {
@@ -1984,6 +2206,115 @@
           },
           "422": {
             "description": "Pagination query failed validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Database error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/extensions/{id}/revisions/{revisionId}": {
+      "get": {
+        "tags": ["Extensions"],
+        "summary": "Read one revision; compacted content is null",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "acme-gateway"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "example": "b6e2c9c4-3f1a-4e9b-9c3a-2e4b1a2f9d10"
+            },
+            "required": true,
+            "name": "revisionId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One revision with its review outcome; content is null when compacted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "$ref": "#/components/schemas/ExtensionRevision"
+                    }
+                  },
+                  "required": ["result"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The account is inactive, or the caller neither owns this extension nor moderates",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No extension or revision with that id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Oversized legacy content requires administrative export or resubmission",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Path failed validation",
             "content": {
               "application/json": {
                 "schema": {
@@ -3830,6 +4161,16 @@
               }
             }
           },
+          "400": {
+            "description": "Unable to read request body",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
           "401": {
             "description": "Missing or invalid bearer token",
             "content": {
@@ -3870,6 +4211,16 @@
               }
             }
           },
+          "413": {
+            "description": "Raw request exceeds 512 KiB",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
           "422": {
             "description": "Path params, content, or correction_note failed validation",
             "content": {
@@ -3880,8 +4231,28 @@
               }
             }
           },
+          "429": {
+            "description": "Extension write allowance exhausted; see Retry-After",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
           "500": {
             "description": "Database error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Write admission unavailable",
             "content": {
               "application/json": {
                 "schema": {
@@ -4289,7 +4660,7 @@
                     "result": {
                       "type": "array",
                       "items": {
-                        "$ref": "#/components/schemas/ExtensionRevision"
+                        "$ref": "#/components/schemas/ExtensionRevisionSummary"
                       }
                     },
                     "pagination": {

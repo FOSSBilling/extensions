@@ -1,6 +1,6 @@
 ---
 import { formatDateTime } from '@/lib/format-date';
-import type { ExtensionRevision } from '@/lib/api/client';
+import type { ExtensionRevisionSummary } from '@/lib/api/client';
 import StatusBadge from './StatusBadge.astro';
 
 // Work-queue view for pending revisions: dense summary rows carrying every
@@ -10,7 +10,7 @@ import StatusBadge from './StatusBadge.astro';
 // [data-compare] toggles + fetches, [data-open-approve]/[data-open-reject]
 // feed the shared dialogs.
 interface Props {
-  revisions: ExtensionRevision[];
+  revisions: ExtensionRevisionSummary[];
 }
 
 const { revisions } = Astro.props;
@@ -31,16 +31,15 @@ const DETAIL_COLUMNS = 4;
     </thead>
     <tbody class="divide-y divide-border">
       {revisions.map((r) => {
-        const title = r.content.name ?? r.extension_id;
-        const version = r.content.version?.trim() || null;
-        const description = r.content.description?.trim() || null;
+        const title = r.name ?? r.extension_id;
+        const version = r.version?.trim() || null;
+        const description = r.description?.trim() || null;
         return (
           <>
             <tr
               data-pending-row
               data-extension-id={r.extension_id}
               data-revision-id={r.id}
-              data-revision-json={JSON.stringify(r.content)}
             >
               <td class="px-4 py-2">
                 <p class="font-medium">
@@ -66,15 +65,19 @@ const DETAIL_COLUMNS = 4;
                     data-size="sm"
                     data-variant="outline"
                     data-compare
+                    disabled={!r.content_available}
                     aria-expanded="false"
                     aria-controls={`diff-wrap-${r.id}`}
                   >
-                    Show Changes
+                    {r.content_available
+                      ? 'Show Changes'
+                      : 'Content Unavailable'}
                   </button>
                   <button
                     type="button"
                     class="btn"
                     data-size="sm"
+                    disabled={!r.content_available}
                     data-open-approve={r.id}
                     data-extension-id={r.extension_id}
                     data-revision-id={r.id}

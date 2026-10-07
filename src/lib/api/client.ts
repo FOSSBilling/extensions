@@ -8,6 +8,7 @@ import {
   getDevelopersMe,
   getExtensions,
   getExtensionsById,
+  getExtensionsByIdRevisionsByRevisionId,
   getModerationCounts,
   getRevisions,
   getUsersMe,
@@ -40,6 +41,7 @@ import {
   type ExtensionCreate,
   type ExtensionListItem,
   type ExtensionRevision,
+  type ExtensionRevisionSummary,
   type ExtensionUpdate,
   type GetExtensionsData,
   type GetModerationCountsResponse,
@@ -123,6 +125,7 @@ export type {
   ExtensionCreate,
   ExtensionListItem,
   ExtensionRevision,
+  ExtensionRevisionSummary,
   ExtensionUpdate,
   OwnedExtension,
   OwnedExtensionListItem,
@@ -518,6 +521,14 @@ export function createApiClient(env: ApplicationEnv, subject: string) {
 
     withdrawExtension: (id: string) =>
       callResult(deleteExtensionsById({ client, path: { id } })),
+
+    getRevision: (id: string, revisionId: string): Promise<ExtensionRevision> =>
+      callResult(
+        getExtensionsByIdRevisionsByRevisionId({
+          client,
+          path: { id, revisionId },
+        }),
+      ),
 
     listModerationQueue: async (
       status: RevisionStatus = 'pending',
