@@ -36,10 +36,11 @@ beforeEach(() => {
 describe('on-demand revision proxy', () => {
   it('authorizes before issuing any content query', async () => {
     mocks.guard.mockResolvedValue(new Response(null, { status: 403 }));
-    expect((await GET(context('extensionId=ext&revisionId=rev'))).status).toBe(
-      403,
-    );
+    expect(
+      (await GET(context('extensionId=ext&revisionId=rev&compare=1'))).status,
+    ).toBe(403);
     expect(mocks.getRevision).not.toHaveBeenCalled();
+    expect(mocks.getModerationExtension).not.toHaveBeenCalled();
   });
   it('requires a revision ID instead of expanding all history', async () => {
     expect((await GET(context('extensionId=ext'))).status).toBe(422);

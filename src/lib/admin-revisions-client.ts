@@ -202,7 +202,7 @@ export function initRevisionQueue(): void {
       const extensionId = row?.dataset.extensionId ?? '';
       const revisionId = row?.dataset.revisionId ?? '';
       if (!body) return;
-      if (!wrap.hidden && errorEl?.hidden !== false) {
+      if (!wrap.hidden) {
         wrap.hidden = true;
         frozenBtn.setAttribute('aria-expanded', 'false');
         frozenBtn.textContent = frozenBtn.dataset.show ?? 'Show';
@@ -265,7 +265,8 @@ export function initRevisionQueue(): void {
           }
           wrap.hidden = false;
           frozenBtn.setAttribute('aria-expanded', 'true');
-          frozenBtn.textContent = 'Retry';
+          frozenBtn.textContent =
+            frozenBtn.dataset.hide || 'Hide Reviewed Content';
         } finally {
           frozenBtn.disabled = false;
         }
@@ -289,7 +290,7 @@ export function initRevisionQueue(): void {
       const extensionId = host?.dataset.extensionId ?? '';
       const revisionId = host?.dataset.revisionId ?? '';
       if (!body) return;
-      if (!wrap.hidden && errorEl?.hidden !== false) {
+      if (!wrap.hidden) {
         wrap.hidden = true;
         compareBtn.setAttribute('aria-expanded', 'false');
         compareBtn.textContent = 'Show Changes';
@@ -335,7 +336,7 @@ export function initRevisionQueue(): void {
           }
           wrap.hidden = false;
           compareBtn.setAttribute('aria-expanded', 'true');
-          compareBtn.textContent = 'Retry';
+          compareBtn.textContent = 'Hide Changes';
         } finally {
           compareBtn.disabled = false;
         }

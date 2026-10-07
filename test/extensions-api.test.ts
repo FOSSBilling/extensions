@@ -679,6 +679,11 @@ describe('generated Extensions v2 façade', () => {
       .mockResolvedValue(apiResponse({ result: compacted }));
     vi.stubGlobal('fetch', fetchMock);
     const api = createApiClient(authenticatedEnv, 'moderator-sub');
+    expectTypeOf<
+      null extends Awaited<ReturnType<typeof api.getRevision>>['content']
+        ? true
+        : false
+    >().toEqualTypeOf<true>();
     expect(await api.getRevision('extension-1', 'revision-1')).toEqual(
       compacted,
     );
