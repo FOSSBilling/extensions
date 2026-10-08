@@ -22,7 +22,6 @@
         }
     },
     "workers_dev": false,
-    "preview_urls": true,
     "keep_vars": true,
     "vars": {
         "ENVIRONMENT": "production",
