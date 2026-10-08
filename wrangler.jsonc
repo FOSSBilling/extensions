@@ -48,7 +48,9 @@
     },
     "previews": {
         "vars": {
-            "ENVIRONMENT": "preview"
+            "ENVIRONMENT": "preview",
+            "EXTENSIONS_API_BASE_URL": "https://api.fossbilling.net",
+            "EXTENSIONS_API_TRANSPORT": "binding"
         },
         "unsafe": {
             "bindings": [
