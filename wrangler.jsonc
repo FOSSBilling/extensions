@@ -61,12 +61,6 @@
                 "environment": "production"
                 }
             ]
-        },
-        "kv_namespaces": [
-            {
-                "binding": "SESSION",
-                "id": "3f80e066c7e4473fb730ce7d3f2dbc13"
-            }
-        ]
+        }
     }
 }
