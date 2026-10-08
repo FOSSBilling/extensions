@@ -568,6 +568,10 @@ describe('generated Extensions v2 façade', () => {
       '0123456789abcdef0123456789abcdef',
     );
     expect(requestUrl(approveFetch).searchParams.get('notify')).toBeNull();
+    expect(await requestFrom(approveFetch).json()).toEqual({
+      expected_revision: 3,
+      expected_generation: '0123456789abcdef0123456789abcdef',
+    });
 
     const optOutFetch = vi.fn().mockResolvedValue(
       apiResponse({
@@ -582,6 +586,10 @@ describe('generated Extensions v2 façade', () => {
       false,
     );
     expect(requestUrl(optOutFetch).searchParams.get('notify')).toBe('false');
+    expect(await requestFrom(optOutFetch).json()).toEqual({
+      expected_revision: 3,
+      expected_generation: '0123456789abcdef0123456789abcdef',
+    });
   });
 
   it('returns moderation queue pagination and preserves status/cursor filters', async () => {

@@ -21,7 +21,7 @@ export const POST: APIRoute = formAction<{
     }
     const expectedGeneration = formString(form, 'expected_generation');
     if (!/^[0-9a-f]{32}$/.test(expectedGeneration)) {
-      return 'Missing or invalid profile revision.';
+      return 'Missing or invalid profile generation.';
     }
     return {
       expectedRevision,
