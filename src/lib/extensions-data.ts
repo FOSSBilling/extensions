@@ -86,6 +86,7 @@ function toDeveloperProfile(
     contact_email: developer.contact_email,
     approved: developer.approved,
     content_revision: developer.content_revision,
+    profile_generation: developer.profile_generation,
     github_org_verified: developer.github_org_verified,
     github_verification_note: developer.github_verification_note,
     github_verified_at: developer.github_verified_at,

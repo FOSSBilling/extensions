@@ -643,7 +643,12 @@ export function createApiClient(env: ApplicationEnv, subject: string) {
 
     listAllDevelopers: () => developersByScope('all'),
 
-    approveDeveloper: (id: string, expectedRevision: number, notify = true) =>
+    approveDeveloper: (
+      id: string,
+      expectedRevision: number,
+      expectedGeneration: string,
+      notify = true,
+    ) =>
       callResult(
         postDevelopersByIdApprove({
           client,
@@ -651,6 +656,7 @@ export function createApiClient(env: ApplicationEnv, subject: string) {
           ...notifyQuery(notify),
           body: {
             expected_revision: expectedRevision,
+            expected_generation: expectedGeneration,
           } satisfies DeveloperApproval,
         }),
       ),

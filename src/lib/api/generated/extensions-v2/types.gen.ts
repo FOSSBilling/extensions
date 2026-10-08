@@ -351,6 +351,7 @@ export type PendingDeveloperClaim = DeveloperClaim & {
 export type DeveloperProfile = Developer & {
   approved: boolean;
   content_revision: number;
+  profile_generation: string;
   github_org_verified?: boolean;
   github_verification_note?: string;
   github_verified_at?: string | null;
@@ -414,6 +415,7 @@ export type ModeratorCorrect = {
 
 export type DeveloperApproval = {
   expected_revision: number;
+  expected_generation: string;
 };
 
 export type DeveloperHistoryEntry = {
@@ -1795,7 +1797,7 @@ export type PostDevelopersByIdApproveErrors = {
    */
   409: Error;
   /**
-   * id param or notify query failed validation
+   * id param, approval body, or notify query failed validation
    */
   422: Error;
   /**

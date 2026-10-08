@@ -182,7 +182,10 @@ const stats = [
     description="The owner will see the trust badge on their live profile."
     formAction="/account/admin/developers/placeholder/approve"
     notifyRecipient="owner"
-    hiddenFields={[{ name: 'expected_revision', value: '' }]}
+    hiddenFields={[
+      { name: 'expected_revision', value: '' },
+      { name: 'expected_generation', value: '' },
+    ]}
   />
 </Admin>
 

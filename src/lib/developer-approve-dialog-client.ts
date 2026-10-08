@@ -2,7 +2,7 @@
 // surfaces (/account/admin and /account/admin/developers). Each row button
 // carries its developer on data attributes (same pattern as the delist
 // confirm on /account/admin/extensions); the dialog's action, title, and
-// expected_revision input are filled in before showModal().
+// expected_revision/expected_generation inputs are filled in before showModal().
 export function initDeveloperApproveDialog(): void {
   const dialog = document.querySelector<HTMLDialogElement>(
     '#admin-approve-developer',
@@ -20,12 +20,18 @@ export function initDeveloperApproveDialog(): void {
     const revisionInput = dialog.querySelector<HTMLInputElement>(
       'input[name="expected_revision"]',
     );
+    const generationInput = dialog.querySelector<HTMLInputElement>(
+      'input[name="expected_generation"]',
+    );
     if (form) form.action = `/account/admin/developers/${id}/approve`;
     if (titleEl) {
       titleEl.textContent = `Approve "${button.dataset.developerName ?? id}"?`;
     }
     if (revisionInput) {
       revisionInput.value = button.dataset.expectedRevision ?? '';
+    }
+    if (generationInput) {
+      generationInput.value = button.dataset.expectedGeneration ?? '';
     }
     dialog.showModal();
   });
