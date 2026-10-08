@@ -1,9 +1,8 @@
 {
     "name": "extensions",
-    "compatibility_date": "2026-06-06",
+    "compatibility_date": "2026-10-01",
     "compatibility_flags": [
-        "global_fetch_strictly_public",
-        "nodejs_compat"
+        "global_fetch_strictly_public"
     ],
     // Workers Cache: serves route-cached pages (Cloudflare-CDN-Cache-Control,
     // set by Astro's cacheCloudflare provider) before the worker runs, and
@@ -26,6 +25,7 @@
     "preview_urls": true,
     "keep_vars": true,
     "vars": {
+        "ENVIRONMENT": "production",
         "EXTENSIONS_API_BASE_URL": "https://api.fossbilling.net",
         "EXTENSIONS_API_TRANSPORT": "binding"
     },
@@ -45,5 +45,18 @@
     "assets": {
         "binding": "ASSETS",
         "directory": "./dist"
+    },
+    "previews": {
+        "vars": {
+            "ENVIRONMENT": "preview",
+            "EXTENSIONS_API_BASE_URL": "https://api.fossbilling.net",
+            "EXTENSIONS_API_TRANSPORT": "binding"
+        },
+        "services": [
+            {
+                "binding": "EXTENSIONS_API",
+                "service": "api"
+            }
+        ]
     }
 }
