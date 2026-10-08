@@ -14,6 +14,7 @@ concurrency:
 
 jobs:
   validate:
+    name: Validate OpenAPI Update
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -89,6 +90,7 @@ jobs:
             src/lib/api/generated/extensions-v2
 
   publish:
+    name: Publish OpenAPI Update PR
     needs: validate
     if: needs.validate.outputs.changed == 'true'
     runs-on: ubuntu-latest
