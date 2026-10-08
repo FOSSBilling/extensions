@@ -52,15 +52,11 @@
             "EXTENSIONS_API_BASE_URL": "https://api.fossbilling.net",
             "EXTENSIONS_API_TRANSPORT": "binding"
         },
-        "unsafe": {
-            "bindings": [
-                {
-                "name": "EXTENSIONS_API",
-                "type": "service",
-                "service": "api",
-                "environment": "production"
-                }
-            ]
-        }
+        "services": [
+            {
+                "binding": "EXTENSIONS_API-PRODUCTION",
+                "service": "api"
+            }
+        ]
     }
 }
