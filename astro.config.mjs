@@ -47,5 +47,5 @@ export default defineConfig({
       exclude: ['basecoat-css/basecoat', 'basecoat-css/tabs'],
     },
   },
-  session: false
+  session: false,
 });
