@@ -54,8 +54,8 @@
         },
         "services": [
             {
-                "binding": "EXTENSIONS_API-PRODUCTION",
-                "service": "api"
+                "binding": "EXTENSIONS_API",
+                "service": "api-PRODUCTION"
             }
         ]
     }
