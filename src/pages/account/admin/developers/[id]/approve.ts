@@ -8,6 +8,7 @@ import { setFlash } from '@/lib/flash';
 
 export const POST: APIRoute = formAction<{
   expectedRevision: number;
+  expectedGeneration: string;
   notify: boolean;
 }>({
   guard: requireModerator,
@@ -18,7 +19,15 @@ export const POST: APIRoute = formAction<{
     if (!Number.isInteger(expectedRevision) || expectedRevision < 1) {
       return 'Missing or invalid profile revision.';
     }
-    return { expectedRevision, notify: formFlag(form, 'notify') };
+    const expectedGeneration = formString(form, 'expected_generation');
+    if (!/^[0-9a-f]{32}$/.test(expectedGeneration)) {
+      return 'Missing or invalid profile revision.';
+    }
+    return {
+      expectedRevision,
+      expectedGeneration,
+      notify: formFlag(form, 'notify'),
+    };
   },
   run: async ({ context, env, user, input }) => {
     const { id } = context.params;
@@ -27,6 +36,7 @@ export const POST: APIRoute = formAction<{
     const result = await createApiClient(env, user.sub).approveDeveloper(
       id,
       input.expectedRevision,
+      input.expectedGeneration,
       input.notify,
     );
     purgeCatalogue(context);

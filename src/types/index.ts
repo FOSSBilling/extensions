@@ -92,6 +92,7 @@ export type DeveloperProfile = Developer & {
   approved: boolean;
   contact_email?: string;
   content_revision: number;
+  profile_generation: string;
   github_org_verified?: boolean;
   github_verification_note?: string;
   github_verified_at?: string | null;
@@ -105,6 +106,7 @@ export type PublicDeveloperProfile = Omit<
   DeveloperProfile,
   | 'contact_email'
   | 'content_revision'
+  | 'profile_generation'
   | 'github_org_verified'
   | 'github_verification_note'
   | 'github_verified_at'

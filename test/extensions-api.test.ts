@@ -565,6 +565,7 @@ describe('generated Extensions v2 façade', () => {
     await createApiClient(authenticatedEnv, 'moderator-sub').approveDeveloper(
       'dev-1',
       3,
+      '0123456789abcdef0123456789abcdef',
     );
     expect(requestUrl(approveFetch).searchParams.get('notify')).toBeNull();
 
@@ -577,6 +578,7 @@ describe('generated Extensions v2 façade', () => {
     await createApiClient(authenticatedEnv, 'moderator-sub').approveDeveloper(
       'dev-1',
       3,
+      '0123456789abcdef0123456789abcdef',
       false,
     );
     expect(requestUrl(optOutFetch).searchParams.get('notify')).toBe('false');
@@ -816,6 +818,7 @@ describe('cursor-paginated moderator lists', () => {
       name: id,
       approved: true,
       content_revision: 1,
+      profile_generation: '0123456789abcdef0123456789abcdef',
     };
   }
 
