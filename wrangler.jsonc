@@ -17,7 +17,10 @@
 		},
 		"traces": {
 			"enabled": true
-		}
+		},
+    	"issues": {
+      		"enabled": true
+    	}
 	},
 	"workers_dev": false,
 	"preview_urls": true,
