@@ -30,7 +30,6 @@ import {
   deleteUsersMe,
   putDevelopersMe,
   putExtensionsById,
-  putUsersMeIdentity,
   type Developer,
   type DeveloperApproval,
   type DeveloperHistoryEntry,
@@ -62,7 +61,8 @@ import {
   type Client,
 } from '@/lib/api/generated/extensions-v2/client';
 import { dataCacheKey, cachedEdgeRead } from '../cache';
-import { mintBearerAssertion } from '../assertion';
+import { mintBearerAssertion, mintIdentitySyncAssertion } from '../assertion';
+import { sha256Hex } from '../hash';
 import type { ApplicationEnv } from '../runtime';
 
 const DEFAULT_API_PAGE_LIMIT = 50;
@@ -486,8 +486,44 @@ export function createApiClient(env: ApplicationEnv, subject: string) {
     );
 
   return {
-    syncIdentity: (identity: UserIdentityInput): Promise<AccountUser> =>
-      callResult(putUsersMeIdentity({ client, body: identity })),
+    // Identity sync carries a dedicated body-bound proof instead of the
+    // shared bearer assertion: the API requires purpose 'identity-sync' plus
+    // a body_sha256 claim over the exact request bytes. The generated client
+    // serializes internally, so this call is hand-rolled to guarantee the
+    // hashed bytes and the sent bytes are identical.
+    syncIdentity: async (identity: UserIdentityInput): Promise<AccountUser> => {
+      const body = JSON.stringify(identity);
+      const assertion = await mintIdentitySyncAssertion(
+        subject,
+        env.assertionSigningSecret,
+        await sha256Hex(body),
+      );
+      const baseUrl = env.extensionsApi.baseUrl.replace(/\/$/, '');
+      const response = await env.extensionsApi.fetch(
+        new Request(`${baseUrl}/extensions/v2/users/me/identity`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${assertion}`,
+          },
+          body,
+        }),
+      );
+      if (!response.ok) {
+        let errorBody: unknown;
+        try {
+          errorBody = await response.json();
+        } catch {
+          errorBody = undefined;
+        }
+        throw apiErrorFrom(errorBody, response.status);
+      }
+      const data = (await response.json()) as { result?: AccountUser };
+      if (data?.result === undefined) {
+        throw apiErrorFrom(undefined, undefined);
+      }
+      return data.result;
+    },
 
     getUser: (): Promise<AccountUser> => callResult(getUsersMe({ client })),
 
