@@ -85,7 +85,7 @@ npm run check        # astro check
 npm run build        # production build
 ```
 
-Refresh the API contract with `npm run api:update` (also refreshed weekly by the `Update Extensions v2 OpenAPI` workflow) and regenerate the client with `npm run api:generate`.
+Refresh the API contract and client with `npm run api:update` (also run weekly by the `Update Extensions v2 OpenAPI` workflow). To regenerate the client from the existing contract only, run `npm run api:generate`.
 
 Production secrets:
 
