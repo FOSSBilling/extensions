@@ -1,37 +1,34 @@
 # FOSSBilling Extensions
 
-The FOSSBilling Extensions site is the official directory for extensions that can be discovered and installed by FOSSBilling users.
+The official extension directory for FOSSBilling.
 
-Visit the directory at [extensions.fossbilling.org](https://extensions.fossbilling.org).
+Visit it at [extensions.fossbilling.org](https://extensions.fossbilling.org).
 
 ## About the Directory
 
-The directory helps FOSSBilling users find compatible modules, themes, payment gateways, server managers, domain registrars, hooks, and translations.
+Lists modules, themes, payment gateways, server managers, domain registrars, hooks, and translations that can be auto-installed from within FOSSBilling.
 
-Only extensions that can be auto-installed from within FOSSBilling are listed at this time. Other community extensions may still be available through the FOSSBilling documentation, GitHub, or individual maintainers.
+Only auto-installable extensions are listed. Other community extensions may be available via the FOSSBilling docs, GitHub, or individual maintainers.
 
 ## Installing Extensions
 
-The recommended way to install an extension is from your FOSSBilling admin panel:
+From your FOSSBilling admin panel:
 
-1. Log in to your FOSSBilling admin panel.
+1. Log in to the admin panel.
 2. Open the Extensions page.
-3. Find the extension you want to install.
-4. Click Install.
+3. Find the extension and click Install.
 
-Extensions can also be installed manually by downloading an archive, extracting it into the correct FOSSBilling extension folder, and enabling it from the admin panel.
+Manual install is also possible: download the archive, extract it into the correct FOSSBilling extension folder, and enable it from the admin panel.
 
 ## Submitting Extensions
 
-Sign in (top-right of the site) and visit [/account](https://extensions.fossbilling.org/account). First-time publishers create a [developer profile](https://extensions.fossbilling.org/account/developer) (publisher name, type, URL) — this takes effect immediately, no approval needed, so you can submit new extensions or edit ones you already publish right away. A moderator can separately mark a profile as approved, shown as a badge; extension submissions themselves still go through moderator review before they appear in (or change) the public directory — see [Authentication](#authentication) below for how ownership and moderation work.
+Sign in (top-right of the site) and open [/account](https://extensions.fossbilling.org/account). First-time publishers create a [developer profile](https://extensions.fossbilling.org/account/developer), then submit new extensions or edit ones they publish. Submissions go through moderator review before they appear in the directory.
 
-Your personal [account profile](https://extensions.fossbilling.org/account/profile) (display name, bio) is separate from your developer profile — it's not shown publicly yet, but is there ahead of future features like comments and ratings.
+Your [account profile](https://extensions.fossbilling.org/account/profile) (display name, bio) is separate from your developer profile and is not shown publicly yet.
 
 ## Badges
 
-The FOSSBilling API provides badges that extension authors can use in README files or project pages.
-
-Examples:
+The [`FOSSBilling/api`](https://github.com/FOSSBilling/api) repo serves badges for use in READMEs and project pages:
 
 ```text
 https://api.fossbilling.net/extensions/v1/Example/badges/version
@@ -39,7 +36,7 @@ https://api.fossbilling.net/extensions/v1/Example/badges/min_fossbilling_version
 https://api.fossbilling.net/extensions/v1/Example/badges/license
 ```
 
-Badge colors can be customized with a `?color=` query parameter.
+Colors can be customized with `?color=`.
 
 ## Contributing
 
@@ -49,192 +46,46 @@ For broader discussion, join the FOSSBilling community on [Discord](https://foss
 
 ## Local Development
 
+Astro site on Cloudflare Workers. Extension data comes from the [`FOSSBilling/api`](https://github.com/FOSSBilling/api) repo's `/extensions/v2` service via the generated client in `src/lib/api/generated/extensions-v2`. Sign-in is delegated to `auth.fossbilling.net` via OAuth2/OIDC.
+
 Install dependencies:
 
 ```bash
 npm install
 ```
 
-The `overrides.vite` entry in `package.json` pins one vite version across
-astro, vitest, and tailwind so the worker bundle and test runner agree.
-
-Run the checks locally before pushing — the CI workflow runs this same
-suite on pushes to `main` and on pull requests targeting `main`:
-
-```bash
-npm test        # vitest suite
-npm run check   # astro check (types + Astro diagnostics)
-npm run build   # production build
-```
-
-Create local secrets:
+Set up local secrets:
 
 ```bash
 cp .dev.vars.example .dev.vars
 ```
 
-`AUTH_CLIENT_ID` / `AUTH_CLIENT_SECRET` are issued by an admin of the
-[`FOSSBilling/auth`](https://github.com/FOSSBilling/auth) service (dynamic client
-registration is disabled there) — request a client with both
-`https://extensions.fossbilling.org/auth/callback` and
-`http://localhost:4321/auth/callback` as redirect URIs. `SESSION_SECRET` can be any
-random string, e.g. `openssl rand -base64 32`.
+| Variable | Notes |
+| --- | --- |
+| `AUTH_CLIENT_ID` / `AUTH_CLIENT_SECRET` | Issued by an admin of [`FOSSBilling/auth`](https://github.com/FOSSBilling/auth). Request `https://extensions.fossbilling.org/auth/callback` and `http://localhost:4321/auth/callback` as redirect URIs. |
+| `SESSION_SECRET` | Any random string, e.g. `openssl rand -base64 32`. |
+| `ASSERTION_SIGNING_SECRET` | Must match the `api` repo's value exactly. |
+| `EXTENSIONS_REVALIDATE_SECRET` | Shared with the `api` repo for `POST /api/revalidate`. |
+| `EXTENSIONS_API_BASE_URL` | Defaults to `https://api.fossbilling.net`. Point at a local `api` dev server when working on both. |
+| `EXTENSIONS_API_TRANSPORT` | `http` locally, `binding` in production. |
 
-`ASSERTION_SIGNING_SECRET` must match the
-[`FOSSBilling/api`](https://github.com/FOSSBilling/api) repo's own
-`ASSERTION_SIGNING_SECRET` exactly — it's a shared secret this app uses to prove a
-signed-in user's identity to that repo's `/extensions/v2` submission endpoints (see
-[Authentication](#authentication)). By default `/account` calls the production api at
-`https://api.fossbilling.net`; set `EXTENSIONS_API_BASE_URL` in `.dev.vars` to point at
-a local `api` dev server instead if you're working on that side too.
-
-`EXTENSIONS_API_TRANSPORT` selects how server-side API calls are delivered. Set it
-to `http` for the normal local setup. Production uses `binding`, which forwards the
-same Fetch/OpenAPI requests through the `api` Worker service binding. Binding failures
-are surfaced; the site does not silently retry over HTTP.
-
-To exercise the binding locally, run the site and API with a connected multi-Worker
-Wrangler setup using sibling `extensions` and `api` checkouts. The HTTP mode remains
-the simpler option when only one Worker is running.
-
-Start the development server:
+Start the dev server:
 
 ```bash
 npm run dev
 ```
 
-The site loads extension data from the API over HTTPS. For local development, point
-`EXTENSIONS_API_BASE_URL` at a local API Worker to exercise account and catalogue
-pages against a real database.
-
-Icons and avatars from the known FOSSBilling, GitHub, GitLab, Google, and
-Gravatar origins are resized through the `/images/{variant}` route on Cloudflare.
-The server issues source-and-variant HMAC signatures using `SESSION_SECRET`;
-unsigned or modified transform URLs are rejected before any fetch or cache access.
-Catalogue API responses include `optimized_icon_url` for browser-rendered cards.
-Cache keys contain only the canonical source, variant, and negotiated format.
-Rotating `SESSION_SECRET` invalidates previously issued image URLs, so purge
-cached catalogue pages when rotating it. Custom origins remain direct browser requests.
-Other valid HTTP(S) image URLs remain direct browser requests, so custom-hosted
-images continue to work without turning the route into an arbitrary fetch proxy.
-During local development, allowlisted sources are redirected to the browser
-because Cloudflare image transformations are not available in Astro's local
-Cloudflare runtime.
-If a Cloudflare transformation is unavailable, the route redirects the browser
-to the same allowlisted source instead of proxying an unbounded fallback. The
-server-side transform request does not follow origin redirects, and transformed
-responses larger than 2 MiB are rejected.
-For Cloudflare resizing to take effect, deployments must allow the listed
-origins under Images → Transformations → Sources.
-
-### Runtime portability
-
-Application code reads its runtime dependencies from `Astro.locals.env`, using the
-provider-neutral interfaces in `src/lib/runtime.ts`. The current Cloudflare
-binding mapping is isolated to `src/platform/cloudflare.ts`, so moving to another
-serverless provider requires replacing that adapter and deployment configuration
-rather than changing pages and domain services throughout the application.
-
-Domain data is accessed through the generated HTTPS client for the API Worker;
-the site deliberately has no database binding. Cloudflare image transformations are
-an optional optimization: the image route falls back to a direct browser request
-for allowlisted sources when that capability is unavailable.
-
-## Authentication
-
-Sign-in is delegated to FOSSBilling's central auth service at
-[auth.fossbilling.net](https://auth.fossbilling.net) via OAuth2/OIDC (Authorization
-Code + PKCE), implemented under `src/pages/auth/` and `src/lib/`. That service is
-identity-only — it never exposes roles or permissions. Extension ownership,
-submitter/moderator status, and any other authorization concept live in the API
-Worker's `users` projection, keyed by the auth service's `sub` claim. The site keeps
-only the browser session and sends a signed, short-lived identity assertion to the API.
-
-The client requests the dedicated `github` scope when it needs the linked GitHub
-username and organization claims. The issuer omits those claims for tokens without
-that scope, and users may need to reauthorize after a scope change.
-
-Sessions are a self-contained, HMAC-signed cookie minted after the initial token
-exchange — this app does not depend on the auth service's own token lifetimes beyond
-that exchange.
-
-### Extension submission, ownership, and moderation
-
-Signed-in users manage two separate profiles from `/account`:
-
-- **Account profile** (`/account/profile`) — personal `display_name`, stored by the API
-  and not moderated (not yet shown publicly).
-- **Developer profile** (`/account/developer`) — the publisher identity (`developers` row:
-  name, type, URL, avatar, and a private contact email) shown on your extensions in the
-  directory and on your public developer page at `/developer/[id]`. Writes take effect
-  immediately (`PUT /extensions/v2/developers/me`) — there's no moderation gate on creating or
-  editing one. A moderator can mark a profile **approved** as a trust badge
-  (`/account/admin/developers`); it's cosmetic, not a publish gate, and any edit clears
-  the badge again until it's re-reviewed. `contact_email` is never returned by the API's
-  public developer operation; it is available only to the owner-management operation.
-
-An extension submission always targets an existing, owned developer profile — the two are
-deliberately kept separate (rather than letting extension submission implicitly create/edit
-a developer profile).
-
-A profile's owner can hand it to a different account via a **single-use transfer link**
-(`/account/developer`, "Transfer ownership") — the link is only ever shown once, expires
-after 24 hours, and the recipient must explicitly accept it at `/account/developer/transfer/[token]`
-while signed in (`POST /extensions/v2/developers/transfers/{token}/accept`). An account can own at
-most one developer profile, so accepting fails with a 409 if the recipient already has one.
-
-Profiles with no owner at all (`owner_user_id IS NULL` — pre-v2 rows, or ones detached by the
-api repo's owner-uniqueness migration) show an **Unclaimed** badge on their public page and can
-be **claimed**: a signed-in user requests ownership (`POST /extensions/v2/developers/{id}/claim`,
-with an optional note), and a moderator approves or rejects the request at
-`/account/admin/developers/claims` — there's no automated verification, so approval is a
-judgment call based on the note and the profile itself. This is how legacy, pre-ownership-tracking
-profiles get linked to an actual account.
-
-Both flows keep the badge/moderation trust model consistent: accepting a transfer or having a
-claim approved clears the `approved` badge, same as any other change to who controls a profile.
-
-The API repo renamed its v2-owned `authors` table (and related schemas/routes) to `developers`
-— "author" implied solo/literary authorship, which never fit an entity that can be an
-organization, gets moderated, and can be transferred or claimed. `extensions.author_id`, the
-FK column on the legacy `extensions` table itself, was deliberately left unrenamed — only the
-table it points to changed — and the API maps it to `developer_id` in its generated responses.
-
-Extension submissions (new extensions and edits) are the one thing still moderated: they go
-into a queue at `/account/admin/revisions` and only take effect once a moderator approves them — a
-higher bar than developer profiles since they carry download URLs and arbitrary readme/website
-content. All reads and writes to the Extensions domain — including users, developers,
-submissions, claims, transfers, and extensions — happen in the
-[`FOSSBilling/api`](https://github.com/FOSSBilling/api) repo's `/extensions/v2` service;
-this app never queries those tables directly. The public catalogue uses the generated
-client from `src/lib/api/generated/extensions-v2`, with `GET /extensions` loaded in bounded cursor pages
-and `GET /extensions/{id}` used for complete detail pages. Owner and moderator views use the same
-two paths with scoped, authenticated reads (`scope=mine` / `scope=all`), and the revision queue
-reads `GET /revisions`. Account ownership/editing queries still
-use the API-backed helpers (`getExtensionsByOwner`, `getOwnedExtension`,
-`getDeveloperByOwner`, and `getDeveloperById`); the public developer page receives its
-`unclaimed` flag from the API response (never exposing the raw owner id itself).
-
-Regenerate the client from the checked-in API contract with:
+Run the checks before pushing. CI runs the same suite on pushes to `main` and pull requests targeting `main`:
 
 ```bash
-npm run api:generate
+npm run api:check    # generated client matches openapi/extensions-v2.json
+npm run format:check # prettier
+npm test             # vitest suite
+npm run check        # astro check
+npm run build        # production build
 ```
 
-The `Update Extensions v2 OpenAPI` GitHub Actions workflow refreshes the
-upstream contract weekly and opens or updates a pull request when it changes.
-For an immediate refresh, run `npm run api:update`; `npm run api:check` verifies
-that the committed generated files match `openapi/extensions-v2.json`.
-
-Each request to `/extensions/v2` is authenticated with a short-lived (60s) HMAC-signed
-bearer assertion this app mints per-request (`src/lib/assertion.ts`), proving the
-signed-in user's identity to the api repo without that repo needing to know anything
-about auth.fossbilling.net. The assertion includes fixed issuer, audience, purpose,
-and version claims; the API can temporarily accept a previous secret during key
-rotation. See that repo's `src/lib/auth/` for the verification side.
-
-Moderators are flagged via the `is_moderator` column on the API-owned `users` table;
-there's no UI to grant it. Database administration belongs in the API repository.
+Refresh the API contract with `npm run api:update` (also refreshed weekly by the `Update Extensions v2 OpenAPI` workflow) and regenerate the client with `npm run api:generate`.
 
 Production secrets:
 
@@ -245,15 +96,6 @@ npx wrangler secret put SESSION_SECRET
 npx wrangler secret put ASSERTION_SIGNING_SECRET
 npx wrangler secret put EXTENSIONS_REVALIDATE_SECRET
 ```
-
-`EXTENSIONS_REVALIDATE_SECRET` authorizes `POST /api/revalidate` (cache purge for
-the CDN-cached catalogue pages). The api repo's worker sends it as a bearer token
-after content mutations, so both Workers must be configured with the same value.
-
-For a no-downtime assertion-secret rotation, configure the API's
-`ASSERTION_SIGNING_SECRET_PREVIOUS` with the old value first, replace the API's
-active secret, then replace this Worker's `ASSERTION_SIGNING_SECRET`. After at
-least 65 seconds and successful request checks, remove the API previous secret.
 
 ## License
 
