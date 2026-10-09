@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { mintBearerAssertion } from '@/lib/assertion';
+import {
+  mintBearerAssertion,
+  mintIdentitySyncAssertion,
+} from '@/lib/assertion';
 
 function decodeBase64Url(value: string): string {
   const normalized = value.replace(/-/g, '+').replace(/_/g, '/');
@@ -66,6 +69,37 @@ describe('bearer assertions', () => {
     expect(decoded.iat).toBeLessThanOrEqual(after);
     expect(Number.isInteger(decoded.iat)).toBe(true);
     expect(Number.isInteger(decoded.exp)).toBe(true);
+    expect(decoded.exp).toBe((decoded.iat as number) + 60);
+  });
+
+  it('mints identity-sync proofs carrying the request body digest', async () => {
+    const token = await mintIdentitySyncAssertion(
+      'user-42',
+      'test-secret',
+      'a'.repeat(64),
+    );
+    const [header, payload, signature] = token.split('.');
+
+    expect(JSON.parse(decodeBase64Url(header))).toEqual({
+      alg: 'HS256',
+      typ: 'JWT',
+    });
+    expect(signature).toMatch(/^[A-Za-z0-9_-]+$/);
+
+    const decoded = JSON.parse(decodeBase64Url(payload)) as Record<
+      string,
+      unknown
+    >;
+    expect(decoded).toEqual({
+      sub: 'user-42',
+      iat: expect.any(Number),
+      exp: expect.any(Number),
+      iss: 'fossbilling-extensions',
+      aud: 'fossbilling-api/extensions-v2',
+      purpose: 'identity-sync',
+      ver: 1,
+      body_sha256: 'a'.repeat(64),
+    });
     expect(decoded.exp).toBe((decoded.iat as number) + 60);
   });
 });
