@@ -846,6 +846,9 @@ describe('identity sync', () => {
     expect(error).toBeInstanceOf(ApiRequestError);
     expect((error as ApiRequestError).status).toBe(403);
     expect((error as ApiRequestError).code).toBe('FORBIDDEN');
+    expect((error as ApiRequestError).message).toBe(
+      'Identity synchronization requires a trusted assertion',
+    );
   });
 });
 

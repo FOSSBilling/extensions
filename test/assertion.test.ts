@@ -23,6 +23,31 @@ function decodeBase64UrlBytes(value: string): ArrayBuffer {
   return buffer;
 }
 
+async function expectValidSignature(
+  header: string,
+  payload: string,
+  signature: string,
+  secret: string,
+): Promise<void> {
+  expect(signature).toMatch(/^[A-Za-z0-9_-]+$/);
+
+  const key = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['verify'],
+  );
+  await expect(
+    crypto.subtle.verify(
+      'HMAC',
+      key,
+      decodeBase64UrlBytes(signature),
+      new TextEncoder().encode(`${header}.${payload}`),
+    ),
+  ).resolves.toBe(true);
+}
+
 describe('bearer assertions', () => {
   it('mints an HS256 header and contextual 60-second payload', async () => {
     const before = Math.floor(Date.now() / 1000);
@@ -34,23 +59,7 @@ describe('bearer assertions', () => {
       alg: 'HS256',
       typ: 'JWT',
     });
-    expect(signature).toMatch(/^[A-Za-z0-9_-]+$/);
-
-    const key = await crypto.subtle.importKey(
-      'raw',
-      new TextEncoder().encode('test-secret'),
-      { name: 'HMAC', hash: 'SHA-256' },
-      false,
-      ['verify'],
-    );
-    await expect(
-      crypto.subtle.verify(
-        'HMAC',
-        key,
-        decodeBase64UrlBytes(signature),
-        new TextEncoder().encode(`${header}.${payload}`),
-      ),
-    ).resolves.toBe(true);
+    await expectValidSignature(header, payload, signature, 'test-secret');
 
     const decoded = JSON.parse(decodeBase64Url(payload)) as Record<
       string,
@@ -84,7 +93,7 @@ describe('bearer assertions', () => {
       alg: 'HS256',
       typ: 'JWT',
     });
-    expect(signature).toMatch(/^[A-Za-z0-9_-]+$/);
+    await expectValidSignature(header, payload, signature, 'test-secret');
 
     const decoded = JSON.parse(decodeBase64Url(payload)) as Record<
       string,
