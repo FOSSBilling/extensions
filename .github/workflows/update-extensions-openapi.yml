@@ -99,12 +99,21 @@ jobs:
       pull-requests: write
 
     steps:
+      - name: Load Secrets from 1Password
+        id: load-secrets
+        uses: 1password/load-secrets-action@70062d7a876d3eb6334754fa26efd2fbd90c32f2 # v5.0.1
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+          # GitHub - FOSSBilling Automation App secrets stored in 1Password.
+          AUTOMATION_APP_CLIENT_ID: op://mkqkefntgcmjlgyxzeaekzuuvq/ts64rykikbva7zplnf5woxx3bi/client-id
+          AUTOMATION_APP_PRIVATE_KEY: op://mkqkefntgcmjlgyxzeaekzuuvq/ts64rykikbva7zplnf5woxx3bi/private-key
+
       - name: Generate Automation Token
         id: app-token
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
-          client-id: ${{ vars.AUTOMATION_APP_CLIENT_ID }}
-          private-key: ${{ secrets.AUTOMATION_APP_PRIVATE_KEY }}
+          client-id: ${{ steps.load-secrets.outputs.AUTOMATION_APP_CLIENT_ID }}
+          private-key: ${{ steps.load-secrets.outputs.AUTOMATION_APP_PRIVATE_KEY }}
           permission-contents: write
           permission-pull-requests: write
 
