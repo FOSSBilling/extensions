@@ -40,7 +40,7 @@
     "prettier-plugin-astro": "1.1.1",
     "typescript": "6.0.3",
     "vitest": "5.0.5",
-    "wrangler": "4.151.0"
+    "wrangler": "4.151.1"
   },
   "allowScripts": {
     "esbuild": true,
