@@ -1426,6 +1426,49 @@
           "changed_at"
         ]
       },
+      "PublisherClient": {
+        "type": "object",
+        "properties": {
+          "client_id": {
+            "type": "string"
+          },
+          "developer_id": {
+            "type": "string"
+          },
+          "can_publish": {
+            "type": "boolean"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "revoked_at": {
+            "type": ["string", "null"]
+          }
+        },
+        "required": [
+          "client_id",
+          "developer_id",
+          "can_publish",
+          "created_at",
+          "revoked_at"
+        ]
+      },
+      "PublisherRegister": {
+        "type": "object",
+        "properties": {
+          "developer_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "can_publish": {
+            "type": "boolean",
+            "default": false
+          }
+        },
+        "required": ["developer_id"],
+        "additionalProperties": false
+      },
       "OwnedDeveloperProfile": {
         "anyOf": [
           {
@@ -2468,6 +2511,16 @@
               }
             }
           },
+          "403": {
+            "description": "Machine tokens are not accepted on this route",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
           "404": {
             "description": "Account does not exist",
             "content": {
@@ -2600,6 +2653,16 @@
           },
           "401": {
             "description": "Missing or invalid bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Machine tokens are not accepted on this route",
             "content": {
               "application/json": {
                 "schema": {
@@ -3644,7 +3707,7 @@
             }
           },
           "403": {
-            "description": "The account is inactive or the caller is not a moderator",
+            "description": "The account is inactive or is not a moderator; machine clients are unregistered, revoked, stale after an ownership change, or hold neither can_publish nor the extensions:publish scope",
             "content": {
               "application/json": {
                 "schema": {
@@ -4576,6 +4639,269 @@
                         }
                       },
                       "required": ["revisions", "extensions"]
+                    }
+                  },
+                  "required": ["result"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The account is inactive or the caller is not a moderator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Database error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/m2m/clients/{client_id}": {
+      "put": {
+        "tags": ["Moderation"],
+        "summary": "Register or re-register a publisher client for a developer profile",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100,
+              "example": "modules-publisher"
+            },
+            "required": true,
+            "name": "client_id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublisherRegister"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Mapping stored. Re-registering an existing or revoked client replaces its developer binding, publish flag, and revocation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "$ref": "#/components/schemas/PublisherClient"
+                    }
+                  },
+                  "required": ["result"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The account is inactive or the caller is not a moderator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No developer with that id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Path params or body failed validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Database error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Moderation"],
+        "summary": "Revoke a publisher client's mapping",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100,
+              "example": "modules-publisher"
+            },
+            "required": true,
+            "name": "client_id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Mapping revoked. Existing tokens keep verifying but fail authorization on the next write.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "client_id": {
+                          "type": "string"
+                        },
+                        "revoked": {
+                          "type": "boolean",
+                          "enum": [true]
+                        }
+                      },
+                      "required": ["client_id", "revoked"]
+                    }
+                  },
+                  "required": ["result"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The account is inactive or the caller is not a moderator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No active mapping for that client",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Path params failed validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Database error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/m2m/clients": {
+      "get": {
+        "tags": ["Moderation"],
+        "summary": "List registered publisher clients",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Every mapping, newest first, revoked ones included",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/PublisherClient"
+                      }
                     }
                   },
                   "required": ["result"]

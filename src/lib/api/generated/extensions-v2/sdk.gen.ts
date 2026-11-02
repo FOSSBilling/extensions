@@ -15,6 +15,9 @@ import type {
   DeleteExtensionsByIdData,
   DeleteExtensionsByIdErrors,
   DeleteExtensionsByIdResponses,
+  DeleteM2mClientsByClientIdData,
+  DeleteM2mClientsByClientIdErrors,
+  DeleteM2mClientsByClientIdResponses,
   DeleteUsersMeData,
   DeleteUsersMeErrors,
   DeleteUsersMeResponses,
@@ -45,6 +48,9 @@ import type {
   GetExtensionsData,
   GetExtensionsErrors,
   GetExtensionsResponses,
+  GetM2mClientsData,
+  GetM2mClientsErrors,
+  GetM2mClientsResponses,
   GetModerationCountsData,
   GetModerationCountsErrors,
   GetModerationCountsResponses,
@@ -108,6 +114,9 @@ import type {
   PutExtensionsByIdData,
   PutExtensionsByIdErrors,
   PutExtensionsByIdResponses,
+  PutM2mClientsByClientIdData,
+  PutM2mClientsByClientIdErrors,
+  PutM2mClientsByClientIdResponses,
   PutUsersMeIdentityData,
   PutUsersMeIdentityErrors,
   PutUsersMeIdentityResponses,
@@ -728,6 +737,68 @@ export const getModerationCounts = <ThrowOnError extends boolean = false>(
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/moderation/counts',
+    ...options,
+  });
+
+/**
+ * Revoke a publisher client's mapping
+ */
+export const deleteM2mClientsByClientId = <
+  ThrowOnError extends boolean = false,
+>(
+  options: Options<DeleteM2mClientsByClientIdData, ThrowOnError>,
+): RequestResult<
+  DeleteM2mClientsByClientIdResponses,
+  DeleteM2mClientsByClientIdErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).delete<
+    DeleteM2mClientsByClientIdResponses,
+    DeleteM2mClientsByClientIdErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/m2m/clients/{client_id}',
+    ...options,
+  });
+
+/**
+ * Register or re-register a publisher client for a developer profile
+ */
+export const putM2mClientsByClientId = <ThrowOnError extends boolean = false>(
+  options: Options<PutM2mClientsByClientIdData, ThrowOnError>,
+): RequestResult<
+  PutM2mClientsByClientIdResponses,
+  PutM2mClientsByClientIdErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).put<
+    PutM2mClientsByClientIdResponses,
+    PutM2mClientsByClientIdErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/m2m/clients/{client_id}',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+
+/**
+ * List registered publisher clients
+ */
+export const getM2mClients = <ThrowOnError extends boolean = false>(
+  options?: Options<GetM2mClientsData, ThrowOnError>,
+): RequestResult<GetM2mClientsResponses, GetM2mClientsErrors, ThrowOnError> =>
+  (options?.client ?? client).get<
+    GetM2mClientsResponses,
+    GetM2mClientsErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/m2m/clients',
     ...options,
   });
 
