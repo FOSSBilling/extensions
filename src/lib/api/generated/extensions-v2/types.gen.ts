@@ -428,6 +428,19 @@ export type DeveloperHistoryEntry = {
   changed_at: string;
 };
 
+export type PublisherClient = {
+  client_id: string;
+  developer_id: string;
+  can_publish: boolean;
+  created_at: string;
+  revoked_at: string | null;
+};
+
+export type PublisherRegister = {
+  developer_id: string;
+  can_publish?: boolean;
+};
+
 export type OwnedDeveloperProfile =
   | (DeveloperProfile & {
       has_pending_transfer: boolean;
@@ -899,6 +912,10 @@ export type DeleteUsersMeErrors = {
    */
   401: Error;
   /**
+   * Machine tokens are not accepted on this route
+   */
+  403: Error;
+  /**
    * Account does not exist
    */
   404: Error;
@@ -940,6 +957,10 @@ export type GetUsersMeErrors = {
    * Missing or invalid bearer token
    */
   401: Error;
+  /**
+   * Machine tokens are not accepted on this route
+   */
+  403: Error;
   /**
    * Account does not exist
    */
@@ -1461,7 +1482,7 @@ export type PostExtensionsByIdRevisionsByRevisionIdApproveErrors = {
    */
   401: Error;
   /**
-   * The account is inactive or the caller is not a moderator
+   * The account is inactive or is not a moderator; machine clients are unregistered, revoked, stale after an ownership change, or hold neither can_publish nor the extensions:publish scope
    */
   403: Error;
   /**
@@ -1926,6 +1947,139 @@ export type GetModerationCountsResponses = {
 
 export type GetModerationCountsResponse =
   GetModerationCountsResponses[keyof GetModerationCountsResponses];
+
+export type DeleteM2mClientsByClientIdData = {
+  body?: never;
+  path: {
+    client_id: string;
+  };
+  query?: never;
+  url: '/m2m/clients/{client_id}';
+};
+
+export type DeleteM2mClientsByClientIdErrors = {
+  /**
+   * Missing or invalid bearer token
+   */
+  401: Error;
+  /**
+   * The account is inactive or the caller is not a moderator
+   */
+  403: Error;
+  /**
+   * No active mapping for that client
+   */
+  404: Error;
+  /**
+   * Path params failed validation
+   */
+  422: Error;
+  /**
+   * Database error
+   */
+  500: Error;
+};
+
+export type DeleteM2mClientsByClientIdError =
+  DeleteM2mClientsByClientIdErrors[keyof DeleteM2mClientsByClientIdErrors];
+
+export type DeleteM2mClientsByClientIdResponses = {
+  /**
+   * Mapping revoked. Existing tokens keep verifying but fail authorization on the next write.
+   */
+  200: {
+    result: {
+      client_id: string;
+      revoked: true;
+    };
+  };
+};
+
+export type DeleteM2mClientsByClientIdResponse =
+  DeleteM2mClientsByClientIdResponses[keyof DeleteM2mClientsByClientIdResponses];
+
+export type PutM2mClientsByClientIdData = {
+  body?: PublisherRegister;
+  path: {
+    client_id: string;
+  };
+  query?: never;
+  url: '/m2m/clients/{client_id}';
+};
+
+export type PutM2mClientsByClientIdErrors = {
+  /**
+   * Missing or invalid bearer token
+   */
+  401: Error;
+  /**
+   * The account is inactive or the caller is not a moderator
+   */
+  403: Error;
+  /**
+   * No developer with that id
+   */
+  404: Error;
+  /**
+   * Path params or body failed validation
+   */
+  422: Error;
+  /**
+   * Database error
+   */
+  500: Error;
+};
+
+export type PutM2mClientsByClientIdError =
+  PutM2mClientsByClientIdErrors[keyof PutM2mClientsByClientIdErrors];
+
+export type PutM2mClientsByClientIdResponses = {
+  /**
+   * Mapping stored. Re-registering an existing or revoked client replaces its developer binding, publish flag, and revocation.
+   */
+  200: {
+    result: PublisherClient;
+  };
+};
+
+export type PutM2mClientsByClientIdResponse =
+  PutM2mClientsByClientIdResponses[keyof PutM2mClientsByClientIdResponses];
+
+export type GetM2mClientsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/m2m/clients';
+};
+
+export type GetM2mClientsErrors = {
+  /**
+   * Missing or invalid bearer token
+   */
+  401: Error;
+  /**
+   * The account is inactive or the caller is not a moderator
+   */
+  403: Error;
+  /**
+   * Database error
+   */
+  500: Error;
+};
+
+export type GetM2mClientsError = GetM2mClientsErrors[keyof GetM2mClientsErrors];
+
+export type GetM2mClientsResponses = {
+  /**
+   * Every mapping, newest first, revoked ones included
+   */
+  200: {
+    result: Array<PublisherClient>;
+  };
+};
+
+export type GetM2mClientsResponse =
+  GetM2mClientsResponses[keyof GetM2mClientsResponses];
 
 export type GetRevisionsData = {
   body?: never;
