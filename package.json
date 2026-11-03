@@ -5,7 +5,7 @@
   "private": true,
   "scripts": {
     "api:generate": "openapi-ts -f openapi-ts.config.ts",
-    "api:update": "node scripts/update-extensions-openapi.mjs && prettier --write openapi/extensions-v2.json && npm run api:generate",
+    "api:update": "node scripts/update-extensions-openapi.ts && prettier --write openapi/extensions-v2.json && npm run api:generate",
     "api:check": "npm run api:generate && git diff --exit-code -- src/lib/api/generated/extensions-v2 && test -z \"$(git ls-files --others --exclude-standard -- src/lib/api/generated/extensions-v2)\"",
     "cf-typegen": "wrangler types",
     "cf-deploy": "wrangler deploy",
@@ -31,16 +31,16 @@
     "tailwindcss": "^4.3.0"
   },
   "devDependencies": {
-    "@astrojs/check": "0.9.10",
+    "@astrojs/check": "0.9.12",
     "@hey-api/openapi-ts": "0.99.0",
-    "@types/node": "26.6.4",
+    "@types/node": "26.6.6",
     "@types/sanitize-html": "2.16.2",
     "@types/semver": "7.8.0",
-    "prettier": "3.9.9",
-    "prettier-plugin-astro": "1.1.0",
+    "prettier": "3.9.10",
+    "prettier-plugin-astro": "1.1.2",
     "typescript": "6.0.3",
-    "vitest": "5.0.3",
-    "wrangler": "4.149.0"
+    "vitest": "5.0.5",
+    "wrangler": "4.156.0"
   },
   "allowScripts": {
     "esbuild": true,

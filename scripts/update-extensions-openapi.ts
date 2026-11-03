@@ -11,32 +11,47 @@ if (!response.ok) {
   );
 }
 
-const document = await response.json();
-const schemas = document?.components?.schemas;
+const asObject = (value: unknown): Record<string, unknown> | undefined =>
+  value !== null && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : undefined;
 
-const resolveSchema = (schema) => {
+const schemaProperties = (schema: unknown) =>
+  asObject(asObject(schema)?.properties);
+
+const document: unknown = await response.json();
+const components = asObject(asObject(document)?.components);
+const schemas = asObject(components?.schemas);
+
+const resolveSchema = (value: unknown): Record<string, unknown> | undefined => {
+  const schema = asObject(value);
   const ref = schema?.$ref;
   if (typeof ref !== 'string') return schema;
   const prefix = '#/components/schemas/';
   if (!ref.startsWith(prefix)) return schema;
-  return schemas?.[ref.slice(prefix.length)];
+  return asObject(schemas?.[ref.slice(prefix.length)]);
 };
 
 const paginationSchema =
   resolveSchema(
-    schemas?.UnifiedExtensionListResponse?.properties?.pagination,
-  ) ?? resolveSchema(schemas?.ExtensionListResponse?.properties?.pagination);
+    schemaProperties(schemas?.UnifiedExtensionListResponse)?.pagination,
+  ) ??
+  resolveSchema(schemaProperties(schemas?.ExtensionListResponse)?.pagination);
 const cursorSchemas = [
-  paginationSchema?.properties?.next_cursor,
-  schemas?.Pagination?.properties?.next_cursor,
+  schemaProperties(paginationSchema)?.next_cursor,
+  schemaProperties(schemas?.Pagination)?.next_cursor,
 ];
 
-const isNullableStringSchema = (schema) =>
-  Array.isArray(schema?.type) &&
-  schema.type.length === 2 &&
-  schema.type.includes('string') &&
-  schema.type.includes('null') &&
-  !Object.hasOwn(schema, 'nullable');
+const isNullableStringSchema = (value: unknown): boolean => {
+  const schema = asObject(value);
+  return (
+    Array.isArray(schema?.type) &&
+    schema.type.length === 2 &&
+    schema.type.includes('string') &&
+    schema.type.includes('null') &&
+    !Object.hasOwn(schema, 'nullable')
+  );
+};
 
 if (!cursorSchemas.every(isNullableStringSchema)) {
   throw new Error(
@@ -44,15 +59,8 @@ if (!cursorSchemas.every(isNullableStringSchema)) {
   );
 }
 
-const listItem = schemas?.ExtensionListItem;
-const listItemProperties = listItem?.properties;
-if (
-  !listItem ||
-  typeof listItem !== 'object' ||
-  !listItemProperties ||
-  typeof listItemProperties !== 'object' ||
-  Array.isArray(listItemProperties)
-) {
+const listItemProperties = schemaProperties(schemas?.ExtensionListItem);
+if (!listItemProperties) {
   throw new Error(
     'The fetched OpenAPI document must define ExtensionListItem with a properties object.',
   );

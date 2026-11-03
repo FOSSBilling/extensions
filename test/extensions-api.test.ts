@@ -10,6 +10,7 @@ import {
 
 vi.mock('@/lib/assertion', () => ({
   mintBearerAssertion: vi.fn(),
+  mintIdentitySyncAssertion: vi.fn(),
 }));
 
 import {
@@ -28,7 +29,11 @@ import {
   type ModerationQueuePage,
   type OwnedExtensionListResponse,
 } from '@/lib/api/client';
-import { mintBearerAssertion } from '@/lib/assertion';
+import {
+  mintBearerAssertion,
+  mintIdentitySyncAssertion,
+} from '@/lib/assertion';
+import { sha256Hex } from '@/lib/hash';
 import { makeEnv } from './helpers/env';
 import { item, page } from './helpers/catalogue-fixtures';
 import type {
@@ -84,6 +89,7 @@ afterEach(() => {
 
 beforeEach(() => {
   vi.mocked(mintBearerAssertion).mockResolvedValue('test-token');
+  vi.mocked(mintIdentitySyncAssertion).mockResolvedValue('sync-token');
 });
 
 describe('generated Extensions v2 façade', () => {
@@ -756,6 +762,93 @@ describe('generated Extensions v2 façade', () => {
     expectTypeOf<
       ReturnType<ReturnType<typeof createApiClient>['listModerationQueue']>
     >().resolves.toEqualTypeOf<ModerationQueuePage>();
+  });
+});
+
+describe('identity sync', () => {
+  const identity = {
+    name: 'Test User',
+    email: 'user@example.test',
+    email_verified: true,
+    picture: null,
+    github_login: 'test-user',
+    github_orgs: null,
+    github_orgs_expires_at: null,
+  };
+
+  const account = {
+    display_name: 'Test User',
+    is_moderator: false,
+    github_linked: true,
+    active: true,
+  };
+
+  function syncEnv(fetchMock: () => Promise<Response>) {
+    return {
+      ...authenticatedEnv,
+      extensionsApi: {
+        ...authenticatedEnv.extensionsApi,
+        fetch: fetchMock,
+      },
+    };
+  }
+
+  it('binds the assertion to the exact bytes sent', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(apiResponse({ result: account }));
+
+    const result = await createApiClient(
+      syncEnv(fetchMock),
+      'user-sub',
+    ).syncIdentity(identity);
+
+    expect(result).toEqual(account);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const request = requestFrom(fetchMock);
+    expect(request.method).toBe('PUT');
+    expect(request.url).toBe(
+      'https://api.example.test/extensions/v2/users/me/identity',
+    );
+    expect(request.headers.get('content-type')).toBe('application/json');
+    expect(request.headers.get('authorization')).toBe('Bearer sync-token');
+    // The shared user-authentication assertion must not mint here: the API
+    // rejects it on the sync route.
+    expect(mintBearerAssertion).not.toHaveBeenCalled();
+
+    const sentBody = await request.text();
+    expect(JSON.parse(sentBody)).toEqual(identity);
+    expect(mintIdentitySyncAssertion).toHaveBeenCalledTimes(1);
+    expect(mintIdentitySyncAssertion).toHaveBeenCalledWith(
+      'user-sub',
+      'test-secret',
+      await sha256Hex(sentBody),
+    );
+  });
+
+  it('keeps the upstream 403 code and message instead of a generic failure', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      apiResponse(
+        {
+          error: {
+            code: 'FORBIDDEN',
+            message: 'Identity synchronization requires a trusted assertion',
+          },
+        },
+        403,
+      ),
+    );
+
+    const error = await createApiClient(syncEnv(fetchMock), 'user-sub')
+      .syncIdentity(identity)
+      .catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(ApiRequestError);
+    expect((error as ApiRequestError).status).toBe(403);
+    expect((error as ApiRequestError).code).toBe('FORBIDDEN');
+    expect((error as ApiRequestError).message).toBe(
+      'Identity synchronization requires a trusted assertion',
+    );
   });
 });
 
