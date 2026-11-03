@@ -129,6 +129,7 @@ jobs:
           path: .
 
       - name: Create or Update Pull Request
+        id: create-pr
         uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8
         with:
           token: ${{ steps.app-token.outputs.token }}
@@ -143,3 +144,11 @@ jobs:
             This PR refreshes the checked-in Extensions v2 OpenAPI snapshot from the deployed API and regenerates the Hey API client.
 
             The snapshot and generated client are validated in a read-only workflow job before this PR is created or updated.
+
+      - name: Enable Auto-merge
+        if: steps.create-pr.outputs.pull-request-operation == 'created'
+        uses: peter-evans/enable-pull-request-automerge@a660677d5469627102a1c1e11409dd063606628d # v3
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          pull-request-number: ${{ steps.create-pr.outputs.pull-request-number }}
+          merge-method: squash
