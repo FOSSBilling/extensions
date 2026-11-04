@@ -18,6 +18,15 @@ const createDocument = () => ({
       },
       Pagination: createPaginationSchema(),
       ExtensionListItem: { properties: { id: { type: 'string' } } },
+      ExtensionContent: {
+        properties: {
+          manifest_version: { type: 'number', enum: [1] },
+          requires: { type: 'object' },
+          author: { type: 'object' },
+          homepage_url: { type: 'string' },
+          license: { type: 'string' },
+        },
+      },
     },
   },
 });
@@ -61,6 +70,7 @@ describe('OpenAPI snapshot update', () => {
     await runUpdate({
       components: {
         schemas: {
+          ExtensionContent: value.components.schemas.ExtensionContent,
           Pagination: value.components.schemas.Pagination,
           ExtensionListItem: value.components.schemas.ExtensionListItem,
           ExtensionListResponse: {
@@ -98,7 +108,7 @@ describe('OpenAPI snapshot update', () => {
     expect(writeFile).not.toHaveBeenCalled();
   });
 
-  it.each([null, [], { readme: {} }, { releases: {} }])(
+  it.each([null, [], { readme: {} }, { releases: {} }, { requires: {} }])(
     'rejects invalid list item properties %j without writing',
     async (properties) => {
       const value = createDocument();
@@ -116,6 +126,27 @@ describe('OpenAPI snapshot update', () => {
     },
   );
 
+  it('rejects a pre-manifest contract before replacing the snapshot', async () => {
+    const value = createDocument();
+    await expect(
+      runUpdate({
+        ...value,
+        components: {
+          schemas: {
+            ...value.components.schemas,
+            ExtensionContent: {
+              properties: {
+                website: { type: 'string' },
+                license: { type: 'object' },
+              },
+            },
+          },
+        },
+      }),
+    ).rejects.toThrow('manifest v1');
+    expect(writeFile).not.toHaveBeenCalled();
+  });
+
   it('reports HTTP failures without writing', async () => {
     vi.stubGlobal(
       'fetch',
@@ -128,4 +159,42 @@ describe('OpenAPI snapshot update', () => {
     );
     expect(writeFile).not.toHaveBeenCalled();
   });
+});
+
+describe('manifest version guard', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+  it.each([
+    { type: 'number', enum: [2] },
+    { type: 'string', enum: ['1'] },
+    { type: 'number' },
+    { type: 'number', enum: [1, 2] },
+    {},
+  ])(
+    'rejects unsupported manifest schema %j without writing',
+    async (manifest_version) => {
+      vi.resetModules();
+      vi.clearAllMocks();
+      const value = createDocument();
+      await expect(
+        runUpdate({
+          ...value,
+          components: {
+            schemas: {
+              ...value.components.schemas,
+              ExtensionContent: {
+                properties: {
+                  ...value.components.schemas.ExtensionContent.properties,
+                  manifest_version,
+                },
+              },
+            },
+          },
+        }),
+      ).rejects.toThrow('manifest v1');
+      expect(writeFile).not.toHaveBeenCalled();
+    },
+  );
 });

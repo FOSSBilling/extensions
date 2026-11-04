@@ -1,11 +1,12 @@
 import type { APIRoute } from 'astro';
 import { apiErrorResponse, listExtensions } from '@/lib/api/client';
-import { parseCatalogueFilters } from '@/lib/catalogue-filters';
+import { parseDirectoryFilters } from '@/lib/directory-filters';
+import { extensionIconUrl } from '@/lib/extension-icon';
 import { getSignedImageUrl } from '@/lib/signed-image-url';
 
 export const GET: APIRoute = async ({ url, locals }) => {
   const env = locals.env;
-  const parsed = parseCatalogueFilters(url.searchParams);
+  const parsed = parseDirectoryFilters(url.searchParams);
   if (parsed.error !== null) {
     return Response.json(
       {
@@ -21,13 +22,13 @@ export const GET: APIRoute = async ({ url, locals }) => {
   try {
     // Short browser TTL so repeated Load-more/filter requests reuse the same
     // cursor page; the edge cache for the underlying read lives in the
-    // client-layer catalogue wrapper.
+    // client-layer directory wrapper.
     const page = await listExtensions(env, parsed.filters);
     const result = await Promise.all(
       page.result.map(async (item) => ({
         ...item,
         optimized_icon_url: await getSignedImageUrl(
-          item.icon_url,
+          extensionIconUrl(item),
           'icon',
           env.sessionSecret,
         ),

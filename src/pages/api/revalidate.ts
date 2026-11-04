@@ -1,14 +1,14 @@
 import type { APIRoute } from 'astro';
-import { CATALOGUE_CACHE_TAGS } from '@/lib/cache-invalidate';
+import { EXTENSIONS_CACHE_TAGS } from '@/lib/cache-tags';
 import { markEdgeCachePurged } from '@/lib/cache';
 
-// Catalogue mutations that bypass this dashboard (the api worker, other
-// tooling) cannot trigger the in-request purgeCatalogue() hooks, so they call
-// this endpoint to purge the route-cached catalogue pages instead. Until it
+// Directory mutations that bypass this dashboard (the api worker, other
+// tooling) cannot trigger the in-request purgeDirectory() hooks, so they call
+// this endpoint to purge the route-cached directory pages instead. Until it
 // is wired up, api-side changes surface within the route rule's
 // maxAge+SWR window rather than instantly.
 
-const PURGEABLE_TAGS = new Set<string>(CATALOGUE_CACHE_TAGS);
+const PURGEABLE_TAGS = new Set<string>(EXTENSIONS_CACHE_TAGS);
 
 function isLocalRuntime(url: URL): boolean {
   // WHATWG URL keeps IPv6 hosts bracketed ([::1]), so strip brackets before

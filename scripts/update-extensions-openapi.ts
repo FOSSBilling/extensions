@@ -68,10 +68,33 @@ if (!listItemProperties) {
 
 if (
   Object.hasOwn(listItemProperties, 'readme') ||
-  Object.hasOwn(listItemProperties, 'releases')
+  Object.hasOwn(listItemProperties, 'releases') ||
+  Object.hasOwn(listItemProperties, 'requires')
 ) {
   throw new Error(
-    'The fetched OpenAPI document must keep readme and releases out of ExtensionListItem.',
+    'The fetched OpenAPI document must keep readme, releases, and requires out of ExtensionListItem.',
+  );
+}
+
+const content = schemaProperties(schemas?.ExtensionContent);
+const manifestVersion = resolveSchema(content?.manifest_version);
+const versions = manifestVersion?.enum;
+const isManifestV1 =
+  (manifestVersion?.type === 'number' || manifestVersion?.type === 'integer') &&
+  Array.isArray(versions) &&
+  versions.length === 1 &&
+  versions[0] === 1;
+if (
+  !content ||
+  !isManifestV1 ||
+  !Object.hasOwn(content, 'requires') ||
+  !Object.hasOwn(content, 'author') ||
+  !Object.hasOwn(content, 'homepage_url') ||
+  Object.hasOwn(content, 'website') ||
+  asObject(content.license)?.type !== 'string'
+) {
+  throw new Error(
+    'The fetched OpenAPI document must expose the manifest v1 extension contract.',
   );
 }
 

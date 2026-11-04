@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { isDeveloperType, isExtensionType, isSourceType } from '@/types';
-import { parseCatalogueFilters } from '@/lib/catalogue-filters';
+import { parseDirectoryFilters } from '@/lib/directory-filters';
 
 describe('application boundary validation', () => {
   it('validates extension, source, and developer type guards', () => {
-    expect(isExtensionType('mod')).toBe(true);
+    expect(isExtensionType('module')).toBe(true);
     expect(isExtensionType('not-a-type')).toBe(false);
     expect(isSourceType('github')).toBe(true);
     expect(isSourceType('not-a-source')).toBe(false);
@@ -13,14 +13,14 @@ describe('application boundary validation', () => {
   });
 });
 
-describe('catalogue filter parsing', () => {
+describe('directory filter parsing', () => {
   it('parses every supported filter and ignores unknown params', () => {
     const params = new URLSearchParams(
-      'type=mod&developer_id=dev-1&limit=24&cursor=opaque&q=ignored',
+      'type=module&developer_id=dev-1&limit=24&cursor=opaque&q=ignored',
     );
-    expect(parseCatalogueFilters(params)).toEqual({
+    expect(parseDirectoryFilters(params)).toEqual({
       filters: {
-        type: 'mod',
+        type: 'module',
         developer_id: 'dev-1',
         limit: 24,
         cursor: 'opaque',
@@ -30,11 +30,11 @@ describe('catalogue filter parsing', () => {
   });
 
   it('treats an empty type as absent and a non-numeric limit as unset', () => {
-    expect(parseCatalogueFilters(new URLSearchParams('type='))).toEqual({
+    expect(parseDirectoryFilters(new URLSearchParams('type='))).toEqual({
       filters: {},
       error: null,
     });
-    expect(parseCatalogueFilters(new URLSearchParams('limit=abc'))).toEqual({
+    expect(parseDirectoryFilters(new URLSearchParams('limit=abc'))).toEqual({
       filters: {},
       error: null,
     });
@@ -42,7 +42,7 @@ describe('catalogue filter parsing', () => {
 
   it('rejects an unrecognized extension type', () => {
     expect(
-      parseCatalogueFilters(new URLSearchParams('type=not-a-type')),
+      parseDirectoryFilters(new URLSearchParams('type=not-a-type')),
     ).toEqual({
       filters: null,
       error: 'The extension type filter is invalid.',

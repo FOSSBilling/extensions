@@ -26,21 +26,25 @@ interface DiffRelease {
 }
 
 interface DiffContent {
-  license?: DiffLicense | null;
+  author?: { name?: string; url?: string } | null;
+  license?: string | DiffLicense | null;
   source?: DiffSource | null;
   releases?: Array<DiffRelease | null> | null;
   [field: string]: unknown;
 }
 
 // Fields moderators actually compare, in review order. `releases` and
-// `readme` are handled specially (counts / collapsible) by the card UI but
+// `readme` are handled specially (collapsible) by the card UI but
 // still appear here so "unchanged" state is explicit.
 export const DIFF_FIELDS = [
   'name',
   'type',
   'version',
   'description',
-  'website',
+  'manifest_version',
+  'author',
+  'requires',
+  'homepage_url',
   'download_url',
   'icon_url',
   'source',
@@ -54,7 +58,7 @@ export type DiffField = (typeof DIFF_FIELDS)[number];
 // Fields whose plain values render as clickable links. DiffValue.astro and
 // the browser queue renderer both check this set.
 export const URL_FIELDS: ReadonlySet<string> = new Set([
-  'website',
+  'homepage_url',
   'download_url',
   'icon_url',
 ]);
@@ -77,7 +81,10 @@ export const FIELD_LABELS: Record<DiffField, string> = {
   type: 'Type',
   version: 'Version',
   description: 'Description',
-  website: 'Website',
+  manifest_version: 'Manifest Version',
+  author: 'Package Author',
+  requires: 'Requirements',
+  homepage_url: 'Website',
   download_url: 'Download URL',
   icon_url: 'Icon URL',
   source: 'Source Repo',
@@ -92,8 +99,9 @@ function scalarLabel(value: unknown): string | null {
   return text.length > 0 ? text : null;
 }
 
-function licenseLabel(license?: DiffLicense | null): string | null {
+function licenseLabel(license?: string | DiffLicense | null): string | null {
   if (!license) return null;
+  if (typeof license === 'string') return license;
   if (typeof license.name === 'string' && license.name.length > 0) {
     return license.spdx_id
       ? `${license.name} (${license.spdx_id})`
@@ -102,13 +110,21 @@ function licenseLabel(license?: DiffLicense | null): string | null {
   return null;
 }
 
-function licenseUrl(license?: DiffLicense | null): string | null {
-  if (!license || typeof license.URL !== 'string') return null;
+function licenseUrl(license?: string | DiffLicense | null): string | null {
+  if (
+    !license ||
+    typeof license === 'string' ||
+    typeof license.URL !== 'string'
+  )
+    return null;
   return license.URL.length > 0 ? license.URL : null;
 }
 
-function licenseCompareKey(license?: DiffLicense | null): string | null {
+function licenseCompareKey(
+  license?: string | DiffLicense | null,
+): string | null {
   if (!license) return null;
+  if (typeof license === 'string') return JSON.stringify([license]);
   const parts = [license.name, license.spdx_id, license.URL].filter(
     (part): part is string => typeof part === 'string' && part.length > 0,
   );
@@ -152,33 +168,28 @@ function sourceHref(source?: DiffSource | null): string | null {
   }
 }
 
-function releasesLabel(
-  releases?: Array<DiffRelease | null> | null,
-): string | null {
-  if (!releases) return null;
-  if (releases.length === 0) return '—';
-  const tags = releases
-    .map((r) => r?.tag)
-    .filter((t): t is string => typeof t === 'string' && t.length > 0);
-  if (tags.length === 0) return `${releases.length} release(s)`;
-  const shown = tags.slice(0, 5).join(', ');
-  return tags.length > 5
-    ? `${releases.length} releases (${shown}, …)`
-    : `${releases.length} release(s): ${shown}`;
-}
-
 export function fieldDisplay(
   field: DiffField,
   content: DiffContent | null,
 ): string | null {
   if (!content) return null;
   switch (field) {
+    case 'homepage_url':
+      return scalarLabel(content.homepage_url ?? content.website);
+    case 'author':
+      return scalarLabel(content.author?.name);
+    case 'requires':
+      return content[field] == null ? null : canonicalJson(content[field]);
     case 'license':
       return licenseLabel(content.license);
     case 'source':
       return sourceLabel(content.source);
     case 'releases':
-      return releasesLabel(content.releases);
+      return content.releases == null
+        ? null
+        : content.releases.length === 0
+          ? '—'
+          : canonicalJson(content.releases);
     default:
       return scalarLabel(content[field]);
   }
@@ -190,10 +201,14 @@ export function fieldCompareKey(
 ): string | null {
   if (!content) return null;
   switch (field) {
+    case 'author':
+      return content.author == null ? null : canonicalJson(content.author);
     case 'license':
       return licenseCompareKey(content.license);
     case 'source':
       return sourceCompareKey(content.source);
+    case 'releases':
+      return content.releases == null ? null : canonicalJson(content.releases);
     default:
       return fieldDisplay(field, content);
   }
@@ -219,6 +234,8 @@ export function fieldUrl(
 ): string | null {
   if (!content) return null;
   switch (field) {
+    case 'author':
+      return scalarLabel(content.author?.url);
     case 'license':
       return licenseUrl(content.license);
     case 'source':
@@ -226,4 +243,17 @@ export function fieldUrl(
     default:
       return null;
   }
+}
+
+function canonicalJson(value: unknown): string {
+  return JSON.stringify(value, (_key, item) =>
+    item && typeof item === 'object' && !Array.isArray(item)
+      ? Object.fromEntries(
+          Object.keys(item)
+            .sort()
+            .filter((key) => item[key] !== undefined)
+            .map((key) => [key, item[key]]),
+        )
+      : item,
+  );
 }

@@ -1,4 +1,4 @@
-// Server-only issuance: call with images from catalogue/account data, never
+// Server-only issuance: call with images from directory/account data, never
 // with an arbitrary request query value. The browser only receives the URL.
 import {
   getOptimizedImageUrl,

@@ -27,6 +27,9 @@ const releases = sortReleasesDescending(ext.releases);
         <tr>
           <th class="text-left">Tag</th>
           <th class="text-left">Release date</th>
+          <th class="text-left">FOSSBilling</th>
+          <th class="text-left">PHP</th>
+          <th class="text-left">Modules</th>
           <th class="text-left">Links</th>
         </tr>
       </thead>
@@ -36,6 +39,13 @@ const releases = sortReleasesDescending(ext.releases);
             <td class="font-mono">v{release.tag}</td>
             <td>
               <time datetime={release.date}>{formatDate(release.date)}</time>
+            </td>
+            <td>{release.requires.fossbilling}</td>
+            <td>{release.requires.php}</td>
+            <td>
+              {Object.entries(release.requires.modules ?? {})
+                .map(([id, range]) => `${id}: ${range}`)
+                .join(', ') || '—'}
             </td>
             <td>
               <div class="flex items-center space-x-2">

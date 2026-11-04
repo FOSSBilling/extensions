@@ -44,13 +44,16 @@ if (!owned) {
 const base: Extension =
   owned.published ??
   ({
+    manifest_version: 1,
+    author: { name: owned.developer.name, url: owned.developer.URL },
+    requires: { fossbilling: '', php: '' },
     id: owned.id,
-    type: 'mod',
+    type: 'module',
     name: '',
     description: '',
     releases: [],
-    website: '',
-    license: { name: '' },
+    homepage_url: '',
+    license: '',
     readme: '',
     source: { type: 'github', repo: '' },
     version: '',
@@ -61,7 +64,7 @@ const base: Extension =
 let error: string | null = null;
 // Falls back to the just-submitted values on a rejected edit, so the form
 // doesn't reset to the previous content and discard the edit.
-let submitted: Extension | null = null;
+let submitted: ReturnType<typeof echoExtensionFromForm> | null = null;
 let submittedReleaseDraft: ReleaseDraft | null = null;
 
 // Only one revision may be unreviewed at a time — the api rejects a second
@@ -90,7 +93,6 @@ if (!owned.pendingRevision && Astro.request.method === 'POST') {
   }
 }
 
-const fields = submitted ?? base;
 const title = base.name || owned.id;
 ---
 
@@ -114,7 +116,8 @@ const title = base.name || owned.id;
         </p>
         <ExtensionForm
           developer={owned.developer}
-          extension={fields}
+          extension={base}
+          echo={submitted ?? undefined}
           releaseDraft={submittedReleaseDraft ?? undefined}
           error={error}
         />

@@ -1,5 +1,6 @@
 ---
 import type { ExtensionListItem } from '@/lib/api/client';
+import { extensionIconUrl } from '@/lib/extension-icon';
 import { getSignedImageUrl } from '@/lib/signed-image-url';
 
 interface Props {
@@ -8,7 +9,7 @@ interface Props {
 
 const { ext } = Astro.props;
 const iconUrl = await getSignedImageUrl(
-  ext.icon_url,
+  extensionIconUrl(ext),
   'icon',
   Astro.locals.env.sessionSecret,
 );

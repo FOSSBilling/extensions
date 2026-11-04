@@ -6,15 +6,15 @@ import {
   listExtensions,
   type ExtensionListResponse,
 } from '@/lib/api/client';
-import { parseCatalogueFilters } from '@/lib/catalogue-filters';
+import { parseDirectoryFilters } from '@/lib/directory-filters';
 
-// Load-more fragment for the catalogue grids (see extension-catalogue.ts).
+// Load-more fragment for the directory grids (see extension-directory.ts).
 // Renders the same ExtensionCard component as the server-rendered first
 // page, so card markup and server-signed icon URLs have exactly one source
 // of truth. The pagination envelope rides on the wrapper's data attributes;
 // the client parses cards out of the markup and dedupes by
 // [data-extension-id].
-const parsed = parseCatalogueFilters(Astro.url.searchParams);
+const parsed = parseDirectoryFilters(Astro.url.searchParams);
 
 let page: ExtensionListResponse | null = null;
 let error: string | null = null;
@@ -26,7 +26,7 @@ if (parsed.error !== null) {
     page = await listExtensions(Astro.locals.env, parsed.filters);
     // Matches /api/extensions: a short browser TTL so repeated load-more
     // and filter requests reuse the same cursor page; the edge cache for
-    // the underlying read lives in the client-layer catalogue wrapper.
+    // the underlying read lives in the client-layer directory wrapper.
     Astro.response.headers.set('cache-control', 'public, max-age=30');
   } catch (e) {
     if (e instanceof ApiRequestError) {
@@ -50,10 +50,10 @@ if (error !== null) {
 ---
 
 {error !== null ? (
-  <div data-catalogue-error={error} />
+  <div data-directory-error={error} />
 ) : page !== null ? (
   <div
-    data-catalogue-page
+    data-directory-page
     data-next-cursor={page.pagination.next_cursor ?? ''}
     data-has-more={page.pagination.has_more ? 'true' : 'false'}
   >
