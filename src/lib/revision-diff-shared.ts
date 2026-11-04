@@ -26,6 +26,7 @@ interface DiffRelease {
 }
 
 interface DiffContent {
+  author?: { name?: string; url?: string } | null;
   license?: string | DiffLicense | null;
   source?: DiffSource | null;
   releases?: Array<DiffRelease | null> | null;
@@ -33,7 +34,7 @@ interface DiffContent {
 }
 
 // Fields moderators actually compare, in review order. `releases` and
-// `readme` are handled specially (counts / collapsible) by the card UI but
+// `readme` are handled specially (collapsible) by the card UI but
 // still appear here so "unchanged" state is explicit.
 export const DIFF_FIELDS = [
   'name',
@@ -167,21 +168,6 @@ function sourceHref(source?: DiffSource | null): string | null {
   }
 }
 
-function releasesLabel(
-  releases?: Array<DiffRelease | null> | null,
-): string | null {
-  if (!releases) return null;
-  if (releases.length === 0) return '—';
-  const tags = releases
-    .map((r) => r?.tag)
-    .filter((t): t is string => typeof t === 'string' && t.length > 0);
-  if (tags.length === 0) return `${releases.length} release(s)`;
-  const shown = tags.slice(0, 5).join(', ');
-  return tags.length > 5
-    ? `${releases.length} releases (${shown}, …)`
-    : `${releases.length} release(s): ${shown}`;
-}
-
 export function fieldDisplay(
   field: DiffField,
   content: DiffContent | null,
@@ -191,6 +177,7 @@ export function fieldDisplay(
     case 'homepage_url':
       return scalarLabel(content.homepage_url ?? content.website);
     case 'author':
+      return scalarLabel(content.author?.name);
     case 'requires':
       return content[field] == null ? null : canonicalJson(content[field]);
     case 'license':
@@ -198,7 +185,11 @@ export function fieldDisplay(
     case 'source':
       return sourceLabel(content.source);
     case 'releases':
-      return releasesLabel(content.releases);
+      return content.releases == null
+        ? null
+        : content.releases.length === 0
+          ? '—'
+          : canonicalJson(content.releases);
     default:
       return scalarLabel(content[field]);
   }
@@ -210,6 +201,8 @@ export function fieldCompareKey(
 ): string | null {
   if (!content) return null;
   switch (field) {
+    case 'author':
+      return content.author == null ? null : canonicalJson(content.author);
     case 'license':
       return licenseCompareKey(content.license);
     case 'source':
@@ -241,6 +234,8 @@ export function fieldUrl(
 ): string | null {
   if (!content) return null;
   switch (field) {
+    case 'author':
+      return scalarLabel(content.author?.url);
     case 'license':
       return licenseUrl(content.license);
     case 'source':

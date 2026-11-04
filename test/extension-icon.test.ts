@@ -35,6 +35,12 @@ describe('package icons', () => {
   });
   it.each([
     '../icon.svg',
+    'x\n../icon.svg',
+    'a\n/../../icon.svg',
+    'x\r../icon.svg',
+    'x\u2028../icon.svg',
+    'x\u2029../icon.svg',
+    'assets/\u0000icon.svg',
     '/icon.svg',
     'javascript:alert(1)',
     'a\\icon.svg',

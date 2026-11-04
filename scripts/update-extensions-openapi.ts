@@ -77,9 +77,16 @@ if (
 }
 
 const content = schemaProperties(schemas?.ExtensionContent);
+const manifestVersion = resolveSchema(content?.manifest_version);
+const versions = manifestVersion?.enum;
+const isManifestV1 =
+  (manifestVersion?.type === 'number' || manifestVersion?.type === 'integer') &&
+  Array.isArray(versions) &&
+  versions.length === 1 &&
+  versions[0] === 1;
 if (
   !content ||
-  !Object.hasOwn(content, 'manifest_version') ||
+  !isManifestV1 ||
   !Object.hasOwn(content, 'requires') ||
   !Object.hasOwn(content, 'author') ||
   !Object.hasOwn(content, 'homepage_url') ||

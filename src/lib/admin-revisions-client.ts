@@ -136,10 +136,11 @@ function renderDiff(
     const tdField = document.createElement('td');
     tdField.className = 'py-1 pr-3 font-medium whitespace-nowrap';
     tdField.textContent = label + (isChanged ? ' •' : '');
-    // Source and license rows link via their own URL (type-aware for
+    // Source, license and author rows link via their own URL (type-aware for
     // sources); URL fields link via their own value. Everything else
     // renders as text.
-    const linkedField = field === 'source' || field === 'license';
+    const linkedField =
+      field === 'source' || field === 'license' || field === 'author';
     const oldHref = linkedField
       ? fieldUrl(field, published)
       : URL_FIELDS.has(field)
@@ -245,7 +246,7 @@ export function initRevisionQueue(): void {
             label.textContent = FIELD_LABELS[field];
             const value = fieldDisplay(field, revision);
             const href =
-              field === 'source' || field === 'license'
+              field === 'source' || field === 'license' || field === 'author'
                 ? fieldUrl(field, revision)
                 : URL_FIELDS.has(field)
                   ? value

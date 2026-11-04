@@ -20,7 +20,7 @@ const createDocument = () => ({
       ExtensionListItem: { properties: { id: { type: 'string' } } },
       ExtensionContent: {
         properties: {
-          manifest_version: { const: 1 },
+          manifest_version: { type: 'number', enum: [1] },
           requires: { type: 'object' },
           author: { type: 'object' },
           homepage_url: { type: 'string' },
@@ -159,4 +159,42 @@ describe('OpenAPI snapshot update', () => {
     );
     expect(writeFile).not.toHaveBeenCalled();
   });
+});
+
+describe('manifest version guard', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+  it.each([
+    { type: 'number', enum: [2] },
+    { type: 'string', enum: ['1'] },
+    { type: 'number' },
+    { type: 'number', enum: [1, 2] },
+    {},
+  ])(
+    'rejects unsupported manifest schema %j without writing',
+    async (manifest_version) => {
+      vi.resetModules();
+      vi.clearAllMocks();
+      const value = createDocument();
+      await expect(
+        runUpdate({
+          ...value,
+          components: {
+            schemas: {
+              ...value.components.schemas,
+              ExtensionContent: {
+                properties: {
+                  ...value.components.schemas.ExtensionContent.properties,
+                  manifest_version,
+                },
+              },
+            },
+          },
+        }),
+      ).rejects.toThrow('manifest v1');
+      expect(writeFile).not.toHaveBeenCalled();
+    },
+  );
 });

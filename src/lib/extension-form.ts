@@ -1,8 +1,11 @@
+import { isPackageIconPath } from './package-icon';
 import { isExtensionType, isSourceType, SPDX_LICENSE_IDS } from '@/types';
 import type { Extension, Release } from '@/types';
 import type { ExtensionCreate, ExtensionUpdate } from '@/lib/api/client';
 import { formString } from './form';
 import { withHttpsScheme } from './url-prefix';
+
+export type ExtensionFormEcho = Extension & { moduleRequirementsInput: string };
 
 // Thrown for form-level validation failures that should be shown to the
 // user, distinct from ApiRequestError (the api rejecting an otherwise
@@ -134,11 +137,7 @@ function buildContent(
   }
 
   const icon = str('icon_url');
-  if (
-    icon &&
-    (icon.length > 2048 ||
-      !/^(?!\/)(?![a-zA-Z][a-zA-Z0-9+.-]*:)(?!.*\.\.)[^\\]+$/.test(icon))
-  )
+  if (icon && !isPackageIconPath(icon))
     throw new ExtensionValidationError(
       'Enter an icon path relative to the package root, such as icon.svg.',
     );
@@ -205,7 +204,7 @@ export function buildExtensionUpdatePayload(
 export function echoExtensionFromForm(
   form: FormData,
   base: Extension,
-): Extension {
+): ExtensionFormEcho {
   const selectedLicenseId = formString(form, 'license_spdx_id');
   const isRecognizedLicense =
     selectedLicenseId !== OTHER_LICENSE &&
@@ -269,7 +268,7 @@ export function echoReleaseDraftFromForm(form: FormData): ReleaseDraft {
 export function echoNewExtensionFromForm(
   form: FormData,
   developer: Extension['developer'],
-): { extension: Extension; releaseDraft: ReleaseDraft } {
+): { extension: ExtensionFormEcho; releaseDraft: ReleaseDraft } {
   const base: Extension = {
     manifest_version: 1,
     author: { name: developer.name, url: developer.URL },

@@ -1,3 +1,5 @@
+import { isPackageIconPath } from './package-icon';
+
 /** Resolve manifest paths from supported GitHub release assets; retain legacy URLs. */
 export function extensionIconUrl(extension: {
   id: string;
@@ -6,7 +8,8 @@ export function extensionIconUrl(extension: {
   source: { type: string; repo: string };
 }): string | undefined {
   const icon = extension.icon_url;
-  if (!icon) return undefined;
+  if (!icon || /[\u0000-\u001f\u007f-\u009f\u2028\u2029]/.test(icon))
+    return undefined;
   try {
     const absolute = new URL(icon);
     return /^https?:$/.test(absolute.protocol) &&
@@ -17,11 +20,7 @@ export function extensionIconUrl(extension: {
   } catch {
     // Manifest icons are package-relative; do not resolve them against the site.
   }
-  if (
-    !/^(?!\/)(?![a-zA-Z][a-zA-Z0-9+.-]*:)(?!.*\.\.)[^\\]+$/.test(icon) ||
-    icon.length > 2048
-  )
-    return undefined;
+  if (!isPackageIconPath(icon)) return undefined;
   if (
     extension.source.type !== 'github' ||
     !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(extension.source.repo)

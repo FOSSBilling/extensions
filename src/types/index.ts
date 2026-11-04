@@ -69,7 +69,6 @@ export type Extension = {
   manifest_version: 1;
   author: PackageAuthor;
   requires: Requirements;
-  moduleRequirementsInput?: string;
   id: string;
   type: ExtensionType;
   name: string;

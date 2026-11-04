@@ -303,6 +303,11 @@ describe('generated Extensions v2 façade', () => {
     );
     expect(response.readme).toContain('README content');
     expect(response.releases).toHaveLength(2);
+    expect(response.requires).toEqual(detail.requires);
+    expect(response.homepage_url).toBe(detail.homepage_url);
+    expect(response.releases.map((release) => release.requires)).toEqual(
+      detail.releases.map((release) => release.requires),
+    );
     expect(response.source.repo).toBe('fossbilling/full-extension');
     expect(response.version).toBe('1.0.0');
     expect(response.download_url).toContain('full-extension.zip');

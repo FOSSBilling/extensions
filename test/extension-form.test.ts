@@ -42,7 +42,34 @@ const developer = {
   name: 'Developer',
 };
 const published: Extension = {
-  ...buildExtensionCreatePayload(extensionForm()),
+  manifest_version: 1,
+  type: 'module',
+  name: 'Example',
+  description: 'Description',
+  author: { name: 'Package Author', url: 'https://author.example.test' },
+  requires: {
+    fossbilling: '^0.8.9 || ^1.0',
+    php: '>=8.3 <9',
+    modules: { branding: '^1.2' },
+  },
+  homepage_url: 'https://example.test',
+  license: 'MIT',
+  readme: '# Example',
+  source: { type: 'github', repo: 'fossbilling/example' },
+  version: '1.0.0',
+  download_url: 'https://example.test/example.zip',
+  releases: [
+    {
+      tag: '1.0.0',
+      date: '2026-01-01',
+      download_url: 'https://example.test/example.zip',
+      requires: {
+        fossbilling: '^0.8.9 || ^1.0',
+        php: '>=8.3 <9',
+        modules: { branding: '^1.2' },
+      },
+    },
+  ],
   id: 'example_module',
   developer,
 };
@@ -150,6 +177,12 @@ describe('manifest publishing forms', () => {
   });
   it.each([
     '../icon.svg',
+    'x\n../icon.svg',
+    'a\n/../../icon.svg',
+    'x\r../icon.svg',
+    'x\u2028../icon.svg',
+    'x\u2029../icon.svg',
+    'assets/\u0000icon.svg',
     '/icon.svg',
     'https://example.com/icon.svg',
     'a\\icon.svg',
@@ -189,4 +222,43 @@ describe('manifest publishing forms', () => {
       'example_module',
     );
   });
+});
+
+it('rejects a blank custom license but safely echoes incomplete edits', () => {
+  const form = extensionForm({
+    license_spdx_id: 'other',
+    license_name_custom: '',
+    version_tag: '',
+    author_url: '',
+  });
+  expect(() =>
+    buildExtensionCreatePayload(
+      extensionForm({ license_spdx_id: 'other', license_name_custom: '' }),
+    ),
+  ).toThrow(/license/i);
+  expect(() => buildExtensionUpdatePayload(form, published)).toThrow(
+    /license/i,
+  );
+  const echo = echoExtensionFromForm(form, published);
+  expect(echo.license).toBe('');
+  expect(echo.author.url).toBeUndefined();
+});
+
+it('safely echoes blank new-extension and release submissions', () => {
+  const form = new FormData();
+  expect(echoReleaseDraftFromForm(form)).toEqual({
+    version_tag: '',
+    release_date: '',
+    download_url: '',
+    changelog_url: '',
+  });
+  const echo = echoNewExtensionFromForm(form, developer);
+  expect(echo.extension).toMatchObject({
+    id: '',
+    name: '',
+    license: '',
+    moduleRequirementsInput: '',
+    author: { name: '' },
+  });
+  expect(echo.releaseDraft).toEqual(echoReleaseDraftFromForm(form));
 });

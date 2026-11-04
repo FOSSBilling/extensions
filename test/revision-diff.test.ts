@@ -172,3 +172,33 @@ it('still renders legacy website and license audit fields', () => {
   expect(fields.homepage_url.newValue).toBe('https://legacy.example.com');
   expect(fields.license.newUrl).toBe('https://legacy.example.com/license');
 });
+
+it('shows author names and URLs and detects URL-only edits', () => {
+  const row = diffRevisionContent(published, {
+    ...published,
+    author: { name: 'Package Author', url: 'https://author.example.test' },
+  }).find((row) => row.field === 'author')!;
+  expect(row.changed).toBe(true);
+  expect(row.oldValue).toBe('Package Author');
+  expect(row.newValue).toBe('Package Author');
+  expect(row.oldUrl).toBeNull();
+  expect(row.newUrl).toBe('https://author.example.test');
+});
+
+it.each([
+  { date: '2026-02-01' },
+  { download_url: 'https://example.test/new.zip' },
+  { changelog_url: 'https://example.test/changelog' },
+  { requires: { fossbilling: '^1.0', php: '>=8.4' } },
+])('shows complete release metadata for edits %j', (update) => {
+  const releases = published.releases.map((release) => ({
+    ...release,
+    ...update,
+  }));
+  const row = diffRevisionContent(published, { ...published, releases }).find(
+    (row) => row.field === 'releases',
+  )!;
+  expect(row.changed).toBe(true);
+  expect(row.oldValue).not.toBe(row.newValue);
+  expect(JSON.parse(row.newValue!)).toEqual(releases);
+});

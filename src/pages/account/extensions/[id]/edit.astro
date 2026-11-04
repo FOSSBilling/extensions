@@ -64,7 +64,7 @@ const base: Extension =
 let error: string | null = null;
 // Falls back to the just-submitted values on a rejected edit, so the form
 // doesn't reset to the previous content and discard the edit.
-let submitted: Extension | null = null;
+let submitted: ReturnType<typeof echoExtensionFromForm> | null = null;
 let submittedReleaseDraft: ReleaseDraft | null = null;
 
 // Only one revision may be unreviewed at a time — the api rejects a second

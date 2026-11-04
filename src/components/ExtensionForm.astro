@@ -3,7 +3,11 @@ import { EXTENSION_TYPES, SOURCE_TYPES, SPDX_LICENSE_IDS } from '@/types';
 import type { Developer, Extension } from '@/types';
 import { CircleAlert, SquarePen, ChevronDown } from '@lucide/astro';
 import { stripUrlScheme } from '@/lib/url-prefix';
-import { OTHER_LICENSE, type ReleaseDraft } from '@/lib/extension-form';
+import {
+  OTHER_LICENSE,
+  type ExtensionFormEcho,
+  type ReleaseDraft,
+} from '@/lib/extension-form';
 import { MARKDOWN_SCROLL_CLASS } from '@/lib/revision-diff-shared';
 
 interface Props {
@@ -15,7 +19,7 @@ interface Props {
   // echoNewExtensionFromForm and echoExtensionFromForm). Values only:
   // passing an echo never flips the form into edit mode, so create keeps
   // its writable extension_id and create submit semantics.
-  echo?: Extension;
+  echo?: ExtensionFormEcho;
   error?: string | null;
   submitLabel?: string;
   cancelHref?: string;
@@ -142,7 +146,7 @@ const otherSpdxIds = SPDX_LICENSE_IDS.filter((id) => !popularSpdxIds.has(id));
               id="extension_id"
               name="extension_id"
               required
-              pattern="[a-z0-9_-]+"
+              pattern="[a-z0-9_\-]+"
               maxlength={64}
               value={shown?.id}
               disabled={isEdit}
@@ -260,7 +264,7 @@ const otherSpdxIds = SPDX_LICENSE_IDS.filter((id) => !popularSpdxIds.has(id));
               class="input"
               id="author_url"
               name="author_url"
-              value={shown?.author.url ?? developer.URL}
+              value={shown === undefined ? developer.URL : shown.author.url}
             />
           </div>
         </fieldset>
@@ -301,7 +305,7 @@ const otherSpdxIds = SPDX_LICENSE_IDS.filter((id) => !popularSpdxIds.has(id));
               id="requires_modules"
               name="requires_modules"
               placeholder="branding: ^1.2"
-            >{shown?.moduleRequirementsInput ?? Object.entries(shown?.requires.modules ?? {}).map(([id, range]) => `${id}: ${range}`).join('\n')}</textarea>
+            >{echo?.moduleRequirementsInput ?? Object.entries(shown?.requires.modules ?? {}).map(([id, range]) => `${id}: ${range}`).join('\n')}</textarea>
             <p class="text-muted-foreground">
               One module-id: constraint per line.
             </p>

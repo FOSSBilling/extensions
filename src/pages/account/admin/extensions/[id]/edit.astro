@@ -67,7 +67,7 @@ let error: string | null = null;
 // Falls back to the just-submitted values on a failed correction, so the
 // form doesn't reset to the published content and discard the edit — same
 // submitted echo as the author edit page.
-let submitted: Extension | null = null;
+let submitted: ReturnType<typeof echoExtensionFromForm> | null = null;
 let submittedNote = '';
 let submittedReleaseDraft: ReleaseDraft | null = null;
 
