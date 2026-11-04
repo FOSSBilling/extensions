@@ -93,7 +93,6 @@ if (!owned.pendingRevision && Astro.request.method === 'POST') {
   }
 }
 
-const fields = submitted ?? base;
 const title = base.name || owned.id;
 ---
 
@@ -117,7 +116,8 @@ const title = base.name || owned.id;
         </p>
         <ExtensionForm
           developer={owned.developer}
-          extension={fields}
+          extension={base}
+          echo={submitted ?? undefined}
           releaseDraft={submittedReleaseDraft ?? undefined}
           error={error}
         />

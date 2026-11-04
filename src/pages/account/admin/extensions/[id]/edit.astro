@@ -107,7 +107,6 @@ if (
   }
 }
 
-const fields = submitted ?? base;
 const title = base?.name || owned?.id || id;
 ---
 
@@ -184,7 +183,7 @@ const title = base?.name || owned?.id || id;
           </section>
         </div>
       ) : (
-        fields && (
+        base && (
           <Fragment>
             <p class="text-muted-foreground text-sm">
               For live listing corruption — a truncated readme, a broken link —
@@ -192,7 +191,8 @@ const title = base?.name || owned?.id || id;
             </p>
             <ExtensionForm
               developer={owned.developer}
-              extension={fields}
+              extension={base}
+              echo={submitted ?? undefined}
               releaseDraft={submittedReleaseDraft ?? undefined}
               error={error}
               submitLabel="Correct Live Listing"
