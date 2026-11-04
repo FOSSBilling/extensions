@@ -21,7 +21,7 @@ import {
 import { formString } from '@/lib/form';
 import { formatDate } from '@/lib/format-date';
 import { setFlash } from '@/lib/flash';
-import { purgeCatalogue } from '@/lib/cache-invalidate';
+import { purgeDirectory } from '@/lib/cache-invalidate';
 import type { Extension } from '@/types';
 import { CircleAlert } from '@lucide/astro';
 import DateTime from '@/components/admin/DateTime.astro';
@@ -89,7 +89,7 @@ if (
     }
     const payload = buildExtensionUpdatePayload(form, base);
     await api.correctExtension(owned.id, payload, submittedNote);
-    purgeCatalogue(Astro);
+    purgeDirectory(Astro);
     await setFlash(Astro, env.sessionSecret, {
       category: 'success',
       title: `"${owned.id}" corrected.`,

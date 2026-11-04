@@ -76,7 +76,7 @@ type ListFilters = Pick<
   'type' | 'developer_id' | 'status' | 'q' | 'limit' | 'cursor'
 >;
 
-export type ExtensionCatalogueFilters = Pick<
+export type ExtensionDirectoryFilters = Pick<
   ExtensionListQuery,
   'type' | 'developer_id' | 'limit' | 'cursor'
 >;
@@ -101,7 +101,7 @@ export type RevisionStatus = Exclude<RevisionQueueQuery['status'], undefined>;
 export type ModerationCounts = GetModerationCountsResponse['result'];
 
 // The v2 list/detail reads are role-aware unions. These wrappers pin a scope
-// (public catalogue vs mine/all) or a transport (anonymous vs authenticated),
+// (public directory vs mine/all) or a transport (anonymous vs authenticated),
 // so they narrow to the projection that scope always returns.
 export interface ExtensionListResponse {
   result: ExtensionListItem[];
@@ -367,7 +367,7 @@ function requireOwnedExtension(
 }
 
 // Builds the query for the role-aware extension list reads. `scope` selects
-// the projection (undefined = public catalogue); callers pass only the
+// the projection (undefined = public directory); callers pass only the
 // filters their surface uses.
 function listQuery(
   scope: 'mine' | 'all' | undefined,
@@ -397,13 +397,13 @@ function listQuery(
   return query;
 }
 
-// The three anonymous catalogue reads below are edge-cached: their results
+// The three anonymous directory reads below are edge-cached: their results
 // only change when a moderator approves a revision, so a short TTL absorbs
 // most repeat traffic without any invalidation protocol. Authenticated
 // reads (scope=mine/all) must never pass through this cache.
 export async function listExtensions(
   env: ApplicationEnv,
-  filters: ExtensionCatalogueFilters = {},
+  filters: ExtensionDirectoryFilters = {},
 ): Promise<ExtensionListResponse> {
   const query = listQuery(undefined, filters);
   return cachedEdgeRead(

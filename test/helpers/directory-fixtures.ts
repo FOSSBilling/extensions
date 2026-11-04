@@ -5,11 +5,13 @@ import type { ExtensionListItem } from '@/lib/api/client';
 export function item(id: string, name = id): ExtensionListItem {
   return {
     id,
-    type: 'mod',
+    manifest_version: 1 as const,
+    author: { name: 'Package Author' },
+    type: 'module',
     name,
     description: `${name} description`,
-    website: `https://example.test/${id}`,
-    license: { name: 'MIT' },
+    homepage_url: `https://example.test/${id}`,
+    license: 'MIT',
     source: { type: 'github', repo: `fossbilling/${id}` },
     version: '1.0.0',
     download_url: `https://example.test/${id}.zip`,
@@ -23,7 +25,7 @@ export function item(id: string, name = id): ExtensionListItem {
   };
 }
 
-// A paginated API response body for any row type — catalogue items, claim
+// A paginated API response body for any row type — directory items, claim
 // rows, history entries — shaped like the generated Pagination envelope.
 export function page<T>(
   result: T[],

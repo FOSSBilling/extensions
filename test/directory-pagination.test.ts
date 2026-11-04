@@ -2,16 +2,16 @@ import { describe, expect, it, vi } from 'vitest';
 import { ApiRequestError, type ExtensionListResponse } from '@/lib/api/client';
 import {
   appendPage,
-  createCataloguePager,
-  createCataloguePagerFromIds,
+  createDirectoryPager,
+  createDirectoryPagerFromIds,
   stateFromPage,
-  type CataloguePageRequest,
-} from '@/lib/catalogue-pagination';
-import { item, page } from './helpers/catalogue-fixtures';
+  type DirectoryPageRequest,
+} from '@/lib/directory-pagination';
+import { item, page } from './helpers/directory-fixtures';
 
-describe('catalogue page accumulation', () => {
+describe('directory page accumulation', () => {
   const filters = {
-    type: 'mod' as const,
+    type: 'module' as const,
     developer_id: 'developer-id',
     limit: 100,
   };
@@ -28,14 +28,14 @@ describe('catalogue page accumulation', () => {
       true,
     );
     const loadPage = vi.fn().mockResolvedValue(second);
-    const pager = createCataloguePager(first, filters, loadPage);
+    const pager = createDirectoryPager(first, filters, loadPage);
 
     const state = await pager.loadNextPage();
 
     expect(loadPage).toHaveBeenCalledWith({
       ...filters,
       cursor: 'cursor-2',
-    } satisfies CataloguePageRequest);
+    } satisfies DirectoryPageRequest);
     expect(state.items.map((extension) => extension.id)).toEqual([
       'zeta',
       'alpha',
@@ -49,7 +49,7 @@ describe('catalogue page accumulation', () => {
     const loadPage = vi
       .fn()
       .mockResolvedValue(page([item('ALPHA'), item('second')], null, false));
-    const pager = createCataloguePagerFromIds(
+    const pager = createDirectoryPagerFromIds(
       ['alpha'],
       { next_cursor: 'cursor-2', has_more: true },
       filters,
@@ -62,7 +62,7 @@ describe('catalogue page accumulation', () => {
   });
 
   it('does not duplicate concurrent next-page requests', async () => {
-    // Seeded like the real caller (createCataloguePagerFromIds): the server
+    // Seeded like the real caller (createDirectoryPagerFromIds): the server
     // renders page one (its ids seed the dedupe set), the client accumulates
     // the rest.
     let resolvePage: ((value: ExtensionListResponse) => void) | undefined;
@@ -72,7 +72,7 @@ describe('catalogue page accumulation', () => {
           resolvePage = resolve;
         }),
     );
-    const pager = createCataloguePagerFromIds(
+    const pager = createDirectoryPagerFromIds(
       ['first'],
       { next_cursor: 'cursor-2', has_more: true },
       filters,
@@ -96,7 +96,7 @@ describe('catalogue page accumulation', () => {
     const loadPage = vi
       .fn()
       .mockResolvedValueOnce(page([item('last')], null, false));
-    const pager = createCataloguePager(
+    const pager = createDirectoryPager(
       page([item('first')], 'cursor-final', true),
       filters,
       loadPage,
@@ -136,7 +136,7 @@ describe('catalogue page accumulation', () => {
       .fn()
       .mockResolvedValueOnce(page([item('second')], 'invalid-cursor', true))
       .mockRejectedValueOnce(invalidCursor);
-    const pager = createCataloguePagerFromIds(
+    const pager = createDirectoryPagerFromIds(
       ['first'],
       { next_cursor: 'cursor-2', has_more: true },
       filters,
@@ -164,7 +164,7 @@ describe('catalogue page accumulation', () => {
       ],
       pagination: { next_cursor: null, has_more: false },
     });
-    const pager = createCataloguePagerFromIds(
+    const pager = createDirectoryPagerFromIds(
       [],
       { next_cursor: 'cursor-2', has_more: true },
       filters,

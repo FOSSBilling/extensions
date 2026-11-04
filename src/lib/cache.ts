@@ -1,11 +1,11 @@
 // Edge-cache helpers for public, user-independent responses. Cloudflare
 // does not automatically cache Worker-generated responses, so hot public
 // reads are stored through the Cache API (per-colo, isolate-independent)
-// with a short TTL: catalogue content only changes when a moderator
+// with a short TTL: directory content only changes when a moderator
 // approves a revision, so a minute of staleness trades negligible
 // invocation and API-subrequest cost for most repeat traffic.
 
-const CATALOGUE_CACHE_TTL_SECONDS = 60;
+const DIRECTORY_CACHE_TTL_SECONDS = 60;
 
 // Per-isolate purge marker. CDN tag purges cannot reach the per-colo Cache
 // API entries cached here, so a page re-rendered right after a purge could
@@ -113,7 +113,7 @@ export async function cachedEdgeRead<T>(
       new Response(JSON.stringify({ writtenAt: missStartedAt, value }), {
         headers: {
           'content-type': 'application/json',
-          'cache-control': `public, s-maxage=${CATALOGUE_CACHE_TTL_SECONDS}`,
+          'cache-control': `public, s-maxage=${DIRECTORY_CACHE_TTL_SECONDS}`,
         },
       }),
     );

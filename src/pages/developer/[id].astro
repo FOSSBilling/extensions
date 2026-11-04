@@ -1,6 +1,6 @@
 ---
 import Base from '../../layouts/Base.astro';
-import CatalogueSection from '@/components/CatalogueSection.astro';
+import DirectorySection from '@/components/DirectorySection.astro';
 import { getDeveloperById } from '@/lib/extensions-data';
 import {
   ApiRequestError,
@@ -9,7 +9,7 @@ import {
   listExtensions,
   type ExtensionListResponse,
 } from '@/lib/api/client';
-import { hasNextPage } from '@/lib/catalogue-pagination';
+import { hasNextPage } from '@/lib/directory-pagination';
 import { getSessionUser } from '@/lib/session';
 import { requireUser } from '@/lib/auth-guard';
 import { formString } from '@/lib/form';
@@ -186,7 +186,7 @@ const extensions = extensionsPage?.result ?? [];
 
   <h2 class="font-semibold mb-4">Extensions by {developer.name}</h2>
   <div
-    data-extension-catalogue
+    data-extension-directory
     data-api-url="/api/extensions/cards"
     data-limit="50"
     data-developer-id={developer.id}
@@ -200,7 +200,7 @@ const extensions = extensionsPage?.result ?? [];
       </div>
     ) : (
       <>
-        <CatalogueSection
+        <DirectorySection
           extensions={extensions}
           pagination={extensionsPage?.pagination}
           emptyMessage="No published extensions yet."
@@ -210,4 +210,4 @@ const extensions = extensionsPage?.result ?? [];
   </div>
 </Base>
 
-<script src="../../scripts/extension-catalogue.ts"></script>
+<script src="../../scripts/extension-directory.ts"></script>

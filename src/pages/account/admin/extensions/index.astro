@@ -68,20 +68,20 @@ const extNextPageUrl =
     : null;
 const extPrevPageUrl = prevCursorPageUrl(Astro.url, 'extCursor', 'extCursors');
 
-// Catalogue totals for the tab badges. Best-effort: the tabs render plain
+// Directory totals for the tab badges. Best-effort: the tabs render plain
 // labels when this fails rather than erroring the whole table.
-let catalogueCounts: ModerationCounts['extensions'] | null = null;
+let directoryCounts: ModerationCounts['extensions'] | null = null;
 try {
-  catalogueCounts = (await api.getModerationCounts()).extensions;
+  directoryCounts = (await api.getModerationCounts()).extensions;
 } catch {
-  catalogueCounts = null;
+  directoryCounts = null;
 }
 ---
 
 <Admin
   title="Extensions — FOSSBilling Extensions"
   active="extensions"
-  description="Every extension in the catalogue. Delisting removes it from public view immediately."
+  description="Every extension in the directory. Delisting removes it from public view immediately."
 >
   <div class="flex flex-wrap items-center justify-between gap-3">
     <nav class="flex flex-wrap gap-2" aria-label="Extension status">
@@ -99,7 +99,7 @@ try {
           {s === 'unpublished'
             ? 'Never Published'
             : s.charAt(0).toUpperCase() + s.slice(1)}
-          {catalogueCounts ? ` (${catalogueCounts[s]})` : ''}
+          {directoryCounts ? ` (${directoryCounts[s]})` : ''}
         </a>
       ))}
     </nav>
@@ -147,7 +147,7 @@ try {
 
   <DialogShell
     id="delist-confirm-dialog"
-    description="It will be removed from the public catalogue immediately. The owner can still see it, and why, in their dashboard."
+    description="It will be removed from the public directory immediately. The owner can still see it, and why, in their dashboard."
     formAction="/account/admin/extensions/delist"
     submitLabel="Delist"
     submitVariant="destructive"

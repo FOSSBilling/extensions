@@ -6,12 +6,15 @@ import type {
 } from '@/lib/api/generated/extensions-v2/types.gen';
 
 const published: ExtensionContent = {
-  type: 'mod',
+  manifest_version: 1,
+  author: { name: 'Package Author' },
+  requires: { fossbilling: '^0.8.9', php: '>=8.3' },
+  type: 'module',
   name: 'Old name',
   version: '1.0.0',
   description: 'Old description',
-  website: 'https://example.test',
-  license: { name: 'MIT', spdx_id: 'MIT' },
+  homepage_url: 'https://example.test',
+  license: 'MIT',
   source: { type: 'github', repo: 'org/old' },
   download_url: 'https://example.test/old.zip',
   icon_url: 'https://example.test/icon.png',
@@ -21,7 +24,7 @@ const published: ExtensionContent = {
       tag: 'v1.0.0',
       date: '2026-01-01',
       download_url: 'https://example.test/old.zip',
-      min_fossbilling_version: '0.1.0',
+      requires: { fossbilling: '>=0.1.0', php: '*' },
     },
   ],
 };
@@ -49,13 +52,13 @@ describe('diffRevisionContent', () => {
     expect(byField.name.isNew).toBe(true);
     expect(byField.name.changed).toBe(true);
     expect(byField.name.oldValue).toBeNull();
-    expect(byField.website.changed).toBe(false);
+    expect(byField.homepage_url.changed).toBe(false);
   });
 
   it('compares license, source and releases by label rather than object identity', () => {
     const revision: StoredExtensionContent = {
       ...published,
-      license: { name: 'MIT', spdx_id: 'MIT' },
+      license: 'MIT',
       source: { type: 'github', repo: 'org/old' },
       releases: published.releases.map((r) => ({ ...r })),
     };
@@ -77,7 +80,7 @@ describe('diffRevisionContent', () => {
     });
     const byField = Object.fromEntries(rows.map((r) => [r.field, r]));
     expect(byField.license.changed).toBe(true);
-    expect(byField.license.oldValue).toBe('MIT (MIT)');
+    expect(byField.license.oldValue).toBe('MIT');
     expect(byField.license.newValue).toBe('MIT (MIT)');
     expect(byField.license.oldUrl).toBeNull();
     expect(byField.license.newUrl).toBe('https://example.test/licenses/mit');
@@ -134,10 +137,38 @@ describe('diffRevisionContent', () => {
 
   it('does not let delimiter text in values collide comparison keys', () => {
     const rows = diffRevisionContent(
-      { ...published, license: { name: 'A|B' } },
+      { ...published, license: 'A|B' },
       { ...published, license: { name: 'A', spdx_id: 'B' } },
     );
     const byField = Object.fromEntries(rows.map((r) => [r.field, r]));
     expect(byField.license.changed).toBe(true);
   });
+});
+
+it('detects requirement-only and author-only edits and compares complete release metadata', () => {
+  const changed = diffRevisionContent(published, {
+    ...published,
+    author: { name: 'Different Author' },
+    requires: { ...published.requires, php: '>=8.4' },
+    releases: published.releases.map((release) => ({
+      ...release,
+      requires: { ...release.requires, php: '>=8.4' },
+    })),
+  });
+  const fields = Object.fromEntries(changed.map((row) => [row.field, row]));
+  expect(fields.author.changed).toBe(true);
+  expect(fields.requires.changed).toBe(true);
+  expect(fields.releases.changed).toBe(true);
+  expect(fields.requires.newValue).toContain('>=8.4');
+});
+
+it('still renders legacy website and license audit fields', () => {
+  const fields = Object.fromEntries(
+    diffRevisionContent(null, {
+      website: 'https://legacy.example.com',
+      license: { name: 'MIT', URL: 'https://legacy.example.com/license' },
+    }).map((row) => [row.field, row]),
+  );
+  expect(fields.homepage_url.newValue).toBe('https://legacy.example.com');
+  expect(fields.license.newUrl).toBe('https://legacy.example.com/license');
 });

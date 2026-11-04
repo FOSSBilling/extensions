@@ -18,6 +18,15 @@ const createDocument = () => ({
       },
       Pagination: createPaginationSchema(),
       ExtensionListItem: { properties: { id: { type: 'string' } } },
+      ExtensionContent: {
+        properties: {
+          manifest_version: { const: 1 },
+          requires: { type: 'object' },
+          author: { type: 'object' },
+          homepage_url: { type: 'string' },
+          license: { type: 'string' },
+        },
+      },
     },
   },
 });
@@ -61,6 +70,7 @@ describe('OpenAPI snapshot update', () => {
     await runUpdate({
       components: {
         schemas: {
+          ExtensionContent: value.components.schemas.ExtensionContent,
           Pagination: value.components.schemas.Pagination,
           ExtensionListItem: value.components.schemas.ExtensionListItem,
           ExtensionListResponse: {
@@ -98,7 +108,7 @@ describe('OpenAPI snapshot update', () => {
     expect(writeFile).not.toHaveBeenCalled();
   });
 
-  it.each([null, [], { readme: {} }, { releases: {} }])(
+  it.each([null, [], { readme: {} }, { releases: {} }, { requires: {} }])(
     'rejects invalid list item properties %j without writing',
     async (properties) => {
       const value = createDocument();
@@ -115,6 +125,27 @@ describe('OpenAPI snapshot update', () => {
       expect(writeFile).not.toHaveBeenCalled();
     },
   );
+
+  it('rejects a pre-manifest contract before replacing the snapshot', async () => {
+    const value = createDocument();
+    await expect(
+      runUpdate({
+        ...value,
+        components: {
+          schemas: {
+            ...value.components.schemas,
+            ExtensionContent: {
+              properties: {
+                website: { type: 'string' },
+                license: { type: 'object' },
+              },
+            },
+          },
+        },
+      }),
+    ).rejects.toThrow('manifest v1');
+    expect(writeFile).not.toHaveBeenCalled();
+  });
 
   it('reports HTTP failures without writing', async () => {
     vi.stubGlobal(

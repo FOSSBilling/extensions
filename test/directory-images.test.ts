@@ -12,9 +12,9 @@ vi.mock('@/lib/api/client', async (importOriginal) => ({
   listExtensions: vi.fn(),
 }));
 
-// Shape guard for the JSON catalogue response: every card carries only the
+// Shape guard for the JSON directory response: every card carries only the
 // fields the response contract defines, plus the signed icon URL.
-type CatalogueCardItem = Pick<
+type DirectoryCardItem = Pick<
   ExtensionListItem,
   'id' | 'name' | 'description' | 'version' | 'icon_url'
 > & { optimized_icon_url?: string };
@@ -23,7 +23,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
-function isCatalogueJsonItem(value: unknown): value is CatalogueCardItem {
+function isDirectoryJsonItem(value: unknown): value is DirectoryCardItem {
   if (!isRecord(value)) return false;
 
   return (
@@ -37,8 +37,8 @@ function isCatalogueJsonItem(value: unknown): value is CatalogueCardItem {
   );
 }
 
-function isCatalogueJsonPage(value: unknown): value is {
-  result: CatalogueCardItem[];
+function isDirectoryJsonPage(value: unknown): value is {
+  result: DirectoryCardItem[];
   pagination: ExtensionListResponse['pagination'];
 } {
   if (!isRecord(value) || !isRecord(value.pagination)) {
@@ -47,7 +47,7 @@ function isCatalogueJsonPage(value: unknown): value is {
 
   return (
     Array.isArray(value.result) &&
-    value.result.every(isCatalogueJsonItem) &&
+    value.result.every(isDirectoryJsonItem) &&
     ((typeof value.pagination.next_cursor === 'string' &&
       value.pagination.next_cursor.length > 0) ||
       value.pagination.next_cursor === null) &&
@@ -55,14 +55,14 @@ function isCatalogueJsonPage(value: unknown): value is {
   );
 }
 
-describe('catalogue image issuance', () => {
-  it('issues only returned catalogue images and retains pagination/raw fields', async () => {
+describe('directory image issuance', () => {
+  it('issues only returned directory images and retains pagination/raw fields', async () => {
     const item = {
       id: 'ext',
       name: 'Extension',
       description: 'Description',
       version: '1.0',
-      icon_url: 'https://github.com/catalogue/logo.png',
+      icon_url: 'https://github.com/directory/logo.png',
     };
     const pagination = { next_cursor: 'opaque', has_more: true };
     vi.mocked(listExtensions).mockResolvedValue({
@@ -73,11 +73,11 @@ describe('catalogue image issuance', () => {
       url: new URL(
         'https://extensions.example/api/extensions?src=https://github.com/attacker/logo.png',
       ),
-      locals: { env: { sessionSecret: 'catalogue-test-secret' } },
+      locals: { env: { sessionSecret: 'directory-test-secret' } },
     } as Parameters<typeof GET>[0]);
     const body = await response.json();
-    if (!isCatalogueJsonPage(body))
-      throw new Error('Invalid catalogue response');
+    if (!isDirectoryJsonPage(body))
+      throw new Error('Invalid directory response');
     expect(response.status).toBe(200);
     expect(body.pagination).toEqual(pagination);
     expect(body.result[0]).toMatchObject(item);
@@ -91,7 +91,7 @@ describe('catalogue image issuance', () => {
         new URL(item.icon_url),
         'icon',
         image.searchParams.get('sig'),
-        'catalogue-test-secret',
+        'directory-test-secret',
       ),
     ).toBe(true);
     expect(
@@ -99,7 +99,7 @@ describe('catalogue image issuance', () => {
         new URL('https://github.com/attacker/logo.png'),
         'icon',
         image.searchParams.get('sig'),
-        'catalogue-test-secret',
+        'directory-test-secret',
       ),
     ).toBe(false);
   });

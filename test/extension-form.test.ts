@@ -9,343 +9,184 @@ import {
 } from '@/lib/extension-form';
 import type { Extension } from '@/types';
 
-function extensionForm(overrides: Record<string, string> = {}): FormData {
+function extensionForm(overrides: Record<string, string | undefined> = {}) {
   const form = new FormData();
-  form.set('extension_id', 'example');
-  form.set('type', 'mod');
-  form.set('name', 'Example');
-  form.set('description', 'An example extension.');
-  form.set('website', 'example.test');
-  form.set('license_spdx_id', 'MIT');
-  form.set('license_url', 'https://example.test/license');
-  form.set('readme', '# Example');
-  form.set('source_type', 'github');
-  form.set('source_repo', 'fossbilling/example');
-  form.set('version_tag', '1.0.0');
-  form.set('release_date', '2026-01-01');
-  form.set('download_url', 'https://example.test/example.zip');
-  form.set('min_fossbilling_version', '0.6.0');
-  for (const [key, value] of Object.entries(overrides)) {
-    form.set(key, value);
-  }
+  const values = {
+    extension_id: 'example_module',
+    type: 'module',
+    name: 'Example',
+    description: 'Description',
+    homepage_url: 'example.test',
+    author_name: 'Package Author',
+    author_url: 'author.example.test',
+    requires_fossbilling: '^0.8.9 || ^1.0',
+    requires_php: '>=8.3 <9',
+    requires_modules: 'branding: ^1.2',
+    license_spdx_id: 'MIT',
+    readme: '# Example',
+    source_type: 'github',
+    source_repo: 'fossbilling/example',
+    version_tag: '1.0.0',
+    release_date: '2026-01-01',
+    download_url: 'example.test/example.zip',
+    icon_url: 'assets/icon.svg',
+    ...overrides,
+  };
+  for (const [key, value] of Object.entries(values))
+    if (typeof value === 'string') form.set(key, value);
   return form;
 }
-
-const publishedExtension: Extension = {
-  id: 'example',
-  type: 'mod',
-  name: 'Example',
-  description: 'An example extension.',
-  releases: [
-    {
-      tag: '0.9.0',
-      date: '2025-12-01',
-      download_url: 'https://example.test/example-0.9.0.zip',
-      min_fossbilling_version: '0.5.0',
-    },
-  ],
-  website: 'https://example.test',
-  license: { name: 'MIT', spdx_id: 'MIT' },
-  readme: '# Example',
-  source: { type: 'github', repo: 'fossbilling/example' },
-  version: '0.9.0',
-  download_url: 'https://example.test/example-0.9.0.zip',
-  developer: {
-    id: 'developer',
-    type: 'organization',
-    name: 'Example developer',
-  },
+const developer = {
+  id: 'owner',
+  type: 'organization' as const,
+  name: 'Developer',
+};
+const published: Extension = {
+  ...buildExtensionCreatePayload(extensionForm()),
+  id: 'example_module',
+  developer,
 };
 
-describe('buildExtensionCreatePayload', () => {
-  it('builds a POST /extensions payload with no developer field', () => {
-    const payload = buildExtensionCreatePayload(extensionForm());
-
-    expect(payload).not.toHaveProperty('developer');
-    expect(payload.id).toBe('example');
-    expect(payload.name).toBe('Example');
-    expect(payload.releases).toEqual([
-      {
-        tag: '1.0.0',
-        date: '2026-01-01',
-        download_url: 'https://example.test/example.zip',
-        changelog_url: undefined,
-        min_fossbilling_version: '0.6.0',
+describe('manifest publishing forms', () => {
+  it('sends the new manifest fields without transforming constraints or attribution', () => {
+    const body = buildExtensionCreatePayload(extensionForm());
+    expect(body).toMatchObject({
+      id: 'example_module',
+      manifest_version: 1,
+      type: 'module',
+      license: 'MIT',
+      homepage_url: 'https://example.test',
+      icon_url: 'assets/icon.svg',
+      author: { name: 'Package Author', url: 'https://author.example.test' },
+      requires: {
+        fossbilling: '^0.8.9 || ^1.0',
+        php: '>=8.3 <9',
+        modules: { branding: '^1.2' },
       },
-    ]);
-  });
-
-  it('lowercases the extension id', () => {
-    const payload = buildExtensionCreatePayload(
-      extensionForm({ extension_id: 'Example-ID' }),
-    );
-
-    expect(payload.id).toBe('example-id');
-  });
-
-  it('requires an initial release', () => {
-    const form = extensionForm({ version_tag: '' });
-    form.delete('release_date');
-    form.delete('download_url');
-    form.delete('min_fossbilling_version');
-
-    expect(() => buildExtensionCreatePayload(form)).toThrow(
-      ExtensionValidationError,
-    );
-  });
-
-  it('sets both name and spdx_id for a recognized license', () => {
-    const payload = buildExtensionCreatePayload(
-      extensionForm({ license_spdx_id: 'Apache-2.0' }),
-    );
-
-    expect(payload.license).toEqual({
-      name: 'Apache-2.0',
-      spdx_id: 'Apache-2.0',
-      URL: 'https://example.test/license',
     });
+    expect(body.releases[0].requires).toEqual(body.requires);
+    expect(body).not.toHaveProperty('developer');
+    expect(body).not.toHaveProperty('website');
+    expect(body.releases[0]).not.toHaveProperty('min_fossbilling_version');
   });
-
-  it('rejects a license_spdx_id that is not a real SPDX identifier', () => {
-    const form = extensionForm({ license_spdx_id: 'not-a-real-license' });
-
-    expect(() => buildExtensionCreatePayload(form)).toThrow(
-      ExtensionValidationError,
+  it('lowercases new ids and accepts an omitted homepage', () => {
+    const body = buildExtensionCreatePayload(
+      extensionForm({ extension_id: 'My_Module', homepage_url: '' }),
     );
+    expect(body.id).toBe('my_module');
+    expect(body.homepage_url).toBeUndefined();
   });
-
-  it('uses the custom name with no spdx_id for Other / Proprietary', () => {
-    const payload = buildExtensionCreatePayload(
+  it('carries published releases unchanged when editing metadata', () => {
+    const body = buildExtensionUpdatePayload(
       extensionForm({
-        license_spdx_id: 'other',
-        license_name_custom: 'Acme Proprietary License',
+        version_tag: '',
+        release_date: '',
+        download_url: '',
+        requires_php: '>=8.4',
       }),
+      published,
     );
-
-    expect(payload.license).toEqual({
-      name: 'Acme Proprietary License',
-      URL: 'https://example.test/license',
-    });
+    expect(body).not.toHaveProperty('id');
+    expect(body.releases).toEqual(published.releases);
+    expect(body.version).toBe(published.version);
+    expect(body.requires.php).toBe('>=8.4');
+    expect(body.releases[0].requires.php).toBe('>=8.3 <9');
   });
-
-  it('requires a custom name when Other / Proprietary is selected', () => {
-    const form = extensionForm({ license_spdx_id: 'other' });
-
-    expect(() => buildExtensionCreatePayload(form)).toThrow(
-      ExtensionValidationError,
+  it('appends a release with its own requirements while preserving history', () => {
+    const body = buildExtensionUpdatePayload(
+      extensionForm({ version_tag: '1.1.0', requires_php: '>=8.4' }),
+      published,
     );
+    expect(body.releases).toHaveLength(2);
+    expect(body.releases[0]).toEqual(published.releases[0]);
+    expect(body.releases[1].requires.php).toBe('>=8.4');
+    expect(body.version).toBe('1.1.0');
   });
-});
-
-describe('buildExtensionUpdatePayload', () => {
-  it('carries existing releases through unchanged when no new release is added', () => {
-    const form = extensionForm();
-    form.delete('version_tag');
-    form.delete('release_date');
-    form.delete('download_url');
-    form.delete('min_fossbilling_version');
-
-    const payload = buildExtensionUpdatePayload(form, publishedExtension);
-
-    expect(payload).not.toHaveProperty('developer');
-    expect(payload).not.toHaveProperty('id');
-    expect(payload.releases).toEqual(publishedExtension.releases);
-    expect(payload.version).toBe('0.9.0');
+  it('rejects duplicate tags and overflowing release history', () => {
+    expect(() =>
+      buildExtensionUpdatePayload(extensionForm(), published),
+    ).toThrow(/already exists/);
+    expect(() =>
+      buildExtensionUpdatePayload(extensionForm({ version_tag: '2.0.0' }), {
+        ...published,
+        releases: Array.from({ length: 100 }, () => published.releases[0]),
+      }),
+    ).toThrow(/100 releases/);
   });
-
-  it('appends a new release and updates version/download_url when provided', () => {
-    const payload = buildExtensionUpdatePayload(
-      extensionForm(),
-      publishedExtension,
-    );
-
-    expect(payload.releases).toHaveLength(2);
-    expect(payload.version).toBe('1.0.0');
-    expect(payload.download_url).toBe('https://example.test/example.zip');
+  it('requires an initial release for creation and unpublished resubmission', () => {
+    expect(() =>
+      buildExtensionCreatePayload(extensionForm({ version_tag: '' })),
+    ).toThrow(ExtensionValidationError);
+    expect(() =>
+      buildExtensionUpdatePayload(extensionForm({ version_tag: '' }), null),
+    ).toThrow(ExtensionValidationError);
+    expect(() =>
+      buildExtensionCreatePayload(extensionForm({ release_date: '' })),
+    ).toThrow(ExtensionValidationError);
   });
-
-  it('requires an initial release when nothing has ever been published', () => {
-    const form = extensionForm({ version_tag: '' });
-    form.delete('release_date');
-    form.delete('download_url');
-    form.delete('min_fossbilling_version');
-
-    expect(() => buildExtensionUpdatePayload(form, null)).toThrow(
-      ExtensionValidationError,
-    );
+  it('supports compound SPDX expressions and custom license references', () => {
+    for (const license of ['MIT OR Apache-2.0', 'LicenseRef-Acme'])
+      expect(
+        buildExtensionCreatePayload(
+          extensionForm({
+            license_spdx_id: 'other',
+            license_name_custom: license,
+          }),
+        ).license,
+      ).toBe(license);
+    expect(() =>
+      buildExtensionCreatePayload(
+        extensionForm({ license_spdx_id: 'not-real' }),
+      ),
+    ).toThrow(ExtensionValidationError);
+    expect(() =>
+      buildExtensionCreatePayload(
+        extensionForm({
+          license_spdx_id: 'other',
+          license_name_custom: 'invalid/license',
+        }),
+      ),
+    ).toThrow(ExtensionValidationError);
   });
-
-  it('rejects a version_tag that duplicates an existing release instead of appending a second copy', () => {
-    const form = extensionForm({ version_tag: '0.9.0' });
-
-    expect(() => buildExtensionUpdatePayload(form, publishedExtension)).toThrow(
-      ExtensionValidationError,
-    );
+  it.each([
+    '../icon.svg',
+    '/icon.svg',
+    'https://example.com/icon.svg',
+    'a\\icon.svg',
+  ])('rejects unsafe package icon %s', (icon_url) => {
+    expect(() =>
+      buildExtensionCreatePayload(extensionForm({ icon_url })),
+    ).toThrow(ExtensionValidationError);
   });
-
-  it('rejects a new release once the extension already has 100', () => {
-    const atLimit: Extension = {
-      ...publishedExtension,
-      releases: Array.from({ length: 100 }, (_, i) => ({
-        tag: `0.${i}.0`,
-        date: '2025-01-01',
-        download_url: `https://example.test/example-0.${i}.0.zip`,
-        min_fossbilling_version: '0.5.0',
-      })),
-    };
-
-    expect(() => buildExtensionUpdatePayload(extensionForm(), atLimit)).toThrow(
-      ExtensionValidationError,
-    );
+  it('validates required metadata and dependency syntax without losing ranges', () => {
+    for (const overrides of [
+      { author_name: '' },
+      { requires_php: '' },
+      { requires_fossbilling: '' },
+      { type: 'mod' },
+      { source_type: 'ftp' },
+      { requires_modules: 'bad/name: ^1' },
+      { requires_modules: 'branding: ^1\nbranding: ^2' },
+    ] satisfies Record<string, string>[])
+      expect(() =>
+        buildExtensionCreatePayload(extensionForm(overrides)),
+      ).toThrow(ExtensionValidationError);
   });
-});
-
-describe('echoExtensionFromForm', () => {
-  // The submitted echo is a best-effort redisplay spread over the
-  // extension's current content — never the validated payload — so an
-  // incomplete license choice must redisplay as-is instead of throwing.
-  it('echoes submitted fields over the base and keeps base-only fields', () => {
-    const form = extensionForm({ name: 'Renamed', icon_url: '' });
-
-    const echo = echoExtensionFromForm(form, publishedExtension);
-
-    expect(echo).toMatchObject({
-      id: 'example',
-      name: 'Renamed',
-      description: 'An example extension.',
-      // Base-only content survives: the echo never touches releases.
-      releases: publishedExtension.releases,
-      version: '0.9.0',
-      license: { name: 'MIT', spdx_id: 'MIT' },
-      // An empty icon input echoes as absent, not as an empty string.
-      icon_url: undefined,
-    });
-  });
-
-  it('echoes a recognized SPDX license as name and spdx_id', () => {
-    const echo = echoExtensionFromForm(extensionForm(), publishedExtension);
-
-    expect(echo.license).toEqual({
-      name: 'MIT',
-      spdx_id: 'MIT',
-      URL: 'https://example.test/license',
-    });
-  });
-
-  it('echoes the custom-license branch without validating it', () => {
-    const echo = echoExtensionFromForm(
-      extensionForm({ license_spdx_id: 'other', license_name_custom: 'Mine' }),
-      publishedExtension,
-    );
-
-    expect(echo.license).toEqual({
-      name: 'Mine',
-      URL: 'https://example.test/license',
-    });
-    expect(echo.license).not.toHaveProperty('spdx_id');
-  });
-
-  it('never throws on an incomplete license choice', () => {
-    // Unlike buildLicense, the echo is a best-effort redisplay: a blank
-    // custom name for "other", or an unrecognized selection, must echo
-    // as-is rather than reject the redisplay.
-    const blankCustom = echoExtensionFromForm(
-      extensionForm({ license_spdx_id: 'other', license_name_custom: '' }),
-      publishedExtension,
-    );
-    expect(blankCustom.license).toEqual({
-      name: '',
-      URL: 'https://example.test/license',
-    });
-
-    const unrecognized = echoExtensionFromForm(
-      extensionForm({ license_spdx_id: 'not-a-license' }),
-      publishedExtension,
-    );
-    expect(unrecognized.license).toEqual({
-      name: '',
-      URL: 'https://example.test/license',
-    });
-  });
-});
-
-describe('echoReleaseDraftFromForm', () => {
-  it('carries the release-section inputs exactly as typed', () => {
+  it('preserves submitted fields and invalid dependency input on error', () => {
     const form = extensionForm({
-      version_tag: '1.1.0',
-      release_date: '2026-02-01',
-      // No scheme normalization on redisplay: echo what the user typed.
-      download_url: 'example.test/1.1.0.zip',
-      changelog_url: '',
-      min_fossbilling_version: '0.6.0',
+      name: 'Changed',
+      requires_modules: 'unfinished dependency',
+      license_spdx_id: 'other',
+      license_name_custom: 'MIT OR BSD-3-Clause',
     });
-
-    expect(echoReleaseDraftFromForm(form)).toEqual({
-      version_tag: '1.1.0',
-      release_date: '2026-02-01',
-      download_url: 'example.test/1.1.0.zip',
-      changelog_url: '',
-      min_fossbilling_version: '0.6.0',
-    });
-  });
-
-  it('returns blank fields when the form omits the release section', () => {
-    expect(echoReleaseDraftFromForm(new FormData())).toEqual({
-      version_tag: '',
-      release_date: '',
-      download_url: '',
-      changelog_url: '',
-      min_fossbilling_version: '',
-    });
-  });
-});
-
-describe('echoNewExtensionFromForm', () => {
-  const developer = {
-    id: 'developer',
-    type: 'organization' as const,
-    name: 'Example developer',
-  };
-
-  it('builds a blank base with the lowercased form id and echoes the submission', () => {
-    const form = extensionForm({
-      extension_id: 'Mixed-Case',
-      name: 'New name',
-      version_tag: '1.0.0',
-    });
-
-    const { extension, releaseDraft } = echoNewExtensionFromForm(
-      form,
-      developer,
+    const echo = echoExtensionFromForm(form, published);
+    expect(echo.name).toBe('Changed');
+    expect(echo.author.name).toBe('Package Author');
+    expect(echo.moduleRequirementsInput).toBe('unfinished dependency');
+    expect(echo.license).toBe('MIT OR BSD-3-Clause');
+    expect(echoReleaseDraftFromForm(form).version_tag).toBe('1.0.0');
+    expect(echoNewExtensionFromForm(form, developer).extension.id).toBe(
+      'example_module',
     );
-
-    expect(extension).toMatchObject({
-      // Lowercased to match what a successful submit would store.
-      id: 'mixed-case',
-      name: 'New name',
-      description: 'An example extension.',
-      developer,
-      releases: [],
-      version: '',
-    });
-    expect(releaseDraft.version_tag).toBe('1.0.0');
-  });
-
-  it('echoes a blank form without throwing', () => {
-    const { extension, releaseDraft } = echoNewExtensionFromForm(
-      new FormData(),
-      developer,
-    );
-
-    expect(extension.id).toBe('');
-    expect(extension.name).toBe('');
-    expect(extension.releases).toEqual([]);
-    expect(releaseDraft).toEqual({
-      version_tag: '',
-      release_date: '',
-      download_url: '',
-      changelog_url: '',
-      min_fossbilling_version: '',
-    });
   });
 });

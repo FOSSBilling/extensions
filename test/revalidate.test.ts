@@ -61,7 +61,7 @@ describe('POST /api/revalidate', () => {
     const cache = makeCache();
     const response = await POST(
       makeContext(
-        makeRequest({ tags: ['catalogue'] }),
+        makeRequest({ tags: ['extensions'] }),
         makeRevalidateEnv(),
         cache,
       ),
@@ -76,7 +76,7 @@ describe('POST /api/revalidate', () => {
     const response = await POST(
       makeContext(
         makeRequest(
-          { tags: ['catalogue'] },
+          { tags: ['extensions'] },
           { authorization: `Bearer wrong-token` },
         ),
         makeRevalidateEnv(),
@@ -93,7 +93,7 @@ describe('POST /api/revalidate', () => {
     const response = await POST(
       makeContext(
         makeRequest(
-          { tags: ['catalogue'] },
+          { tags: ['extensions'] },
           { authorization: `Bearer ${SECRET}` },
         ),
         makeRevalidateEnv({ revalidateSecret: '' }),
@@ -121,7 +121,7 @@ describe('POST /api/revalidate', () => {
 
   it('rejects unknown or non-string tags', async () => {
     const cache = makeCache();
-    for (const tags of [['products'], [], ['catalogue', 42], 'catalogue']) {
+    for (const tags of [['products'], [], ['extensions', 42], 'extensions']) {
       const response = await POST(
         makeContext(
           makeRequest({ tags }, { authorization: `Bearer ${SECRET}` }),
@@ -149,7 +149,7 @@ describe('POST /api/revalidate', () => {
     const response = await POST(
       makeContext(
         makeRequest(
-          { tags: ['catalogue', 'developers'] },
+          { tags: ['extensions', 'developers'] },
           { authorization: `Bearer ${SECRET}` },
         ),
         makeRevalidateEnv(),
@@ -159,11 +159,11 @@ describe('POST /api/revalidate', () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
-      purged: ['catalogue', 'developers'],
+      purged: ['extensions', 'developers'],
     });
     expect(order).toEqual(['marker', 'invalidate']);
     expect(cache.invalidate).toHaveBeenCalledWith({
-      tags: ['catalogue', 'developers'],
+      tags: ['extensions', 'developers'],
     });
   });
 
@@ -172,7 +172,7 @@ describe('POST /api/revalidate', () => {
     const response = await POST(
       makeContext(
         makeRequest(
-          { tags: ['catalogue'] },
+          { tags: ['extensions'] },
           { authorization: `Bearer ${SECRET}` },
         ),
         makeRevalidateEnv(),
@@ -190,7 +190,7 @@ describe('POST /api/revalidate', () => {
     const response = await POST(
       makeContext(
         makeRequest(
-          { tags: ['catalogue'] },
+          { tags: ['extensions'] },
           { authorization: `Bearer ${SECRET}` },
         ),
         makeRevalidateEnv(),
@@ -212,7 +212,7 @@ describe('POST /api/revalidate', () => {
     const response = await POST(
       makeContext(
         makeRequest(
-          { tags: ['catalogue'] },
+          { tags: ['extensions'] },
           { authorization: `Bearer ${SECRET}` },
         ),
         makeRevalidateEnv(),
@@ -232,7 +232,7 @@ describe('POST /api/revalidate', () => {
     const response = await POST(
       makeContext(
         makeRequest(
-          { tags: ['catalogue'] },
+          { tags: ['extensions'] },
           { authorization: `Bearer ${SECRET}` },
           'http://localhost:4321/api/revalidate',
         ),
@@ -243,7 +243,7 @@ describe('POST /api/revalidate', () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
-      purged: ['catalogue'],
+      purged: ['extensions'],
       cache: 'purge-unavailable-locally',
     });
   });

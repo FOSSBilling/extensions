@@ -1,4 +1,5 @@
 ---
+import { extensionIconUrl } from '@/lib/extension-icon';
 import Base from '@/layouts/Base.astro';
 import ExtensionHeader from '@/components/ExtensionHeader.astro';
 import DetailsCard from '@/components/DetailsCard.astro';
@@ -63,14 +64,7 @@ const shareDescription = ext
 // Stored URLs arrive unvalidated from upstream, and Base builds the share
 // URL with `new URL(image, Astro.site)` — which throws on malformed input
 // and would 500 the whole page — so only pass cleanly-parseable URLs.
-let shareImage: string | undefined;
-if (ext?.icon_url) {
-  try {
-    shareImage = new URL(ext.icon_url).href;
-  } catch {
-    // Malformed stored URL: omit the social image rather than fail render.
-  }
-}
+const shareImage = ext ? extensionIconUrl(ext) : undefined;
 ---
 
 <Base

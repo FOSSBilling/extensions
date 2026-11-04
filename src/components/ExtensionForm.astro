@@ -46,7 +46,7 @@ const shown = echo ?? extension;
 // form with no releases yet (rejected and never resubmitted).
 const requireRelease = !isEdit || extension!.releases.length === 0;
 
-const existingSpdxId = shown?.license.spdx_id;
+const existingSpdxId = shown?.license;
 // An existing license only lands in the custom bucket when it truly isn't
 // one of the ids this form offers — covers both genuinely custom/proprietary
 // licenses and (defensively) a stored spdx_id this deployed list doesn't
@@ -127,6 +127,7 @@ const otherSpdxIds = SPDX_LICENSE_IDS.filter((id) => !popularSpdxIds.has(id));
               type="text"
               id="name"
               name="name"
+              maxlength={100}
               required
               value={shown?.name}
             />
@@ -141,7 +142,8 @@ const otherSpdxIds = SPDX_LICENSE_IDS.filter((id) => !popularSpdxIds.has(id));
               id="extension_id"
               name="extension_id"
               required
-              pattern="[a-z0-9]+(-[a-z0-9]+)*"
+              pattern="[a-z0-9_-]+"
+              maxlength={64}
               value={shown?.id}
               disabled={isEdit}
             />
@@ -175,43 +177,38 @@ const otherSpdxIds = SPDX_LICENSE_IDS.filter((id) => !popularSpdxIds.has(id));
               type="text"
               id="description"
               name="description"
+              maxlength={500}
               required
               value={shown?.description}
             />
           </div>
           <div class="field">
-            <label for="website">
-              Website <span class="text-destructive">*</span>
-            </label>
+            <label for="homepage_url">Homepage (optional)</label>
             <div class="input-group">
               <span data-align="start" class="text-muted-foreground">
                 https://
               </span>
               <input
                 type="text"
-                id="website"
-                name="website"
-                required
-                value={stripUrlScheme(shown?.website)}
+                id="homepage_url"
+                name="homepage_url"
+                value={stripUrlScheme(shown?.homepage_url)}
               />
             </div>
           </div>
           <div class="field">
             <label for="icon_url" class="flex w-full items-center gap-1.5">
-              Icon URL
+              Package Icon Path
               <span class="badge ml-auto" data-variant="secondary">
                 Optional
               </span>
             </label>
             <div class="input-group">
-              <span data-align="start" class="text-muted-foreground">
-                https://
-              </span>
               <input
                 type="text"
                 id="icon_url"
                 name="icon_url"
-                value={stripUrlScheme(shown?.icon_url)}
+                value={shown?.icon_url}
               />
             </div>
           </div>
@@ -243,6 +240,73 @@ const otherSpdxIds = SPDX_LICENSE_IDS.filter((id) => !popularSpdxIds.has(id));
         <div class="field-separator">
           <hr role="separator" />
         </div>
+
+        <fieldset class="fieldset space-y-4">
+          <legend>Package Author</legend>
+          <div class="field">
+            <label for="author_name">Author Name *</label>
+            <input
+              class="input"
+              id="author_name"
+              name="author_name"
+              required
+              maxlength="200"
+              value={shown?.author.name ?? developer.name}
+            />
+          </div>
+          <div class="field">
+            <label for="author_url">Author URL (optional)</label>
+            <input
+              class="input"
+              id="author_url"
+              name="author_url"
+              value={shown?.author.url ?? developer.URL}
+            />
+          </div>
+        </fieldset>
+        <fieldset class="fieldset space-y-4">
+          <legend>Requirements</legend>
+          <p class="text-muted-foreground">
+            Requirements for the current version, or the new release added
+            below. Use version constraints such as ^0.8.9 or &gt;=8.3 &lt;9.
+          </p>
+          <div class="field">
+            <label for="requires_fossbilling">FOSSBilling *</label>
+            <input
+              class="input"
+              id="requires_fossbilling"
+              name="requires_fossbilling"
+              required
+              maxlength="1000"
+              value={shown?.requires.fossbilling}
+              placeholder="^0.8.9"
+            />
+          </div>
+          <div class="field">
+            <label for="requires_php">PHP *</label>
+            <input
+              class="input"
+              id="requires_php"
+              name="requires_php"
+              required
+              maxlength="1000"
+              value={shown?.requires.php}
+              placeholder=">=8.3"
+            />
+          </div>
+          <div class="field">
+            <label for="requires_modules">Module Dependencies (optional)</label>
+            <textarea
+              class="textarea"
+              id="requires_modules"
+              name="requires_modules"
+              placeholder="branding: ^1.2"
+            >{shown?.moduleRequirementsInput ?? Object.entries(shown?.requires.modules ?? {}).map(([id, range]) => `${id}: ${range}`).join('\n')}</textarea>
+            <p class="text-muted-foreground">
+              One module-id: constraint per line.
+            </p>
+          </div>
+        </fieldset>
 
         <fieldset class="fieldset space-y-4">
           <legend>License</legend>
@@ -308,7 +372,7 @@ const otherSpdxIds = SPDX_LICENSE_IDS.filter((id) => !popularSpdxIds.has(id));
                   </div>
                   <hr role="separator" />
                   <div role="option" data-value={OTHER_LICENSE}>
-                    Other / Proprietary
+                    Other / License Expression
                   </div>
                 </div>
               </div>
@@ -326,7 +390,7 @@ const otherSpdxIds = SPDX_LICENSE_IDS.filter((id) => !popularSpdxIds.has(id));
             hidden={!isCustomLicense}
           >
             <label for="license_name_custom">
-              Custom License Name <span class="text-destructive">*</span>
+              License Expression <span class="text-destructive">*</span>
             </label>
             <input
               class="input"
@@ -334,27 +398,8 @@ const otherSpdxIds = SPDX_LICENSE_IDS.filter((id) => !popularSpdxIds.has(id));
               id="license_name_custom"
               name="license_name_custom"
               required={isCustomLicense}
-              value={isCustomLicense ? shown?.license.name : undefined}
+              value={isCustomLicense ? shown?.license : undefined}
             />
-          </div>
-          <div class="field">
-            <label for="license_url" class="flex w-full items-center gap-1.5">
-              License URL
-              <span class="badge ml-auto" data-variant="secondary">
-                Optional
-              </span>
-            </label>
-            <div class="input-group">
-              <span data-align="start" class="text-muted-foreground">
-                https://
-              </span>
-              <input
-                type="text"
-                id="license_url"
-                name="license_url"
-                value={stripUrlScheme(shown?.license.URL)}
-              />
-            </div>
           </div>
         </fieldset>
 
@@ -402,7 +447,7 @@ const otherSpdxIds = SPDX_LICENSE_IDS.filter((id) => !popularSpdxIds.has(id));
                 {extension.releases.map((r) => (
                   <li>
                     v{r.tag} &middot; {r.date} &middot; FOSSBilling{' '}
-                    {r.min_fossbilling_version}+
+                    {r.requires.fossbilling}
                   </li>
                 ))}
               </ul>
@@ -485,21 +530,6 @@ const otherSpdxIds = SPDX_LICENSE_IDS.filter((id) => !popularSpdxIds.has(id));
                 value={releaseDraft?.changelog_url ?? ''}
               />
             </div>
-          </div>
-          <div class="field">
-            <label for="min_fossbilling_version">
-              Minimum FOSSBilling Version{' '}
-              {requireRelease && <span class="text-destructive">*</span>}
-            </label>
-            <input
-              class="input"
-              type="text"
-              id="min_fossbilling_version"
-              name="min_fossbilling_version"
-              required={requireRelease}
-              placeholder="1.0.0"
-              value={releaseDraft?.min_fossbilling_version ?? ''}
-            />
           </div>
         </fieldset>
       </div>
@@ -601,14 +631,6 @@ const otherSpdxIds = SPDX_LICENSE_IDS.filter((id) => !popularSpdxIds.has(id));
 
 <script>
   import { OTHER_LICENSE } from '@/lib/extension-form';
-
-  // Reveals the custom-name field only for "Other / Proprietary", and
-  // suggests each recognized license's canonical spdx.org page as the
-  // License URL — stops once the user edits that field directly, same
-  // override-wins rule as the ID slug above. The combobox (basecoat-css)
-  // submits through its own hidden #license_spdx_id input and reports
-  // picks via a `change` CustomEvent on the `.combobox` root rather than
-  // a native `change` on that input — see basecoat-css/dist/js/combobox.js.
   const licenseCombobox =
     document.querySelector<HTMLElement>('#license-combobox');
   const customField = document.querySelector<HTMLElement>(
@@ -617,29 +639,10 @@ const otherSpdxIds = SPDX_LICENSE_IDS.filter((id) => !popularSpdxIds.has(id));
   const customInput = document.querySelector<HTMLInputElement>(
     '#license_name_custom',
   );
-  const urlInput = document.querySelector<HTMLInputElement>('#license_url');
-
-  if (licenseCombobox && customField && customInput) {
-    let urlEditedByUser = false;
-    urlInput?.addEventListener('input', () => {
-      urlEditedByUser = true;
-    });
-
-    licenseCombobox.addEventListener('change', (event) => {
-      // A native `change` from #license-search (e.g. typing then tabbing
-      // away without picking an option) bubbles up to this same element —
-      // only the combobox's own CustomEvent carries a real selection.
-      if (!(event instanceof CustomEvent)) return;
-
-      const value = (event as CustomEvent<{ value: string }>).detail.value;
-      const isOther = value === OTHER_LICENSE;
-      customField.hidden = !isOther;
-      customInput.required = isOther;
-
-      if (urlInput && !urlEditedByUser) {
-        urlInput.value =
-          !isOther && value ? `spdx.org/licenses/${value}.html` : '';
-      }
-    });
-  }
+  licenseCombobox?.addEventListener('change', (event) => {
+    if (!(event instanceof CustomEvent) || !customField || !customInput) return;
+    const isOther = event.detail.value === OTHER_LICENSE;
+    customField.hidden = !isOther;
+    customInput.required = isOther;
+  });
 </script>

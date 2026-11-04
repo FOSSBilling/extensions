@@ -3,7 +3,7 @@ import { requireModerator } from '@/lib/auth-guard';
 import { createApiClient } from '@/lib/api/client';
 import { formAction } from '@/lib/form-action';
 import { formFlag, formString } from '@/lib/form';
-import { purgeCatalogue } from '@/lib/cache-invalidate';
+import { purgeDirectory } from '@/lib/cache-invalidate';
 import { setFlash } from '@/lib/flash';
 
 export const POST: APIRoute = formAction<{
@@ -27,7 +27,7 @@ export const POST: APIRoute = formAction<{
       input.reviewNote,
       input.notify,
     );
-    purgeCatalogue(context);
+    purgeDirectory(context);
     if (input.notify && !result.notified) {
       await setFlash(context, env.sessionSecret, {
         category: 'warning',

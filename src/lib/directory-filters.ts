@@ -1,19 +1,19 @@
-import type { ExtensionCatalogueFilters } from '@/lib/api/client';
+import type { ExtensionDirectoryFilters } from '@/lib/api/client';
 import { isExtensionType } from '@/types';
 
-// Query parsing shared by the catalogue JSON API (/api/extensions) and the
+// Query parsing shared by the directory JSON API (/api/extensions) and the
 // load-more fragment (/api/extensions/cards), so the two endpoints always
 // accept exactly the same filters.
-export function parseCatalogueFilters(params: URLSearchParams):
+export function parseDirectoryFilters(params: URLSearchParams):
   | {
-      filters: ExtensionCatalogueFilters;
+      filters: ExtensionDirectoryFilters;
       error: null;
     }
   | {
       filters: null;
       error: string;
     } {
-  const filters: ExtensionCatalogueFilters = {};
+  const filters: ExtensionDirectoryFilters = {};
   const type = params.get('type');
   if (type !== null && type !== '' && !isExtensionType(type)) {
     return { filters: null, error: 'The extension type filter is invalid.' };

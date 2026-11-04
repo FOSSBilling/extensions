@@ -102,3 +102,11 @@ npx wrangler secret put EXTENSIONS_REVALIDATE_SECRET
 The extension directory website is licensed under the GNU Affero General Public License Version 3. See [LICENSE](./LICENSE) for details.
 
 Individual extensions are licensed by their respective authors.
+
+## Manifest API contract
+
+The generated v2 client follows the API's manifest v1 contract: `module`, string licenses, optional `homepage_url`, package authors, and full FOSSBilling/PHP/module requirements. Author/edit/moderator forms preserve these fields; historical revision diffs also accept pre-manifest license objects and `website` fields.
+
+Package icons are paths relative to the distribution root. For GitHub release assets matching the declared source repository, the site resolves them against the release tag. `FOSSBilling/modules` uses its `Ucfirst(id)/` package directory; other GitHub sources use the repository root. Unsupported sources omit relative icons. Legacy HTTP(S) icons continue to work.
+
+API mutations and site mutations both purge the `extensions` and `developers` tags. Deploy this site with the API's manifest migration and cache-tag change before enabling the updated modules publisher. Existing cached pages expire through their cache windows; deployment must coordinate the new contract and tag. Old pending revisions require resubmission using the manifest fields before approval.

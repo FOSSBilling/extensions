@@ -1,6 +1,6 @@
 ---
 import type { Extension } from '@/types';
-import { getLatestRelease, repositoryURL } from '@/types';
+import { repositoryURL } from '@/types';
 import { isSafeHttpUrl } from '@/lib/safe-url';
 import { CircleCheck, Download, GitBranch, Scale, User } from '@lucide/astro';
 
@@ -9,7 +9,6 @@ interface Props {
 }
 
 const { ext } = Astro.props;
-const latest = getLatestRelease(ext);
 const sourceUrl = repositoryURL(ext.source);
 
 type DetailsItem = {
@@ -45,20 +44,38 @@ const details: DetailsItem[] = [
     name: 'FOSSBilling Version',
     icon: CircleCheck,
     color: 'green',
-    text: latest
-      ? `FOSSBilling v${latest.min_fossbilling_version} and later`
-      : 'Unknown version',
+    text: ext.requires.fossbilling,
+  },
+  {
+    name: 'PHP Version',
+    icon: CircleCheck,
+    color: 'green',
+    text: ext.requires.php,
+  },
+  {
+    name: 'Package Author',
+    icon: User,
+    color: 'amber',
+    text: ext.author.name,
+    link:
+      ext.author.url && isSafeHttpUrl(ext.author.url)
+        ? ext.author.url
+        : undefined,
   },
   {
     name: 'License',
     icon: Scale,
     color: 'blue',
-    text: ext.license.name,
-    link:
-      ext.license.URL && isSafeHttpUrl(ext.license.URL)
-        ? ext.license.URL
-        : undefined,
+    text: ext.license,
   },
+  ...Object.entries(ext.requires.modules ?? {}).map(
+    ([id, range]): DetailsItem => ({
+      name: `Module: ${id}`,
+      icon: CircleCheck,
+      color: 'green',
+      text: range,
+    }),
+  ),
   {
     name: 'Source Code',
     icon: GitBranch,

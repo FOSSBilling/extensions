@@ -35,7 +35,7 @@ import {
 } from '@/lib/assertion';
 import { sha256Hex } from '@/lib/hash';
 import { makeEnv } from './helpers/env';
-import { item, page } from './helpers/catalogue-fixtures';
+import { item, page } from './helpers/directory-fixtures';
 import type {
   DeveloperHistoryEntry,
   DeveloperProfile,
@@ -271,7 +271,8 @@ describe('generated Extensions v2 façade', () => {
   it('returns the complete detail DTO by ID', async () => {
     const detail: Extension = {
       ...item('full-extension'),
-      website: 'https://example.test/full-extension',
+      requires: { fossbilling: '^0.8.9', php: '>=8.3' },
+      homepage_url: 'https://example.test/full-extension',
       download_url: 'https://example.test/full-extension.zip',
       readme: '# Full extension\n\nREADME content',
       releases: [
@@ -279,14 +280,14 @@ describe('generated Extensions v2 façade', () => {
           tag: '1.0.0',
           date: '2026-01-01T00:00:00Z',
           download_url: 'https://example.test/full-extension-1.0.0.zip',
-          min_fossbilling_version: '0.6.0',
+          requires: { fossbilling: '>=0.6.0', php: '*' },
         },
         {
           tag: '0.9.0',
           date: '2025-12-01T00:00:00Z',
           download_url: 'https://example.test/full-extension-0.9.0.zip',
           changelog_url: 'https://example.test/changelog/0.9.0',
-          min_fossbilling_version: '0.5.0',
+          requires: { fossbilling: '>=0.5.0', php: '*' },
         },
       ],
     };
@@ -346,7 +347,7 @@ describe('generated Extensions v2 façade', () => {
       'opaque cursor',
     );
     // The mine scope forwards a type filter when asked, and never carries
-    // the public catalogue's developer_id filter.
+    // the public directory's developer_id filter.
     expect(requestUrl(fetchMock, 0).searchParams.get('type')).toBe('theme');
     expect(requestUrl(fetchMock, 0).searchParams.has('developer_id')).toBe(
       false,
@@ -357,12 +358,15 @@ describe('generated Extensions v2 façade', () => {
   it('serializes a create payload with no developer field and reports the new revision', async () => {
     const payload = {
       id: 'body-extension',
-      type: 'mod' as const,
+      manifest_version: 1 as const,
+      author: { name: 'Package Author' },
+      requires: { fossbilling: '^0.8.9', php: '>=8.3' },
+      type: 'module' as const,
       name: 'Body extension',
       description: 'Submitted through the generated client.',
       releases: [],
-      website: 'https://example.test/body-extension',
-      license: { name: 'MIT' },
+      homepage_url: 'https://example.test/body-extension',
+      license: 'MIT',
       readme: '# Body extension',
       source: { type: 'github' as const, repo: 'fossbilling/body-extension' },
       version: '1.0.0',
@@ -401,12 +405,15 @@ describe('generated Extensions v2 façade', () => {
 
   it('sends an edit as PUT and reads the 202 pending-revision result', async () => {
     const payload = {
-      type: 'mod' as const,
+      manifest_version: 1 as const,
+      author: { name: 'Package Author' },
+      requires: { fossbilling: '^0.8.9', php: '>=8.3' },
+      type: 'module' as const,
       name: 'Body extension',
       description: 'Edited through the generated client.',
       releases: [],
-      website: 'https://example.test/body-extension',
-      license: { name: 'MIT' },
+      homepage_url: 'https://example.test/body-extension',
+      license: 'MIT',
       readme: '# Body extension',
       source: { type: 'github' as const, repo: 'fossbilling/body-extension' },
       version: '1.1.0',
@@ -508,12 +515,15 @@ describe('generated Extensions v2 façade', () => {
     );
     vi.stubGlobal('fetch', fetchMock);
     const payload = {
-      type: 'mod' as const,
+      manifest_version: 1 as const,
+      author: { name: 'Package Author' },
+      requires: { fossbilling: '^0.8.9', php: '>=8.3' },
+      type: 'module' as const,
       name: 'Fixed',
       description: 'd',
       releases: [],
-      website: 'https://example.test',
-      license: { name: 'MIT' },
+      homepage_url: 'https://example.test',
+      license: 'MIT',
       readme: '# Fixed',
       source: { type: 'github' as const, repo: 'example/live' },
       version: '1.0.0',
@@ -669,7 +679,7 @@ describe('generated Extensions v2 façade', () => {
   it('preserves unavailable legacy-card links without treating them as detail URLs', async () => {
     const card: ExtensionListItem = {
       ...item('legacy'),
-      website: null,
+      homepage_url: null,
       download_url: null,
     };
     vi.stubGlobal(
@@ -677,8 +687,12 @@ describe('generated Extensions v2 façade', () => {
       vi.fn().mockResolvedValue(apiResponse(page([card], null, false))),
     );
     expect((await listExtensions(publicEnv)).result[0]).toEqual(card);
-    expectTypeOf<ExtensionListItem['website']>().toEqualTypeOf<string | null>();
-    expectTypeOf<Extension['website']>().toEqualTypeOf<string>();
+    expectTypeOf<ExtensionListItem['homepage_url']>().toEqualTypeOf<
+      string | null | undefined
+    >();
+    expectTypeOf<Extension['homepage_url']>().toEqualTypeOf<
+      string | undefined
+    >();
   });
 
   it('fetches one revision on demand and supports compacted content', async () => {

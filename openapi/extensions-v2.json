@@ -43,15 +43,18 @@
       "ExtensionListItem": {
         "type": "object",
         "properties": {
+          "manifest_version": {
+            "type": "number",
+            "enum": [1]
+          },
           "type": {
             "type": "string",
             "enum": [
-              "mod",
+              "module",
               "theme",
               "payment-gateway",
               "server-manager",
               "domain-registrar",
-              "hook",
               "translation"
             ]
           },
@@ -65,19 +68,37 @@
             "minLength": 1,
             "maxLength": 4000
           },
-          "website": {
+          "author": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "url": {
+                "type": "string",
+                "maxLength": 2048,
+                "format": "uri"
+              }
+            },
+            "required": ["name"],
+            "additionalProperties": false
+          },
+          "homepage_url": {
             "type": ["string", "null"],
             "maxLength": 2048,
             "format": "uri",
             "description": "Null when a legacy URL exceeds the card length bound"
           },
           "license": {
-            "$ref": "#/components/schemas/License"
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
           },
           "icon_url": {
             "type": "string",
-            "maxLength": 2048,
-            "format": "uri"
+            "maxLength": 2048
           },
           "source": {
             "$ref": "#/components/schemas/Repository"
@@ -101,10 +122,11 @@
           }
         },
         "required": [
+          "manifest_version",
           "type",
           "name",
           "description",
-          "website",
+          "author",
           "license",
           "source",
           "version",
@@ -112,28 +134,6 @@
           "id",
           "developer"
         ]
-      },
-      "License": {
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 100
-          },
-          "spdx_id": {
-            "type": "string",
-            "description": "A current SPDX license identifier (https://spdx.org/licenses/). Omitted for custom or proprietary licenses.",
-            "example": "MIT"
-          },
-          "URL": {
-            "type": "string",
-            "maxLength": 2048,
-            "format": "uri"
-          }
-        },
-        "required": ["name"],
-        "additionalProperties": false
       },
       "Repository": {
         "type": "object",
@@ -198,15 +198,18 @@
           "published": {
             "type": ["object", "null"],
             "properties": {
+              "manifest_version": {
+                "type": "number",
+                "enum": [1]
+              },
               "type": {
                 "type": "string",
                 "enum": [
-                  "mod",
+                  "module",
                   "theme",
                   "payment-gateway",
                   "server-manager",
                   "domain-registrar",
-                  "hook",
                   "translation"
                 ]
               },
@@ -220,19 +223,37 @@
                 "minLength": 1,
                 "maxLength": 4000
               },
-              "website": {
+              "author": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "url": {
+                    "type": "string",
+                    "maxLength": 2048,
+                    "format": "uri"
+                  }
+                },
+                "required": ["name"],
+                "additionalProperties": false
+              },
+              "homepage_url": {
                 "type": ["string", "null"],
                 "maxLength": 2048,
                 "format": "uri",
                 "description": "Null when a legacy URL exceeds the card length bound"
               },
               "license": {
-                "$ref": "#/components/schemas/License"
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1000
               },
               "icon_url": {
                 "type": "string",
-                "maxLength": 2048,
-                "format": "uri"
+                "maxLength": 2048
               },
               "source": {
                 "$ref": "#/components/schemas/Repository"
@@ -250,10 +271,11 @@
               }
             },
             "required": [
+              "manifest_version",
               "type",
               "name",
               "description",
-              "website",
+              "author",
               "license",
               "source",
               "version",
@@ -397,6 +419,28 @@
           {
             "type": "object",
             "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 120
+              },
+              "description": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 4000
+              },
+              "license": {
+                "type": "string",
+                "minLength": 1
+              },
+              "icon_url": {
+                "type": "string"
+              },
+              "version": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100
+              },
               "id": {
                 "type": "string"
               },
@@ -407,6 +451,31 @@
             "required": ["id", "developer"]
           }
         ]
+      },
+      "ManifestRequirements": {
+        "type": "object",
+        "properties": {
+          "fossbilling": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "php": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "modules": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1000
+            }
+          }
+        },
+        "required": ["fossbilling", "php"],
+        "additionalProperties": false
       },
       "Release": {
         "type": "object",
@@ -431,39 +500,60 @@
             "maxLength": 2048,
             "format": "uri"
           },
-          "min_fossbilling_version": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 100
+          "requires": {
+            "$ref": "#/components/schemas/ManifestRequirements"
           }
         },
-        "required": ["tag", "date", "download_url", "min_fossbilling_version"],
+        "required": ["tag", "date", "download_url", "requires"],
         "additionalProperties": false
       },
       "ExtensionContent": {
         "type": "object",
         "properties": {
+          "manifest_version": {
+            "type": "number",
+            "enum": [1]
+          },
           "type": {
             "type": "string",
             "enum": [
-              "mod",
+              "module",
               "theme",
               "payment-gateway",
               "server-manager",
               "domain-registrar",
-              "hook",
               "translation"
             ]
           },
           "name": {
             "type": "string",
             "minLength": 1,
-            "maxLength": 120
+            "maxLength": 100
           },
           "description": {
             "type": "string",
             "minLength": 1,
-            "maxLength": 4000
+            "maxLength": 500
+          },
+          "author": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "url": {
+                "type": "string",
+                "maxLength": 2048,
+                "format": "uri"
+              }
+            },
+            "required": ["name"],
+            "additionalProperties": false
+          },
+          "requires": {
+            "$ref": "#/components/schemas/ManifestRequirements"
           },
           "releases": {
             "type": "array",
@@ -473,18 +563,22 @@
             "minItems": 1,
             "maxItems": 100
           },
-          "website": {
+          "homepage_url": {
             "type": "string",
             "maxLength": 2048,
             "format": "uri"
           },
           "license": {
-            "$ref": "#/components/schemas/License"
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000,
+            "pattern": "^[A-Za-z0-9.\\-+_:() |]+$"
           },
           "icon_url": {
             "type": "string",
+            "minLength": 1,
             "maxLength": 2048,
-            "format": "uri"
+            "pattern": "^(?!\\/)(?![a-zA-Z][a-zA-Z0-9+.-]*:)(?!.*\\.\\.)[^\\\\]+$"
           },
           "readme": {
             "type": "string",
@@ -496,8 +590,8 @@
           },
           "version": {
             "type": "string",
-            "minLength": 1,
-            "maxLength": 100
+            "maxLength": 100,
+            "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$"
           },
           "download_url": {
             "type": "string",
@@ -506,11 +600,13 @@
           }
         },
         "required": [
+          "manifest_version",
           "type",
           "name",
           "description",
+          "author",
+          "requires",
           "releases",
-          "website",
           "license",
           "readme",
           "source",
@@ -534,6 +630,16 @@
                   {
                     "type": ["object", "null"],
                     "properties": {
+                      "name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 120
+                      },
+                      "description": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 4000
+                      },
                       "releases": {
                         "type": "array",
                         "items": {
@@ -549,6 +655,9 @@
                                   "minLength": 1,
                                   "maxLength": 200,
                                   "description": "At most 100 Unicode code points in historical content"
+                                },
+                                "min_fossbilling_version": {
+                                  "type": "string"
                                 }
                               },
                               "additionalProperties": false
@@ -556,6 +665,18 @@
                           ]
                         },
                         "maxItems": 100
+                      },
+                      "license": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "icon_url": {
+                        "type": "string"
+                      },
+                      "version": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 100
                       }
                     }
                   }
@@ -584,16 +705,21 @@
       "StoredExtensionContent": {
         "type": "object",
         "properties": {
+          "manifest_version": {
+            "type": "number",
+            "enum": [1]
+          },
           "type": {
             "type": "string",
             "enum": [
-              "mod",
+              "module",
               "theme",
               "payment-gateway",
               "server-manager",
               "domain-registrar",
-              "hook",
-              "translation"
+              "translation",
+              "mod",
+              "hook"
             ]
           },
           "name": {
@@ -605,6 +731,26 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 4000
+          },
+          "author": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "url": {
+                "type": "string",
+                "maxLength": 2048,
+                "format": "uri"
+              }
+            },
+            "required": ["name"],
+            "additionalProperties": false
+          },
+          "requires": {
+            "$ref": "#/components/schemas/ManifestRequirements"
           },
           "releases": {
             "type": "array",
@@ -621,6 +767,9 @@
                       "minLength": 1,
                       "maxLength": 200,
                       "description": "At most 100 Unicode code points in historical content"
+                    },
+                    "min_fossbilling_version": {
+                      "type": "string"
                     }
                   },
                   "additionalProperties": false
@@ -629,18 +778,52 @@
             },
             "maxItems": 100
           },
-          "website": {
+          "homepage_url": {
             "type": "string",
             "maxLength": 2048,
             "format": "uri"
           },
           "license": {
-            "$ref": "#/components/schemas/License"
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1000,
+                "pattern": "^[A-Za-z0-9.\\-+_:() |]+$"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "spdx_id": {
+                    "type": "string"
+                  },
+                  "URL": {
+                    "type": "string",
+                    "maxLength": 2048,
+                    "format": "uri"
+                  }
+                },
+                "required": ["name"]
+              }
+            ]
           },
           "icon_url": {
-            "type": "string",
-            "maxLength": 2048,
-            "format": "uri"
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048,
+                "pattern": "^(?!\\/)(?![a-zA-Z][a-zA-Z0-9+.-]*:)(?!.*\\.\\.)[^\\\\]+$"
+              },
+              {
+                "type": "string",
+                "maxLength": 2048,
+                "format": "uri"
+              }
+            ]
           },
           "readme": {
             "type": "string",
@@ -656,6 +839,11 @@
             "maxLength": 100
           },
           "download_url": {
+            "type": "string",
+            "maxLength": 2048,
+            "format": "uri"
+          },
+          "website": {
             "type": "string",
             "maxLength": 2048,
             "format": "uri"
@@ -665,27 +853,50 @@
       "ExtensionCreate": {
         "type": "object",
         "properties": {
+          "manifest_version": {
+            "type": "number",
+            "enum": [1]
+          },
           "type": {
             "type": "string",
             "enum": [
-              "mod",
+              "module",
               "theme",
               "payment-gateway",
               "server-manager",
               "domain-registrar",
-              "hook",
               "translation"
             ]
           },
           "name": {
             "type": "string",
             "minLength": 1,
-            "maxLength": 120
+            "maxLength": 100
           },
           "description": {
             "type": "string",
             "minLength": 1,
-            "maxLength": 4000
+            "maxLength": 500
+          },
+          "author": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "url": {
+                "type": "string",
+                "maxLength": 2048,
+                "format": "uri"
+              }
+            },
+            "required": ["name"],
+            "additionalProperties": false
+          },
+          "requires": {
+            "$ref": "#/components/schemas/ManifestRequirements"
           },
           "releases": {
             "type": "array",
@@ -695,18 +906,22 @@
             "minItems": 1,
             "maxItems": 100
           },
-          "website": {
+          "homepage_url": {
             "type": "string",
             "maxLength": 2048,
             "format": "uri"
           },
           "license": {
-            "$ref": "#/components/schemas/License"
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000,
+            "pattern": "^[A-Za-z0-9.\\-+_:() |]+$"
           },
           "icon_url": {
             "type": "string",
+            "minLength": 1,
             "maxLength": 2048,
-            "format": "uri"
+            "pattern": "^(?!\\/)(?![a-zA-Z][a-zA-Z0-9+.-]*:)(?!.*\\.\\.)[^\\\\]+$"
           },
           "readme": {
             "type": "string",
@@ -718,8 +933,8 @@
           },
           "version": {
             "type": "string",
-            "minLength": 1,
-            "maxLength": 100
+            "maxLength": 100,
+            "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$"
           },
           "download_url": {
             "type": "string",
@@ -728,16 +943,19 @@
           },
           "id": {
             "type": "string",
-            "maxLength": 200,
-            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "^[a-z0-9_-]+$"
           }
         },
         "required": [
+          "manifest_version",
           "type",
           "name",
           "description",
+          "author",
+          "requires",
           "releases",
-          "website",
           "license",
           "readme",
           "source",
@@ -750,27 +968,50 @@
       "ExtensionUpdate": {
         "type": "object",
         "properties": {
+          "manifest_version": {
+            "type": "number",
+            "enum": [1]
+          },
           "type": {
             "type": "string",
             "enum": [
-              "mod",
+              "module",
               "theme",
               "payment-gateway",
               "server-manager",
               "domain-registrar",
-              "hook",
               "translation"
             ]
           },
           "name": {
             "type": "string",
             "minLength": 1,
-            "maxLength": 120
+            "maxLength": 100
           },
           "description": {
             "type": "string",
             "minLength": 1,
-            "maxLength": 4000
+            "maxLength": 500
+          },
+          "author": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "url": {
+                "type": "string",
+                "maxLength": 2048,
+                "format": "uri"
+              }
+            },
+            "required": ["name"],
+            "additionalProperties": false
+          },
+          "requires": {
+            "$ref": "#/components/schemas/ManifestRequirements"
           },
           "releases": {
             "type": "array",
@@ -780,18 +1021,22 @@
             "minItems": 1,
             "maxItems": 100
           },
-          "website": {
+          "homepage_url": {
             "type": "string",
             "maxLength": 2048,
             "format": "uri"
           },
           "license": {
-            "$ref": "#/components/schemas/License"
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000,
+            "pattern": "^[A-Za-z0-9.\\-+_:() |]+$"
           },
           "icon_url": {
             "type": "string",
+            "minLength": 1,
             "maxLength": 2048,
-            "format": "uri"
+            "pattern": "^(?!\\/)(?![a-zA-Z][a-zA-Z0-9+.-]*:)(?!.*\\.\\.)[^\\\\]+$"
           },
           "readme": {
             "type": "string",
@@ -803,8 +1048,8 @@
           },
           "version": {
             "type": "string",
-            "minLength": 1,
-            "maxLength": 100
+            "maxLength": 100,
+            "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$"
           },
           "download_url": {
             "type": "string",
@@ -813,11 +1058,13 @@
           }
         },
         "required": [
+          "manifest_version",
           "type",
           "name",
           "description",
+          "author",
+          "requires",
           "releases",
-          "website",
           "license",
           "readme",
           "source",
@@ -1292,27 +1539,50 @@
       "ModeratorCorrect": {
         "type": "object",
         "properties": {
+          "manifest_version": {
+            "type": "number",
+            "enum": [1]
+          },
           "type": {
             "type": "string",
             "enum": [
-              "mod",
+              "module",
               "theme",
               "payment-gateway",
               "server-manager",
               "domain-registrar",
-              "hook",
               "translation"
             ]
           },
           "name": {
             "type": "string",
             "minLength": 1,
-            "maxLength": 120
+            "maxLength": 100
           },
           "description": {
             "type": "string",
             "minLength": 1,
-            "maxLength": 4000
+            "maxLength": 500
+          },
+          "author": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "url": {
+                "type": "string",
+                "maxLength": 2048,
+                "format": "uri"
+              }
+            },
+            "required": ["name"],
+            "additionalProperties": false
+          },
+          "requires": {
+            "$ref": "#/components/schemas/ManifestRequirements"
           },
           "releases": {
             "type": "array",
@@ -1322,18 +1592,22 @@
             "minItems": 1,
             "maxItems": 100
           },
-          "website": {
+          "homepage_url": {
             "type": "string",
             "maxLength": 2048,
             "format": "uri"
           },
           "license": {
-            "$ref": "#/components/schemas/License"
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000,
+            "pattern": "^[A-Za-z0-9.\\-+_:() |]+$"
           },
           "icon_url": {
             "type": "string",
+            "minLength": 1,
             "maxLength": 2048,
-            "format": "uri"
+            "pattern": "^(?!\\/)(?![a-zA-Z][a-zA-Z0-9+.-]*:)(?!.*\\.\\.)[^\\\\]+$"
           },
           "readme": {
             "type": "string",
@@ -1345,8 +1619,8 @@
           },
           "version": {
             "type": "string",
-            "minLength": 1,
-            "maxLength": 100
+            "maxLength": 100,
+            "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$"
           },
           "download_url": {
             "type": "string",
@@ -1360,11 +1634,13 @@
           }
         },
         "required": [
+          "manifest_version",
           "type",
           "name",
           "description",
+          "author",
+          "requires",
           "releases",
-          "website",
           "license",
           "readme",
           "source",
@@ -1553,7 +1829,7 @@
     "/extensions": {
       "get": {
         "tags": ["Extensions"],
-        "summary": "List extensions: published catalogue (scope=public), caller's own (scope=mine), or every extension (scope=all, moderator)",
+        "summary": "List extensions: published extension directory (scope=public), caller's own (scope=mine), or every extension (scope=all, moderator)",
         "security": [
           {
             "Bearer": []
@@ -1564,12 +1840,11 @@
             "schema": {
               "type": "string",
               "enum": [
-                "mod",
+                "module",
                 "theme",
                 "payment-gateway",
                 "server-manager",
                 "domain-registrar",
-                "hook",
                 "translation"
               ]
             },
@@ -1615,10 +1890,10 @@
               "type": "string",
               "enum": ["public", "mine", "all"],
               "default": "public",
-              "description": "public: published catalogue (anonymous allowed). mine: caller's own extensions. all: every extension (moderator only)."
+              "description": "public: published extension directory (anonymous allowed). mine: caller's own extensions. all: every extension (moderator only)."
             },
             "required": false,
-            "description": "public: published catalogue (anonymous allowed). mine: caller's own extensions. all: every extension (moderator only).",
+            "description": "public: published extension directory (anonymous allowed). mine: caller's own extensions. all: every extension (moderator only).",
             "name": "scope",
             "in": "query"
           },
@@ -1648,7 +1923,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Extensions matching the scope: catalogue cards for scope=public, owned rows for scope=mine/all",
+            "description": "Extensions matching the scope: extension cards for scope=public, owned rows for scope=mine/all",
             "content": {
               "application/json": {
                 "schema": {
@@ -1718,7 +1993,7 @@
         },
         "responses": {
           "201": {
-            "description": "Extension created. It holds the id immediately but stays out of the public catalogue until a moderator approves the revision.",
+            "description": "Extension created. It holds the id immediately but stays out of the public extension listing until a moderator approves the revision.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3906,7 +4181,7 @@
     "/extensions/{id}/delist": {
       "post": {
         "tags": ["Moderation"],
-        "summary": "Remove a published extension from the public catalogue",
+        "summary": "Remove a published extension from the public extension listing",
         "security": [
           {
             "Bearer": []
@@ -3945,7 +4220,7 @@
         },
         "responses": {
           "200": {
-            "description": "Extension removed from the public catalogue. Its content and history are kept, and its owner can still see and edit it.",
+            "description": "Extension removed from the public extension listing. Its content and history are kept, and its owner can still see and edit it.",
             "content": {
               "application/json": {
                 "schema": {
@@ -4041,7 +4316,7 @@
     "/extensions/{id}/relist": {
       "post": {
         "tags": ["Moderation"],
-        "summary": "Restore a delisted extension to the public catalogue",
+        "summary": "Restore a delisted extension to the public extension listing",
         "security": [
           {
             "Bearer": []
@@ -4080,7 +4355,7 @@
         },
         "responses": {
           "200": {
-            "description": "Extension restored to the public catalogue. Content and history unchanged.",
+            "description": "Extension restored to the public extension listing. Content and history unchanged.",
             "content": {
               "application/json": {
                 "schema": {

@@ -93,7 +93,7 @@ const shareImageUrl = image ? new URL(image, Astro.site).href : undefined;
       import 'basecoat-css/toast';
 
       // Only extension detail pages use tabs and only the submission form
-      // uses the license combobox; load their JS on demand so catalogue
+      // uses the license combobox; load their JS on demand so directory
       // pages never download it. Module scripts run after parsing, so the
       // markup is present by the time these checks execute.
       if (document.querySelector('.tabs')) {

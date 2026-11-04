@@ -24,12 +24,19 @@ type PublishedContent = {
   name?: string;
   version?: string;
   description?: string;
-  website?: string;
+  homepage_url?: string;
   download_url?: string;
   icon_url?: string;
   readme?: string;
   source?: { type?: string; repo?: string };
-  license?: { name?: string; spdx_id?: string; URL?: string };
+  license?: string | { name?: string; spdx_id?: string; URL?: string };
+  manifest_version?: number;
+  author?: { name?: string; url?: string };
+  requires?: {
+    fossbilling?: string;
+    php?: string;
+    modules?: Record<string, string>;
+  };
   releases?: Array<{ tag?: string }>;
 };
 

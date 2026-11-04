@@ -44,13 +44,16 @@ if (!owned) {
 const base: Extension =
   owned.published ??
   ({
+    manifest_version: 1,
+    author: { name: owned.developer.name, url: owned.developer.URL },
+    requires: { fossbilling: '', php: '' },
     id: owned.id,
-    type: 'mod',
+    type: 'module',
     name: '',
     description: '',
     releases: [],
-    website: '',
-    license: { name: '' },
+    homepage_url: '',
+    license: '',
     readme: '',
     source: { type: 'github', repo: '' },
     version: '',

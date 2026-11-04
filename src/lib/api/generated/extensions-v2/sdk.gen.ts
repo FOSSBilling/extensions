@@ -141,7 +141,7 @@ export type Options<
 };
 
 /**
- * List extensions: published catalogue (scope=public), caller's own (scope=mine), or every extension (scope=all, moderator)
+ * List extensions: published extension directory (scope=public), caller's own (scope=mine), or every extension (scope=all, moderator)
  */
 export const getExtensions = <ThrowOnError extends boolean = false>(
   options?: Options<GetExtensionsData, ThrowOnError>,
@@ -603,7 +603,7 @@ export const postExtensionsByIdRevisionsByRevisionIdReject = <
   });
 
 /**
- * Remove a published extension from the public catalogue
+ * Remove a published extension from the public extension listing
  */
 export const postExtensionsByIdDelist = <ThrowOnError extends boolean = false>(
   options: Options<PostExtensionsByIdDelistData, ThrowOnError>,
@@ -627,7 +627,7 @@ export const postExtensionsByIdDelist = <ThrowOnError extends boolean = false>(
   });
 
 /**
- * Restore a delisted extension to the public catalogue
+ * Restore a delisted extension to the public extension listing
  */
 export const postExtensionsByIdRelist = <ThrowOnError extends boolean = false>(
   options: Options<PostExtensionsByIdRelistData, ThrowOnError>,
