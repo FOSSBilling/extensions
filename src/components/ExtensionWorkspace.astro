@@ -42,7 +42,6 @@ const config =
         baselineHash: await sha256Hex(JSON.stringify(editorContent)),
         key: `extension-draft:${await sha256Hex(editor.userId)}:${id}`,
         submitUrl: `${baseUrl}/draft`,
-        baseUrl,
       })
     : '';
 const labels: Record<DraftSection, string> = {

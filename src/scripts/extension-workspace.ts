@@ -27,7 +27,6 @@ export function initExtensionWorkspace() {
     submitLabel: string;
     key: string;
     submitUrl: string;
-    baseUrl: string;
   };
   const find = <T extends HTMLElement>(selector: string) =>
     root.querySelector<T>(selector)!;
@@ -533,7 +532,6 @@ export function initExtensionWorkspace() {
         );
       const result = (await response.json()) as {
         error?: string;
-        url?: string;
       };
       if (!response.ok)
         throw new Error(
@@ -547,7 +545,10 @@ export function initExtensionWorkspace() {
       }
       stored = false;
       unsaved.clear();
-      window.location.assign(result.url ?? config.baseUrl);
+      const next = new URL(window.location.href);
+      next.search = '?version=pending';
+      next.hash = '';
+      window.location.assign(next.href);
     } catch (cause) {
       error(
         cause instanceof Error

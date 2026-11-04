@@ -72,7 +72,7 @@ export const POST: APIRoute = async (context) => {
         : 'Changes Submitted for Review.',
     });
     return Response.json(
-      { url: `/extension/${id}${pending ? '?version=pending' : ''}` },
+      { success: true },
       { headers: { 'Cache-Control': 'no-store' } },
     );
   } catch (error) {

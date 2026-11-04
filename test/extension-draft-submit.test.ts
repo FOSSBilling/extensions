@@ -73,7 +73,7 @@ describe('draft submission', () => {
     const response = await POST(await context());
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
-      url: '/extension/example',
+      success: true,
     });
     expect(mocks.updateExtension).toHaveBeenCalledWith('example', {
       ...base,
@@ -113,7 +113,7 @@ describe('draft submission', () => {
     );
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
-      url: '/extension/example?version=pending',
+      success: true,
     });
     expect(mocks.replacePendingRevision).toHaveBeenCalledWith(
       'example',
