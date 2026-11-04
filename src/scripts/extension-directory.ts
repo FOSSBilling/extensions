@@ -1,4 +1,4 @@
-// Client-side behaviour for the catalogue's Load More control. Appended
+// Client-side behaviour for the directory's Load More control. Appended
 // cards come from /api/extensions/cards, which renders the same
 // ExtensionCard component as the server-rendered grid — card markup and
 // server-signed icon URLs cannot drift between the first page and the rest.
@@ -6,22 +6,22 @@
 // TypeScript checking like any other lib file.
 
 import {
-  createCataloguePagerFromIds,
-  type CataloguePageRequest,
-} from '@/lib/catalogue-pagination';
+  createDirectoryPagerFromIds,
+  type DirectoryPageRequest,
+} from '@/lib/directory-pagination';
 import type { ExtensionListResponse } from '@/lib/api/client';
 
 const DEFAULT_PAGE_LIMIT = 50;
 
 // A rendered card and its extension id. The id backs the pager's dedupe;
 // the markup is appended as-is.
-type CatalogueCard = {
+type DirectoryCard = {
   id: string;
   html: string;
 };
 
-type CatalogueCardPage = {
-  result: CatalogueCard[];
+type DirectoryCardPage = {
+  result: DirectoryCard[];
   pagination: ExtensionListResponse['pagination'];
 };
 
@@ -34,8 +34,8 @@ function getErrorMessage(error: unknown): string {
 
 async function loadPage(
   apiUrl: string,
-  request: CataloguePageRequest,
-): Promise<CatalogueCardPage> {
+  request: DirectoryPageRequest,
+): Promise<DirectoryCardPage> {
   const params = new URLSearchParams();
   params.set('limit', String(request.limit ?? DEFAULT_PAGE_LIMIT));
   if (request.type !== undefined) {
@@ -58,16 +58,16 @@ async function loadPage(
 
   if (!response.ok) {
     const errorEl = fragment.content.querySelector<HTMLElement>(
-      '[data-catalogue-error]',
+      '[data-directory-error]',
     );
     throw new Error(
-      errorEl?.dataset.catalogueError ??
+      errorEl?.dataset.directoryError ??
         `The extensions API returned ${response.status}.`,
     );
   }
 
   const wrapper = fragment.content.querySelector<HTMLElement>(
-    '[data-catalogue-page]',
+    '[data-directory-page]',
   );
   if (!wrapper) {
     throw new Error('The extensions API returned an unexpected response.');
@@ -89,11 +89,11 @@ async function loadPage(
   };
 }
 
-function installCatalogue(root: HTMLElement): void {
+function installDirectory(root: HTMLElement): void {
   const loadMore = root.querySelector<HTMLButtonElement>('[data-load-more]');
-  const status = root.querySelector<HTMLElement>('[data-catalogue-status]');
+  const status = root.querySelector<HTMLElement>('[data-directory-status]');
   const grid = root.querySelector<HTMLElement>('[data-extension-grid]');
-  const emptyState = root.querySelector<HTMLElement>('[data-empty-catalogue]');
+  const emptyState = root.querySelector<HTMLElement>('[data-empty-directory]');
 
   if (!loadMore || !status || !grid) {
     return;
@@ -104,7 +104,7 @@ function installCatalogue(root: HTMLElement): void {
   )
     .map((card) => card.dataset.extensionId ?? '')
     .filter(Boolean);
-  const pagination: CatalogueCardPage['pagination'] = {
+  const pagination: DirectoryCardPage['pagination'] = {
     next_cursor: loadMore.dataset.nextCursor ?? null,
     has_more: root.dataset.hasMore === 'true',
   };
@@ -113,7 +113,7 @@ function installCatalogue(root: HTMLElement): void {
     developer_id: root.dataset.developerId,
     limit: Number(root.dataset.limit) || DEFAULT_PAGE_LIMIT,
   };
-  const pager = createCataloguePagerFromIds<CatalogueCard>(
+  const pager = createDirectoryPagerFromIds<DirectoryCard>(
     initialIds,
     pagination,
     filters,
@@ -132,7 +132,7 @@ function installCatalogue(root: HTMLElement): void {
     loadMore.textContent = state.isLoading
       ? 'Loading extensions…'
       : state.error
-        ? 'Restart catalogue'
+        ? 'Restart directory'
         : 'Load more extensions';
 
     if (!state.hasMore || state.nextCursor === null) {
@@ -177,10 +177,10 @@ function installCatalogue(root: HTMLElement): void {
 }
 
 if (typeof document !== 'undefined') {
-  const catalogue = document.querySelector<HTMLElement>(
-    '[data-extension-catalogue]',
+  const directory = document.querySelector<HTMLElement>(
+    '[data-extension-directory]',
   );
-  if (catalogue) {
-    installCatalogue(catalogue);
+  if (directory) {
+    installDirectory(directory);
   }
 }

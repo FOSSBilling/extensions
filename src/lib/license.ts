@@ -1,11 +1,15 @@
-import { SPDX_LICENSE_IDS, type License } from '@/types';
+import { SPDX_LICENSE_IDS } from '@/types';
 import { isSafeHttpUrl } from './safe-url';
+import type { StoredExtensionFields } from './extensions-data';
 
-export function licenseUrl(license: License | undefined): string | undefined {
+export function licenseUrl(
+  license: StoredExtensionFields['license'],
+): string | undefined {
   if (!license) return undefined;
-  if (isSafeHttpUrl(license.URL)) return license.URL;
-  if (license.spdx_id && SPDX_LICENSE_IDS.includes(license.spdx_id)) {
-    return `https://spdx.org/licenses/${license.spdx_id}.html`;
-  }
-  return undefined;
+  if (typeof license !== 'string' && isSafeHttpUrl(license.URL))
+    return license.URL;
+  const id = typeof license === 'string' ? license : license.spdx_id;
+  return id && SPDX_LICENSE_IDS.includes(id)
+    ? `https://spdx.org/licenses/${id}.html`
+    : undefined;
 }

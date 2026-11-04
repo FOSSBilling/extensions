@@ -141,11 +141,11 @@ export function initExtensionWorkspace() {
     if (headerName) headerName.textContent = current.name || fallbackName;
     text('[data-preview-description]', current.description);
     text('[data-preview-type]', EXTENSION_TYPE_LABELS[current.type]);
-    text('[data-preview-website]', current.website);
+    text('[data-preview-website]', current.homepage_url ?? '');
     const websiteLink = find<HTMLAnchorElement>('[data-preview-website]');
     if (websiteLink) {
-      const safe = isSafeHttpUrl(current.website);
-      if (safe) websiteLink.href = current.website;
+      const safe = isSafeHttpUrl(current.homepage_url ?? '');
+      if (safe) websiteLink.href = current.homepage_url ?? '';
       else websiteLink.removeAttribute('href');
       websiteLink.classList.toggle('underline', safe);
     }
@@ -163,7 +163,7 @@ export function initExtensionWorkspace() {
       find<HTMLElement>('[data-source-github-icon]').hidden = !github;
       find<HTMLElement>('[data-source-link-icon]').hidden = github;
     }
-    text('[data-preview-license]', current.license.name);
+    text('[data-preview-license]', current.license);
     const licenseLink = find<HTMLAnchorElement>('[data-preview-license]');
     if (licenseLink) {
       const href = licenseUrl(current.license);
@@ -171,6 +171,30 @@ export function initExtensionWorkspace() {
       else licenseLink.removeAttribute('href');
       licenseLink.classList.toggle('underline', Boolean(href));
     }
+    text('[data-preview-author]', current.author.name);
+    const authorLink = find<HTMLAnchorElement>('[data-preview-author]');
+    if (authorLink) {
+      if (isSafeHttpUrl(current.author.url))
+        authorLink.href = current.author.url ?? '';
+      else authorLink.removeAttribute('href');
+      authorLink.classList.toggle(
+        'underline',
+        isSafeHttpUrl(current.author.url),
+      );
+      find<HTMLElement>('[data-author-detail]').hidden = !current.author.name;
+    }
+    text(
+      '[data-preview-requirements]',
+      [
+        `FOSSBilling ${current.requires.fossbilling}`,
+        `PHP ${current.requires.php}`,
+        ...Object.entries(current.requires.modules ?? {}).map(
+          ([id, constraint]) => `${id}: ${constraint}`,
+        ),
+      ].join('\n'),
+    );
+    const requirementsDetail = find<HTMLElement>('[data-requirements-detail]');
+    if (requirementsDetail) requirementsDetail.hidden = false;
     text('[data-release-count]', String(current.releases.length));
     const readme = find<HTMLElement>('[data-preview-readme]');
     if (readme) readme.innerHTML = renderMarkdown(current.readme);
@@ -307,7 +331,11 @@ export function initExtensionWorkspace() {
       release_date: release?.date.slice(0, 10) ?? '',
       download_url: release?.download_url ?? '',
       changelog_url: release?.changelog_url ?? '',
-      min_fossbilling_version: release?.min_fossbilling_version ?? '',
+      requires_fossbilling: release?.requires.fossbilling ?? '',
+      requires_php: release?.requires.php ?? '',
+      requires_modules: Object.entries(release?.requires.modules ?? {})
+        .map(([id, constraint]) => `${id}: ${constraint}`)
+        .join('\n'),
     });
     find('[data-release-form-title]').textContent = tag
       ? 'Edit Release'
@@ -336,7 +364,7 @@ export function initExtensionWorkspace() {
       title.textContent = `${release.tag}${release.tag === latest?.tag ? ' · Latest Version' : ''}`;
       const detail = document.createElement('p');
       detail.className = 'mt-1 text-xs text-muted-foreground';
-      detail.textContent = `${release.date} · FOSSBilling ${release.min_fossbilling_version} and later`;
+      detail.textContent = `${release.date} · FOSSBilling ${release.requires.fossbilling} · PHP ${release.requires.php}`;
       const links = document.createElement('p');
       links.className = 'mt-2 max-w-xl text-xs text-muted-foreground';
       const download = document.createElement('a');

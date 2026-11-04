@@ -47,13 +47,10 @@ export const POST: APIRoute = async (context) => {
       !pending && !owned.published && owned.last_review
         ? await api.getRevision(id, owned.last_review.revision_id)
         : null;
+    const stored = pending?.content ?? owned.published ?? previous?.content;
     const base =
-      editableContent(
-        pending?.content ?? owned.published ?? previous?.content,
-      ) ??
-      (!pending && !owned.published
-        ? reconstructionContent(previous?.content)
-        : null);
+      editableContent(stored) ??
+      (pending || !owned.published ? reconstructionContent(stored) : null);
     if (!base)
       return fail(
         'The original content is unavailable. Your local draft has been kept.',

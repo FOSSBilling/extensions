@@ -7,7 +7,7 @@ function release(tag: string, date = '2026-01-01'): Release {
     tag,
     date,
     download_url: `https://example.test/${tag}.zip`,
-    min_fossbilling_version: '0.7.0',
+    requires: { fossbilling: '>=0.7.0', php: '>=8.3' },
   };
 }
 

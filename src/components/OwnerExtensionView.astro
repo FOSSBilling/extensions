@@ -38,8 +38,7 @@ if (!content && review) {
       'Your previous submission could not be loaded. You can still review the feedback below or try again.';
   }
 }
-const rebuilding =
-  !published && !pending && !revisionError && !editableContent(content);
+const rebuilding = !revisionError && !editableContent(content);
 const editable =
   editableContent(content) ??
   (rebuilding ? reconstructionContent(content) : null);

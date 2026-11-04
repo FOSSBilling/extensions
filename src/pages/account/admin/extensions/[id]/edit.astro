@@ -21,7 +21,7 @@ import {
 import { formString } from '@/lib/form';
 import { formatDate } from '@/lib/format-date';
 import { setFlash } from '@/lib/flash';
-import { purgeCatalogue } from '@/lib/cache-invalidate';
+import { purgeDirectory } from '@/lib/cache-invalidate';
 import type { Extension } from '@/types';
 import { CircleAlert } from '@lucide/astro';
 import DateTime from '@/components/admin/DateTime.astro';
@@ -67,7 +67,7 @@ let error: string | null = null;
 // Falls back to the just-submitted values on a failed correction, so the
 // form doesn't reset to the published content and discard the edit — same
 // submitted echo as the author edit page.
-let submitted: Extension | null = null;
+let submitted: ReturnType<typeof echoExtensionFromForm> | null = null;
 let submittedNote = '';
 let submittedReleaseDraft: ReleaseDraft | null = null;
 
@@ -89,7 +89,7 @@ if (
     }
     const payload = buildExtensionUpdatePayload(form, base);
     await api.correctExtension(owned.id, payload, submittedNote);
-    purgeCatalogue(Astro);
+    purgeDirectory(Astro);
     await setFlash(Astro, env.sessionSecret, {
       category: 'success',
       title: `"${owned.id}" corrected.`,
@@ -107,7 +107,6 @@ if (
   }
 }
 
-const fields = submitted ?? base;
 const title = base?.name || owned?.id || id;
 ---
 
@@ -184,7 +183,7 @@ const title = base?.name || owned?.id || id;
           </section>
         </div>
       ) : (
-        fields && (
+        base && (
           <Fragment>
             <p class="text-muted-foreground text-sm">
               For live listing corruption — a truncated readme, a broken link —
@@ -192,7 +191,8 @@ const title = base?.name || owned?.id || id;
             </p>
             <ExtensionForm
               developer={owned.developer}
-              extension={fields}
+              extension={base}
+              echo={submitted ?? undefined}
               releaseDraft={submittedReleaseDraft ?? undefined}
               error={error}
               submitLabel="Correct Live Listing"

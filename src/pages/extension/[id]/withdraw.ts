@@ -2,7 +2,7 @@ import type { APIRoute } from 'astro';
 import { requireUser } from '@/lib/auth-guard';
 import { createApiClient } from '@/lib/api/client';
 import { formAction } from '@/lib/form-action';
-import { purgeCatalogue } from '@/lib/cache-invalidate';
+import { purgeDirectory } from '@/lib/cache-invalidate';
 import { setFlash } from '@/lib/flash';
 
 export const POST: APIRoute = formAction({
@@ -19,7 +19,7 @@ export const POST: APIRoute = formAction({
     if (!id) return '/account';
 
     await createApiClient(env, user.sub).withdrawExtension(id);
-    purgeCatalogue(context);
+    purgeDirectory(context);
     await setFlash(context, env.sessionSecret, {
       title: 'Extension withdrawn.',
     });

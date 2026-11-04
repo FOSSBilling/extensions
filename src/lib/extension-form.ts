@@ -1,3 +1,4 @@
+import { isPackageIconPath } from './package-icon';
 import { isExtensionType, SPDX_LICENSE_IDS } from '@/types';
 import type { Extension, Release } from '@/types';
 import type { ExtensionCreate, ExtensionUpdate } from '@/lib/api/client';
@@ -6,44 +7,67 @@ import { repositoryFromFields, repositoryInputUrl } from './repository';
 import { formString } from './form';
 import { withHttpsScheme } from './url-prefix';
 
+export type ExtensionFormEcho = Extension & { moduleRequirementsInput: string };
+
 // Thrown for form-level validation failures that should be shown to the
 // user, distinct from ApiRequestError (the api rejecting an otherwise
 // well-formed payload) — see the try/catch in new.astro/edit.astro.
 export class ExtensionValidationError extends Error {}
 
-// "Other / Proprietary" is a form-only sentinel, never a real spdx_id value
-// — buildLicense() reads it back out of license_spdx_id to decide whether
-// license_name_custom (vs. the spdx_id itself) becomes license.name. The
-// single export here is what ExtensionForm.astro and edit.astro both use,
-// rather than each hand-copying the string.
+// The combobox offers SPDX identifiers; Other also accepts compound expressions.
 export const OTHER_LICENSE = 'other';
 
-// The License field pair: a <select> of current SPDX ids (matching the api's
-// own spdx-license-ids-backed validation) plus an "Other / Proprietary"
-// sentinel that reveals a free-text name instead. Mirrors the server: a
-// recognized id becomes both `name` and `spdx_id`; "Other" carries only a
-// custom `name`.
-function buildLicense(form: FormData) {
+export function buildLicense(form: FormData): string {
   const selected = formString(form, 'license_spdx_id');
-  const url = withHttpsScheme(formString(form, 'license_url'));
-
-  if (selected === OTHER_LICENSE) {
-    const customName = formString(form, 'license_name_custom');
-    if (!customName) {
-      throw new ExtensionValidationError(
-        'Enter a name for the custom or proprietary license.',
-      );
-    }
-    return { name: customName, URL: url };
-  }
-
-  if (!SPDX_LICENSE_IDS.includes(selected)) {
+  const license =
+    selected === OTHER_LICENSE
+      ? formString(form, 'license_name_custom')
+      : selected;
+  if (
+    !license ||
+    license.length > 1000 ||
+    !/^[A-Za-z0-9.\-+_:() |]+$/.test(license) ||
+    (selected !== OTHER_LICENSE && !SPDX_LICENSE_IDS.includes(selected))
+  ) {
     throw new ExtensionValidationError(
-      'Choose a license, or "Other / Proprietary" for one not listed.',
+      'Choose a license or enter a license expression.',
     );
   }
+  return license;
+}
 
-  return { name: selected, spdx_id: selected, URL: url };
+function moduleRequirements(input: string): Record<string, string> | undefined {
+  if (!input.trim()) return undefined;
+  const modules: Record<string, string> = Object.create(null);
+  for (const line of input.split(/\r?\n/)) {
+    if (!line.trim()) continue;
+    const match = /^([a-z0-9_-]+)\s*:\s*(.+)$/.exec(line.trim());
+    if (
+      !match ||
+      !match[2].trim() ||
+      match[2].trim().length > 1000 ||
+      Object.hasOwn(modules, match[1])
+    )
+      throw new ExtensionValidationError(
+        'Enter module dependencies once each, as module-id: constraint on separate lines.',
+      );
+    modules[match[1]] = match[2].trim();
+  }
+  return modules;
+}
+
+export function buildRequirements(form: FormData) {
+  const fossbilling = formString(form, 'requires_fossbilling');
+  const php = formString(form, 'requires_php');
+  if (!fossbilling || !php || fossbilling.length > 1000 || php.length > 1000)
+    throw new ExtensionValidationError(
+      'Enter the FOSSBilling and PHP version requirements.',
+    );
+  return {
+    fossbilling,
+    php,
+    modules: moduleRequirements(formString(form, 'requires_modules')),
+  };
 }
 
 // Shared by both builders below. A new release is only appended when
@@ -58,6 +82,7 @@ function buildContent(
   requireRelease: boolean,
 ) {
   const str = (name: string) => formString(form, name);
+  const requires = buildRequirements(form);
 
   const releases = [...existing.releases];
   let version = existing.version;
@@ -87,10 +112,9 @@ function buildContent(
 
     const releaseDate = str('release_date');
     const releaseDownloadUrl = withHttpsScheme(str('download_url'));
-    const minVersion = str('min_fossbilling_version');
-    if (!releaseDate || !releaseDownloadUrl || !minVersion) {
+    if (!releaseDate || !releaseDownloadUrl) {
       throw new ExtensionValidationError(
-        'To add a new release, fill in the release date, download URL, and minimum FOSSBilling version.',
+        'To add a new release, fill in the release date and download URL.',
       );
     }
 
@@ -99,7 +123,7 @@ function buildContent(
       date: releaseDate,
       download_url: releaseDownloadUrl,
       changelog_url: withHttpsScheme(str('changelog_url')),
-      min_fossbilling_version: minVersion,
+      requires,
     };
     releases.push(release);
     version = release.tag;
@@ -126,14 +150,27 @@ function buildContent(
     throw new ExtensionValidationError('Choose a valid extension type.');
   }
 
+  const icon = str('icon_url');
+  if (icon && !isPackageIconPath(icon))
+    throw new ExtensionValidationError(
+      'Enter an icon path relative to the package root, such as icon.svg.',
+    );
+  if (!str('author_name'))
+    throw new ExtensionValidationError('Enter the package author name.');
   return {
+    manifest_version: 1 as const,
+    author: {
+      name: str('author_name'),
+      url: withHttpsScheme(str('author_url')),
+    },
+    requires,
     type: typeInput,
     name: str('name'),
     description: str('description'),
     releases,
-    website: withHttpsScheme(str('website')) ?? '',
+    homepage_url: withHttpsScheme(str('homepage_url')),
     license: buildLicense(form),
-    icon_url: withHttpsScheme(str('icon_url')),
+    icon_url: icon || undefined,
     readme: str('readme'),
     source,
     version,
@@ -178,7 +215,7 @@ export function buildExtensionUpdatePayload(
 export function echoExtensionFromForm(
   form: FormData,
   base: Extension,
-): Extension {
+): ExtensionFormEcho {
   const selectedLicenseId = formString(form, 'license_spdx_id');
   const isRecognizedLicense =
     selectedLicenseId !== OTHER_LICENSE &&
@@ -188,19 +225,23 @@ export function echoExtensionFromForm(
     type: formString(form, 'type') as Extension['type'],
     name: formString(form, 'name'),
     description: formString(form, 'description'),
-    website: formString(form, 'website'),
+    homepage_url: formString(form, 'homepage_url'),
     icon_url: formString(form, 'icon_url') || undefined,
     readme: formString(form, 'readme'),
+    manifest_version: 1,
+    author: {
+      name: formString(form, 'author_name'),
+      url: formString(form, 'author_url') || undefined,
+    },
+    requires: {
+      fossbilling: formString(form, 'requires_fossbilling'),
+      php: formString(form, 'requires_php'),
+      modules: base.requires.modules,
+    },
+    moduleRequirementsInput: formString(form, 'requires_modules'),
     license: isRecognizedLicense
-      ? {
-          name: selectedLicenseId,
-          spdx_id: selectedLicenseId,
-          URL: formString(form, 'license_url') || undefined,
-        }
-      : {
-          name: formString(form, 'license_name_custom'),
-          URL: formString(form, 'license_url') || undefined,
-        },
+      ? selectedLicenseId
+      : formString(form, 'license_name_custom'),
     source: repositoryFromFields(Object.fromEntries(form)) ?? {
       type: 'custom',
       repo: repositoryInputUrl(Object.fromEntries(form)),
@@ -219,7 +260,6 @@ export interface ReleaseDraft {
   release_date: string;
   download_url: string;
   changelog_url: string;
-  min_fossbilling_version: string;
 }
 
 export function echoReleaseDraftFromForm(form: FormData): ReleaseDraft {
@@ -228,7 +268,6 @@ export function echoReleaseDraftFromForm(form: FormData): ReleaseDraft {
     release_date: formString(form, 'release_date'),
     download_url: formString(form, 'download_url'),
     changelog_url: formString(form, 'changelog_url'),
-    min_fossbilling_version: formString(form, 'min_fossbilling_version'),
   };
 }
 
@@ -240,15 +279,18 @@ export function echoReleaseDraftFromForm(form: FormData): ReleaseDraft {
 export function echoNewExtensionFromForm(
   form: FormData,
   developer: Extension['developer'],
-): { extension: Extension; releaseDraft: ReleaseDraft } {
+): { extension: ExtensionFormEcho; releaseDraft: ReleaseDraft } {
   const base: Extension = {
+    manifest_version: 1,
+    author: { name: developer.name, url: developer.URL },
+    requires: { fossbilling: '', php: '' },
     id: formString(form, 'extension_id').toLowerCase(),
-    type: 'mod',
+    type: 'module',
     name: '',
     description: '',
     releases: [],
-    website: '',
-    license: { name: '' },
+    homepage_url: '',
+    license: '',
     readme: '',
     source: { type: 'github', repo: '' },
     version: '',

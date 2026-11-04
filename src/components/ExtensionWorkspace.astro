@@ -6,8 +6,8 @@ import ExtensionOverviewDetails from './ExtensionOverviewDetails.astro';
 import ExtensionNavigation from './ExtensionNavigation.astro';
 import { renderMarkdown } from '@/lib/markdown';
 import { sha256Hex } from '@/lib/hash';
-import { latestRelease } from '@/lib/releases';
 import ExtensionSectionFields from './ExtensionSectionFields.astro';
+import RequirementsFields from './RequirementsFields.astro';
 import type { DraftSection } from '@/lib/extension-draft';
 import { Pencil, Plus } from '@lucide/astro';
 interface Props {
@@ -187,16 +187,7 @@ const labels: Record<DraftSection, string> = {
                 placeholder="https://…"
               />
             </label>
-            <label class="grid gap-2 text-sm font-medium">
-              Minimum FOSSBilling Version
-              <input
-                class="input w-full"
-                name="min_fossbilling_version"
-                required
-                maxlength="100"
-                placeholder="0.7.0"
-              />
-            </label>
+            <RequirementsFields />
             <p class="text-xs text-muted-foreground">
               The latest version is selected automatically and supplies the
               listing’s primary download. Release changes join your draft and
@@ -329,11 +320,6 @@ const labels: Record<DraftSection, string> = {
               <ExtensionOverviewDetails
                 content={content}
                 showIconUrl={Boolean(editor)}
-                minimumVersion={
-                  !editor
-                    ? latestRelease(releaseItems)?.min_fossbilling_version
-                    : undefined
-                }
               />
             ) : (
               <div

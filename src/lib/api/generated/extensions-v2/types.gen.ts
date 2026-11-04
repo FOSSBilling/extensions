@@ -10,21 +10,25 @@ export type UnifiedExtensionListResponse = {
 };
 
 export type ExtensionListItem = {
+  manifest_version: 1;
   type:
-    | 'mod'
+    | 'module'
     | 'theme'
     | 'payment-gateway'
     | 'server-manager'
     | 'domain-registrar'
-    | 'hook'
     | 'translation';
   name: string;
   description: string;
+  author: {
+    name: string;
+    url?: string;
+  };
   /**
    * Null when a legacy URL exceeds the card length bound
    */
-  website: string | null;
-  license: License;
+  homepage_url?: string | null;
+  license: string;
   icon_url?: string;
   source: Repository;
   version: string;
@@ -34,15 +38,6 @@ export type ExtensionListItem = {
   download_url: string | null;
   id: string;
   developer: PublicDeveloper;
-};
-
-export type License = {
-  name: string;
-  /**
-   * A current SPDX license identifier (https://spdx.org/licenses/). Omitted for custom or proprietary licenses.
-   */
-  spdx_id?: string;
-  URL?: string;
 };
 
 export type Repository = {
@@ -64,21 +59,25 @@ export type OwnedExtensionListItem = {
   id: string;
   developer: PublicDeveloper;
   published: {
+    manifest_version: 1;
     type:
-      | 'mod'
+      | 'module'
       | 'theme'
       | 'payment-gateway'
       | 'server-manager'
       | 'domain-registrar'
-      | 'hook'
       | 'translation';
     name: string;
     description: string;
+    author: {
+      name: string;
+      url?: string;
+    };
     /**
      * Null when a legacy URL exceeds the card length bound
      */
-    website: string | null;
-    license: License;
+    homepage_url?: string | null;
+    license: string;
     icon_url?: string;
     source: Repository;
     version: string;
@@ -138,8 +137,23 @@ export type ExtensionDetailResponse = {
 };
 
 export type Extension = ExtensionContent & {
+  name?: string;
+  description?: string;
+  homepage_url?: string;
+  license?: string;
+  icon_url?: string;
+  version?: string;
+  download_url?: string;
   id: string;
   developer: PublicDeveloper;
+};
+
+export type ManifestRequirements = {
+  fossbilling: string;
+  php: string;
+  modules?: {
+    [key: string]: string;
+  };
 };
 
 export type Release = {
@@ -147,23 +161,28 @@ export type Release = {
   date: string;
   download_url: string;
   changelog_url?: string;
-  min_fossbilling_version: string;
+  requires: ManifestRequirements;
 };
 
 export type ExtensionContent = {
+  manifest_version: 1;
   type:
-    | 'mod'
+    | 'module'
     | 'theme'
     | 'payment-gateway'
     | 'server-manager'
     | 'domain-registrar'
-    | 'hook'
     | 'translation';
   name: string;
   description: string;
+  author: {
+    name: string;
+    url?: string;
+  };
+  requires: ManifestRequirements;
   releases: Array<Release>;
-  website: string;
-  license: License;
+  homepage_url?: string;
+  license: string;
   icon_url?: string;
   readme: string;
   source: Repository;
@@ -174,14 +193,22 @@ export type ExtensionContent = {
 export type OwnedExtension = OwnedExtensionListItem & {
   published?: ExtensionContent &
     ({
+      name?: string;
+      description?: string;
       releases?: Array<
         Release & {
           /**
            * At most 100 Unicode code points in historical content
            */
           tag?: string;
+          min_fossbilling_version?: string;
         }
       >;
+      homepage_url?: string;
+      license?: string;
+      icon_url?: string;
+      version?: string;
+      download_url?: string;
     } | null);
   pending_revision?: PendingRevisionRef &
     ({
@@ -190,47 +217,67 @@ export type OwnedExtension = OwnedExtensionListItem & {
 };
 
 export type StoredExtensionContent = {
+  manifest_version?: 1;
   type?:
-    | 'mod'
+    | 'module'
     | 'theme'
     | 'payment-gateway'
     | 'server-manager'
     | 'domain-registrar'
-    | 'hook'
-    | 'translation';
+    | 'translation'
+    | 'mod'
+    | 'hook';
   name?: string;
   description?: string;
+  author?: {
+    name: string;
+    url?: string;
+  };
+  requires?: ManifestRequirements;
   releases?: Array<
     Release & {
       /**
        * At most 100 Unicode code points in historical content
        */
       tag?: string;
+      min_fossbilling_version?: string;
     }
   >;
-  website?: string;
-  license?: License;
-  icon_url?: string;
+  homepage_url?: string;
+  license?:
+    | string
+    | {
+        name: string;
+        spdx_id?: string;
+        URL?: string;
+      };
+  icon_url?: string | string;
   readme?: string;
   source?: Repository;
   version?: string;
   download_url?: string;
+  website?: string;
 };
 
 export type ExtensionCreate = {
+  manifest_version: 1;
   type:
-    | 'mod'
+    | 'module'
     | 'theme'
     | 'payment-gateway'
     | 'server-manager'
     | 'domain-registrar'
-    | 'hook'
     | 'translation';
   name: string;
   description: string;
+  author: {
+    name: string;
+    url?: string;
+  };
+  requires: ManifestRequirements;
   releases: Array<Release>;
-  website: string;
-  license: License;
+  homepage_url?: string;
+  license: string;
   icon_url?: string;
   readme: string;
   source: Repository;
@@ -240,19 +287,24 @@ export type ExtensionCreate = {
 };
 
 export type ExtensionUpdate = {
+  manifest_version: 1;
   type:
-    | 'mod'
+    | 'module'
     | 'theme'
     | 'payment-gateway'
     | 'server-manager'
     | 'domain-registrar'
-    | 'hook'
     | 'translation';
   name: string;
   description: string;
+  author: {
+    name: string;
+    url?: string;
+  };
+  requires: ManifestRequirements;
   releases: Array<Release>;
-  website: string;
-  license: License;
+  homepage_url?: string;
+  license: string;
   icon_url?: string;
   readme: string;
   source: Repository;
@@ -392,19 +444,24 @@ export type DelistReason = {
 };
 
 export type ModeratorCorrect = {
+  manifest_version: 1;
   type:
-    | 'mod'
+    | 'module'
     | 'theme'
     | 'payment-gateway'
     | 'server-manager'
     | 'domain-registrar'
-    | 'hook'
     | 'translation';
   name: string;
   description: string;
+  author: {
+    name: string;
+    url?: string;
+  };
+  requires: ManifestRequirements;
   releases: Array<Release>;
-  website: string;
-  license: License;
+  homepage_url?: string;
+  license: string;
   icon_url?: string;
   readme: string;
   source: Repository;
@@ -465,12 +522,11 @@ export type GetExtensionsData = {
   path?: never;
   query?: {
     type?:
-      | 'mod'
+      | 'module'
       | 'theme'
       | 'payment-gateway'
       | 'server-manager'
       | 'domain-registrar'
-      | 'hook'
       | 'translation';
     /**
      * Public scope only
@@ -482,7 +538,7 @@ export type GetExtensionsData = {
      */
     cursor?: string;
     /**
-     * public: published catalogue (anonymous allowed). mine: caller's own extensions. all: every extension (moderator only).
+     * public: published extension directory (anonymous allowed). mine: caller's own extensions. all: every extension (moderator only).
      */
     scope?: 'public' | 'mine' | 'all';
     /**
@@ -520,7 +576,7 @@ export type GetExtensionsError = GetExtensionsErrors[keyof GetExtensionsErrors];
 
 export type GetExtensionsResponses = {
   /**
-   * Extensions matching the scope: catalogue cards for scope=public, owned rows for scope=mine/all
+   * Extensions matching the scope: extension cards for scope=public, owned rows for scope=mine, moderation rows for scope=all
    */
   200: UnifiedExtensionListResponse;
 };
@@ -575,7 +631,7 @@ export type PostExtensionsError =
 
 export type PostExtensionsResponses = {
   /**
-   * Extension created. It holds the id immediately but stays out of the public catalogue until a moderator approves the revision.
+   * Extension created. It holds the id immediately but stays out of the public extension listing until a moderator approves the revision.
    */
   201: {
     result: {
@@ -1703,7 +1759,7 @@ export type PostExtensionsByIdDelistError =
 
 export type PostExtensionsByIdDelistResponses = {
   /**
-   * Extension removed from the public catalogue. Its content and history are kept, and its owner can still see and edit it.
+   * Extension removed from the public extension listing. Its content and history are kept, and its owner can still see and edit it.
    */
   200: {
     result: {
@@ -1766,7 +1822,7 @@ export type PostExtensionsByIdRelistError =
 
 export type PostExtensionsByIdRelistResponses = {
   /**
-   * Extension restored to the public catalogue. Content and history unchanged.
+   * Extension restored to the public extension listing. Content and history unchanged.
    */
   200: {
     result: {

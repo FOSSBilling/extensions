@@ -1,25 +1,25 @@
 import type { ExtensionListItem, ExtensionListResponse } from './api/client';
 
-type CatalogueItem = {
+type DirectoryItem = {
   id: string;
 };
 
-type CataloguePage<Item extends CatalogueItem = ExtensionListItem> = {
+type DirectoryPage<Item extends DirectoryItem = ExtensionListItem> = {
   result: Item[];
   pagination: ExtensionListResponse['pagination'];
 };
 
-type CataloguePageFilters = {
+type DirectoryPageFilters = {
   type?: string;
   developer_id?: string;
   limit?: number;
 };
 
-export type CataloguePageRequest = CataloguePageFilters & {
+export type DirectoryPageRequest = DirectoryPageFilters & {
   cursor: string;
 };
 
-type CataloguePagerState<Item extends CatalogueItem = ExtensionListItem> = {
+type DirectoryPagerState<Item extends DirectoryItem = ExtensionListItem> = {
   items: Item[];
   nextCursor: string | null;
   hasMore: boolean;
@@ -27,16 +27,16 @@ type CataloguePagerState<Item extends CatalogueItem = ExtensionListItem> = {
   error: unknown | null;
 };
 
-type CataloguePageLoader<Item extends CatalogueItem = ExtensionListItem> = (
-  request: CataloguePageRequest,
-) => Promise<CataloguePage<Item>>;
+type DirectoryPageLoader<Item extends DirectoryItem = ExtensionListItem> = (
+  request: DirectoryPageRequest,
+) => Promise<DirectoryPage<Item>>;
 
-export function createCataloguePager<
-  Item extends CatalogueItem = ExtensionListItem,
+export function createDirectoryPager<
+  Item extends DirectoryItem = ExtensionListItem,
 >(
-  firstPage: CataloguePage<Item>,
-  filters: CataloguePageFilters,
-  loadPage: CataloguePageLoader<Item>,
+  firstPage: DirectoryPage<Item>,
+  filters: DirectoryPageFilters,
+  loadPage: DirectoryPageLoader<Item>,
   initialIds: string[] = [],
 ) {
   let state = stateFromPage(firstPage);
@@ -44,14 +44,14 @@ export function createCataloguePager<
     ...initialIds.map((id) => id.toLowerCase()),
     ...state.items.map((item) => item.id.toLowerCase()),
   ]);
-  let inFlight: Promise<CataloguePagerState<Item>> | null = null;
+  let inFlight: Promise<DirectoryPagerState<Item>> | null = null;
 
   return {
-    getState(): CataloguePagerState<Item> {
+    getState(): DirectoryPagerState<Item> {
       return state;
     },
 
-    loadNextPage(): Promise<CataloguePagerState<Item>> {
+    loadNextPage(): Promise<DirectoryPagerState<Item>> {
       if (inFlight) {
         return inFlight;
       }
@@ -60,7 +60,7 @@ export function createCataloguePager<
         return Promise.resolve(state);
       }
 
-      const request: CataloguePageRequest = {
+      const request: DirectoryPageRequest = {
         ...filters,
         cursor: state.nextCursor,
       };
@@ -101,15 +101,15 @@ export function createCataloguePager<
   };
 }
 
-export function createCataloguePagerFromIds<
-  Item extends CatalogueItem = ExtensionListItem,
+export function createDirectoryPagerFromIds<
+  Item extends DirectoryItem = ExtensionListItem,
 >(
   initialIds: string[],
-  pagination: CataloguePage<Item>['pagination'],
-  filters: CataloguePageFilters,
-  loadPage: CataloguePageLoader<Item>,
+  pagination: DirectoryPage<Item>['pagination'],
+  filters: DirectoryPageFilters,
+  loadPage: DirectoryPageLoader<Item>,
 ) {
-  return createCataloguePager<Item>(
+  return createDirectoryPager<Item>(
     { result: [], pagination },
     filters,
     loadPage,
@@ -117,9 +117,9 @@ export function createCataloguePagerFromIds<
   );
 }
 
-export function stateFromPage<Item extends CatalogueItem = ExtensionListItem>(
-  page: CataloguePage<Item>,
-): CataloguePagerState<Item> {
+export function stateFromPage<Item extends DirectoryItem = ExtensionListItem>(
+  page: DirectoryPage<Item>,
+): DirectoryPagerState<Item> {
   return {
     items: [...page.result],
     nextCursor: page.pagination.next_cursor,
@@ -129,11 +129,11 @@ export function stateFromPage<Item extends CatalogueItem = ExtensionListItem>(
   };
 }
 
-export function appendPage<Item extends CatalogueItem = ExtensionListItem>(
-  state: CataloguePagerState<Item>,
-  page: CataloguePage<Item>,
+export function appendPage<Item extends DirectoryItem = ExtensionListItem>(
+  state: DirectoryPagerState<Item>,
+  page: DirectoryPage<Item>,
   knownIds = new Set(state.items.map((item) => item.id.toLowerCase())),
-): CataloguePagerState<Item> {
+): DirectoryPagerState<Item> {
   const newItems = page.result.filter((item) => {
     const key = item.id.toLowerCase();
     if (knownIds.has(key)) {
@@ -153,7 +153,7 @@ export function appendPage<Item extends CatalogueItem = ExtensionListItem>(
 }
 
 // Whether another page exists at all. Shared with the server-rendered
-// catalogue wrappers, whose data-has-more attribute seeds the client pager.
+// directory wrappers, whose data-has-more attribute seeds the client pager.
 export function hasNextPage(
   pagination: ExtensionListResponse['pagination'],
 ): boolean {

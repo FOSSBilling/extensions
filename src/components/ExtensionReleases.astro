@@ -21,8 +21,8 @@ const latest = latestRelease(releases);
           {release.tag === latest?.tag ? ' · Latest Version' : ''}
         </p>
         <p class="mt-1 text-xs text-muted-foreground">
-          {release.date} · FOSSBilling {release.min_fossbilling_version} and
-          later
+          {release.date} · FOSSBilling {release.requires.fossbilling} · PHP{' '}
+          {release.requires.php}
         </p>
         <p class="mt-2 max-w-xl text-xs text-muted-foreground">
           <a

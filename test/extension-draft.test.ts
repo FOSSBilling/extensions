@@ -10,20 +10,23 @@ import {
 import type { ExtensionUpdate } from '@/lib/api/client';
 
 export const base: ExtensionUpdate = {
-  type: 'mod',
+  manifest_version: 1,
+  author: { name: 'Author' },
+  requires: { fossbilling: '>=0.7.0', php: '>=8.3' },
+  type: 'module',
   name: 'Original',
   description: 'Original description',
-  website: 'http://example.test',
-  icon_url: 'https://example.test/icon.svg',
+  homepage_url: 'http://example.test',
+  icon_url: 'icon.svg',
   readme: '# Original',
-  license: { name: 'MIT', spdx_id: 'MIT' },
+  license: 'MIT',
   source: { type: 'github', repo: 'example/original' },
   releases: [
     {
       tag: '1.0.0',
       date: '2026-01-01',
       download_url: 'https://example.test/1.zip',
-      min_fossbilling_version: '0.7.0',
+      requires: { fossbilling: '>=0.7.0', php: '>=8.3' },
     },
   ],
   version: '1.0.0',
@@ -40,10 +43,13 @@ describe('extension drafts', () => {
       base,
       draft({
         listing: {
+          author_name: 'Author',
+          requires_fossbilling: '>=0.7.0',
+          requires_php: '>=8.3',
           name: 'Updated Listing',
           description: 'Updated description',
-          type: 'mod',
-          website: 'https://example.test',
+          type: 'module',
+          homepage_url: 'https://example.test',
           icon_url: '',
           source_url: 'https://gitlab.com/example/updated',
           license_spdx_id: 'Apache-2.0',
@@ -53,11 +59,7 @@ describe('extension drafts', () => {
     );
     expect(result.name).toBe('Updated Listing');
     expect(result.source).toEqual({ type: 'gitlab', repo: 'example/updated' });
-    expect(result.license).toEqual({
-      name: 'Apache-2.0',
-      spdx_id: 'Apache-2.0',
-      URL: 'https://example.test/license',
-    });
+    expect(result.license).toBe('Apache-2.0');
     expect(result.readme).toBe(base.readme);
     expect(result.releases).toEqual(base.releases);
     expect(result.version).toBe(base.version);
@@ -68,10 +70,13 @@ describe('extension drafts', () => {
       draft({
         readme: { readme: '# Revised' },
         listing: {
+          author_name: 'Author',
+          requires_fossbilling: '>=0.7.0',
+          requires_php: '>=8.3',
           name: 'Revised',
           description: 'Revised description',
           type: 'theme',
-          website: 'https://example.test/new',
+          homepage_url: 'https://example.test/new',
           icon_url: '',
         },
       }),
@@ -91,7 +96,7 @@ describe('extension drafts', () => {
   it('preserves untouched HTTP URLs exactly', () => {
     expect(
       applyExtensionDraft(base, draft({ readme: { readme: '# Changed' } }))
-        .website,
+        .homepage_url,
     ).toBe('http://example.test');
   });
   it('ignores attempts to overwrite other fields inside an edited section', () => {
@@ -123,10 +128,7 @@ describe('extension drafts', () => {
         },
       }),
     );
-    expect(result.license).toEqual({
-      name: 'Commercial',
-      URL: 'https://example.test/license',
-    });
+    expect(result.license).toBe('Commercial');
     expect(result.name).toBe(base.name);
     expect(result.readme).toBe(base.readme);
   });
@@ -244,7 +246,7 @@ describe('extension drafts', () => {
       version_tag: '2.0.0',
       release_date: '2026-02-30',
       download_url: 'https://example.test/2.zip',
-      min_fossbilling_version: '0.7.0',
+      requires: { fossbilling: '>=0.7.0', php: '>=8.3' },
     };
     expect(() => releaseFromFields(fields)).toThrow('date');
     expect(() =>
@@ -293,5 +295,58 @@ describe('draft configuration embedded in HTML', () => {
     const serialized = serializeDraftConfig(config);
     expect(serialized).not.toContain('<');
     expect(JSON.parse(serialized)).toEqual(config);
+  });
+});
+
+describe('manifest fields in section drafts', () => {
+  it('preserves opaque requirements and author attribution across unrelated edits', () => {
+    const manifest = {
+      ...base,
+      author: { name: 'Package Author', url: 'https://author.example.test' },
+      requires: {
+        fossbilling: '^0.8.9 || ^1.0',
+        php: '>=8.3 <9',
+        modules: { branding: '^1.2' },
+      },
+    };
+    const result = applyExtensionDraft(
+      manifest,
+      draft({ readme: { readme: '# Revised' } }),
+    );
+    expect(result.author).toEqual(manifest.author);
+    expect(result.requires).toEqual(manifest.requires);
+  });
+  it('saves release-specific requirements without rewriting constraints', () => {
+    const release = releaseFromFields({
+      version_tag: '2.0.0',
+      release_date: '2026-11-04',
+      download_url: 'https://example.test/2.zip',
+      requires_fossbilling: '^0.8.9 || ^1.0',
+      requires_php: '>=8.3 <9',
+      requires_modules: 'branding: ^1.2',
+    });
+    expect(release.requires).toEqual({
+      fossbilling: '^0.8.9 || ^1.0',
+      php: '>=8.3 <9',
+      modules: { branding: '^1.2' },
+    });
+  });
+  it('does not invent compatibility requirements when rebuilding old submissions', () => {
+    const reconstructed = reconstructionContent({
+      name: 'Old',
+      releases: [
+        {
+          tag: '1.0.0',
+          date: '2026-01-01',
+          download_url: 'https://example.test/1.zip',
+          min_fossbilling_version: '0.7.0',
+        },
+      ],
+    });
+    expect(reconstructed.requires).toEqual({ fossbilling: '', php: '' });
+    expect(reconstructed.releases[0].requires).toEqual({
+      fossbilling: '',
+      php: '',
+    });
   });
 });

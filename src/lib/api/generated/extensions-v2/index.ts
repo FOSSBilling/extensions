@@ -148,7 +148,7 @@ export type {
   GetUsersMeErrors,
   GetUsersMeResponse,
   GetUsersMeResponses,
-  License,
+  ManifestRequirements,
   ModeratorCorrect,
   OwnedDeveloperProfile,
   OwnedExtension,

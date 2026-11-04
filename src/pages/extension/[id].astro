@@ -2,6 +2,7 @@
 import Base from '@/layouts/Base.astro';
 import OwnerExtensionView from '@/components/OwnerExtensionView.astro';
 import { loadExtensionView, type ExtensionView } from '@/lib/extension-view';
+import { extensionIconUrl } from '@/lib/extension-icon';
 import { getSessionUser } from '@/lib/session';
 import ExtensionHeader from '@/components/ExtensionHeader.astro';
 import ExtensionWorkspace from '@/components/ExtensionWorkspace.astro';
@@ -45,9 +46,16 @@ const shareDescription = metadata
     : metadata.description
   : (detailError ?? 'Extension details are temporarily unavailable.');
 let shareImage: string | undefined;
-if (metadata?.icon_url) {
+const metadataIcon = metadata
+  ? extensionIconUrl({
+      ...metadata,
+      id,
+      source: metadata.source ?? { type: 'custom', repo: '' },
+    })
+  : undefined;
+if (metadataIcon) {
   try {
-    shareImage = new URL(metadata.icon_url).href;
+    shareImage = new URL(metadataIcon).href;
   } catch {
     /* Omit malformed stored URLs. */
   }

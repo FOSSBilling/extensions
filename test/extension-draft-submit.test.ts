@@ -19,19 +19,22 @@ import { sha256Hex } from '@/lib/hash';
 import { editableContent } from '@/lib/extension-draft';
 import { ApiRequestError, type ExtensionUpdate } from '@/lib/api/client';
 const base: ExtensionUpdate = {
-  type: 'mod',
+  manifest_version: 1,
+  author: { name: 'Author' },
+  requires: { fossbilling: '>=0.7.0', php: '>=8.3' },
+  type: 'module',
   name: 'Original',
   description: 'Original description',
-  website: 'https://example.test',
+  homepage_url: 'https://example.test',
   readme: '# Original',
-  license: { name: 'MIT', spdx_id: 'MIT' },
+  license: 'MIT',
   source: { type: 'github', repo: 'example/original' },
   releases: [
     {
       tag: '1.0.0',
       date: '2026-01-01',
       download_url: 'https://example.test/1.zip',
-      min_fossbilling_version: '0.7.0',
+      requires: { fossbilling: '>=0.7.0', php: '>=8.3' },
     },
   ],
   version: '1.0.0',

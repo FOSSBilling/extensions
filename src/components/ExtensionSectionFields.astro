@@ -7,6 +7,7 @@ import {
   EXTENSION_TYPE_LABELS,
   repositoryURL,
 } from '@/types';
+import RequirementsFields from './RequirementsFields.astro';
 import { OTHER_LICENSE } from '@/lib/extension-form';
 interface Props {
   section: DraftSection;
@@ -48,24 +49,47 @@ const { section, content } = Astro.props;
       </select>
     </label>
     <label class="grid gap-2 text-sm font-medium">
-      Website
+      Homepage
       <input
         class="input w-full"
-        name="website"
+        name="homepage_url"
         type="url"
-        required
-        value={content.website}
+        value={content.homepage_url}
       />
     </label>
     <label class="grid gap-2 text-sm font-medium">
-      Icon URL <span class="font-normal text-muted-foreground">Optional</span>
+      Icon Path <span class="font-normal text-muted-foreground">Optional</span>
       <input
         class="input w-full"
         name="icon_url"
-        type="url"
+        type="text"
         value={content.icon_url}
       />
     </label>
+  </>
+)}
+{section === 'listing' && (
+  <>
+    <label class="grid gap-2 text-sm font-medium">
+      Author Name
+      <input
+        class="input w-full"
+        name="author_name"
+        required
+        maxlength="200"
+        value={content.author.name}
+      />
+    </label>
+    <label class="grid gap-2 text-sm font-medium">
+      Author URL <span class="font-normal text-muted-foreground">Optional</span>
+      <input
+        class="input w-full"
+        type="url"
+        name="author_url"
+        value={content.author.url}
+      />
+    </label>
+    <RequirementsFields requires={content.requires} />
   </>
 )}
 {section === 'readme' && (
@@ -103,16 +127,13 @@ const { section, content } = Astro.props;
       License
       <select class="select w-full" name="license_spdx_id">
         {SPDX_LICENSE_IDS.map((id) => (
-          <option value={id} selected={content.license.spdx_id === id}>
+          <option value={id} selected={content.license === id}>
             {id}
           </option>
         ))}
         <option
           value={OTHER_LICENSE}
-          selected={
-            !content.license.spdx_id ||
-            !SPDX_LICENSE_IDS.includes(content.license.spdx_id)
-          }
+          selected={!SPDX_LICENSE_IDS.includes(content.license)}
         >
           Other / Proprietary
         </option>
@@ -121,24 +142,14 @@ const { section, content } = Astro.props;
     <label
       class="grid gap-2 text-sm font-medium"
       data-custom-license
-      hidden={Boolean(content.license.spdx_id)}
+      hidden={SPDX_LICENSE_IDS.includes(content.license)}
     >
       Custom License Name
       <input
         class="input w-full"
         name="license_name_custom"
-        value={content.license.name}
+        value={content.license}
         maxlength="100"
-      />
-    </label>
-    <label class="grid gap-2 text-sm font-medium">
-      License URL{' '}
-      <span class="font-normal text-muted-foreground">Optional</span>
-      <input
-        class="input w-full"
-        name="license_url"
-        type="url"
-        value={content.license.URL}
       />
     </label>
   </>

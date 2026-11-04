@@ -140,10 +140,12 @@ const correctable = Boolean(
             <div class="flex gap-2">
               <dt class="text-muted-foreground w-28 shrink-0">Website</dt>
               <dd>
-                {isSafeHttpUrl(ext.published.website) ? (
-                  <a href={ext.published.website}>{ext.published.website}</a>
+                {isSafeHttpUrl(ext.published.homepage_url) ? (
+                  <a href={ext.published.homepage_url}>
+                    {ext.published.homepage_url}
+                  </a>
                 ) : (
-                  ext.published.website
+                  ext.published.homepage_url
                 )}
               </dd>
             </div>
@@ -161,7 +163,7 @@ const correctable = Boolean(
             </div>
             <div class="flex gap-2">
               <dt class="text-muted-foreground w-28 shrink-0">License</dt>
-              <dd>{ext.published.license.name}</dd>
+              <dd>{ext.published.license}</dd>
             </div>
           </dl>
         ) : (

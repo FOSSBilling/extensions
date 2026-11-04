@@ -1,5 +1,6 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
+import { EXTENSIONS_CACHE_TAG } from './src/lib/cache-tags';
 import tailwindcss from '@tailwindcss/vite';
 import cloudflare from '@astrojs/cloudflare';
 import { cacheCloudflare } from '@astrojs/cloudflare/cache';
@@ -9,17 +10,17 @@ export default defineConfig({
   output: 'server',
   // Canonical and Open Graph URLs are built from this origin at render time.
   site: 'https://extensions.fossbilling.org',
-  // Route caching: public catalogue pages carry a Cloudflare-CDN-Cache-Control
+  // Route caching: public directory pages carry a Cloudflare-CDN-Cache-Control
   // header, so Cloudflare's zone-wide CDN serves cache hits without invoking
   // the worker at all. Per-colo Cache API cannot be purged remotely; these
-  // entries are tag-purgeable, which is what makes catalogue mutations
+  // entries are tag-purgeable, which is what makes directory mutations
   // visible within seconds instead of after a TTL (see lib/cache-invalidate).
   cache: {
     provider: cacheCloudflare(),
   },
   routeRules: {
-    // New submissions enter a pending review queue, so the catalogue only
-    // changes when a dashboard approval (purges 'catalogue') or an api-side
+    // New submissions enter a pending review queue, so the directory only
+    // changes when a dashboard approval (purges 'extensions') or an api-side
     // writer (POST /api/revalidate) publishes something; between events,
     // maxAge+SWR bound the staleness of any other drift.
     //
@@ -27,9 +28,7 @@ export default defineConfig({
     // a session-dependent claim form vs sign-in link, and CDN hits are
     // served by URL without cookies, so the first visitor's variant would
     // leak to everyone.
-    '/': { maxAge: 120, swr: 60, tags: ['catalogue'] },
-    // Extension pages render owner controls and pending content per user.
-    // Their public API data is cached separately; their HTML is private.
+    '/': { maxAge: 120, swr: 60, tags: [EXTENSIONS_CACHE_TAG] },
     '/404': { maxAge: 60 },
   },
   // Prefetch is disabled entirely: Cloudflare's edge refuses

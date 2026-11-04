@@ -2,6 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { licenseUrl } from '@/lib/license';
 
 describe('license links', () => {
+  it('links manifest SPDX license strings directly', () => {
+    expect(licenseUrl('MIT')).toBe('https://spdx.org/licenses/MIT.html');
+    expect(licenseUrl('MIT OR Apache-2.0')).toBeUndefined();
+  });
   it('prefers a supplied License URL over the SPDX page', () => {
     expect(
       licenseUrl({

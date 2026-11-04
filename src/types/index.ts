@@ -1,31 +1,26 @@
 import { latestRelease, releasesDescending } from '@/lib/releases';
 import SPDX_LICENSE_IDS from 'spdx-license-ids/index.json';
 
-// Current (non-deprecated) SPDX license identifiers — same package and same
-// list the api repo validates `license.spdx_id` against, so a license this
-// form offers is never rejected by the api. Not itself the source of truth;
-// re-exported so the id list only has one import site in this repo.
+// SPDX identifiers offered as form suggestions; manifest licenses are strings.
 export { SPDX_LICENSE_IDS };
 
 export const EXTENSION_TYPES = [
-  'mod',
+  'module',
   'theme',
   'payment-gateway',
   'server-manager',
   'domain-registrar',
-  'hook',
   'translation',
 ] as const;
 
 export type ExtensionType = (typeof EXTENSION_TYPES)[number];
 
 export const EXTENSION_TYPE_LABELS: Record<ExtensionType, string> = {
-  mod: 'Module',
+  module: 'Module',
   theme: 'Theme',
   'payment-gateway': 'Payment Gateway',
   'server-manager': 'Server Manager',
   'domain-registrar': 'Domain Registrar',
-  hook: 'Hook',
   translation: 'Translation',
 };
 
@@ -53,24 +48,21 @@ export function isDeveloperType(value: string): value is DeveloperType {
 
 // Local view/domain models used by API-backed account pages and shared detail
 // components. These intentionally do not depend on API transport DTOs.
+export type Requirements = {
+  fossbilling: string;
+  php: string;
+  modules?: Record<string, string>;
+};
+export type PackageAuthor = { name: string; url?: string };
 export type Release = {
   tag: string;
   date: string;
   download_url: string;
   changelog_url?: string;
-  min_fossbilling_version: string;
+  requires: Requirements;
 };
-
-export type Repository = {
-  type: SourceType;
-  repo: string;
-};
-
-export type License = {
-  name: string;
-  spdx_id?: string;
-  URL?: string;
-};
+export type Repository = { type: SourceType; repo: string };
+export type License = string;
 
 export type Developer = {
   id: string;
@@ -82,12 +74,15 @@ export type Developer = {
 };
 
 export type Extension = {
+  manifest_version: 1;
+  author: PackageAuthor;
+  requires: Requirements;
   id: string;
   type: ExtensionType;
   name: string;
   description: string;
   releases: Release[];
-  website: string;
+  homepage_url?: string;
   license: License;
   icon_url?: string;
   readme: string;

@@ -1,11 +1,11 @@
 import type { ExtensionUpdate } from '@/lib/api/client';
+import { isExtensionType, isSourceType, type Release } from '@/types';
 import {
-  isExtensionType,
-  isSourceType,
-  SPDX_LICENSE_IDS,
-  type Release,
-} from '@/types';
-import { OTHER_LICENSE, ExtensionValidationError } from './extension-form';
+  buildLicense,
+  buildRequirements,
+  ExtensionValidationError,
+} from './extension-form';
+import { isPackageIconPath } from './package-icon';
 import { latestRelease } from './releases';
 import { repositoryFromFields } from './repository';
 import { withHttpsScheme } from './url-prefix';
@@ -38,7 +38,6 @@ export function editableContent(value: unknown): ExtensionUpdate | null {
   const strings = [
     'name',
     'description',
-    'website',
     'readme',
     'version',
     'download_url',
@@ -46,8 +45,20 @@ export function editableContent(value: unknown): ExtensionUpdate | null {
   if (
     strings.some((key) => typeof value[key] !== 'string') ||
     !Array.isArray(value.releases) ||
-    !record(value.license) ||
-    typeof value.license.name !== 'string' ||
+    value.manifest_version !== 1 ||
+    typeof value.license !== 'string' ||
+    !record(value.author) ||
+    typeof value.author.name !== 'string' ||
+    !record(value.requires) ||
+    typeof value.requires.fossbilling !== 'string' ||
+    typeof value.requires.php !== 'string' ||
+    value.releases.some(
+      (release) =>
+        !record(release) ||
+        !record(release.requires) ||
+        typeof release.requires.fossbilling !== 'string' ||
+        typeof release.requires.php !== 'string',
+    ) ||
     !record(value.source) ||
     !isSourceType(String(value.source.type)) ||
     typeof value.source.repo !== 'string'
@@ -55,10 +66,13 @@ export function editableContent(value: unknown): ExtensionUpdate | null {
     return null;
   const content = value as unknown as ExtensionUpdate;
   return {
+    manifest_version: 1,
+    author: content.author,
+    requires: content.requires,
     type: content.type,
     name: content.name,
     description: content.description,
-    website: content.website,
+    homepage_url: content.homepage_url,
     icon_url: content.icon_url,
     readme: content.readme,
     license: content.license,
@@ -77,10 +91,18 @@ export function reconstructionContent(value: unknown): ExtensionUpdate {
     typeof fields[key] === 'string' ? fields[key] : '';
   const type = string('type');
   return {
-    type: isExtensionType(type) ? type : 'mod',
+    manifest_version: 1,
+    author:
+      record(fields.author) && typeof fields.author.name === 'string'
+        ? (fields.author as ExtensionUpdate['author'])
+        : { name: '' },
+    requires: record(fields.requires)
+      ? (fields.requires as ExtensionUpdate['requires'])
+      : { fossbilling: '', php: '' },
+    type: isExtensionType(type) ? type : 'module',
     name: string('name'),
     description: string('description'),
-    website: string('website'),
+    homepage_url: string('homepage_url') || string('website') || undefined,
     icon_url: string('icon_url') || undefined,
     readme: string('readme'),
     source:
@@ -90,17 +112,39 @@ export function reconstructionContent(value: unknown): ExtensionUpdate {
         ? (fields.source as ExtensionUpdate['source'])
         : { type: 'github', repo: '' },
     license:
-      record(fields.license) && typeof fields.license.name === 'string'
-        ? (fields.license as ExtensionUpdate['license'])
-        : { name: '' },
+      typeof fields.license === 'string'
+        ? fields.license
+        : record(fields.license)
+          ? String(fields.license.spdx_id ?? fields.license.name ?? '')
+          : '',
     releases: Array.isArray(fields.releases)
-      ? (fields.releases as Release[])
+      ? fields.releases.map((value) => {
+          const release = record(value) ? value : {};
+          return {
+            tag: String(release.tag ?? ''),
+            date: String(release.date ?? ''),
+            download_url: String(release.download_url ?? ''),
+            changelog_url:
+              typeof release.changelog_url === 'string'
+                ? release.changelog_url
+                : undefined,
+            requires: record(release.requires)
+              ? (release.requires as ExtensionUpdate['requires'])
+              : { fossbilling: '', php: '' },
+          };
+        })
       : [],
     version: string('version'),
     download_url: string('download_url'),
   };
 }
 
+function toFormData(fields: Record<string, unknown>): FormData {
+  const form = new FormData();
+  for (const [key, value] of Object.entries(fields))
+    if (typeof value === 'string') form.set(key, value);
+  return form;
+}
 function text(fields: Record<string, unknown>, key: string): string {
   return typeof fields[key] === 'string' ? fields[key].trim() : '';
 }
@@ -143,11 +187,7 @@ export function releaseFromFields(fields: Record<string, unknown>): Release {
     date,
     download_url: url(fields, 'download_url', 'download URL')!,
     changelog_url: url(fields, 'changelog_url', 'changelog URL', true),
-    min_fossbilling_version: required(
-      fields,
-      'min_fossbilling_version',
-      'Minimum FOSSBilling version',
-    ),
+    requires: buildRequirements(toFormData(fields)),
   };
 }
 
@@ -161,16 +201,7 @@ function applySourceAndLicense(
       'Enter a valid HTTP or HTTPS Source URL.',
     );
   result.source = source;
-  const spdx = text(raw, 'license_spdx_id');
-  if (spdx !== OTHER_LICENSE && !SPDX_LICENSE_IDS.includes(spdx))
-    throw new ExtensionValidationError('Choose a valid license.');
-  result.license =
-    spdx === OTHER_LICENSE
-      ? {
-          name: required(raw, 'license_name_custom', 'Custom license name'),
-        }
-      : { name: spdx, spdx_id: spdx };
-  result.license.URL = url(raw, 'license_url', 'license URL', true);
+  result.license = buildLicense(toFormData(raw));
 }
 
 // Merge only editable section fields into the latest server-owned baseline.
@@ -194,8 +225,18 @@ export function applyExtensionDraft(
       result.name = required(raw, 'name', 'Name');
       result.description = required(raw, 'description', 'Description');
       result.type = type;
-      result.website = url(raw, 'website', 'website URL')!;
-      result.icon_url = url(raw, 'icon_url', 'icon URL', true);
+      result.homepage_url = url(raw, 'homepage_url', 'homepage URL', true);
+      const icon = text(raw, 'icon_url');
+      if (icon && !isPackageIconPath(icon))
+        throw new ExtensionValidationError(
+          'Enter an icon path relative to the package root.',
+        );
+      result.icon_url = icon || undefined;
+      result.author = {
+        name: required(raw, 'author_name', 'Author name'),
+        url: url(raw, 'author_url', 'author URL', true),
+      };
+      result.requires = buildRequirements(toFormData(raw));
       if (
         [
           'source_url',
@@ -240,7 +281,16 @@ export function applyExtensionDraft(
               release_date: raw.date,
               download_url: raw.download_url,
               changelog_url: raw.changelog_url,
-              min_fossbilling_version: raw.min_fossbilling_version,
+              requires_fossbilling: record(raw.requires)
+                ? raw.requires.fossbilling
+                : undefined,
+              requires_php: record(raw.requires) ? raw.requires.php : undefined,
+              requires_modules:
+                record(raw.requires) && record(raw.requires.modules)
+                  ? Object.entries(raw.requires.modules)
+                      .map(([id, constraint]) => `${id}: ${constraint}`)
+                      .join('\n')
+                  : '',
             });
       if (tags.has(release.tag))
         throw new ExtensionValidationError(

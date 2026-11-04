@@ -54,12 +54,19 @@ describe('API-backed extension data adapters', () => {
         id: 'extension-id',
         developer,
         published: {
-          type: 'mod',
+          manifest_version: 1 as const,
+          author: { name: 'Package Author' },
+          requires: {
+            fossbilling: '^0.8.9 || ^1.0',
+            php: '>=8.3 <9',
+            modules: { branding: '^1.2' },
+          },
+          type: 'module',
           name: 'Example',
           description: 'desc',
           releases: [],
-          website: 'https://example.test',
-          license: { name: 'MIT' },
+          homepage_url: 'https://example.test',
+          license: 'MIT',
           readme: '# Example',
           source: { type: 'github', repo: 'fossbilling/example' },
           version: '1.0.0',
@@ -84,6 +91,14 @@ describe('API-backed extension data adapters', () => {
     const detail = await getOwnedExtension(env, 'user-subject', 'extension-id');
 
     expect(detail?.published?.name).toBe('Example');
+    expect(detail?.published?.author).toEqual({ name: 'Package Author' });
+    expect(detail?.published?.requires).toEqual({
+      fossbilling: '^0.8.9 || ^1.0',
+      php: '>=8.3 <9',
+      modules: { branding: '^1.2' },
+    });
+    expect(detail?.published?.homepage_url).toBe('https://example.test');
+    expect(detail?.published?.license).toBe('MIT');
     expect(detail?.pendingRevision).toEqual({
       id: 'revision-1',
       createdAt: '2026-01-01T00:00:00Z',
@@ -102,12 +117,19 @@ describe('API-backed extension data adapters', () => {
       id: 'extension-id',
       developer,
       published: {
-        type: 'mod',
+        manifest_version: 1 as const,
+        author: { name: 'Package Author' },
+        requires: {
+          fossbilling: '^0.8.9 || ^1.0',
+          php: '>=8.3 <9',
+          modules: { branding: '^1.2' },
+        },
+        type: 'module',
         name: 'Example',
         description: 'desc',
         releases: [],
-        website: 'https://example.test',
-        license: { name: 'MIT' },
+        homepage_url: 'https://example.test',
+        license: 'MIT',
         readme: '# Example',
         source: { type: 'github', repo: 'fossbilling/example' },
         version: '1.0.0',

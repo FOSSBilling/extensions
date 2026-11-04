@@ -4,6 +4,7 @@ import type { Developer } from '@/types';
 import { latestRelease } from '@/lib/releases';
 import { ArrowLeft, Download, Package, User } from '@lucide/astro';
 import { getSignedImageUrl } from '@/lib/signed-image-url';
+import { extensionIconUrl } from '@/lib/extension-icon';
 import { isSafeHttpUrl } from '@/lib/safe-url';
 interface Props {
   id: string;
@@ -26,7 +27,11 @@ const {
 const latest = latestRelease(content.releases ?? []);
 const version = selectedVersion ?? latest?.tag ?? content.version;
 const iconUrl = await getSignedImageUrl(
-  content.icon_url,
+  extensionIconUrl({
+    ...content,
+    id,
+    source: content.source ?? { type: 'custom', repo: '' },
+  }),
   'icon',
   Astro.locals.env.sessionSecret,
 );

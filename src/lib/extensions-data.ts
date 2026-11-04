@@ -15,11 +15,7 @@ import type { ApplicationEnv } from './runtime';
 import type {
   DeveloperProfile,
   Extension,
-  ExtensionType,
-  License,
   PublicDeveloperProfile,
-  Release,
-  Repository,
 } from '@/types';
 
 export interface OwnerReadOptions {
@@ -34,19 +30,8 @@ export interface OwnerReadOptions {
 // The content of a proposed revision. Revision history predates current
 // validation rules, so every field is optional here — unlike Extension,
 // which describes only published content and is always complete.
-export interface StoredExtensionFields {
-  type?: ExtensionType;
-  name?: string;
-  description?: string;
-  website?: string;
-  license?: License;
-  icon_url?: string;
-  readme?: string;
-  source?: Repository;
-  version?: string;
-  download_url?: string;
-  releases?: Release[];
-}
+export type StoredExtensionFields =
+  import('./api/generated/extensions-v2').StoredExtensionContent;
 
 export interface PendingRevision {
   id: string;
@@ -112,12 +97,15 @@ function toPublicDeveloper(developer: PublicDeveloper): PublicDeveloperProfile {
 
 function toExtension(extension: ApiExtension): Extension {
   return {
+    manifest_version: extension.manifest_version,
+    author: extension.author,
+    requires: extension.requires,
     id: extension.id,
     type: extension.type,
     name: extension.name,
     description: extension.description,
     releases: extension.releases,
-    website: extension.website,
+    homepage_url: extension.homepage_url,
     license: extension.license,
     icon_url: extension.icon_url,
     readme: extension.readme,

@@ -1,6 +1,6 @@
 ---
 import type { StoredExtensionFields } from '@/lib/extensions-data';
-import { EXTENSION_TYPE_LABELS, repositoryURL } from '@/types';
+import { EXTENSION_TYPE_LABELS, repositoryURL, isExtensionType } from '@/types';
 import { licenseUrl } from '@/lib/license';
 import { isSafeHttpUrl } from '@/lib/safe-url';
 import GitHubMark from './icons/GitHubMark.astro';
@@ -13,13 +13,13 @@ import {
   CircleCheck,
   Code,
   TextAlignStart,
+  User,
 } from '@lucide/astro';
 interface Props {
   content: StoredExtensionFields;
   showIconUrl?: boolean;
-  minimumVersion?: string;
 }
-const { content, showIconUrl = false, minimumVersion } = Astro.props;
+const { content, showIconUrl = false } = Astro.props;
 const sourceUrl = content.source ? repositoryURL(content.source) : undefined;
 const licenseHref = licenseUrl(content.license);
 ---
@@ -43,26 +43,32 @@ const licenseHref = licenseUrl(content.license);
       Type
     </dt>
     <dd class="mt-1" data-preview-type>
-      {content.type ? EXTENSION_TYPE_LABELS[content.type] : 'Not Available'}
+      {isExtensionType(content.type ?? null)
+        ? EXTENSION_TYPE_LABELS[
+            content.type as keyof typeof EXTENSION_TYPE_LABELS
+          ]
+        : 'Not Available'}
     </dd>
   </div>
   <div>
     <dt class="flex items-center gap-2 text-xs text-muted-foreground">
       <Globe class="size-3.5" aria-hidden="true" />
-      Website
+      Homepage
     </dt>
     <dd class="mt-1 break-all">
       <a
         data-preview-website
-        href={isSafeHttpUrl(content.website) ? content.website : undefined}
+        href={
+          isSafeHttpUrl(content.homepage_url) ? content.homepage_url : undefined
+        }
         target="_blank"
         rel="noopener noreferrer"
         class:list={[
           'underline-offset-4',
-          { underline: isSafeHttpUrl(content.website) },
+          { underline: isSafeHttpUrl(content.homepage_url) },
         ]}
       >
-        {content.website || 'Not Available'}
+        {content.homepage_url || 'Not Available'}
       </a>
     </dd>
   </div>
@@ -73,7 +79,7 @@ const licenseHref = licenseUrl(content.license);
   >
     <dt class="flex items-center gap-2 text-xs text-muted-foreground">
       <Image class="size-3.5" aria-hidden="true" />
-      Icon URL
+      Icon Path
     </dt>
     <dd class="mt-1 break-all" data-preview-icon>
       {content.icon_url}
@@ -130,17 +136,49 @@ const licenseHref = licenseUrl(content.license);
         rel="noopener noreferrer"
         class:list={['underline-offset-4', { underline: Boolean(licenseHref) }]}
       >
-        {content.license?.name || 'Not Available'}
+        {(typeof content.license === 'string'
+          ? content.license
+          : content.license?.name) || 'Not Available'}
       </a>
     </dd>
   </div>
-  {minimumVersion && (
-    <div>
-      <dt class="flex items-center gap-2 text-xs text-muted-foreground">
-        <CircleCheck class="size-3.5" aria-hidden="true" />
-        Compatibility
-      </dt>
-      <dd class="mt-1">FOSSBilling {minimumVersion} and later</dd>
-    </div>
-  )}
+  <div data-author-detail hidden={!content.author?.name}>
+    <dt class="flex items-center gap-2 text-xs text-muted-foreground">
+      <User class="size-3.5" aria-hidden="true" />
+      Author
+    </dt>
+    <dd class="mt-1">
+      <a
+        data-preview-author
+        href={
+          isSafeHttpUrl(content.author?.url) ? content.author?.url : undefined
+        }
+        target="_blank"
+        rel="noopener noreferrer"
+        class:list={[
+          'underline-offset-4',
+          { underline: isSafeHttpUrl(content.author?.url) },
+        ]}
+      >
+        {content.author?.name}
+      </a>
+    </dd>
+  </div>
+  <div data-requirements-detail hidden={!content.requires}>
+    <dt class="flex items-center gap-2 text-xs text-muted-foreground">
+      <CircleCheck class="size-3.5" aria-hidden="true" />
+      Compatibility
+    </dt>
+    <dd class="mt-1 whitespace-pre-line" data-preview-requirements>
+      {content.requires
+        ? [
+            `FOSSBilling ${content.requires.fossbilling}`,
+            `PHP ${content.requires.php}`,
+            ...Object.entries(content.requires.modules ?? {}).map(
+              ([id, constraint]) => `${id}: ${constraint}`,
+            ),
+          ].join('\n')
+        : ''}
+    </dd>
+  </div>
 </dl>
