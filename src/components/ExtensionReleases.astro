@@ -6,8 +6,9 @@ interface Props {
   releases: Release[];
   editable: boolean;
   disabledReason?: string;
+  showActions?: boolean;
 }
-const { releases, editable, disabledReason } = Astro.props;
+const { releases, editable, disabledReason, showActions = true } = Astro.props;
 const latest = latestRelease(releases);
 ---
 
@@ -55,34 +56,36 @@ const latest = latestRelease(releases);
           )}
         </p>
       </div>
-      <div class="flex flex-wrap gap-2">
-        <button
-          type="button"
-          class="btn"
-          data-variant="outline"
-          data-size="sm"
-          disabled={!editable}
-          title={!editable ? disabledReason : undefined}
-          aria-label={`Edit Release ${release.tag}`}
-        >
-          Edit
-        </button>
-        {editable && (
+      {showActions && (
+        <div class="flex flex-wrap gap-2">
           <button
             type="button"
             class="btn"
-            data-variant="destructive"
+            data-variant="outline"
             data-size="sm"
-            disabled={releases.length === 1}
-            title={
-              releases.length === 1 ? 'Keep at least one release.' : undefined
-            }
-            aria-label={`Remove Release ${release.tag}`}
+            disabled={!editable}
+            title={!editable ? disabledReason : undefined}
+            aria-label={`Edit Release ${release.tag}`}
           >
-            Remove
+            Edit
           </button>
-        )}
-      </div>
+          {editable && (
+            <button
+              type="button"
+              class="btn"
+              data-variant="destructive"
+              data-size="sm"
+              disabled={releases.length === 1}
+              title={
+                releases.length === 1 ? 'Keep at least one release.' : undefined
+              }
+              aria-label={`Remove Release ${release.tag}`}
+            >
+              Remove
+            </button>
+          )}
+        </div>
+      )}
     </li>
   ))}
 </ul>

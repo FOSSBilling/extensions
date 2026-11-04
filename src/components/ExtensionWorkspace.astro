@@ -2,15 +2,13 @@
 import type { StoredExtensionFields } from '@/lib/extensions-data';
 import { editableContent } from '@/lib/extension-draft';
 import ExtensionReleases from './ExtensionReleases.astro';
-import { EXTENSION_TYPE_LABELS, repositoryURL } from '@/types';
+import ExtensionOverviewDetails from './ExtensionOverviewDetails.astro';
+import ExtensionNavigation from './ExtensionNavigation.astro';
 import { renderMarkdown } from '@/lib/markdown';
 import { sha256Hex } from '@/lib/hash';
-import { licenseUrl } from '@/lib/license';
 import ExtensionSectionFields from './ExtensionSectionFields.astro';
 import type { DraftSection } from '@/lib/extension-draft';
-import GitHubMark from '@/components/icons/GitHubMark.astro';
-import { isSafeHttpUrl } from '@/lib/safe-url';
-import { Pencil, Plus, Link } from '@lucide/astro';
+import { Pencil, Plus } from '@lucide/astro';
 interface Props {
   content: StoredExtensionFields;
   id: string;
@@ -35,8 +33,6 @@ const {
 } = Astro.props;
 const editorContent = allowEdit ? editableContent(content) : null;
 const releaseItems = content.releases ?? [];
-const sourceUrl = content.source ? repositoryURL(content.source) : undefined;
-const licenseHref = licenseUrl(content.license);
 const baseUrl = `/account/extensions/${id}`;
 const selectedVersion = pendingVersion ? 'pending' : 'published';
 const overviewUrl = `${baseUrl}?version=${selectedVersion}`;
@@ -109,35 +105,12 @@ const labels: Record<DraftSection, string> = {
       ></p>
     </>
   )}
-  <nav class="flex gap-6 border-b text-sm" aria-label="Extension workspace">
-    <a
-      href={overviewUrl}
-      class:list={[
-        'border-b-2 pb-3',
-        !releases
-          ? 'border-foreground font-semibold'
-          : 'border-transparent text-muted-foreground',
-      ]}
-      aria-current={!releases ? 'page' : undefined}
-    >
-      Overview
-    </a>
-    <a
-      href={releasesUrl}
-      class:list={[
-        'border-b-2 pb-3',
-        releases
-          ? 'border-foreground font-semibold'
-          : 'border-transparent text-muted-foreground',
-      ]}
-      aria-current={releases ? 'page' : undefined}
-    >
-      Releases{' '}
-      <span data-release-count class="ml-1 text-muted-foreground">
-        {releaseItems.length}
-      </span>
-    </a>
-  </nav>
+  <ExtensionNavigation
+    overviewUrl={overviewUrl}
+    releasesUrl={releasesUrl}
+    activeReleases={releases}
+    releaseCount={releaseItems.length}
+  />
   {releases ? (
     <section
       class="rounded-xl border bg-card"
@@ -351,109 +324,7 @@ const labels: Record<DraftSection, string> = {
           )}
           <div class="p-5 sm:p-6" data-section-preview={section}>
             {section === 'listing' ? (
-              <>
-                <p
-                  class="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground"
-                  data-preview-description
-                >
-                  {content.description}
-                </p>
-                <dl class="mt-5 grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-1">
-                  <div>
-                    <dt class="text-xs text-muted-foreground">Type</dt>
-                    <dd class="mt-1" data-preview-type>
-                      {content.type
-                        ? EXTENSION_TYPE_LABELS[content.type]
-                        : 'Not Available'}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt class="text-xs text-muted-foreground">Website</dt>
-                    <dd class="mt-1 break-all">
-                      <a
-                        data-preview-website
-                        href={
-                          isSafeHttpUrl(content.website)
-                            ? content.website
-                            : undefined
-                        }
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class:list={[
-                          'underline-offset-4',
-                          { underline: isSafeHttpUrl(content.website) },
-                        ]}
-                      >
-                        {content.website || 'Not Available'}
-                      </a>
-                    </dd>
-                  </div>
-                  <div
-                    class="sm:col-span-2 lg:col-span-1"
-                    data-icon-url-detail
-                    hidden={!content.icon_url}
-                  >
-                    <dt class="text-xs text-muted-foreground">Icon URL</dt>
-                    <dd class="mt-1 break-all" data-preview-icon>
-                      {content.icon_url}
-                    </dd>
-                  </div>
-
-                  <div>
-                    <dt class="text-xs text-muted-foreground">Source</dt>
-                    <dd class="mt-1">
-                      <a
-                        data-preview-source-link
-                        href={isSafeHttpUrl(sourceUrl) ? sourceUrl : undefined}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="inline-flex max-w-full items-start gap-2 underline underline-offset-4"
-                      >
-                        <span
-                          data-source-github-icon
-                          hidden={content.source?.type !== 'github'}
-                          class="mt-0.5 shrink-0"
-                          aria-hidden="true"
-                        >
-                          <GitHubMark class="size-4" />
-                        </span>
-                        <span
-                          data-source-link-icon
-                          hidden={
-                            !content.source || content.source.type === 'github'
-                          }
-                          class="mt-0.5 shrink-0"
-                          aria-hidden="true"
-                        >
-                          <Link class="size-4" />
-                        </span>
-                        <span data-preview-source class="min-w-0 break-all">
-                          {content.source?.type === 'github'
-                            ? content.source.repo
-                            : sourceUrl || 'Not Available'}
-                        </span>
-                      </a>
-                    </dd>
-                  </div>
-                  <div>
-                    <dt class="text-xs text-muted-foreground">License</dt>
-                    <dd class="mt-1">
-                      <a
-                        data-preview-license
-                        href={licenseHref}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class:list={[
-                          'underline-offset-4',
-                          { underline: Boolean(licenseHref) },
-                        ]}
-                      >
-                        {content.license?.name || 'Not Available'}
-                      </a>
-                    </dd>
-                  </div>
-                </dl>
-              </>
+              <ExtensionOverviewDetails content={content} showIconUrl />
             ) : (
               <div
                 class="markdown-body break-words"

@@ -7,7 +7,9 @@ interface Props {
 }
 
 const { ext } = Astro.props;
-const readmeHtml = renderMarkdown(ext.readme ?? '');
+const readmeHtml = renderMarkdown(
+  ext.readme || 'No README is available for this version.',
+);
 ---
 
-<div class="markdown-body" set:html={readmeHtml} />
+<div class="markdown-body break-words" set:html={readmeHtml} />

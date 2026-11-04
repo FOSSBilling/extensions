@@ -1,10 +1,11 @@
 ---
 import Base from '@/layouts/Base.astro';
 import ExtensionHeader from '@/components/ExtensionHeader.astro';
-import DetailsCard from '@/components/DetailsCard.astro';
-import ReleasesCard from '@/components/ReleasesCard.astro';
+import ExtensionOverviewDetails from '@/components/ExtensionOverviewDetails.astro';
+import ExtensionNavigation from '@/components/ExtensionNavigation.astro';
+import ExtensionReleases from '@/components/ExtensionReleases.astro';
+import { getLatestRelease } from '@/types';
 import Overview from '@/components/Overview.astro';
-import ReleasesTable from '@/components/ReleasesTable.astro';
 import {
   ApiRequestError,
   getApiErrorMessage,
@@ -71,6 +72,8 @@ if (ext?.icon_url) {
     // Malformed stored URL: omit the social image rather than fail render.
   }
 }
+const releasesView = Astro.url.searchParams.get('view') === 'releases';
+const latest = ext ? getLatestRelease(ext) : undefined;
 ---
 
 <Base
@@ -89,77 +92,70 @@ if (ext?.icon_url) {
     >
       <h2 class="font-semibold">Extension Temporarily Unavailable</h2>
       <p class="text-muted-foreground mt-2">{detailError}</p>
-      <a href={Astro.url.pathname} class="btn mt-4">
+      <a href={`${Astro.url.pathname}${Astro.url.search}`} class="btn mt-4">
         Try Again
       </a>
     </div>
   ) : (
-    <>
+    <div class="mx-auto max-w-6xl space-y-8">
       <ExtensionHeader ext={ext} />
-
-      <div class="tabs mt-6" id="extension-tabs">
-        <nav
-          role="tablist"
-          aria-orientation="horizontal"
-          aria-label="Extension tabs"
-        >
-          <button
-            type="button"
-            role="tab"
-            id="overview-tab"
-            aria-selected="true"
-            aria-controls="overview-panel"
-            tabindex="0"
+      <div class="space-y-6">
+        <ExtensionNavigation
+          overviewUrl={`/extension/${ext.id}`}
+          releasesUrl={`/extension/${ext.id}?view=releases`}
+          activeReleases={releasesView}
+          releaseCount={ext.releases.length}
+        />
+        {releasesView ? (
+          <section
+            class="rounded-xl border bg-card"
+            aria-labelledby="releases-title"
           >
-            Overview
-          </button>
-          <button
-            type="button"
-            role="tab"
-            id="release-history-tab"
-            aria-selected="false"
-            aria-controls="release-history-panel"
-            tabindex="0"
-          >
-            Release History
-          </button>
-        </nav>
-
-        <div class="grid gap-6 lg:grid-cols-6 mt-6">
-          <div class="lg:col-span-4">
-            <article class="card h-full">
-              <div class="h-full">
-                <div
-                  role="tabpanel"
-                  id="overview-panel"
-                  class="p-6"
-                  aria-labelledby="overview-tab"
-                  tabindex="-1"
-                  aria-selected="true"
-                >
-                  <Overview ext={ext} />
-                </div>
-                <div
-                  role="tabpanel"
-                  id="release-history-panel"
-                  class="p-6"
-                  aria-labelledby="release-history-tab"
-                  tabindex="-1"
-                  aria-selected="false"
-                  hidden
-                >
-                  <ReleasesTable ext={ext} />
-                </div>
+            <header class="border-b p-5 sm:px-6">
+              <h2 id="releases-title" class="font-semibold">
+                Releases
+              </h2>
+            </header>
+            <ExtensionReleases
+              releases={ext.releases}
+              editable={false}
+              showActions={false}
+            />
+          </section>
+        ) : (
+          <div class="grid min-w-0 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
+            <aside
+              class="min-w-0 rounded-xl border bg-card lg:order-2"
+              aria-labelledby="overview-title"
+            >
+              <header class="border-b p-5 sm:px-6">
+                <h2 id="overview-title" class="font-semibold">
+                  Overview
+                </h2>
+              </header>
+              <div class="p-5 sm:p-6">
+                <ExtensionOverviewDetails
+                  content={ext}
+                  minimumVersion={latest?.min_fossbilling_version}
+                />
               </div>
-            </article>
+            </aside>
+            <section
+              class="min-w-0 rounded-xl border bg-card lg:order-1"
+              aria-labelledby="readme-title"
+            >
+              <header class="border-b p-5 sm:px-6">
+                <h2 id="readme-title" class="font-semibold">
+                  README
+                </h2>
+              </header>
+              <div class="p-5 sm:p-6">
+                <Overview ext={ext} />
+              </div>
+            </section>
           </div>
-
-          <div class="lg:col-span-2 space-y-6">
-            <DetailsCard ext={ext} />
-            <ReleasesCard ext={ext} />
-          </div>
-        </div>
+        )}
       </div>
-    </>
+    </div>
   )}
 </Base>

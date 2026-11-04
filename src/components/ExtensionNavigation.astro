@@ -1,0 +1,39 @@
+---
+interface Props {
+  overviewUrl: string;
+  releasesUrl: string;
+  activeReleases: boolean;
+  releaseCount: number;
+}
+const { overviewUrl, releasesUrl, activeReleases, releaseCount } = Astro.props;
+---
+
+<nav class="flex gap-6 border-b text-sm" aria-label="Extension Sections">
+  <a
+    href={overviewUrl}
+    class:list={[
+      'border-b-2 pb-3',
+      !activeReleases
+        ? 'border-foreground font-semibold'
+        : 'border-transparent text-muted-foreground',
+    ]}
+    aria-current={!activeReleases ? 'page' : undefined}
+  >
+    Overview
+  </a>
+  <a
+    href={releasesUrl}
+    class:list={[
+      'border-b-2 pb-3',
+      activeReleases
+        ? 'border-foreground font-semibold'
+        : 'border-transparent text-muted-foreground',
+    ]}
+    aria-current={activeReleases ? 'page' : undefined}
+  >
+    Releases{' '}
+    <span data-release-count class="ml-1 text-muted-foreground">
+      {releaseCount}
+    </span>
+  </a>
+</nav>
