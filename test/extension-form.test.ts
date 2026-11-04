@@ -19,8 +19,7 @@ function extensionForm(overrides: Record<string, string> = {}): FormData {
   form.set('license_spdx_id', 'MIT');
   form.set('license_url', 'https://example.test/license');
   form.set('readme', '# Example');
-  form.set('source_type', 'github');
-  form.set('source_repo', 'fossbilling/example');
+  form.set('source_url', 'https://github.com/fossbilling/example');
   form.set('version_tag', '1.0.0');
   form.set('release_date', '2026-01-01');
   form.set('download_url', 'https://example.test/example.zip');
@@ -58,6 +57,22 @@ const publishedExtension: Extension = {
 };
 
 describe('buildExtensionCreatePayload', () => {
+  it('detects the source host without a host field', () => {
+    expect(
+      buildExtensionCreatePayload(
+        extensionForm({ source_url: 'https://gitlab.com/group/project' }),
+      ).source,
+    ).toEqual({ type: 'gitlab', repo: 'group/project' });
+  });
+  it('rejects invalid Source URLs and preserves the value on redisplay', () => {
+    const form = extensionForm({ source_url: 'invalid source' });
+    expect(() => buildExtensionCreatePayload(form)).toThrow('Source URL');
+    expect(echoExtensionFromForm(form, publishedExtension).source).toEqual({
+      type: 'custom',
+      repo: 'invalid source',
+    });
+  });
+
   it('builds a POST /extensions payload with no developer field', () => {
     const payload = buildExtensionCreatePayload(extensionForm());
 
@@ -153,6 +168,15 @@ describe('buildExtensionUpdatePayload', () => {
     expect(payload.version).toBe('0.9.0');
   });
 
+  it('does not downgrade the primary download when backfilling an older release', () => {
+    const payload = buildExtensionUpdatePayload(
+      extensionForm({ version_tag: '0.8.0' }),
+      publishedExtension,
+    );
+    expect(payload.releases).toHaveLength(2);
+    expect(payload.version).toBe('0.9.0');
+    expect(payload.download_url).toBe(publishedExtension.download_url);
+  });
   it('appends a new release and updates version/download_url when provided', () => {
     const payload = buildExtensionUpdatePayload(
       extensionForm(),

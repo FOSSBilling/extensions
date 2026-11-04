@@ -1,5 +1,4 @@
-import gt from 'semver/functions/gt.js';
-import lt from 'semver/functions/lt.js';
+import { latestRelease, releasesDescending } from '@/lib/releases';
 import SPDX_LICENSE_IDS from 'spdx-license-ids/index.json';
 
 // Current (non-deprecated) SPDX license identifiers — same package and same
@@ -19,6 +18,16 @@ export const EXTENSION_TYPES = [
 ] as const;
 
 export type ExtensionType = (typeof EXTENSION_TYPES)[number];
+
+export const EXTENSION_TYPE_LABELS: Record<ExtensionType, string> = {
+  mod: 'Module',
+  theme: 'Theme',
+  'payment-gateway': 'Payment Gateway',
+  'server-manager': 'Server Manager',
+  'domain-registrar': 'Domain Registrar',
+  hook: 'Hook',
+  translation: 'Translation',
+};
 
 export const SOURCE_TYPES = ['github', 'gitlab', 'custom'] as const;
 
@@ -115,32 +124,11 @@ export type PublicDeveloperProfile = Omit<
 > & { unclaimed: boolean };
 
 export function getLatestRelease(extension: Extension): Release | undefined {
-  if (extension.releases.length === 0) {
-    return undefined;
-  }
-
-  let latestRelease = extension.releases[0];
-  for (let i = 1; i < extension.releases.length; i++) {
-    const release = extension.releases[i];
-
-    if (gt(release.tag, latestRelease.tag)) {
-      latestRelease = release;
-    }
-  }
-
-  return latestRelease;
+  return latestRelease(extension.releases);
 }
 
 export function sortReleasesDescending(releases: Release[]): Release[] {
-  return [...releases].sort((a, b) => {
-    if (gt(a.tag, b.tag)) {
-      return -1;
-    } else if (lt(a.tag, b.tag)) {
-      return 1;
-    } else {
-      return 0;
-    }
-  });
+  return releasesDescending(releases);
 }
 
 export function repositoryURL(repository: Repository): string {

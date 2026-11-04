@@ -1,5 +1,5 @@
 ---
-import { EXTENSION_TYPES, SOURCE_TYPES, SPDX_LICENSE_IDS } from '@/types';
+import { EXTENSION_TYPES, SPDX_LICENSE_IDS, repositoryURL } from '@/types';
 import type { Developer, Extension } from '@/types';
 import { CircleAlert, SquarePen, ChevronDown } from '@lucide/astro';
 import { stripUrlScheme } from '@/lib/url-prefix';
@@ -365,27 +365,18 @@ const otherSpdxIds = SPDX_LICENSE_IDS.filter((id) => !popularSpdxIds.has(id));
         <fieldset class="fieldset space-y-4">
           <legend>Source</legend>
           <div class="field">
-            <label for="source_type">Repository Host</label>
-            <select class="select w-full" id="source_type" name="source_type">
-              {SOURCE_TYPES.map((t) => (
-                <option value={t} selected={shown?.source.type === t}>
-                  {t}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div class="field">
-            <label for="source_repo">
-              Repository <span class="text-destructive">*</span>
+            <label for="source_url">
+              Source URL <span class="text-destructive">*</span>
             </label>
             <input
               class="input"
-              type="text"
-              id="source_repo"
-              name="source_repo"
+              type="url"
+              id="source_url"
+              name="source_url"
               required
-              value={shown?.source.repo}
-              placeholder="owner/repo, or a full URL for 'custom'"
+              maxlength="2000"
+              value={shown ? repositoryURL(shown.source) : ''}
+              placeholder="https://github.com/owner/project"
             />
           </div>
         </fieldset>

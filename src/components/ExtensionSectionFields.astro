@@ -1,0 +1,145 @@
+---
+import type { ExtensionUpdate } from '@/lib/api/client';
+import type { DraftSection } from '@/lib/extension-draft';
+import {
+  EXTENSION_TYPES,
+  SPDX_LICENSE_IDS,
+  EXTENSION_TYPE_LABELS,
+  repositoryURL,
+} from '@/types';
+import { OTHER_LICENSE } from '@/lib/extension-form';
+interface Props {
+  section: DraftSection;
+  content: ExtensionUpdate;
+}
+const { section, content } = Astro.props;
+---
+
+{section === 'listing' && (
+  <>
+    <label class="grid gap-2 text-sm font-medium">
+      Name
+      <input
+        class="input w-full"
+        name="name"
+        required
+        maxlength="120"
+        value={content.name}
+      />
+    </label>
+    <label class="grid gap-2 text-sm font-medium">
+      Short Description
+      <textarea
+        class="textarea w-full"
+        name="description"
+        rows="3"
+        required
+        maxlength="4000"
+      >{content.description}</textarea>
+    </label>
+    <label class="grid gap-2 text-sm font-medium">
+      Extension Type
+      <select class="select w-full" name="type">
+        {EXTENSION_TYPES.map((type) => (
+          <option value={type} selected={content.type === type}>
+            {EXTENSION_TYPE_LABELS[type]}
+          </option>
+        ))}
+      </select>
+    </label>
+    <label class="grid gap-2 text-sm font-medium">
+      Website
+      <input
+        class="input w-full"
+        name="website"
+        type="url"
+        required
+        value={content.website}
+      />
+    </label>
+    <label class="grid gap-2 text-sm font-medium">
+      Icon URL <span class="font-normal text-muted-foreground">Optional</span>
+      <input
+        class="input w-full"
+        name="icon_url"
+        type="url"
+        value={content.icon_url}
+      />
+    </label>
+  </>
+)}
+{section === 'readme' && (
+  <>
+    <label class="grid gap-2 text-sm font-medium">
+      README (Markdown)
+      <textarea
+        class="textarea w-full min-h-72 font-mono text-sm"
+        name="readme"
+        rows="14"
+        required
+        maxlength="100000"
+      >{content.readme}</textarea>
+    </label>
+    <p class="text-xs text-muted-foreground">
+      Save to draft to preview your README below.
+    </p>
+  </>
+)}
+{(section === 'listing' || section === 'details') && (
+  <>
+    <label class="grid gap-2 text-sm font-medium">
+      Source URL
+      <input
+        class="input w-full"
+        type="url"
+        name="source_url"
+        required
+        maxlength="2000"
+        value={content.source.repo ? repositoryURL(content.source) : ''}
+        placeholder="https://github.com/owner/project"
+      />
+    </label>
+    <label class="grid gap-2 text-sm font-medium">
+      License
+      <select class="select w-full" name="license_spdx_id">
+        {SPDX_LICENSE_IDS.map((id) => (
+          <option value={id} selected={content.license.spdx_id === id}>
+            {id}
+          </option>
+        ))}
+        <option
+          value={OTHER_LICENSE}
+          selected={
+            !content.license.spdx_id ||
+            !SPDX_LICENSE_IDS.includes(content.license.spdx_id)
+          }
+        >
+          Other / Proprietary
+        </option>
+      </select>
+    </label>
+    <label
+      class="grid gap-2 text-sm font-medium"
+      data-custom-license
+      hidden={Boolean(content.license.spdx_id)}
+    >
+      Custom License Name
+      <input
+        class="input w-full"
+        name="license_name_custom"
+        value={content.license.name}
+        maxlength="100"
+      />
+    </label>
+    <label class="grid gap-2 text-sm font-medium">
+      License URL{' '}
+      <span class="font-normal text-muted-foreground">Optional</span>
+      <input
+        class="input w-full"
+        name="license_url"
+        type="url"
+        value={content.license.URL}
+      />
+    </label>
+  </>
+)}

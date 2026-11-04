@@ -1,6 +1,8 @@
-import { isExtensionType, isSourceType, SPDX_LICENSE_IDS } from '@/types';
+import { isExtensionType, SPDX_LICENSE_IDS } from '@/types';
 import type { Extension, Release } from '@/types';
 import type { ExtensionCreate, ExtensionUpdate } from '@/lib/api/client';
+import { latestRelease } from './releases';
+import { repositoryFromFields, repositoryInputUrl } from './repository';
 import { formString } from './form';
 import { withHttpsScheme } from './url-prefix';
 
@@ -104,12 +106,24 @@ function buildContent(
     downloadUrl = release.download_url;
   }
 
+  const latest = latestRelease(releases);
+  if (latest) {
+    version =
+      latest.tag.replace(/^v/, '') === existing.version.replace(/^v/, '')
+        ? existing.version
+        : latest.tag;
+    downloadUrl = latest.download_url;
+  }
+
   const typeInput = str('type');
-  const sourceTypeInput = str('source_type');
-  if (!isExtensionType(typeInput) || !isSourceType(sourceTypeInput)) {
+  const sourceFields = Object.fromEntries(form);
+  const source = repositoryFromFields(sourceFields);
+  if (!source)
     throw new ExtensionValidationError(
-      'Choose a valid extension type and repository host.',
+      'Enter a valid HTTP or HTTPS Source URL.',
     );
+  if (!isExtensionType(typeInput)) {
+    throw new ExtensionValidationError('Choose a valid extension type.');
   }
 
   return {
@@ -121,10 +135,7 @@ function buildContent(
     license: buildLicense(form),
     icon_url: withHttpsScheme(str('icon_url')),
     readme: str('readme'),
-    source: {
-      type: sourceTypeInput,
-      repo: str('source_repo'),
-    },
+    source,
     version,
     download_url: downloadUrl,
   };
@@ -190,9 +201,9 @@ export function echoExtensionFromForm(
           name: formString(form, 'license_name_custom'),
           URL: formString(form, 'license_url') || undefined,
         },
-    source: {
-      type: formString(form, 'source_type') as Extension['source']['type'],
-      repo: formString(form, 'source_repo'),
+    source: repositoryFromFields(Object.fromEntries(form)) ?? {
+      type: 'custom',
+      repo: repositoryInputUrl(Object.fromEntries(form)),
     },
   };
 }

@@ -1,0 +1,476 @@
+---
+import type { StoredExtensionFields } from '@/lib/extensions-data';
+import { editableContent } from '@/lib/extension-draft';
+import ExtensionReleases from './ExtensionReleases.astro';
+import { EXTENSION_TYPE_LABELS, repositoryURL } from '@/types';
+import { renderMarkdown } from '@/lib/markdown';
+import { sha256Hex } from '@/lib/hash';
+import { licenseUrl } from '@/lib/license';
+import ExtensionSectionFields from './ExtensionSectionFields.astro';
+import type { DraftSection } from '@/lib/extension-draft';
+import GitHubMark from '@/components/icons/GitHubMark.astro';
+import { isSafeHttpUrl } from '@/lib/safe-url';
+import { Pencil, Plus, Link } from '@lucide/astro';
+interface Props {
+  content: StoredExtensionFields;
+  id: string;
+  userId: string;
+  releases: boolean;
+  allowEdit?: boolean;
+  pendingVersion?: boolean;
+  pendingRevisionId?: string;
+  disabledReason?: string;
+  pendingEditUrl?: string;
+}
+const {
+  content,
+  id,
+  userId,
+  releases,
+  allowEdit = true,
+  pendingVersion = false,
+  pendingRevisionId,
+  disabledReason,
+  pendingEditUrl,
+} = Astro.props;
+const editorContent = allowEdit ? editableContent(content) : null;
+const releaseItems = content.releases ?? [];
+const sourceUrl = content.source ? repositoryURL(content.source) : undefined;
+const licenseHref = licenseUrl(content.license);
+const baseUrl = `/account/extensions/${id}`;
+const selectedVersion = pendingVersion ? 'pending' : 'published';
+const overviewUrl = `${baseUrl}?version=${selectedVersion}`;
+const releasesUrl = `${baseUrl}?view=releases&version=${selectedVersion}`;
+const config = editorContent
+  ? JSON.stringify({
+      base: editorContent,
+      pendingRevisionId,
+      submitLabel: pendingRevisionId
+        ? 'Update Pending Submission'
+        : 'Submit for Review',
+      baselineHash: await sha256Hex(JSON.stringify(editorContent)),
+      key: `extension-draft:${await sha256Hex(userId)}:${id}`,
+      submitUrl: `${baseUrl}/draft`,
+      baseUrl,
+    }).replace(/</g, '\\u003c')
+  : '';
+const labels: Record<DraftSection, string> = {
+  listing: 'Overview',
+  readme: 'README',
+  details: 'Source & License',
+};
+---
+
+<div data-extension-workspace class="space-y-6">
+  {editorContent && (
+    <>
+      <script type="application/json" data-draft-config set:html={config} />
+      <noscript>
+        <div class="alert">
+          Enable JavaScript to edit sections and save a draft in this browser.
+        </div>
+      </noscript>
+      <div
+        data-draft-bar
+        hidden
+        class="sticky top-20 z-30 flex flex-col gap-4 rounded-xl border bg-card p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between"
+      >
+        <div>
+          <p class="text-sm font-semibold" data-draft-status role="status">
+            No Local Changes
+          </p>
+          <p class="mt-1 text-xs text-muted-foreground">
+            Save changes across sections, then submit them together. Drafts stay
+            in this browser.
+          </p>
+        </div>
+        <div class="flex shrink-0 flex-wrap gap-2">
+          <button
+            type="button"
+            class="btn"
+            data-variant="ghost"
+            data-discard-draft
+            disabled
+          >
+            Discard Draft
+          </button>
+          <button type="button" class="btn" data-submit-draft disabled>
+            {pendingRevisionId
+              ? 'Update Pending Submission'
+              : 'Submit for Review'}
+          </button>
+        </div>
+      </div>
+      <p
+        data-draft-error
+        role="alert"
+        class="rounded-lg border border-destructive p-4 text-sm text-destructive"
+        hidden
+      ></p>
+    </>
+  )}
+  <nav class="flex gap-6 border-b text-sm" aria-label="Extension workspace">
+    <a
+      href={overviewUrl}
+      class:list={[
+        'border-b-2 pb-3',
+        !releases
+          ? 'border-foreground font-semibold'
+          : 'border-transparent text-muted-foreground',
+      ]}
+      aria-current={!releases ? 'page' : undefined}
+    >
+      Overview
+    </a>
+    <a
+      href={releasesUrl}
+      class:list={[
+        'border-b-2 pb-3',
+        releases
+          ? 'border-foreground font-semibold'
+          : 'border-transparent text-muted-foreground',
+      ]}
+      aria-current={releases ? 'page' : undefined}
+    >
+      Releases{' '}
+      <span data-release-count class="ml-1 text-muted-foreground">
+        {releaseItems.length}
+      </span>
+    </a>
+  </nav>
+  {releases ? (
+    <section
+      class="rounded-xl border bg-card"
+      aria-labelledby="manage-releases-title"
+    >
+      <header class="flex flex-wrap items-center justify-between gap-4 border-b p-5 sm:p-6">
+        <div>
+          <h2 class="font-semibold text-lg" id="manage-releases-title">
+            Releases
+          </h2>
+          <p class="mt-1 text-sm text-muted-foreground">
+            Manage versions, downloads, and compatibility independently of your
+            listing.
+          </p>
+        </div>
+        {pendingEditUrl ? (
+          <a class="btn" href={pendingEditUrl}>
+            Edit Pending Releases
+          </a>
+        ) : (
+          <button
+            class="btn"
+            type="button"
+            data-add-release
+            disabled={!editorContent}
+            title={!editorContent ? disabledReason : undefined}
+          >
+            <Plus class="size-4" aria-hidden="true" />
+            Add Release
+          </button>
+        )}
+      </header>
+      {editorContent && (
+        <div data-release-editor hidden class="border-b bg-muted/30 p-5 sm:p-6">
+          <form data-release-form class="max-w-2xl space-y-4">
+            <h3 class="font-semibold" data-release-form-title>
+              Add Release
+            </h3>
+            <input type="hidden" name="original_tag" />
+            <div class="grid gap-4 sm:grid-cols-2">
+              <label class="grid gap-2 text-sm font-medium">
+                Version Tag
+                <input
+                  class="input w-full"
+                  name="version_tag"
+                  required
+                  maxlength="100"
+                  placeholder="1.3.0"
+                />
+              </label>
+              <label class="grid gap-2 text-sm font-medium">
+                Release Date
+                <input
+                  class="input w-full"
+                  type="date"
+                  name="release_date"
+                  required
+                />
+              </label>
+            </div>
+            <label class="grid gap-2 text-sm font-medium">
+              Download URL
+              <input
+                class="input w-full"
+                type="url"
+                name="download_url"
+                required
+                placeholder="https://…"
+              />
+            </label>
+            <label class="grid gap-2 text-sm font-medium">
+              Changelog URL{' '}
+              <span class="font-normal text-muted-foreground">Optional</span>
+              <input
+                class="input w-full"
+                type="url"
+                name="changelog_url"
+                placeholder="https://…"
+              />
+            </label>
+            <label class="grid gap-2 text-sm font-medium">
+              Minimum FOSSBilling Version
+              <input
+                class="input w-full"
+                name="min_fossbilling_version"
+                required
+                maxlength="100"
+                placeholder="0.7.0"
+              />
+            </label>
+            <p class="text-xs text-muted-foreground">
+              The latest version is selected automatically and supplies the
+              listing’s primary download. Release changes join your draft and
+              need moderator approval.
+            </p>
+            <p
+              data-release-error
+              role="alert"
+              class="text-sm text-destructive"
+              hidden
+            ></p>
+            <div class="flex gap-2">
+              <button type="submit" class="btn">
+                Save Release to Draft
+              </button>
+              <button
+                type="button"
+                class="btn"
+                data-variant="ghost"
+                data-cancel-release
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+      <ExtensionReleases
+        releases={releaseItems}
+        editable={Boolean(editorContent)}
+        disabledReason={disabledReason}
+      />
+      {editorContent && (
+        <footer class="border-t p-5 text-xs text-muted-foreground">
+          Keep at least one release. Removing the latest release automatically
+          selects the next version.
+        </footer>
+      )}
+    </section>
+  ) : (
+    <div class="grid min-w-0 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
+      {(['listing', 'readme'] as const).map((section) => (
+        <section
+          class:list={[
+            'min-w-0 rounded-xl border bg-card',
+            section === 'listing' ? 'lg:order-2' : 'lg:order-1',
+          ]}
+          id={`extension-${section}`}
+        >
+          <header class="flex items-center justify-between gap-3 border-b p-5 sm:px-6">
+            <h2 class="font-semibold">
+              {labels[section]}{' '}
+              <span
+                data-section-changed={section}
+                class="badge ml-2"
+                data-variant="secondary"
+                hidden
+              >
+                Draft
+              </span>
+            </h2>
+            {pendingEditUrl ? (
+              <a
+                class="btn"
+                data-size="sm"
+                data-variant="ghost"
+                href={`${pendingEditUrl}#extension-${section}`}
+              >
+                <Pencil class="size-3.5" aria-hidden="true" />
+                Edit Pending<span class="sr-only"> {labels[section]}</span>
+              </a>
+            ) : (
+              <button
+                type="button"
+                class="btn"
+                data-size="sm"
+                data-variant="ghost"
+                data-edit-section={section}
+                disabled={!editorContent}
+                title={!editorContent ? disabledReason : undefined}
+                aria-expanded={editorContent ? 'false' : undefined}
+                aria-controls={editorContent ? `editor-${section}` : undefined}
+              >
+                <Pencil class="size-3.5" aria-hidden="true" />
+                <span data-edit-label>Edit</span>
+                <span class="sr-only"> {labels[section]}</span>
+              </button>
+            )}
+          </header>
+          {editorContent && (
+            <form
+              id={`editor-${section}`}
+              data-section-form={section}
+              hidden
+              class="space-y-4 rounded-b-xl bg-muted/30 p-5 sm:p-6"
+            >
+              <ExtensionSectionFields
+                section={section}
+                content={editorContent}
+              />
+              <p
+                data-section-error
+                role="alert"
+                class="text-sm text-destructive"
+                hidden
+              ></p>
+              <div class="flex gap-2">
+                <button type="submit" class="btn">
+                  Save to Draft
+                </button>
+                <button
+                  type="button"
+                  class="btn"
+                  data-variant="ghost"
+                  data-cancel-section={section}
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          )}
+          <div class="p-5 sm:p-6" data-section-preview={section}>
+            {section === 'listing' ? (
+              <>
+                <p
+                  class="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground"
+                  data-preview-description
+                >
+                  {content.description}
+                </p>
+                <dl class="mt-5 grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-1">
+                  <div>
+                    <dt class="text-xs text-muted-foreground">Type</dt>
+                    <dd class="mt-1" data-preview-type>
+                      {content.type
+                        ? EXTENSION_TYPE_LABELS[content.type]
+                        : 'Not Available'}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt class="text-xs text-muted-foreground">Website</dt>
+                    <dd class="mt-1 break-all">
+                      <a
+                        data-preview-website
+                        href={
+                          isSafeHttpUrl(content.website)
+                            ? content.website
+                            : undefined
+                        }
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class:list={[
+                          'underline-offset-4',
+                          { underline: isSafeHttpUrl(content.website) },
+                        ]}
+                      >
+                        {content.website || 'Not Available'}
+                      </a>
+                    </dd>
+                  </div>
+                  <div
+                    class="sm:col-span-2 lg:col-span-1"
+                    data-icon-url-detail
+                    hidden={!content.icon_url}
+                  >
+                    <dt class="text-xs text-muted-foreground">Icon URL</dt>
+                    <dd class="mt-1 break-all" data-preview-icon>
+                      {content.icon_url}
+                    </dd>
+                  </div>
+
+                  <div>
+                    <dt class="text-xs text-muted-foreground">Source</dt>
+                    <dd class="mt-1">
+                      <a
+                        data-preview-source-link
+                        href={isSafeHttpUrl(sourceUrl) ? sourceUrl : undefined}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="inline-flex max-w-full items-start gap-2 underline underline-offset-4"
+                      >
+                        <span
+                          data-source-github-icon
+                          hidden={content.source?.type !== 'github'}
+                          class="mt-0.5 shrink-0"
+                          aria-hidden="true"
+                        >
+                          <GitHubMark class="size-4" />
+                        </span>
+                        <span
+                          data-source-link-icon
+                          hidden={
+                            !content.source || content.source.type === 'github'
+                          }
+                          class="mt-0.5 shrink-0"
+                          aria-hidden="true"
+                        >
+                          <Link class="size-4" />
+                        </span>
+                        <span data-preview-source class="min-w-0 break-all">
+                          {content.source?.type === 'github'
+                            ? content.source.repo
+                            : sourceUrl || 'Not Available'}
+                        </span>
+                      </a>
+                    </dd>
+                  </div>
+                  <div>
+                    <dt class="text-xs text-muted-foreground">License</dt>
+                    <dd class="mt-1">
+                      <a
+                        data-preview-license
+                        href={licenseHref}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class:list={[
+                          'underline-offset-4',
+                          { underline: Boolean(licenseHref) },
+                        ]}
+                      >
+                        {content.license?.name || 'Not Available'}
+                      </a>
+                    </dd>
+                  </div>
+                </dl>
+              </>
+            ) : (
+              <div
+                class="markdown-body break-words"
+                data-preview-readme
+                set:html={renderMarkdown(
+                  content.readme || 'No README is available for this version.',
+                )}
+              />
+            )}
+          </div>
+        </section>
+      ))}
+    </div>
+  )}
+</div>
+
+<script>
+  import { initExtensionWorkspace } from '@/scripts/extension-workspace';
+  initExtensionWorkspace();
+</script>

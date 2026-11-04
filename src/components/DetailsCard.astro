@@ -2,6 +2,7 @@
 import type { Extension } from '@/types';
 import { getLatestRelease, repositoryURL } from '@/types';
 import { isSafeHttpUrl } from '@/lib/safe-url';
+import { licenseUrl } from '@/lib/license';
 import { CircleCheck, Download, GitBranch, Scale, User } from '@lucide/astro';
 
 interface Props {
@@ -36,10 +37,10 @@ const details: DetailsItem[] = [
     link: `/developer/${ext.developer.id}`,
   },
   {
-    name: 'Current Version',
+    name: 'Latest Version',
     icon: CircleCheck,
     color: 'green',
-    text: `v${ext.version}`,
+    text: `v${(latest?.tag ?? ext.version).replace(/^v/, '')}`,
   },
   {
     name: 'FOSSBilling Version',
@@ -54,10 +55,7 @@ const details: DetailsItem[] = [
     icon: Scale,
     color: 'blue',
     text: ext.license.name,
-    link:
-      ext.license.URL && isSafeHttpUrl(ext.license.URL)
-        ? ext.license.URL
-        : undefined,
+    link: licenseUrl(ext.license),
   },
   {
     name: 'Source Code',
