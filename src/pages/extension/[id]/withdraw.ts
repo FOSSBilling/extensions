@@ -11,7 +11,7 @@ export const POST: APIRoute = formAction({
   // success path below overrides this with the account overview.
   redirect: (context) => {
     const { id } = context.params;
-    return id ? `/account/extensions/${id}` : '/account';
+    return id ? `/extension/${id}` : '/account';
   },
   fallbackError: 'Unable to withdraw extension.',
   run: async ({ context, env, user }) => {

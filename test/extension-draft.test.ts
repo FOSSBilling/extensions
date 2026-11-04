@@ -4,6 +4,7 @@ import {
   editableContent,
   reconstructionContent,
   releaseFromFields,
+  serializeDraftConfig,
   type ExtensionDraft,
 } from '@/lib/extension-draft';
 import type { ExtensionUpdate } from '@/lib/api/client';
@@ -278,5 +279,19 @@ describe('extension drafts', () => {
         draft({ readme: { readme: '# Revised' } }),
       ).name,
     ).toBe('Historical name');
+  });
+});
+
+describe('draft configuration embedded in HTML', () => {
+  it('preserves README HTML and script-like text when parsed in the browser', () => {
+    const config = {
+      base: {
+        readme:
+          '# README\n<div>Unicode 🦊 & HTML</div>\n</script><script>example()</script>',
+      },
+    };
+    const serialized = serializeDraftConfig(config);
+    expect(serialized).not.toContain('<');
+    expect(JSON.parse(serialized)).toEqual(config);
   });
 });

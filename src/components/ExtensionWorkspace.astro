@@ -1,55 +1,50 @@
 ---
 import type { StoredExtensionFields } from '@/lib/extensions-data';
-import { editableContent } from '@/lib/extension-draft';
+import { editableContent, serializeDraftConfig } from '@/lib/extension-draft';
 import ExtensionReleases from './ExtensionReleases.astro';
 import ExtensionOverviewDetails from './ExtensionOverviewDetails.astro';
 import ExtensionNavigation from './ExtensionNavigation.astro';
 import { renderMarkdown } from '@/lib/markdown';
 import { sha256Hex } from '@/lib/hash';
+import { latestRelease } from '@/lib/releases';
 import ExtensionSectionFields from './ExtensionSectionFields.astro';
 import type { DraftSection } from '@/lib/extension-draft';
 import { Pencil, Plus } from '@lucide/astro';
 interface Props {
   content: StoredExtensionFields;
   id: string;
-  userId: string;
   releases: boolean;
-  allowEdit?: boolean;
-  pendingVersion?: boolean;
-  pendingRevisionId?: string;
-  disabledReason?: string;
-  pendingEditUrl?: string;
+  selectedVersion?: 'pending' | 'published';
+  editor?: {
+    userId: string;
+    canEdit: boolean;
+    pendingRevisionId?: string;
+    disabledReason?: string;
+    pendingEditUrl?: string;
+  };
 }
-const {
-  content,
-  id,
-  userId,
-  releases,
-  allowEdit = true,
-  pendingVersion = false,
-  pendingRevisionId,
-  disabledReason,
-  pendingEditUrl,
-} = Astro.props;
-const editorContent = allowEdit ? editableContent(content) : null;
+const { content, id, releases, selectedVersion, editor } = Astro.props;
+const { pendingRevisionId, disabledReason, pendingEditUrl } = editor ?? {};
+const editorContent = editor?.canEdit ? editableContent(content) : null;
 const releaseItems = content.releases ?? [];
-const baseUrl = `/account/extensions/${id}`;
-const selectedVersion = pendingVersion ? 'pending' : 'published';
-const overviewUrl = `${baseUrl}?version=${selectedVersion}`;
-const releasesUrl = `${baseUrl}?view=releases&version=${selectedVersion}`;
-const config = editorContent
-  ? JSON.stringify({
-      base: editorContent,
-      pendingRevisionId,
-      submitLabel: pendingRevisionId
-        ? 'Update Pending Submission'
-        : 'Submit for Review',
-      baselineHash: await sha256Hex(JSON.stringify(editorContent)),
-      key: `extension-draft:${await sha256Hex(userId)}:${id}`,
-      submitUrl: `${baseUrl}/draft`,
-      baseUrl,
-    }).replace(/</g, '\\u003c')
-  : '';
+const baseUrl = `/extension/${id}`;
+const overviewUrl = `${baseUrl}${selectedVersion ? `?version=${selectedVersion}` : ''}`;
+const releasesUrl = `${baseUrl}?view=releases${selectedVersion ? `&version=${selectedVersion}` : ''}`;
+const submitLabel = pendingRevisionId
+  ? 'Update Pending Submission'
+  : 'Submit for Review';
+const config =
+  editorContent && editor
+    ? serializeDraftConfig({
+        base: editorContent,
+        pendingRevisionId,
+        submitLabel,
+        baselineHash: await sha256Hex(JSON.stringify(editorContent)),
+        key: `extension-draft:${await sha256Hex(editor.userId)}:${id}`,
+        submitUrl: `${baseUrl}/draft`,
+        baseUrl,
+      })
+    : '';
 const labels: Record<DraftSection, string> = {
   listing: 'Overview',
   readme: 'README',
@@ -91,9 +86,7 @@ const labels: Record<DraftSection, string> = {
             Discard Draft
           </button>
           <button type="button" class="btn" data-submit-draft disabled>
-            {pendingRevisionId
-              ? 'Update Pending Submission'
-              : 'Submit for Review'}
+            {submitLabel}
           </button>
         </div>
       </div>
@@ -114,34 +107,37 @@ const labels: Record<DraftSection, string> = {
   {releases ? (
     <section
       class="rounded-xl border bg-card"
-      aria-labelledby="manage-releases-title"
+      aria-labelledby="extension-releases-title"
     >
       <header class="flex flex-wrap items-center justify-between gap-4 border-b p-5 sm:p-6">
         <div>
-          <h2 class="font-semibold text-lg" id="manage-releases-title">
+          <h2 class="font-semibold text-lg" id="extension-releases-title">
             Releases
           </h2>
-          <p class="mt-1 text-sm text-muted-foreground">
-            Manage versions, downloads, and compatibility independently of your
-            listing.
-          </p>
+          {editor && (
+            <p class="mt-1 text-sm text-muted-foreground">
+              Manage versions, downloads, and compatibility independently of
+              your listing.
+            </p>
+          )}
         </div>
-        {pendingEditUrl ? (
-          <a class="btn" href={pendingEditUrl}>
-            Edit Pending Releases
-          </a>
-        ) : (
-          <button
-            class="btn"
-            type="button"
-            data-add-release
-            disabled={!editorContent}
-            title={!editorContent ? disabledReason : undefined}
-          >
-            <Plus class="size-4" aria-hidden="true" />
-            Add Release
-          </button>
-        )}
+        {editor &&
+          (pendingEditUrl ? (
+            <a class="btn" href={pendingEditUrl}>
+              Edit Pending Releases
+            </a>
+          ) : (
+            <button
+              class="btn"
+              type="button"
+              data-add-release
+              disabled={!editorContent}
+              title={!editorContent ? disabledReason : undefined}
+            >
+              <Plus class="size-4" aria-hidden="true" />
+              Add Release
+            </button>
+          ))}
       </header>
       {editorContent && (
         <div data-release-editor hidden class="border-b bg-muted/30 p-5 sm:p-6">
@@ -231,6 +227,7 @@ const labels: Record<DraftSection, string> = {
       <ExtensionReleases
         releases={releaseItems}
         editable={Boolean(editorContent)}
+        showActions={Boolean(editor)}
         disabledReason={disabledReason}
       />
       {editorContent && (
@@ -253,42 +250,47 @@ const labels: Record<DraftSection, string> = {
           <header class="flex items-center justify-between gap-3 border-b p-5 sm:px-6">
             <h2 class="font-semibold">
               {labels[section]}{' '}
-              <span
-                data-section-changed={section}
-                class="badge ml-2"
-                data-variant="secondary"
-                hidden
-              >
-                Draft
-              </span>
+              {editor && (
+                <span
+                  data-section-changed={section}
+                  class="badge ml-2"
+                  data-variant="secondary"
+                  hidden
+                >
+                  Draft
+                </span>
+              )}
             </h2>
-            {pendingEditUrl ? (
-              <a
-                class="btn"
-                data-size="sm"
-                data-variant="ghost"
-                href={`${pendingEditUrl}#extension-${section}`}
-              >
-                <Pencil class="size-3.5" aria-hidden="true" />
-                Edit Pending<span class="sr-only"> {labels[section]}</span>
-              </a>
-            ) : (
-              <button
-                type="button"
-                class="btn"
-                data-size="sm"
-                data-variant="ghost"
-                data-edit-section={section}
-                disabled={!editorContent}
-                title={!editorContent ? disabledReason : undefined}
-                aria-expanded={editorContent ? 'false' : undefined}
-                aria-controls={editorContent ? `editor-${section}` : undefined}
-              >
-                <Pencil class="size-3.5" aria-hidden="true" />
-                <span data-edit-label>Edit</span>
-                <span class="sr-only"> {labels[section]}</span>
-              </button>
-            )}
+            {editor &&
+              (pendingEditUrl ? (
+                <a
+                  class="btn"
+                  data-size="sm"
+                  data-variant="ghost"
+                  href={`${pendingEditUrl}#extension-${section}`}
+                >
+                  <Pencil class="size-3.5" aria-hidden="true" />
+                  Edit Pending<span class="sr-only"> {labels[section]}</span>
+                </a>
+              ) : (
+                <button
+                  type="button"
+                  class="btn"
+                  data-size="sm"
+                  data-variant="ghost"
+                  data-edit-section={section}
+                  disabled={!editorContent}
+                  title={!editorContent ? disabledReason : undefined}
+                  aria-expanded={editorContent ? 'false' : undefined}
+                  aria-controls={
+                    editorContent ? `editor-${section}` : undefined
+                  }
+                >
+                  <Pencil class="size-3.5" aria-hidden="true" />
+                  <span data-edit-label>Edit</span>
+                  <span class="sr-only"> {labels[section]}</span>
+                </button>
+              ))}
           </header>
           {editorContent && (
             <form
@@ -324,7 +326,15 @@ const labels: Record<DraftSection, string> = {
           )}
           <div class="p-5 sm:p-6" data-section-preview={section}>
             {section === 'listing' ? (
-              <ExtensionOverviewDetails content={content} showIconUrl />
+              <ExtensionOverviewDetails
+                content={content}
+                showIconUrl={Boolean(editor)}
+                minimumVersion={
+                  !editor
+                    ? latestRelease(releaseItems)?.min_fossbilling_version
+                    : undefined
+                }
+              />
             ) : (
               <div
                 class="markdown-body break-words"

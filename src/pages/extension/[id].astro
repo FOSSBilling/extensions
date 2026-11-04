@@ -1,16 +1,11 @@
 ---
 import Base from '@/layouts/Base.astro';
+import OwnerExtensionView from '@/components/OwnerExtensionView.astro';
+import { loadExtensionView, type ExtensionView } from '@/lib/extension-view';
+import { getSessionUser } from '@/lib/session';
 import ExtensionHeader from '@/components/ExtensionHeader.astro';
-import ExtensionOverviewDetails from '@/components/ExtensionOverviewDetails.astro';
-import ExtensionNavigation from '@/components/ExtensionNavigation.astro';
-import ExtensionReleases from '@/components/ExtensionReleases.astro';
-import { getLatestRelease } from '@/types';
-import Overview from '@/components/Overview.astro';
-import {
-  ApiRequestError,
-  getApiErrorMessage,
-  getExtensionById,
-} from '@/lib/api/client';
+import ExtensionWorkspace from '@/components/ExtensionWorkspace.astro';
+import { ApiRequestError, getApiErrorMessage } from '@/lib/api/client';
 
 const env = Astro.locals.env;
 const { id } = Astro.params;
@@ -19,73 +14,57 @@ if (!id) {
   return Astro.rewrite('/404');
 }
 
-// Transient upstream failures render a retryable error instead of throwing:
-// a throw would surface as a bare 500 during real navigation.
-let ext;
+Astro.cache.set(false);
+Astro.response.headers.set('Cache-Control', 'private, no-store');
+let view: ExtensionView | undefined;
 let detailError: string | null = null;
 try {
-  ext = await getExtensionById(env, id);
+  const user = await getSessionUser(Astro.cookies, env.sessionSecret);
+  view = await loadExtensionView(env, id, user);
 } catch (error) {
-  if (error instanceof ApiRequestError && error.status === 404) {
+  if (error instanceof ApiRequestError && error.status === 404)
     return Astro.rewrite('/404');
-  }
-  if (
-    error instanceof ApiRequestError &&
-    (error.status === 429 ||
-      error.status >= 500 ||
-      error.code === 'RATE_LIMITED' ||
-      error.code === 'SERVICE_UNAVAILABLE')
-  ) {
-    detailError = getApiErrorMessage(error);
-    Astro.response.status = error.status === 429 ? 429 : 503;
-    // Opt out of the /extension/[id] route rule: cache headers are stamped
-    // after render, so without this the error card stays CDN-cached to maxAge.
-    Astro.cache.set(false);
-    Astro.response.headers.set('Cache-Control', 'no-store');
-  } else {
-    throw error;
-  }
+  detailError =
+    error instanceof ApiRequestError
+      ? getApiErrorMessage(error)
+      : 'Extension details are temporarily unavailable. Please try again.';
+  Astro.response.status =
+    error instanceof ApiRequestError && error.status === 429 ? 429 : 503;
 }
-
-if (!ext && !detailError) {
-  return Astro.rewrite('/404');
-}
-
-// Truncate on code points — UTF-16 slice() can split a surrogate pair and
-// leave a lone surrogate in the shared metadata.
-const descriptionCodePoints = ext ? [...ext.description] : [];
-const shareDescription = ext
+const ext = view?.kind === 'public' ? view.extension : undefined;
+const metadata =
+  view?.kind === 'owner'
+    ? (view.owned.published ?? view.owned.pending_revision?.content)
+    : ext;
+const name = metadata?.name ?? id;
+// Truncate on code points to avoid splitting a Unicode surrogate pair.
+const descriptionCodePoints = [...(metadata?.description ?? '')];
+const shareDescription = metadata
   ? descriptionCodePoints.length > 160
     ? `${descriptionCodePoints.slice(0, 157).join('')}...`
-    : ext.description
+    : metadata.description
   : (detailError ?? 'Extension details are temporarily unavailable.');
-// og:image uses the original icon rather than the 64x64 icon variant:
-// social scrapers want the largest available image for large-card previews.
-// Stored URLs arrive unvalidated from upstream, and Base builds the share
-// URL with `new URL(image, Astro.site)` — which throws on malformed input
-// and would 500 the whole page — so only pass cleanly-parseable URLs.
 let shareImage: string | undefined;
-if (ext?.icon_url) {
+if (metadata?.icon_url) {
   try {
-    shareImage = new URL(ext.icon_url).href;
+    shareImage = new URL(metadata.icon_url).href;
   } catch {
-    // Malformed stored URL: omit the social image rather than fail render.
+    /* Omit malformed stored URLs. */
   }
 }
 const releasesView = Astro.url.searchParams.get('view') === 'releases';
-const latest = ext ? getLatestRelease(ext) : undefined;
 ---
 
 <Base
   title={
-    ext
-      ? `${ext.name} | FOSSBilling Extensions`
+    view
+      ? `${name} | FOSSBilling Extensions`
       : 'Temporarily Unavailable | FOSSBilling Extensions'
   }
   description={shareDescription}
   image={shareImage}
 >
-  {detailError || !ext ? (
+  {detailError || !view ? (
     <div
       class="card flex min-h-32 flex-col items-center justify-center px-6 py-12 text-center"
       role="alert"
@@ -98,64 +77,22 @@ const latest = ext ? getLatestRelease(ext) : undefined;
     </div>
   ) : (
     <div class="mx-auto max-w-6xl space-y-8">
-      <ExtensionHeader ext={ext} />
-      <div class="space-y-6">
-        <ExtensionNavigation
-          overviewUrl={`/extension/${ext.id}`}
-          releasesUrl={`/extension/${ext.id}?view=releases`}
-          activeReleases={releasesView}
-          releaseCount={ext.releases.length}
-        />
-        {releasesView ? (
-          <section
-            class="rounded-xl border bg-card"
-            aria-labelledby="releases-title"
-          >
-            <header class="border-b p-5 sm:px-6">
-              <h2 id="releases-title" class="font-semibold">
-                Releases
-              </h2>
-            </header>
-            <ExtensionReleases
-              releases={ext.releases}
-              editable={false}
-              showActions={false}
-            />
-          </section>
-        ) : (
-          <div class="grid min-w-0 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
-            <aside
-              class="min-w-0 rounded-xl border bg-card lg:order-2"
-              aria-labelledby="overview-title"
-            >
-              <header class="border-b p-5 sm:px-6">
-                <h2 id="overview-title" class="font-semibold">
-                  Overview
-                </h2>
-              </header>
-              <div class="p-5 sm:p-6">
-                <ExtensionOverviewDetails
-                  content={ext}
-                  minimumVersion={latest?.min_fossbilling_version}
-                />
-              </div>
-            </aside>
-            <section
-              class="min-w-0 rounded-xl border bg-card lg:order-1"
-              aria-labelledby="readme-title"
-            >
-              <header class="border-b p-5 sm:px-6">
-                <h2 id="readme-title" class="font-semibold">
-                  README
-                </h2>
-              </header>
-              <div class="p-5 sm:p-6">
-                <Overview ext={ext} />
-              </div>
-            </section>
-          </div>
-        )}
-      </div>
+      {view.kind === 'owner' ? (
+        <OwnerExtensionView owned={view.owned} userId={view.userId} />
+      ) : (
+        <>
+          <ExtensionHeader
+            id={view.extension.id}
+            content={view.extension}
+            developer={view.extension.developer}
+          />
+          <ExtensionWorkspace
+            id={view.extension.id}
+            content={view.extension}
+            releases={releasesView}
+          />
+        </>
+      )}
     </div>
   )}
 </Base>

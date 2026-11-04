@@ -1,29 +1,44 @@
 ---
-import type { Extension } from '@/types';
-import { getLatestRelease } from '@/types';
+import type { StoredExtensionFields } from '@/lib/extensions-data';
+import type { Developer } from '@/types';
+import { latestRelease } from '@/lib/releases';
 import { ArrowLeft, Download, Package, User } from '@lucide/astro';
 import { getSignedImageUrl } from '@/lib/signed-image-url';
 import { isSafeHttpUrl } from '@/lib/safe-url';
 interface Props {
-  ext: Extension;
+  id: string;
+  content: StoredExtensionFields;
+  developer: Pick<Developer, 'id' | 'name'>;
+  version?: string;
+  versionLabel?: string;
+  backHref?: string;
+  backLabel?: string;
 }
-const { ext } = Astro.props;
+const {
+  id,
+  content,
+  developer,
+  version: selectedVersion,
+  versionLabel = 'Latest Version',
+  backHref = '/',
+  backLabel = 'Extensions',
+} = Astro.props;
+const latest = latestRelease(content.releases ?? []);
+const version = selectedVersion ?? latest?.tag ?? content.version;
 const iconUrl = await getSignedImageUrl(
-  ext.icon_url,
+  content.icon_url,
   'icon',
   Astro.locals.env.sessionSecret,
 );
-const latest = getLatestRelease(ext);
-const version = latest?.tag ?? ext.version;
-const downloadUrl = latest?.download_url ?? ext.download_url;
+const downloadUrl = latest?.download_url ?? content.download_url;
 ---
 
 <a
-  href="/"
+  href={backHref}
   class="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
 >
   <ArrowLeft class="size-4" aria-hidden="true" />
-  Extensions
+  {backLabel}
 </a>
 <header class="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
   <div class="flex min-w-0 items-start gap-4">
@@ -46,29 +61,33 @@ const downloadUrl = latest?.download_url ?? ext.download_url;
         Extension Overview
       </p>
       <div class="flex flex-wrap items-center gap-3">
-        <h1 class="break-words text-2xl font-semibold tracking-tight sm:text-3xl">
-          {ext.name}
+        <h1
+          data-extension-name
+          class="break-words text-2xl font-semibold tracking-tight sm:text-3xl"
+        >
+          {content.name ?? id}
         </h1>
         {version && (
           <span
             class="text-lg text-muted-foreground"
-            aria-label={`Latest Version ${version}`}
+            aria-label={`${versionLabel} ${version}`}
           >
             {version.startsWith('v') ? version : `v${version}`}
           </span>
         )}
+        <slot name="status" />
       </div>
       <p class="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
         <a
-          href={`/developer/${ext.developer.id}`}
+          href={`/developer/${developer.id}`}
           class="inline-flex items-center gap-1.5 underline-offset-4 hover:underline"
           data-astro-prefetch="false"
         >
           <User class="size-3.5" aria-hidden="true" />
-          {ext.developer.name}
+          {developer.name}
         </a>
         <span aria-hidden="true">/</span>
-        <span class="break-all">{ext.id}</span>
+        <span class="break-all">{id}</span>
       </p>
     </div>
   </div>

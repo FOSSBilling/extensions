@@ -12,6 +12,7 @@ import {
   Link,
   CircleCheck,
   Code,
+  TextAlignStart,
 } from '@lucide/astro';
 interface Props {
   content: StoredExtensionFields;
@@ -23,13 +24,19 @@ const sourceUrl = content.source ? repositoryURL(content.source) : undefined;
 const licenseHref = licenseUrl(content.license);
 ---
 
-<p
-  class="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground"
-  data-preview-description
->
-  {content.description}
-</p>
-<dl class="mt-5 grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-1">
+<dl class="grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-1">
+  <div class="sm:col-span-2 lg:col-span-1">
+    <dt class="flex items-center gap-2 text-xs text-muted-foreground">
+      <TextAlignStart class="size-3.5" aria-hidden="true" />
+      Description
+    </dt>
+    <dd
+      class="mt-1 whitespace-pre-wrap leading-relaxed text-muted-foreground"
+      data-preview-description
+    >
+      {content.description}
+    </dd>
+  </div>
   <div>
     <dt class="flex items-center gap-2 text-xs text-muted-foreground">
       <Package class="size-3.5" aria-hidden="true" />

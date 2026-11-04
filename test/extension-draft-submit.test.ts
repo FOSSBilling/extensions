@@ -14,7 +14,7 @@ vi.mock('@/lib/api/client', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/api/client')>()),
   createApiClient: () => mocks,
 }));
-import { POST } from '@/pages/account/extensions/[id]/draft';
+import { POST } from '@/pages/extension/[id]/draft';
 import { sha256Hex } from '@/lib/hash';
 import { editableContent } from '@/lib/extension-draft';
 import { ApiRequestError, type ExtensionUpdate } from '@/lib/api/client';
@@ -50,10 +50,10 @@ async function context(overrides: Record<string, unknown> = {}) {
   return {
     params: { id: 'example' },
     locals: { env: { sessionSecret: 'test' } },
-    request: new Request(
-      'https://example.test/account/extensions/example/draft',
-      { method: 'POST', body },
-    ),
+    request: new Request('https://example.test/extension/example/draft', {
+      method: 'POST',
+      body,
+    }),
   } as unknown as APIContext;
 }
 beforeEach(() => {
@@ -70,7 +70,7 @@ describe('draft submission', () => {
     const response = await POST(await context());
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
-      url: '/account/extensions/example',
+      url: '/extension/example',
     });
     expect(mocks.updateExtension).toHaveBeenCalledWith('example', {
       ...base,
@@ -110,7 +110,7 @@ describe('draft submission', () => {
     );
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
-      url: '/account/extensions/example?version=pending',
+      url: '/extension/example?version=pending',
     });
     expect(mocks.replacePendingRevision).toHaveBeenCalledWith(
       'example',

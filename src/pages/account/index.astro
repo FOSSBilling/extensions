@@ -366,7 +366,7 @@ const reconnectUrl = buildGithubReconnectUrl(Astro.url.origin, '/account');
                 <li class="py-3 flex items-center justify-between gap-3">
                   <div>
                     <a
-                      href={`/account/extensions/${ext.id}`}
+                      href={`/extension/${ext.id}`}
                       class="font-medium hover:underline underline-offset-4"
                     >
                       {ext.published?.name ?? ext.id}
@@ -397,7 +397,7 @@ const reconnectUrl = buildGithubReconnectUrl(Astro.url.origin, '/account');
                       </span>
                     ) : null}
                     <a
-                      href={`/account/extensions/${ext.id}`}
+                      href={`/extension/${ext.id}`}
                       class="btn"
                       data-size="sm"
                       data-variant="outline"

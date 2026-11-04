@@ -28,7 +28,8 @@ export default defineConfig({
     // served by URL without cookies, so the first visitor's variant would
     // leak to everyone.
     '/': { maxAge: 120, swr: 60, tags: ['catalogue'] },
-    '/extension/[id]': { maxAge: 300, swr: 120, tags: ['catalogue'] },
+    // Extension pages render owner controls and pending content per user.
+    // Their public API data is cached separately; their HTML is private.
     '/404': { maxAge: 60 },
   },
   // Prefetch is disabled entirely: Cloudflare's edge refuses

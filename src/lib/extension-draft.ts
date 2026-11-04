@@ -18,6 +18,11 @@ export interface ExtensionDraft {
   releases?: Release[];
 }
 
+// Escape the HTML script boundary without changing values after JSON.parse.
+export function serializeDraftConfig(value: object): string {
+  return JSON.stringify(value).replace(/</g, '\\u003c');
+}
+
 function record(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === 'object' && !Array.isArray(value));
 }

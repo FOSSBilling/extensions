@@ -29,5 +29,12 @@ export const onRequest = defineMiddleware(async (context, next) => {
   context.locals.timeZone = getRequestTimeZone(context.request);
 
   const response = await next();
-  return applySecurityHeaders(response);
+  const secured = applySecurityHeaders(response);
+  // Apply after rewrites too: a cached anonymous 404 must not mask the same
+  // unpublished extension for its owner on their next request.
+  if (context.url.pathname.startsWith('/extension/')) {
+    secured.headers.set('Cache-Control', 'private, no-store');
+    secured.headers.set('Cloudflare-CDN-Cache-Control', 'no-store');
+  }
+  return secured;
 });
