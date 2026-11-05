@@ -221,7 +221,7 @@ describe('generated Extensions v2 façade', () => {
     const response = await listExtensions(publicEnv);
     const url = requestUrl(fetchMock);
 
-    expect(url.pathname).toBe('/extensions/v2/extensions');
+    expect(url.pathname).toBe('/v2/extensions');
     expect(url.searchParams.get('limit')).toBe('50');
     expect(url.searchParams.has('cursor')).toBe(false);
     expect(response.result).toEqual(firstPage.result);
@@ -299,7 +299,7 @@ describe('generated Extensions v2 façade', () => {
     const response = await getExtensionById(publicEnv, 'full-extension');
 
     expect(requestFrom(fetchMock).url).toBe(
-      'https://api.example.test/extensions/v2/extensions/full-extension',
+      'https://api.example.test/v2/extensions/full-extension',
     );
     expect(response.readme).toContain('README content');
     expect(response.releases).toHaveLength(2);
@@ -345,7 +345,7 @@ describe('generated Extensions v2 façade', () => {
     expect(requestFrom(fetchMock, 1).headers.get('authorization')).toBe(
       'Bearer token-two',
     );
-    expect(requestUrl(fetchMock, 0).pathname).toBe('/extensions/v2/extensions');
+    expect(requestUrl(fetchMock, 0).pathname).toBe('/v2/extensions');
     expect(requestUrl(fetchMock, 0).searchParams.get('scope')).toBe('mine');
     expect(requestUrl(fetchMock, 0).searchParams.get('limit')).toBe('100');
     expect(requestUrl(fetchMock, 0).searchParams.get('cursor')).toBe(
@@ -397,7 +397,7 @@ describe('generated Extensions v2 façade', () => {
     ).createExtension(payload);
 
     const request = requestFrom(fetchMock);
-    expect(new URL(request.url).pathname).toBe('/extensions/v2/extensions');
+    expect(new URL(request.url).pathname).toBe('/v2/extensions');
     expect(request.method).toBe('POST');
     expect(request.headers.get('content-type')).toBe('application/json');
     expect(await request.json()).toEqual(payload);
@@ -444,9 +444,7 @@ describe('generated Extensions v2 façade', () => {
     ).updateExtension('body-extension', payload);
 
     const request = requestFrom(fetchMock);
-    expect(new URL(request.url).pathname).toBe(
-      '/extensions/v2/extensions/body-extension',
-    );
+    expect(new URL(request.url).pathname).toBe('/v2/extensions/body-extension');
     expect(request.method).toBe('PUT');
     expect(await request.json()).toEqual(payload);
     expect(result.revision_id).toBe('revision-2');
@@ -466,9 +464,7 @@ describe('generated Extensions v2 façade', () => {
     ).withdrawExtension('body-extension');
 
     const request = requestFrom(fetchMock);
-    expect(new URL(request.url).pathname).toBe(
-      '/extensions/v2/extensions/body-extension',
-    );
+    expect(new URL(request.url).pathname).toBe('/v2/extensions/body-extension');
     expect(request.method).toBe('DELETE');
     expect(result).toEqual({ id: 'body-extension', deleted: true });
   });
@@ -490,7 +486,7 @@ describe('generated Extensions v2 façade', () => {
     );
     const approveRequest = requestFrom(approveFetch);
     expect(new URL(approveRequest.url).pathname).toBe(
-      '/extensions/v2/extensions/body-extension/revisions/r-1/approve',
+      '/v2/extensions/body-extension/revisions/r-1/approve',
     );
     expect(approveRequest.body).toBeNull();
 
@@ -507,7 +503,7 @@ describe('generated Extensions v2 façade', () => {
     );
     const rejectRequest = requestFrom(rejectFetch);
     expect(new URL(rejectRequest.url).pathname).toBe(
-      '/extensions/v2/extensions/body-extension/revisions/r-2/reject',
+      '/v2/extensions/body-extension/revisions/r-2/reject',
     );
     expect(await rejectRequest.json()).toEqual({ review_note: 'needs work' });
   });
@@ -542,7 +538,7 @@ describe('generated Extensions v2 façade', () => {
 
     const request = requestFrom(fetchMock);
     expect(requestUrl(fetchMock).pathname).toBe(
-      '/extensions/v2/extensions/live-ext/moderator-correct',
+      '/v2/extensions/live-ext/moderator-correct',
     );
     expect(request.method).toBe('POST');
     // No notify opt-out travels: corrections never email the author (api#251).
@@ -628,7 +624,7 @@ describe('generated Extensions v2 façade', () => {
       next_cursor: 'next-page',
       has_more: true,
     });
-    expect(requestUrl(fetchMock).pathname).toBe('/extensions/v2/revisions');
+    expect(requestUrl(fetchMock).pathname).toBe('/v2/revisions');
     expect(requestUrl(fetchMock).searchParams.get('status')).toBe('approved');
     expect(requestUrl(fetchMock).searchParams.get('cursor')).toBe(
       'queue-cursor',
@@ -724,7 +720,7 @@ describe('generated Extensions v2 façade', () => {
     );
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(requestUrl(fetchMock).pathname).toBe(
-      '/extensions/v2/extensions/extension-1/revisions/revision-1',
+      '/v2/extensions/extension-1/revisions/revision-1',
     );
     expect(requestFrom(fetchMock).headers.get('Authorization')).toBe(
       'Bearer test-token',
@@ -826,9 +822,7 @@ describe('identity sync', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const request = requestFrom(fetchMock);
     expect(request.method).toBe('PUT');
-    expect(request.url).toBe(
-      'https://api.example.test/extensions/v2/users/me/identity',
-    );
+    expect(request.url).toBe('https://api.example.test/v2/users/me/identity');
     expect(request.headers.get('content-type')).toBe('application/json');
     expect(request.headers.get('authorization')).toBe('Bearer sync-token');
     // The shared user-authentication assertion must not mint here: the API
