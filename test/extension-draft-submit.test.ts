@@ -16,7 +16,7 @@ vi.mock('@/lib/api/client', async (importOriginal) => ({
 }));
 import { POST } from '@/pages/extension/[id]/draft';
 import { sha256Hex } from '@/lib/hash';
-import { editableContent } from '@/lib/extension-draft';
+import { editableContent, reconstructionContent } from '@/lib/extension-draft';
 import { ApiRequestError, type ExtensionUpdate } from '@/lib/api/client';
 const base: ExtensionUpdate = {
   manifest_version: 1,
@@ -69,7 +69,7 @@ beforeEach(() => {
   mocks.updateExtension.mockResolvedValue({});
 });
 describe('draft submission', () => {
-  it('submits the merged content and returns to the overview', async () => {
+  it('submits the merged content and returns success', async () => {
     const response = await POST(await context());
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
@@ -168,6 +168,34 @@ describe('draft submission', () => {
     mocks.getRevision.mockResolvedValue({ content: base });
     expect((await POST(await context())).status).toBe(200);
     expect(mocks.getRevision).toHaveBeenCalledWith('example', 'rejected');
+    expect(mocks.updateExtension).toHaveBeenCalledWith('example', {
+      ...base,
+      readme: '# Changed',
+    });
+  });
+  it('saves rebuilt pending content using the same normalized baseline as the browser', async () => {
+    const stored = {
+      ...base,
+      manifest_version: undefined,
+      license: { name: 'MIT' },
+    };
+    const rebuilt = editableContent(reconstructionContent(stored))!;
+    mocks.getMyExtension.mockResolvedValue({
+      published: null,
+      pending_revision: { id: 'pending', content: stored },
+    });
+    const response = await POST(
+      await context({
+        pendingRevisionId: 'pending',
+        baselineHash: await sha256Hex(JSON.stringify(rebuilt)),
+      }),
+    );
+    expect(response.status).toBe(200);
+    expect(mocks.replacePendingRevision).toHaveBeenCalledWith(
+      'example',
+      'pending',
+      { ...rebuilt, readme: '# Changed' },
+    );
   });
   it('rejects empty changes and malformed section edits', async () => {
     expect((await POST(await context({ sections: {} }))).status).toBe(422);

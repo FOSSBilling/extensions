@@ -50,7 +50,9 @@ export const POST: APIRoute = async (context) => {
     const stored = pending?.content ?? owned.published ?? previous?.content;
     const base =
       editableContent(stored) ??
-      (pending || !owned.published ? reconstructionContent(stored) : null);
+      (pending || !owned.published
+        ? editableContent(reconstructionContent(stored))
+        : null);
     if (!base)
       return fail(
         'The original content is unavailable. Your local draft has been kept.',

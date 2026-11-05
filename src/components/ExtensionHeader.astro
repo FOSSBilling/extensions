@@ -10,7 +10,6 @@ interface Props {
   id: string;
   content: StoredExtensionFields;
   developer: Pick<Developer, 'id' | 'name'>;
-  version?: string;
   versionLabel?: string;
   backHref?: string;
   backLabel?: string;
@@ -19,13 +18,12 @@ const {
   id,
   content,
   developer,
-  version: selectedVersion,
   versionLabel = 'Latest Version',
   backHref = '/',
   backLabel = 'Extensions',
 } = Astro.props;
 const latest = latestRelease(content.releases ?? []);
-const version = selectedVersion ?? latest?.tag ?? content.version;
+const version = latest?.tag ?? content.version;
 const iconUrl = await getSignedImageUrl(
   extensionIconUrl({
     ...content,
@@ -72,14 +70,16 @@ const downloadUrl = latest?.download_url ?? content.download_url;
         >
           {content.name ?? id}
         </h1>
-        {version && (
-          <span
-            class="text-lg text-muted-foreground"
-            aria-label={`${versionLabel} ${version}`}
-          >
-            {version.startsWith('v') ? version : `v${version}`}
+        <span
+          class="text-lg text-muted-foreground"
+          data-extension-version
+          hidden={!version}
+        >
+          <span class="sr-only">{versionLabel} </span>
+          <span data-extension-version-value>
+            {version && /^\d/.test(version) ? `v${version}` : version}
           </span>
-        )}
+        </span>
         <slot name="status" />
       </div>
       <p class="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
@@ -96,15 +96,15 @@ const downloadUrl = latest?.download_url ?? content.download_url;
       </p>
     </div>
   </div>
-  {isSafeHttpUrl(downloadUrl) && (
-    <a
-      href={downloadUrl}
-      class="btn shrink-0 self-start"
-      target="_blank"
-      rel="noopener noreferrer"
-    >
-      <Download class="size-4" aria-hidden="true" />
-      Download
-    </a>
-  )}
+  <a
+    data-extension-download
+    hidden={!isSafeHttpUrl(downloadUrl)}
+    href={isSafeHttpUrl(downloadUrl) ? downloadUrl : undefined}
+    class="btn shrink-0 self-start"
+    target="_blank"
+    rel="noopener noreferrer"
+  >
+    <Download class="size-4" aria-hidden="true" />
+    Download
+  </a>
 </header>

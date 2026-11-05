@@ -20,6 +20,7 @@ interface Props {
   showIconUrl?: boolean;
 }
 const { content, showIconUrl = false } = Astro.props;
+const homepageUrl = content.homepage_url ?? content.website;
 const sourceUrl = content.source ? repositoryURL(content.source) : undefined;
 const licenseHref = licenseUrl(content.license);
 ---
@@ -58,17 +59,15 @@ const licenseHref = licenseUrl(content.license);
     <dd class="mt-1 break-all">
       <a
         data-preview-website
-        href={
-          isSafeHttpUrl(content.homepage_url) ? content.homepage_url : undefined
-        }
+        href={isSafeHttpUrl(homepageUrl) ? homepageUrl : undefined}
         target="_blank"
         rel="noopener noreferrer"
         class:list={[
           'underline-offset-4',
-          { underline: isSafeHttpUrl(content.homepage_url) },
+          { underline: isSafeHttpUrl(homepageUrl) },
         ]}
       >
-        {content.homepage_url || 'Not Available'}
+        {homepageUrl || 'Not Available'}
       </a>
     </dd>
   </div>

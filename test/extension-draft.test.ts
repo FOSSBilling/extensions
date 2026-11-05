@@ -7,6 +7,7 @@ import {
   serializeDraftConfig,
   type ExtensionDraft,
 } from '@/lib/extension-draft';
+import { ExtensionValidationError } from '@/lib/extension-form';
 import type { ExtensionUpdate } from '@/lib/api/client';
 
 export const base: ExtensionUpdate = {
@@ -230,7 +231,7 @@ describe('extension drafts', () => {
   ])('rejects invalid release sets: %j', (releases) => {
     expect(() =>
       applyExtensionDraft(base, { ...draft({}), ...releases }),
-    ).toThrow();
+    ).toThrow(ExtensionValidationError);
   });
   it.each([
     null,
@@ -239,7 +240,34 @@ describe('extension drafts', () => {
     { sections: { readme: { readme: '' } } },
     { sections: { details: { source_type: 'invalid' } } },
   ])('rejects invalid draft input: %j', (input) => {
-    expect(() => applyExtensionDraft(base, input)).toThrow();
+    expect(() => applyExtensionDraft(base, input)).toThrow(
+      ExtensionValidationError,
+    );
+  });
+  it('keeps overview requirements aligned with the latest release, including inherited PHP', () => {
+    const requires = { fossbilling: '>=0.8.0' };
+    const releases = [
+      ...base.releases,
+      { ...base.releases[0], tag: '2.0.0', requires },
+    ];
+    const result = applyExtensionDraft(base, { ...draft({}), releases });
+    expect(result.requires).toEqual(requires);
+    expect(result.requires).not.toHaveProperty('php');
+    expect(base.requires.php).toBe('>=8.3');
+  });
+  it('normalizes the latest release tag for the manifest version', () => {
+    const releases = [{ ...base.releases[0], tag: 'v2.0.0' }];
+    expect(applyExtensionDraft(base, { ...draft({}), releases }).version).toBe(
+      '2.0.0',
+    );
+  });
+  it('rejects alternate v-prefixed spellings of the same release', () => {
+    expect(() =>
+      applyExtensionDraft(base, {
+        ...draft({}),
+        releases: [base.releases[0], { ...base.releases[0], tag: 'v1.0.0' }],
+      }),
+    ).toThrow(ExtensionValidationError);
   });
   it('rejects impossible release dates and invalid URLs', () => {
     const fields = {
@@ -297,7 +325,7 @@ describe('extension drafts', () => {
 });
 
 describe('draft configuration embedded in HTML', () => {
-  it('preserves README HTML and script-like text when parsed in the browser', () => {
+  it('escapes < so README HTML cannot close the embedded script', () => {
     const config = {
       base: {
         readme:

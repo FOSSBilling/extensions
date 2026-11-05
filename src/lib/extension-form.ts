@@ -56,6 +56,14 @@ function moduleRequirements(input: string): Record<string, string> | undefined {
   return modules;
 }
 
+export function formatModuleRequirements(
+  modules?: Record<string, string>,
+): string {
+  return Object.entries(modules ?? {})
+    .map(([id, constraint]) => `${id}: ${constraint}`)
+    .join('\n');
+}
+
 export function buildRequirements(form: FormData) {
   const fossbilling = formString(form, 'requires_fossbilling');
   const php = formString(form, 'requires_php');
@@ -99,7 +107,11 @@ function buildContent(
     // collision — since it replaces the whole array verbatim on approval, a
     // collision would silently duplicate the entry. Catch both here instead
     // of only one of them surfacing as a 422 from the api.
-    if (releases.some((r) => r.tag === newReleaseTag)) {
+    if (
+      releases.some(
+        (r) => r.tag.replace(/^v/, '') === newReleaseTag.replace(/^v/, ''),
+      )
+    ) {
       throw new ExtensionValidationError(
         `A release tagged "${newReleaseTag}" already exists — use a different version tag.`,
       );
@@ -132,10 +144,7 @@ function buildContent(
 
   const latest = latestRelease(releases);
   if (latest) {
-    version =
-      latest.tag.replace(/^v/, '') === existing.version.replace(/^v/, '')
-        ? existing.version
-        : latest.tag;
+    version = latest.tag.replace(/^v(?=\d)/, '');
     downloadUrl = latest.download_url;
   }
 
@@ -144,7 +153,7 @@ function buildContent(
   const source = repositoryFromFields(sourceFields);
   if (!source)
     throw new ExtensionValidationError(
-      'Enter a valid HTTP or HTTPS Source URL.',
+      'Enter a valid Source URL. Repository paths and custom URLs must be at most 500 characters.',
     );
   if (!isExtensionType(typeInput)) {
     throw new ExtensionValidationError('Choose a valid extension type.');

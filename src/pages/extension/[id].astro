@@ -25,6 +25,8 @@ try {
 } catch (error) {
   if (error instanceof ApiRequestError && error.status === 404)
     return Astro.rewrite('/404');
+  if (!(error instanceof ApiRequestError))
+    console.error('[extension] Unable to load extension details:', error);
   detailError =
     error instanceof ApiRequestError
       ? getApiErrorMessage(error)
@@ -35,7 +37,9 @@ try {
 const ext = view?.kind === 'public' ? view.extension : undefined;
 const metadata =
   view?.kind === 'owner'
-    ? (view.owned.published ?? view.owned.pending_revision?.content)
+    ? Astro.url.searchParams.get('version') === 'published'
+      ? (view.owned.published ?? view.owned.pending_revision?.content)
+      : (view.owned.pending_revision?.content ?? view.owned.published)
     : ext;
 const name = metadata?.name ?? id;
 // Truncate on code points to avoid splitting a Unicode surrogate pair.

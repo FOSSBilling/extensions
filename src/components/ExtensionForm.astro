@@ -5,6 +5,7 @@ import { CircleAlert, SquarePen, ChevronDown } from '@lucide/astro';
 import { stripUrlScheme } from '@/lib/url-prefix';
 import {
   OTHER_LICENSE,
+  formatModuleRequirements,
   type ExtensionFormEcho,
   type ReleaseDraft,
 } from '@/lib/extension-form';
@@ -306,7 +307,7 @@ const otherSpdxIds = SPDX_LICENSE_IDS.filter((id) => !popularSpdxIds.has(id));
               id="requires_modules"
               name="requires_modules"
               placeholder="branding: ^1.2"
-            >{echo?.moduleRequirementsInput ?? Object.entries(shown?.requires.modules ?? {}).map(([id, range]) => `${id}: ${range}`).join('\n')}</textarea>
+            >{echo?.moduleRequirementsInput ?? formatModuleRequirements(shown?.requires.modules)}</textarea>
             <p class="text-muted-foreground">
               One module-id: constraint per line.
             </p>
@@ -424,7 +425,7 @@ const otherSpdxIds = SPDX_LICENSE_IDS.filter((id) => !popularSpdxIds.has(id));
               id="source_url"
               name="source_url"
               required
-              maxlength="2000"
+              maxlength="2048"
               value={shown ? repositoryURL(shown.source) : ''}
               placeholder="https://github.com/owner/project"
             />
@@ -547,7 +548,7 @@ const otherSpdxIds = SPDX_LICENSE_IDS.filter((id) => !popularSpdxIds.has(id));
                 id="correction_note"
                 name="correction_note"
                 required
-                maxlength="2000"
+                maxlength="2048"
                 rows="2"
                 placeholder="What was wrong with the live listing"
               >{correctionNote}</textarea>

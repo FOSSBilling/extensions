@@ -41,13 +41,32 @@ describe('Source URL detection', () => {
     'javascript:alert(1)',
     'ftp://example.test/project',
     'https://user:secret@github.com/owner/project',
+  ])('rejects an invalid or ambiguous source: %s', (input) => {
+    expect(parseRepositoryUrl(input)).toBeNull();
+  });
+  it.each([
     'https://github.com/owner',
     'https://github.com/owner/project/tree/main',
     'https://gitlab.com/group/project/-/tree/main',
     'https://github.com/owner/%2fproject',
     'https://github.com/owner/.git',
-  ])('rejects an invalid or ambiguous source: %s', (input) => {
-    expect(parseRepositoryUrl(input)).toBeNull();
+  ])('preserves non-repository host paths as custom sources: %s', (url) => {
+    expect(parseRepositoryUrl(url)).toEqual({ type: 'custom', repo: url });
+  });
+  it('enforces the stored repository limit after host detection', () => {
+    const prefix = 'https://code.example.test/';
+    expect(
+      parseRepositoryUrl(prefix + 'a'.repeat(500 - prefix.length))?.repo,
+    ).toHaveLength(500);
+    expect(
+      parseRepositoryUrl(prefix + 'a'.repeat(501 - prefix.length)),
+    ).toBeNull();
+    const repo = 'owner/' + 'a'.repeat(494);
+    expect(parseRepositoryUrl('https://github.com/' + repo)).toEqual({
+      type: 'github',
+      repo,
+    });
+    expect(parseRepositoryUrl('https://github.com/' + repo + 'a')).toBeNull();
   });
   it('reads older draft fields while detecting the host from a new URL when supplied', () => {
     expect(

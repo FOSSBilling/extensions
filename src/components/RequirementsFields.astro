@@ -1,4 +1,5 @@
 ---
+import { formatModuleRequirements } from '@/lib/extension-form';
 import type { Requirements } from '@/types';
 interface Props {
   requires?: Requirements;
@@ -39,5 +40,5 @@ const { requires } = Astro.props;
     name="requires_modules"
     rows="3"
     placeholder="branding: ^1.2"
-  >{Object.entries(requires?.modules ?? {}).map(([id, constraint]) => `${id}: ${constraint}`).join('\n')}</textarea>
+  >{formatModuleRequirements(requires?.modules)}</textarea>
 </label>

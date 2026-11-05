@@ -15,6 +15,8 @@ export function parseRepositoryUrl(value: string): Repository | null {
     url.password
   )
     return null;
+  const custom = (): Repository | null =>
+    url.href.length <= 500 ? { type: 'custom', repo: url.href } : null;
   const host = url.hostname.toLowerCase().replace(/^www\./, '');
   if (!url.port && (host === 'github.com' || host === 'gitlab.com')) {
     let parts: string[];
@@ -28,20 +30,21 @@ export function parseRepositoryUrl(value: string): Repository | null {
       (host === 'github.com' && parts.length !== 2) ||
       parts.includes('-')
     )
-      return null;
+      return custom();
     parts[parts.length - 1] = parts[parts.length - 1].replace(/\.git$/i, '');
     if (
       parts.some(
         (part) => !/^[\w.-]+$/.test(part) || part === '.' || part === '..',
       )
     )
-      return null;
+      return custom();
+    if (parts.join('/').length > 500) return null;
     return {
       type: host === 'github.com' ? 'github' : 'gitlab',
       repo: parts.join('/'),
     };
   }
-  return { type: 'custom', repo: url.href };
+  return custom();
 }
 
 // Read older browser drafts and cached forms without retaining a host picker.

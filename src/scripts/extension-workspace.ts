@@ -4,6 +4,7 @@ import {
   type ExtensionDraft,
   type DraftSection,
 } from '@/lib/extension-draft';
+import { formatModuleRequirements } from '@/lib/extension-form';
 import { latestRelease, releasesDescending } from '@/lib/releases';
 import type { ExtensionUpdate } from '@/lib/api/client';
 import { EXTENSION_TYPE_LABELS, repositoryURL } from '@/types';
@@ -138,9 +139,31 @@ export function initExtensionWorkspace() {
   function refresh() {
     const current = content();
     if (headerName) headerName.textContent = current.name || fallbackName;
+    const latest = latestRelease(current.releases);
+    const version = latest?.tag ?? current.version;
+    const headerVersion = document.querySelector<HTMLElement>(
+      '[data-extension-version]',
+    );
+    if (headerVersion) {
+      headerVersion.hidden = !version;
+      const value = headerVersion.querySelector<HTMLElement>(
+        '[data-extension-version-value]',
+      );
+      if (value)
+        value.textContent = /^\d/.test(version) ? `v${version}` : version;
+    }
+    const downloadUrl = latest?.download_url ?? current.download_url;
+    const headerDownload = document.querySelector<HTMLAnchorElement>(
+      '[data-extension-download]',
+    );
+    if (headerDownload) {
+      headerDownload.hidden = !isSafeHttpUrl(downloadUrl);
+      if (isSafeHttpUrl(downloadUrl)) headerDownload.href = downloadUrl;
+      else headerDownload.removeAttribute('href');
+    }
     text('[data-preview-description]', current.description);
     text('[data-preview-type]', EXTENSION_TYPE_LABELS[current.type]);
-    text('[data-preview-website]', current.homepage_url ?? '');
+    text('[data-preview-website]', current.homepage_url || 'Not Available');
     const websiteLink = find<HTMLAnchorElement>('[data-preview-website]');
     if (websiteLink) {
       const safe = isSafeHttpUrl(current.homepage_url ?? '');
@@ -332,9 +355,7 @@ export function initExtensionWorkspace() {
       changelog_url: release?.changelog_url ?? '',
       requires_fossbilling: release?.requires.fossbilling ?? '',
       requires_php: release?.requires.php ?? '',
-      requires_modules: Object.entries(release?.requires.modules ?? {})
-        .map(([id, constraint]) => `${id}: ${constraint}`)
-        .join('\n'),
+      requires_modules: formatModuleRequirements(release?.requires.modules),
     });
     find('[data-release-form-title]').textContent = tag
       ? 'Edit Release'
@@ -467,10 +488,19 @@ export function initExtensionWorkspace() {
       const current = content();
       if (
         current.releases.some(
-          (item) => item.tag === release.tag && item.tag !== input.original_tag,
+          (item) =>
+            item.tag.replace(/^v/, '') === release.tag.replace(/^v/, '') &&
+            item.tag !== input.original_tag,
         )
       )
         throw new Error(`A release tagged "${release.tag}" already exists.`);
+      if (
+        input.original_tag &&
+        !current.releases.some((item) => item.tag === input.original_tag)
+      )
+        throw new Error(
+          'This release was removed from the draft. Close the editor and choose another release.',
+        );
       const releases = input.original_tag
         ? current.releases.map((item) =>
             item.tag === input.original_tag ? release : item,
@@ -546,7 +576,7 @@ export function initExtensionWorkspace() {
       stored = false;
       unsaved.clear();
       const next = new URL(window.location.href);
-      next.search = '?version=pending';
+      next.searchParams.set('version', 'pending');
       next.hash = '';
       window.location.assign(next.href);
     } catch (cause) {

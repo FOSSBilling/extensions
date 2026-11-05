@@ -46,6 +46,13 @@ describe('personalized extension HTML caching', () => {
     if (!response) throw new Error('Expected a response');
     expect(response.headers.get('Cache-Control')).toBe('private, no-store');
     expect(response.headers.get('X-Frame-Options')).toBe('DENY');
+    expect(response.headers.get('Cloudflare-CDN-Cache-Control')).toBe(
+      'no-store',
+    );
+    expect(response.status).toBe(302);
+    expect(response.headers.get('Location')).toBe(
+      'https://extensions.example.test/account',
+    );
   });
   it('preserves catalogue page caching', async () => {
     const response = await onRequest(

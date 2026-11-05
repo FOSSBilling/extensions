@@ -200,7 +200,7 @@ function applySourceAndLicense(
   const source = repositoryFromFields(raw);
   if (!source)
     throw new ExtensionValidationError(
-      'Enter a valid HTTP or HTTPS Source URL.',
+      'Enter a valid Source URL. Repository paths and custom URLs must be at most 500 characters.',
     );
   result.source = source;
   result.license = buildLicense(toFormData(raw));
@@ -294,11 +294,11 @@ export function applyExtensionDraft(
                       .join('\n')
                   : '',
             });
-      if (tags.has(release.tag))
+      if (tags.has(release.tag.replace(/^v/, '')))
         throw new ExtensionValidationError(
           `A release tagged "${release.tag}" already exists.`,
         );
-      tags.add(release.tag);
+      tags.add(release.tag.replace(/^v/, ''));
       return release;
     });
   }
@@ -307,10 +307,13 @@ export function applyExtensionDraft(
   if (Object.keys(value.sections).length || value.releases !== undefined) {
     const latest = latestRelease(result.releases);
     if (latest) {
-      result.version =
-        latest.tag.replace(/^v/, '') === base.version.replace(/^v/, '')
-          ? base.version
-          : latest.tag;
+      // The overview describes the latest package. Keep its requirements in
+      // sync with release edits, including removal of an extra PHP constraint.
+      if (value.releases !== undefined)
+        result.requires = structuredClone(latest.requires);
+      else if ('listing' in value.sections)
+        latest.requires = structuredClone(result.requires);
+      result.version = latest.tag.replace(/^v(?=\d)/, '');
       result.download_url = latest.download_url;
     }
   }

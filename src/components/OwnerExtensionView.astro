@@ -42,9 +42,9 @@ const rebuilding = !revisionError && !editableContent(content);
 const editable =
   editableContent(content) ??
   (rebuilding ? reconstructionContent(content) : null);
+const canEdit = (!pending || showSubmission) && Boolean(editable);
 const managingReleases = Astro.url.searchParams.get('view') === 'releases';
 const name = content?.name ?? published?.name ?? id;
-const selectedVersion = content?.version;
 const previewLabel = showSubmission
   ? 'Pending Version'
   : published
@@ -56,7 +56,6 @@ const previewLabel = showSubmission
   id={id}
   content={{ ...content, name }}
   developer={owned.developer}
-  version={selectedVersion}
   versionLabel={previewLabel}
   backHref="/account"
   backLabel="Your Extensions"
@@ -137,7 +136,7 @@ const previewLabel = showSubmission
     />
   </details>
 )}
-{rebuilding && (
+{rebuilding && canEdit && (
   <div class="alert">
     <h2>Rebuild Your Submission</h2>
     <section>
@@ -189,7 +188,11 @@ const previewLabel = showSubmission
     <h2>Unable to Load Submission</h2>
     <section>{revisionError}</section>
     <footer>
-      <a href={Astro.url.pathname} class="btn" data-variant="outline">
+      <a
+        href={`${Astro.url.pathname}${Astro.url.search}`}
+        class="btn"
+        data-variant="outline"
+      >
         Try Again
       </a>
     </footer>
@@ -202,7 +205,7 @@ const previewLabel = showSubmission
     selectedVersion={showSubmission ? 'pending' : 'published'}
     editor={{
       userId,
-      canEdit: (!pending || showSubmission) && Boolean(editable),
+      canEdit,
       pendingEditUrl:
         pending && !showSubmission
           ? `/extension/${id}?${managingReleases ? 'view=releases&' : ''}version=pending`

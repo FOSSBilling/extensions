@@ -129,6 +129,20 @@ describe('manifest publishing forms', () => {
     expect(body.releases[1].requires.php).toBe('>=8.4');
     expect(body.version).toBe('1.1.0');
   });
+  it('normalizes v-prefixed latest versions and rejects duplicate tag spellings', () => {
+    expect(
+      buildExtensionUpdatePayload(
+        extensionForm({ version_tag: 'v2.0.0' }),
+        published,
+      ).version,
+    ).toBe('2.0.0');
+    expect(() =>
+      buildExtensionUpdatePayload(
+        extensionForm({ version_tag: 'v1.0.0' }),
+        published,
+      ),
+    ).toThrow(ExtensionValidationError);
+  });
   it('rejects duplicate tags and overflowing release history', () => {
     expect(() =>
       buildExtensionUpdatePayload(extensionForm(), published),

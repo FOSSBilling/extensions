@@ -118,7 +118,7 @@ const { section, content } = Astro.props;
         type="url"
         name="source_url"
         required
-        maxlength="2000"
+        maxlength="2048"
         value={content.source.repo ? repositoryURL(content.source) : ''}
         placeholder="https://github.com/owner/project"
       />
@@ -148,8 +148,12 @@ const { section, content } = Astro.props;
       <input
         class="input w-full"
         name="license_name_custom"
-        value={content.license}
-        maxlength="100"
+        value={
+          SPDX_LICENSE_IDS.includes(content.license)
+            ? undefined
+            : content.license
+        }
+        maxlength="1000"
       />
     </label>
   </>
