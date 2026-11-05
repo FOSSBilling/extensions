@@ -142,6 +142,7 @@ export function initExtensionWorkspace() {
     const current = content();
     if (headerName) headerName.textContent = current.name || fallbackName;
     const latest = latestRelease(current.releases);
+    const requires = latest?.requires ?? current.requires;
     const version = latest?.tag ?? current.version;
     const headerVersion = document.querySelector<HTMLElement>(
       '[data-extension-version]',
@@ -212,11 +213,9 @@ export function initExtensionWorkspace() {
     text(
       '[data-preview-requirements]',
       [
-        `FOSSBilling ${compatibilityLabel(current.requires.fossbilling)}`,
-        ...(current.requires.php
-          ? [`PHP ${compatibilityLabel(current.requires.php)}`]
-          : []),
-        ...Object.entries(current.requires.modules ?? {}).map(
+        `FOSSBilling ${compatibilityLabel(requires.fossbilling)}`,
+        ...(requires.php ? [`PHP ${compatibilityLabel(requires.php)}`] : []),
+        ...Object.entries(requires.modules ?? {}).map(
           ([id, constraint]) => `${id}: ${constraint}`,
         ),
       ].join('\n'),

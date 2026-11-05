@@ -1,4 +1,5 @@
 ---
+import { latestRelease } from '@/lib/releases';
 import { compatibilityLabel } from '@/lib/requirements';
 import type { StoredExtensionFields } from '@/lib/extensions-data';
 import { EXTENSION_TYPE_LABELS, repositoryURL, isExtensionType } from '@/types';
@@ -23,6 +24,8 @@ interface Props {
 }
 const { content, showIconUrl = false, developerName } = Astro.props;
 const homepageUrl = content.homepage_url ?? content.website;
+const requires =
+  latestRelease(content.releases ?? [])?.requires ?? content.requires;
 const sourceUrl = content.source ? repositoryURL(content.source) : undefined;
 const licenseHref = licenseUrl(content.license);
 ---
@@ -171,19 +174,19 @@ const licenseHref = licenseUrl(content.license);
       </a>
     </dd>
   </div>
-  <div data-requirements-detail hidden={!content.requires}>
+  <div data-requirements-detail hidden={!requires}>
     <dt class="flex items-center gap-2 text-xs text-muted-foreground">
       <CircleCheck class="size-3.5" aria-hidden="true" />
       Compatibility
     </dt>
     <dd class="mt-1 whitespace-pre-line" data-preview-requirements>
-      {content.requires
+      {requires
         ? [
-            `FOSSBilling ${compatibilityLabel(content.requires.fossbilling)}`,
-            ...(content.requires.php
-              ? [`PHP ${compatibilityLabel(content.requires.php)}`]
+            `FOSSBilling ${compatibilityLabel(requires.fossbilling)}`,
+            ...(requires.php
+              ? [`PHP ${compatibilityLabel(requires.php)}`]
               : []),
-            ...Object.entries(content.requires.modules ?? {}).map(
+            ...Object.entries(requires.modules ?? {}).map(
               ([id, constraint]) => `${id}: ${constraint}`,
             ),
           ].join('\n')

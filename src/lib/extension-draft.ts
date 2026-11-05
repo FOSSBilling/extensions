@@ -238,7 +238,6 @@ export function applyExtensionDraft(
         name: required(raw, 'author_name', 'Author name'),
         url: url(raw, 'author_url', 'author URL', true),
       };
-      result.requires = buildRequirements(toFormData(raw));
       if (
         [
           'source_url',
@@ -307,10 +306,8 @@ export function applyExtensionDraft(
   if (Object.keys(value.sections).length || value.releases !== undefined) {
     const latest = latestRelease(result.releases);
     if (latest) {
-      // The overview describes the latest package. Keep its requirements in
-      // sync with release edits, including removal of an extra PHP constraint.
-      if (value.releases !== undefined)
-        result.requires = structuredClone(latest.requires);
+      // Keep the manifest aligned with its latest release.
+      result.requires = structuredClone(latest.requires);
       result.version = latest.tag.replace(/^v(?=\d)/, '');
       result.download_url = latest.download_url;
     }

@@ -244,7 +244,7 @@ describe('extension drafts', () => {
       ExtensionValidationError,
     );
   });
-  it('does not rewrite release requirements when editing only the overview', () => {
+  it('derives overview compatibility from releases without rewriting their requirements', () => {
     const requires = { fossbilling: '^0.8.9 || ^1.0', php: '>=8.3 <9' };
     const manifest = { ...base, requires };
     const result = applyExtensionDraft(
@@ -260,7 +260,7 @@ describe('extension drafts', () => {
         },
       }),
     );
-    expect(result.requires).toEqual(requires);
+    expect(result.requires).toEqual(base.releases[0].requires);
     expect(result.releases).toEqual(base.releases);
   });
   it('keeps overview requirements aligned with the latest release, including inherited PHP', () => {
@@ -359,21 +359,24 @@ describe('draft configuration embedded in HTML', () => {
 
 describe('manifest fields in section drafts', () => {
   it('preserves opaque requirements and author attribution across unrelated edits', () => {
+    const requires = {
+      fossbilling: '^0.8.9 || ^1.0',
+      php: '>=8.3 <9',
+      modules: { branding: '^1.2' },
+    };
     const manifest = {
       ...base,
       author: { name: 'Package Author', url: 'https://author.example.test' },
-      requires: {
-        fossbilling: '^0.8.9 || ^1.0',
-        php: '>=8.3 <9',
-        modules: { branding: '^1.2' },
-      },
+      requires,
+      releases: base.releases.map((release) => ({ ...release, requires })),
     };
     const result = applyExtensionDraft(
       manifest,
       draft({ readme: { readme: '# Revised' } }),
     );
     expect(result.author).toEqual(manifest.author);
-    expect(result.requires).toEqual(manifest.requires);
+    expect(result.requires).toEqual(requires);
+    expect(result.releases).toEqual(manifest.releases);
   });
   it('saves release-specific requirements without rewriting constraints', () => {
     const release = releaseFromFields({

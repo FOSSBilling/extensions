@@ -7,7 +7,6 @@ import {
   EXTENSION_TYPE_LABELS,
   repositoryURL,
 } from '@/types';
-import RequirementsFields from './RequirementsFields.astro';
 import { OTHER_LICENSE } from '@/lib/extension-form';
 interface Props {
   section: DraftSection;
@@ -89,7 +88,9 @@ const { section, content } = Astro.props;
         value={content.author.url}
       />
     </label>
-    <RequirementsFields requires={content.requires} />
+    <p class="text-xs text-muted-foreground">
+      Manage compatibility for each version in the Releases tab.
+    </p>
   </>
 )}
 {section === 'readme' && (
