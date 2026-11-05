@@ -36,7 +36,7 @@ https://api.fossbilling.net/extensions/v2/extensions/branding/badges/fossbilling
 https://api.fossbilling.net/extensions/v2/extensions/branding/badges/license
 ```
 
-Replace `branding` with your extension ID. The `fossbilling` badge shows the full requirement, such as `>=0.8.9 <1.0 || ^2.0`. Use `?color=green` to change the color. Existing v1 URLs still work, but minimum-version badges cannot show the full range.
+Replace `branding` with your extension ID. The `fossbilling` badge shows the full requirement, such as `>=0.8.9 <1.0 || ^2.0`. Use `?color=green` to change the color. Legacy v1 badge URLs are supported until **5 February 2027** and now display the corresponding v2 badge, including the full version requirement.
 
 ## Contributing
 
