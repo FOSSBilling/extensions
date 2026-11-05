@@ -7,7 +7,7 @@
   },
   "servers": [
     {
-      "url": "/v2"
+      "url": "/extensions/v2"
     }
   ],
   "components": {

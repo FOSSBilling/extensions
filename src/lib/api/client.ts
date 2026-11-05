@@ -246,7 +246,7 @@ function createApiTransport(env: ApplicationEnv, subject?: string): Client {
   const baseUrl = env.extensionsApi.baseUrl.replace(/\/$/, '');
 
   return createClient({
-    baseUrl: `${baseUrl}/v2`,
+    baseUrl: `${baseUrl}/extensions/v2`,
     fetch: env.extensionsApi.fetch,
     ...(subject
       ? {
@@ -500,7 +500,7 @@ export function createApiClient(env: ApplicationEnv, subject: string) {
       );
       const baseUrl = env.extensionsApi.baseUrl.replace(/\/$/, '');
       const response = await env.extensionsApi.fetch(
-        new Request(`${baseUrl}/v2/users/me/identity`, {
+        new Request(`${baseUrl}/extensions/v2/users/me/identity`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',

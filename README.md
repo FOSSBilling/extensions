@@ -31,9 +31,9 @@ Your [account profile](https://extensions.fossbilling.org/account/profile) (disp
 The [`FOSSBilling/api`](https://github.com/FOSSBilling/api) repo serves badges for use in READMEs and project pages:
 
 ```text
-https://api.fossbilling.net/v2/extensions/branding/badges/version
-https://api.fossbilling.net/v2/extensions/branding/badges/fossbilling
-https://api.fossbilling.net/v2/extensions/branding/badges/license
+https://api.fossbilling.net/extensions/v2/extensions/branding/badges/version
+https://api.fossbilling.net/extensions/v2/extensions/branding/badges/fossbilling
+https://api.fossbilling.net/extensions/v2/extensions/branding/badges/license
 ```
 
 Replace `branding` with your extension ID. The `fossbilling` badge shows the full requirement, such as `>=0.8.9 <1.0 || ^2.0`. Use `?color=green` to change the color. Existing v1 URLs still work, but minimum-version badges cannot show the full range.
@@ -46,7 +46,7 @@ For broader discussion, join the FOSSBilling community on [Discord](https://foss
 
 ## Local Development
 
-Astro site on Cloudflare Workers. Extension data comes from the [`FOSSBilling/api`](https://github.com/FOSSBilling/api) repo's `/v2` service via the generated client in `src/lib/api/generated/extensions-v2`. Sign-in is delegated to `auth.fossbilling.net` via OAuth2/OIDC.
+Astro site on Cloudflare Workers. Extension data comes from the [`FOSSBilling/api`](https://github.com/FOSSBilling/api) repo's `/extensions/v2` service via the generated client in `src/lib/api/generated/extensions-v2`. Sign-in is delegated to `auth.fossbilling.net` via OAuth2/OIDC.
 
 Install dependencies:
 
