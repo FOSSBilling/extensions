@@ -30,6 +30,7 @@ import {
   deleteUsersMe,
   putDevelopersMe,
   putExtensionsById,
+  putExtensionsByIdRevisionsByRevisionId,
   type Developer,
   type DeveloperApproval,
   type DeveloperHistoryEntry,
@@ -558,6 +559,19 @@ export function createApiClient(env: ApplicationEnv, subject: string) {
 
     updateExtension: (id: string, payload: ExtensionUpdate) =>
       callResult(putExtensionsById({ client, path: { id }, body: payload })),
+
+    replacePendingRevision: (
+      id: string,
+      revisionId: string,
+      payload: ExtensionUpdate,
+    ) =>
+      callResult(
+        putExtensionsByIdRevisionsByRevisionId({
+          client,
+          path: { id, revisionId },
+          body: payload,
+        }),
+      ),
 
     withdrawExtension: (id: string) =>
       callResult(deleteExtensionsById({ client, path: { id } })),

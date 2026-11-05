@@ -1,10 +1,8 @@
 ---
-// Server Island: the only per-user markup in the public page chrome. Every
-// page that includes this stays free of session-dependent HTML, which is
-// what makes route-level CDN caching (see routeRules in astro.config.mjs)
-// safe. The component reads the session cookie itself, so it takes no props
-// and needs no ASTRO_KEY. Basecoat's MutationObserver-initialized registry
-// wires up the dropdown menu when this fragment is inserted.
+// Server Island: personal account chrome stays separate from cached extension directory
+// HTML. Permission-aware extension pages render their body privately as well.
+// The component reads its own session cookie, so it takes no props and needs
+// no ASTRO_KEY. Basecoat's MutationObserver wires up the inserted dropdown.
 import { CircleUser, LogIn, LogOut, ShieldUser, User } from '@lucide/astro';
 import { getSessionUser } from '@/lib/session';
 

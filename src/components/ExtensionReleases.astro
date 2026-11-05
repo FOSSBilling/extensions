@@ -1,0 +1,100 @@
+---
+import { compatibilityLabel } from '@/lib/requirements';
+import type { Release } from '@/types';
+import { latestRelease, releasesDescending } from '@/lib/releases';
+import { isSafeHttpUrl } from '@/lib/safe-url';
+interface Props {
+  releases: Release[];
+  editable: boolean;
+  disabledReason?: string;
+  showActions?: boolean;
+}
+const { releases, editable, disabledReason, showActions = true } = Astro.props;
+const latest = latestRelease(releases);
+---
+
+<ul data-release-list class="divide-y">
+  {releasesDescending(releases).map((release) => (
+    <li class="flex flex-wrap items-center justify-between gap-4 p-5 sm:px-6">
+      <div class="min-w-0 max-w-full">
+        <p class="text-sm font-semibold">
+          {release.tag}
+          {release.tag === latest?.tag ? ' · Latest Version' : ''}
+        </p>
+        <p class="mt-1 text-xs text-muted-foreground">
+          {release.date} · FOSSBilling{' '}
+          {compatibilityLabel(release.requires.fossbilling)}
+          {release.requires.php
+            ? ` · PHP ${compatibilityLabel(release.requires.php)}`
+            : ''}
+        </p>
+        <p class="mt-2 max-w-xl text-xs text-muted-foreground">
+          <a
+            href={
+              isSafeHttpUrl(release.download_url)
+                ? release.download_url
+                : undefined
+            }
+            target="_blank"
+            rel="noopener noreferrer"
+            class:list={[
+              'break-all underline-offset-4',
+              { underline: isSafeHttpUrl(release.download_url) },
+            ]}
+          >
+            {release.download_url}
+          </a>
+          {release.changelog_url && isSafeHttpUrl(release.changelog_url) && (
+            <span class="whitespace-nowrap">
+              <span aria-hidden="true">{' | '}</span>
+              <a
+                href={release.changelog_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="underline underline-offset-4"
+                aria-label={`Changelog for ${release.tag}`}
+              >
+                Changelog
+              </a>
+            </span>
+          )}
+        </p>
+      </div>
+      {showActions && (
+        <div class="flex flex-wrap gap-2">
+          <button
+            type="button"
+            class="btn"
+            data-variant="outline"
+            data-size="sm"
+            disabled={!editable}
+            title={!editable ? disabledReason : undefined}
+            aria-label={`Edit Release ${release.tag}`}
+          >
+            Edit
+          </button>
+          {editable && (
+            <button
+              type="button"
+              class="btn"
+              data-variant="destructive"
+              data-size="sm"
+              disabled={releases.length === 1}
+              title={
+                releases.length === 1 ? 'Keep at least one release.' : undefined
+              }
+              aria-label={`Remove Release ${release.tag}`}
+            >
+              Remove
+            </button>
+          )}
+        </div>
+      )}
+    </li>
+  ))}
+</ul>
+{releases.length === 0 && (
+  <p data-release-empty class="p-6 text-sm text-muted-foreground">
+    No releases are available for this version.
+  </p>
+)}

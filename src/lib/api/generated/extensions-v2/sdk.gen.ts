@@ -114,6 +114,9 @@ import type {
   PutExtensionsByIdData,
   PutExtensionsByIdErrors,
   PutExtensionsByIdResponses,
+  PutExtensionsByIdRevisionsByRevisionIdData,
+  PutExtensionsByIdRevisionsByRevisionIdErrors,
+  PutExtensionsByIdRevisionsByRevisionIdResponses,
   PutM2mClientsByClientIdData,
   PutM2mClientsByClientIdErrors,
   PutM2mClientsByClientIdResponses,
@@ -241,28 +244,6 @@ export const putExtensionsById = <ThrowOnError extends boolean = false>(
   });
 
 /**
- * List an extension's revisions, newest first
- */
-export const getExtensionsByIdRevisions = <
-  ThrowOnError extends boolean = false,
->(
-  options: Options<GetExtensionsByIdRevisionsData, ThrowOnError>,
-): RequestResult<
-  GetExtensionsByIdRevisionsResponses,
-  GetExtensionsByIdRevisionsErrors,
-  ThrowOnError
-> =>
-  (options.client ?? client).get<
-    GetExtensionsByIdRevisionsResponses,
-    GetExtensionsByIdRevisionsErrors,
-    ThrowOnError
-  >({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/extensions/{id}/revisions',
-    ...options,
-  });
-
-/**
  * Read one revision; compacted content is null
  */
 export const getExtensionsByIdRevisionsByRevisionId = <
@@ -281,6 +262,56 @@ export const getExtensionsByIdRevisionsByRevisionId = <
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/extensions/{id}/revisions/{revisionId}',
+    ...options,
+  });
+
+/**
+ * Replace a pending submission for an extension the caller owns
+ *
+ * The active owner can replace publisher-created submissions. The replacement records the owner as submitter.
+ */
+export const putExtensionsByIdRevisionsByRevisionId = <
+  ThrowOnError extends boolean = false,
+>(
+  options: Options<PutExtensionsByIdRevisionsByRevisionIdData, ThrowOnError>,
+): RequestResult<
+  PutExtensionsByIdRevisionsByRevisionIdResponses,
+  PutExtensionsByIdRevisionsByRevisionIdErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).put<
+    PutExtensionsByIdRevisionsByRevisionIdResponses,
+    PutExtensionsByIdRevisionsByRevisionIdErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/extensions/{id}/revisions/{revisionId}',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+
+/**
+ * List an extension's revisions, newest first
+ */
+export const getExtensionsByIdRevisions = <
+  ThrowOnError extends boolean = false,
+>(
+  options: Options<GetExtensionsByIdRevisionsData, ThrowOnError>,
+): RequestResult<
+  GetExtensionsByIdRevisionsResponses,
+  GetExtensionsByIdRevisionsErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    GetExtensionsByIdRevisionsResponses,
+    GetExtensionsByIdRevisionsErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/extensions/{id}/revisions',
     ...options,
   });
 

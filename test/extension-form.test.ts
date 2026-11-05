@@ -24,8 +24,7 @@ function extensionForm(overrides: Record<string, string | undefined> = {}) {
     requires_modules: 'branding: ^1.2',
     license_spdx_id: 'MIT',
     readme: '# Example',
-    source_type: 'github',
-    source_repo: 'fossbilling/example',
+    source_url: 'https://github.com/fossbilling/example',
     version_tag: '1.0.0',
     release_date: '2026-01-01',
     download_url: 'example.test/example.zip',
@@ -129,6 +128,20 @@ describe('manifest publishing forms', () => {
     expect(body.releases[1].requires.php).toBe('>=8.4');
     expect(body.version).toBe('1.1.0');
   });
+  it('normalizes v-prefixed latest versions and rejects duplicate tag spellings', () => {
+    expect(
+      buildExtensionUpdatePayload(
+        extensionForm({ version_tag: 'v2.0.0' }),
+        published,
+      ).version,
+    ).toBe('2.0.0');
+    expect(() =>
+      buildExtensionUpdatePayload(
+        extensionForm({ version_tag: 'v1.0.0' }),
+        published,
+      ),
+    ).toThrow(ExtensionValidationError);
+  });
   it('rejects duplicate tags and overflowing release history', () => {
     expect(() =>
       buildExtensionUpdatePayload(extensionForm(), published),
@@ -191,13 +204,19 @@ describe('manifest publishing forms', () => {
       buildExtensionCreatePayload(extensionForm({ icon_url })),
     ).toThrow(ExtensionValidationError);
   });
+  it('inherits FOSSBilling PHP requirements when no additional constraint is set', () => {
+    const body = buildExtensionCreatePayload(
+      extensionForm({ requires_php: '' }),
+    );
+    expect(body.requires).not.toHaveProperty('php');
+    expect(body.releases[0].requires).not.toHaveProperty('php');
+  });
   it('validates required metadata and dependency syntax without losing ranges', () => {
     for (const overrides of [
       { author_name: '' },
-      { requires_php: '' },
       { requires_fossbilling: '' },
       { type: 'mod' },
-      { source_type: 'ftp' },
+      { source_url: 'ftp://example.test/source' },
       { requires_modules: 'bad/name: ^1' },
       { requires_modules: 'branding: ^1\nbranding: ^2' },
     ] satisfies Record<string, string>[])
@@ -261,4 +280,11 @@ it('safely echoes blank new-extension and release submissions', () => {
     author: { name: '' },
   });
   expect(echo.releaseDraft).toEqual(echoReleaseDraftFromForm(form));
+});
+
+it('infers the source host from the single URL field', () => {
+  const payload = buildExtensionCreatePayload(
+    extensionForm({ source_url: 'https://gitlab.com/example/source' }),
+  );
+  expect(payload.source).toEqual({ type: 'gitlab', repo: 'example/source' });
 });

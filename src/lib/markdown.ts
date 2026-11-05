@@ -2,7 +2,8 @@ import { marked } from 'marked';
 import sanitizeHtml from 'sanitize-html';
 
 // The site's single markdown pipeline, so moderators preview exactly what
-// the public directory renders (see Overview.astro). Readme content is
+// the public extension directory renders (see ExtensionWorkspace.astro).
+// Readme content is
 // untrusted author input rendered in other users' sessions — always sanitize,
 // never inject marked output directly.
 const SANITIZE_OPTIONS: sanitizeHtml.IOptions = {

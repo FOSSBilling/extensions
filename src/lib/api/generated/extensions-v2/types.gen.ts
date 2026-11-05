@@ -139,16 +139,21 @@ export type ExtensionDetailResponse = {
 export type Extension = ExtensionContent & {
   name?: string;
   description?: string;
+  homepage_url?: string;
   license?: string;
   icon_url?: string;
   version?: string;
+  download_url?: string;
   id: string;
   developer: PublicDeveloper;
 };
 
 export type ManifestRequirements = {
   fossbilling: string;
-  php: string;
+  /**
+   * Additional PHP constraint; when omitted, FOSSBilling runtime requirements apply
+   */
+  php?: string;
   modules?: {
     [key: string]: string;
   };
@@ -202,9 +207,11 @@ export type OwnedExtension = OwnedExtensionListItem & {
           min_fossbilling_version?: string;
         }
       >;
+      homepage_url?: string;
       license?: string;
       icon_url?: string;
       version?: string;
+      download_url?: string;
     } | null);
   pending_revision?: PendingRevisionRef &
     ({
@@ -572,7 +579,7 @@ export type GetExtensionsError = GetExtensionsErrors[keyof GetExtensionsErrors];
 
 export type GetExtensionsResponses = {
   /**
-   * Extensions matching the scope: extension cards for scope=public, owned rows for scope=mine/all
+   * Extensions matching the scope: extension cards for scope=public, owned rows for scope=mine, moderation rows for scope=all
    */
   200: UnifiedExtensionListResponse;
 };
@@ -803,57 +810,6 @@ export type PutExtensionsByIdResponses = {
 export type PutExtensionsByIdResponse =
   PutExtensionsByIdResponses[keyof PutExtensionsByIdResponses];
 
-export type GetExtensionsByIdRevisionsData = {
-  body?: never;
-  path: {
-    id: string;
-  };
-  query?: {
-    limit?: number;
-    cursor?: string;
-  };
-  url: '/extensions/{id}/revisions';
-};
-
-export type GetExtensionsByIdRevisionsErrors = {
-  /**
-   * Missing or invalid bearer token
-   */
-  401: Error;
-  /**
-   * The account is inactive, or the caller neither owns this extension nor moderates
-   */
-  403: Error;
-  /**
-   * No extension with that id
-   */
-  404: Error;
-  /**
-   * Pagination query failed validation
-   */
-  422: Error;
-  /**
-   * Database error
-   */
-  500: Error;
-};
-
-export type GetExtensionsByIdRevisionsError =
-  GetExtensionsByIdRevisionsErrors[keyof GetExtensionsByIdRevisionsErrors];
-
-export type GetExtensionsByIdRevisionsResponses = {
-  /**
-   * Every version proposed for this extension, with its review outcome
-   */
-  200: {
-    result: Array<ExtensionRevisionSummary>;
-    pagination: Pagination;
-  };
-};
-
-export type GetExtensionsByIdRevisionsResponse =
-  GetExtensionsByIdRevisionsResponses[keyof GetExtensionsByIdRevisionsResponses];
-
 export type GetExtensionsByIdRevisionsByRevisionIdData = {
   body?: never;
   path: {
@@ -905,6 +861,125 @@ export type GetExtensionsByIdRevisionsByRevisionIdResponses = {
 
 export type GetExtensionsByIdRevisionsByRevisionIdResponse =
   GetExtensionsByIdRevisionsByRevisionIdResponses[keyof GetExtensionsByIdRevisionsByRevisionIdResponses];
+
+export type PutExtensionsByIdRevisionsByRevisionIdData = {
+  body?: ExtensionUpdate;
+  path: {
+    id: string;
+    revisionId: string;
+  };
+  query?: never;
+  url: '/extensions/{id}/revisions/{revisionId}';
+};
+
+export type PutExtensionsByIdRevisionsByRevisionIdErrors = {
+  /**
+   * Missing or invalid bearer token
+   */
+  401: Error;
+  /**
+   * The account is inactive, or the caller does not own this extension
+   */
+  403: Error;
+  /**
+   * No extension with that id
+   */
+  404: Error;
+  /**
+   * The pending revision changed, was reviewed, ownership changed, or the pending-revision limit was reached
+   */
+  409: Error;
+  /**
+   * Raw request exceeds 512 KiB
+   */
+  413: Error;
+  /**
+   * Body failed validation
+   */
+  422: Error;
+  /**
+   * Extension write allowance exhausted; see Retry-After
+   */
+  429: Error;
+  /**
+   * Database error
+   */
+  500: Error;
+  /**
+   * Write admission unavailable
+   */
+  503: Error;
+};
+
+export type PutExtensionsByIdRevisionsByRevisionIdError =
+  PutExtensionsByIdRevisionsByRevisionIdErrors[keyof PutExtensionsByIdRevisionsByRevisionIdErrors];
+
+export type PutExtensionsByIdRevisionsByRevisionIdResponses = {
+  /**
+   * Replaced with a new pending revision ID. Published content and reviewed history are unchanged.
+   */
+  202: {
+    result: {
+      id: string;
+      revision_id: string;
+      status: 'pending';
+    };
+  };
+};
+
+export type PutExtensionsByIdRevisionsByRevisionIdResponse =
+  PutExtensionsByIdRevisionsByRevisionIdResponses[keyof PutExtensionsByIdRevisionsByRevisionIdResponses];
+
+export type GetExtensionsByIdRevisionsData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: {
+    limit?: number;
+    cursor?: string;
+  };
+  url: '/extensions/{id}/revisions';
+};
+
+export type GetExtensionsByIdRevisionsErrors = {
+  /**
+   * Missing or invalid bearer token
+   */
+  401: Error;
+  /**
+   * The account is inactive, or the caller neither owns this extension nor moderates
+   */
+  403: Error;
+  /**
+   * No extension with that id
+   */
+  404: Error;
+  /**
+   * Pagination query failed validation
+   */
+  422: Error;
+  /**
+   * Database error
+   */
+  500: Error;
+};
+
+export type GetExtensionsByIdRevisionsError =
+  GetExtensionsByIdRevisionsErrors[keyof GetExtensionsByIdRevisionsErrors];
+
+export type GetExtensionsByIdRevisionsResponses = {
+  /**
+   * Every version proposed for this extension, with its review outcome
+   */
+  200: {
+    result: Array<ExtensionRevisionSummary>;
+    pagination: Pagination;
+  };
+};
+
+export type GetExtensionsByIdRevisionsResponse =
+  GetExtensionsByIdRevisionsResponses[keyof GetExtensionsByIdRevisionsResponses];
 
 export type PutUsersMeIdentityData = {
   body?: UserIdentityInput;

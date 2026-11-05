@@ -1,0 +1,196 @@
+---
+import { latestRelease } from '@/lib/releases';
+import { compatibilityLabel } from '@/lib/requirements';
+import type { StoredExtensionFields } from '@/lib/extensions-data';
+import { EXTENSION_TYPE_LABELS, repositoryURL, isExtensionType } from '@/types';
+import { licenseUrl } from '@/lib/license';
+import { isSafeHttpUrl } from '@/lib/safe-url';
+import GitHubMark from './icons/GitHubMark.astro';
+import {
+  Package,
+  Globe,
+  Image,
+  Scale,
+  Link,
+  CircleCheck,
+  Code,
+  TextAlignStart,
+  User,
+} from '@lucide/astro';
+interface Props {
+  content: StoredExtensionFields;
+  showIconUrl?: boolean;
+  developerName?: string;
+}
+const { content, showIconUrl = false, developerName } = Astro.props;
+const homepageUrl = content.homepage_url ?? content.website;
+const requires =
+  latestRelease(content.releases ?? [])?.requires ?? content.requires;
+const sourceUrl = content.source ? repositoryURL(content.source) : undefined;
+const licenseHref = licenseUrl(content.license);
+---
+
+<dl class="grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-1">
+  <div class="sm:col-span-2 lg:col-span-1">
+    <dt class="flex items-center gap-2 text-xs text-muted-foreground">
+      <TextAlignStart class="size-3.5" aria-hidden="true" />
+      Description
+    </dt>
+    <dd
+      class="mt-1 whitespace-pre-wrap leading-relaxed text-muted-foreground"
+      data-preview-description
+    >
+      {content.description}
+    </dd>
+  </div>
+  <div>
+    <dt class="flex items-center gap-2 text-xs text-muted-foreground">
+      <Package class="size-3.5" aria-hidden="true" />
+      Type
+    </dt>
+    <dd class="mt-1" data-preview-type>
+      {isExtensionType(content.type ?? null)
+        ? EXTENSION_TYPE_LABELS[
+            content.type as keyof typeof EXTENSION_TYPE_LABELS
+          ]
+        : 'Not Available'}
+    </dd>
+  </div>
+  <div>
+    <dt class="flex items-center gap-2 text-xs text-muted-foreground">
+      <Globe class="size-3.5" aria-hidden="true" />
+      Homepage
+    </dt>
+    <dd class="mt-1 break-all">
+      <a
+        data-preview-website
+        href={isSafeHttpUrl(homepageUrl) ? homepageUrl : undefined}
+        target="_blank"
+        rel="noopener noreferrer"
+        class:list={[
+          'underline-offset-4',
+          { underline: isSafeHttpUrl(homepageUrl) },
+        ]}
+      >
+        {homepageUrl || 'Not Available'}
+      </a>
+    </dd>
+  </div>
+  <div
+    class="sm:col-span-2 lg:col-span-1"
+    data-icon-url-detail
+    hidden={!showIconUrl || !content.icon_url}
+  >
+    <dt class="flex items-center gap-2 text-xs text-muted-foreground">
+      <Image class="size-3.5" aria-hidden="true" />
+      Icon Path
+    </dt>
+    <dd class="mt-1 break-all" data-preview-icon>
+      {content.icon_url}
+    </dd>
+  </div>
+
+  <div>
+    <dt class="flex items-center gap-2 text-xs text-muted-foreground">
+      <Code class="size-3.5" aria-hidden="true" />
+      Source
+    </dt>
+    <dd class="mt-1">
+      <a
+        data-preview-source-link
+        href={isSafeHttpUrl(sourceUrl) ? sourceUrl : undefined}
+        target="_blank"
+        rel="noopener noreferrer"
+        class="inline-flex max-w-full items-start gap-2 underline underline-offset-4"
+      >
+        <span
+          data-source-github-icon
+          hidden={content.source?.type !== 'github'}
+          class="mt-0.5 shrink-0"
+          aria-hidden="true"
+        >
+          <GitHubMark class="size-4" />
+        </span>
+        <span
+          data-source-link-icon
+          hidden={!content.source || content.source.type === 'github'}
+          class="mt-0.5 shrink-0"
+          aria-hidden="true"
+        >
+          <Link class="size-4" />
+        </span>
+        <span data-preview-source class="min-w-0 break-all">
+          {content.source?.type === 'github'
+            ? content.source.repo
+            : sourceUrl || 'Not Available'}
+        </span>
+      </a>
+    </dd>
+  </div>
+  <div>
+    <dt class="flex items-center gap-2 text-xs text-muted-foreground">
+      <Scale class="size-3.5" aria-hidden="true" />
+      License
+    </dt>
+    <dd class="mt-1">
+      <a
+        data-preview-license
+        href={licenseHref}
+        target="_blank"
+        rel="noopener noreferrer"
+        class:list={['underline-offset-4', { underline: Boolean(licenseHref) }]}
+      >
+        {(typeof content.license === 'string'
+          ? content.license
+          : content.license?.name) || 'Not Available'}
+      </a>
+    </dd>
+  </div>
+  <div
+    data-author-detail
+    hidden={
+      !content.author?.name ||
+      content.author.name.trim() === developerName?.trim()
+    }
+  >
+    <dt class="flex items-center gap-2 text-xs text-muted-foreground">
+      <User class="size-3.5" aria-hidden="true" />
+      Author
+    </dt>
+    <dd class="mt-1">
+      <a
+        data-preview-author
+        href={
+          isSafeHttpUrl(content.author?.url) ? content.author?.url : undefined
+        }
+        target="_blank"
+        rel="noopener noreferrer"
+        class:list={[
+          'underline-offset-4',
+          { underline: isSafeHttpUrl(content.author?.url) },
+        ]}
+      >
+        {content.author?.name}
+      </a>
+    </dd>
+  </div>
+  <div data-requirements-detail hidden={!requires}>
+    <dt class="flex items-center gap-2 text-xs text-muted-foreground">
+      <CircleCheck class="size-3.5" aria-hidden="true" />
+      Compatibility
+    </dt>
+    <dd class="mt-1 whitespace-pre-line" data-preview-requirements>
+      {requires
+        ? [
+            `FOSSBilling ${compatibilityLabel(requires.fossbilling)}`,
+            ...(requires.php
+              ? [`PHP ${compatibilityLabel(requires.php)}`]
+              : []),
+            ...Object.entries(requires.modules ?? {}).map(
+              ([id, constraint]) => `${id}: ${constraint}`,
+            ),
+          ].join('\n')
+        : ''}
+    </dd>
+  </div>
+</dl>

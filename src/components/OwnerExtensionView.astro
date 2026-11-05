@@ -1,0 +1,257 @@
+---
+import ConfirmDeleteDialog from './ConfirmDeleteDialog.astro';
+import DateTime from './admin/DateTime.astro';
+import StatusBadge from './admin/StatusBadge.astro';
+import ExtensionWorkspace from './ExtensionWorkspace.astro';
+import ExtensionHeader from './ExtensionHeader.astro';
+import { editableContent, reconstructionContent } from '@/lib/extension-draft';
+import { createApiClient, type OwnedExtension } from '@/lib/api/client';
+import type { StoredExtensionFields } from '@/lib/extensions-data';
+interface Props {
+  owned: OwnedExtension;
+  userId: string;
+}
+const { owned, userId } = Astro.props;
+const id = owned.id;
+const env = Astro.locals.env;
+const api = createApiClient(env, userId);
+// A review decision and publication are independent: rejecting an update
+// leaves the published listing live. Keep both visible in the overview.
+const pending = owned.pending_revision;
+const review = owned.last_review;
+const published = owned.published;
+const listed = Boolean(published && !owned.delisted);
+const showSubmission = Boolean(
+  pending &&
+  (!published || Astro.url.searchParams.get('version') !== 'published'),
+);
+let content: StoredExtensionFields | null = showSubmission
+  ? (pending?.content ?? null)
+  : (published ?? null);
+let revisionError: string | null = null;
+if (!content && review) {
+  try {
+    const revision = await api.getRevision(id, review.revision_id);
+    content = revision.content;
+  } catch {
+    revisionError =
+      'Your previous submission could not be loaded. You can still review the feedback below or try again.';
+  }
+}
+const rebuilding = !revisionError && !editableContent(content);
+const editable =
+  editableContent(content) ??
+  (rebuilding ? reconstructionContent(content) : null);
+const canEdit = (!pending || showSubmission) && Boolean(editable);
+const managingReleases = Astro.url.searchParams.get('view') === 'releases';
+const name = content?.name ?? published?.name ?? id;
+const previewLabel = showSubmission
+  ? 'Pending Version'
+  : published
+    ? 'Published Version'
+    : 'Previous Submission';
+---
+
+<ExtensionHeader
+  id={id}
+  content={{ ...content, name }}
+  developer={owned.developer}
+  versionLabel={previewLabel}
+  backHref="/account"
+  backLabel="Your Extensions"
+>
+  <Fragment slot="status">
+    <StatusBadge
+      status={
+        owned.delisted ? 'delisted' : listed ? 'published' : 'never-published'
+      }
+      label={owned.delisted ? 'Delisted' : listed ? 'Live' : 'Not Published'}
+    />
+    {pending && <StatusBadge status="pending" label="Pending" />}
+  </Fragment>
+</ExtensionHeader>
+
+{owned.delisted && (
+  <div class="alert" data-variant="destructive">
+    <h2>Your Extension Has Been Delisted</h2>
+    <section>
+      <p>{owned.delisted.reason}</p>
+      <p class="mt-2">
+        Submitting an edit does not automatically restore the listing.
+      </p>
+    </section>
+  </div>
+)}
+
+{review?.status === 'rejected' && (
+  <section
+    class="rounded-xl border border-amber-300/70 bg-amber-50/60 p-5 dark:border-amber-800 dark:bg-amber-950/20"
+    aria-labelledby="feedback-title"
+  >
+    <h2 id="feedback-title" class="font-semibold">
+      Feedback on Your Last Submission
+    </h2>
+    {review.reviewed_at && (
+      <p class="mt-1 text-xs text-muted-foreground">
+        Reviewed <DateTime value={review.reviewed_at} />
+      </p>
+    )}
+    <p class="mt-3 whitespace-pre-wrap text-sm">
+      {review.review_note ||
+        'A moderator requested changes. Review your extension details before submitting again.'}
+    </p>
+    {listed && (
+      <p class="mt-3 text-sm text-muted-foreground">
+        Your published listing is still live.
+      </p>
+    )}
+  </section>
+)}
+
+{!published && (
+  <details class="rounded-xl border p-5">
+    <summary class="cursor-pointer text-sm font-medium">
+      Withdraw Extension
+    </summary>
+    <p class="mt-3 text-sm text-muted-foreground">
+      Permanently remove this unpublished extension and its review history. Its
+      ID will become available again.
+    </p>
+    <button
+      type="button"
+      class="btn mt-4"
+      data-variant="outline"
+      data-size="sm"
+      onclick="document.getElementById('withdraw-editable-extension').showModal()"
+    >
+      Withdraw Extension
+    </button>
+    <ConfirmDeleteDialog
+      id="withdraw-editable-extension"
+      title="Withdraw Extension"
+      description="Permanently deletes this extension and its revision history, and releases its id. This can't be undone."
+      confirmText={id}
+      formAction={`/extension/${id}/withdraw`}
+      submitLabel="Withdraw Extension"
+    />
+  </details>
+)}
+{rebuilding && canEdit && (
+  <div class="alert">
+    <h2>Rebuild Your Submission</h2>
+    <section>
+      Some previous submission content is no longer available. Complete the
+      listing, README, source and license, and at least one release before
+      submitting your draft.
+    </section>
+  </div>
+)}
+{published && pending && (
+  <nav
+    class="flex w-fit rounded-lg bg-muted p-1 text-sm"
+    aria-label="Preview version"
+  >
+    <a
+      href={
+        managingReleases
+          ? '?view=releases&version=published'
+          : '?version=published'
+      }
+      aria-current={!showSubmission ? 'page' : undefined}
+      class:list={[
+        'rounded-md px-3 py-1.5',
+        !showSubmission
+          ? 'bg-background font-medium shadow-sm'
+          : 'text-muted-foreground',
+      ]}
+    >
+      Published
+    </a>
+    <a
+      href={
+        managingReleases ? '?view=releases&version=pending' : '?version=pending'
+      }
+      aria-current={showSubmission ? 'page' : undefined}
+      class:list={[
+        'rounded-md px-3 py-1.5',
+        showSubmission
+          ? 'bg-background font-medium shadow-sm'
+          : 'text-muted-foreground',
+      ]}
+    >
+      Pending
+    </a>
+  </nav>
+)}
+{revisionError ? (
+  <div class="alert" role="alert">
+    <h2>Unable to Load Submission</h2>
+    <section>{revisionError}</section>
+    <footer>
+      <a
+        href={`${Astro.url.pathname}${Astro.url.search}`}
+        class="btn"
+        data-variant="outline"
+      >
+        Try Again
+      </a>
+    </footer>
+  </div>
+) : (
+  <ExtensionWorkspace
+    developerName={owned.developer.name}
+    content={editable ?? content ?? {}}
+    id={id}
+    releases={managingReleases}
+    selectedVersion={showSubmission ? 'pending' : 'published'}
+    editor={{
+      userId,
+      canEdit,
+      pendingEditUrl:
+        pending && !showSubmission
+          ? `/extension/${id}?${managingReleases ? 'view=releases&' : ''}version=pending`
+          : undefined,
+      pendingRevisionId: showSubmission ? pending?.id : undefined,
+      disabledReason: pending
+        ? 'Switch to Pending to edit the submission awaiting review.'
+        : 'This version is not available for editing.',
+    }}
+  />
+)}
+<section
+  class="rounded-xl border bg-card p-5 sm:p-6"
+  aria-labelledby="activity-title"
+>
+  <h2 id="activity-title" class="font-semibold">
+    Activity
+  </h2>
+  <ol class="mt-5 grid gap-5 text-sm sm:grid-cols-3">
+    {pending && (
+      <li>
+        <p class="font-medium">Submitted for Review</p>
+        <p class="mt-1 text-xs text-muted-foreground">
+          <DateTime value={pending.created_at} />
+        </p>
+      </li>
+    )}
+    {review && (
+      <li>
+        <p class="font-medium">
+          Last Submission{' '}
+          {review.status === 'approved' ? 'Approved' : 'Rejected'}
+        </p>
+        {review.reviewed_at && (
+          <p class="mt-1 text-xs text-muted-foreground">
+            <DateTime value={review.reviewed_at} />
+          </p>
+        )}
+      </li>
+    )}
+    <li>
+      <p class="font-medium">Extension Created</p>
+      <p class="mt-1 text-xs text-muted-foreground">
+        <DateTime value={owned.created_at} />
+      </p>
+    </li>
+  </ol>
+</section>

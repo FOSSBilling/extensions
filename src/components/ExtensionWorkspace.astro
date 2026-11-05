@@ -1,0 +1,345 @@
+---
+import type { StoredExtensionFields } from '@/lib/extensions-data';
+import { editableContent, serializeDraftConfig } from '@/lib/extension-draft';
+import ExtensionReleases from './ExtensionReleases.astro';
+import ExtensionOverviewDetails from './ExtensionOverviewDetails.astro';
+import ExtensionNavigation from './ExtensionNavigation.astro';
+import { renderMarkdown } from '@/lib/markdown';
+import { sha256Hex } from '@/lib/hash';
+import ExtensionSectionFields from './ExtensionSectionFields.astro';
+import RequirementsFields from './RequirementsFields.astro';
+import type { DraftSection } from '@/lib/extension-draft';
+import { Pencil, Plus } from '@lucide/astro';
+interface Props {
+  content: StoredExtensionFields;
+  id: string;
+  releases: boolean;
+  developerName?: string;
+  selectedVersion?: 'pending' | 'published';
+  editor?: {
+    userId: string;
+    canEdit: boolean;
+    pendingRevisionId?: string;
+    disabledReason?: string;
+    pendingEditUrl?: string;
+  };
+}
+const { content, id, releases, selectedVersion, editor, developerName } =
+  Astro.props;
+const { pendingRevisionId, disabledReason, pendingEditUrl } = editor ?? {};
+const editorContent = editor?.canEdit ? editableContent(content) : null;
+const releaseItems = content.releases ?? [];
+const baseUrl = `/extension/${id}`;
+const overviewUrl = `${baseUrl}${selectedVersion ? `?version=${selectedVersion}` : ''}`;
+const releasesUrl = `${baseUrl}?view=releases${selectedVersion ? `&version=${selectedVersion}` : ''}`;
+const submitLabel = pendingRevisionId
+  ? 'Update Pending Submission'
+  : 'Submit for Review';
+const config =
+  editorContent && editor
+    ? serializeDraftConfig({
+        base: editorContent,
+        developerName,
+        pendingRevisionId,
+        submitLabel,
+        baselineHash: await sha256Hex(JSON.stringify(editorContent)),
+        key: `extension-draft:${await sha256Hex(editor.userId)}:${id}`,
+        submitUrl: `${baseUrl}/draft`,
+      })
+    : '';
+const labels: Record<DraftSection, string> = {
+  listing: 'Overview',
+  readme: 'README',
+};
+---
+
+<div data-extension-workspace class="space-y-6">
+  {editorContent && (
+    <>
+      <script type="application/json" data-draft-config set:html={config} />
+      <noscript>
+        <div class="alert">
+          Enable JavaScript to edit sections and save a draft in this browser.
+        </div>
+      </noscript>
+      <div
+        data-draft-bar
+        hidden
+        class="sticky top-20 z-30 flex flex-col gap-4 rounded-xl border bg-card p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between"
+      >
+        <div>
+          <p class="text-sm font-semibold" data-draft-status role="status">
+            No Local Changes
+          </p>
+          <p class="mt-1 text-xs text-muted-foreground">
+            Save changes across sections, then submit them together. Drafts stay
+            in this browser.
+          </p>
+        </div>
+        <div class="flex shrink-0 flex-wrap gap-2">
+          <button
+            type="button"
+            class="btn"
+            data-variant="ghost"
+            data-discard-draft
+            disabled
+          >
+            Discard Draft
+          </button>
+          <button type="button" class="btn" data-submit-draft disabled>
+            {submitLabel}
+          </button>
+        </div>
+      </div>
+      <p
+        data-draft-error
+        role="alert"
+        class="rounded-lg border border-destructive p-4 text-sm text-destructive"
+        hidden
+      ></p>
+    </>
+  )}
+  <ExtensionNavigation
+    overviewUrl={overviewUrl}
+    releasesUrl={releasesUrl}
+    activeReleases={releases}
+    releaseCount={releaseItems.length}
+  />
+  {releases ? (
+    <section
+      class="rounded-xl border bg-card"
+      aria-labelledby="extension-releases-title"
+    >
+      <header class="flex flex-wrap items-center justify-between gap-4 border-b p-5 sm:p-6">
+        <div>
+          <h2 class="font-semibold text-lg" id="extension-releases-title">
+            Releases
+          </h2>
+          {editor && (
+            <p class="mt-1 text-sm text-muted-foreground">
+              Manage versions, downloads, and compatibility independently of
+              your listing.
+            </p>
+          )}
+        </div>
+        {editor &&
+          (pendingEditUrl ? (
+            <a class="btn" href={pendingEditUrl}>
+              Edit Pending Releases
+            </a>
+          ) : (
+            <button
+              class="btn"
+              type="button"
+              data-add-release
+              disabled={!editorContent}
+              title={!editorContent ? disabledReason : undefined}
+            >
+              <Plus class="size-4" aria-hidden="true" />
+              Add Release
+            </button>
+          ))}
+      </header>
+      {editorContent && (
+        <div data-release-editor hidden class="border-b bg-muted/30 p-5 sm:p-6">
+          <form data-release-form class="max-w-2xl space-y-4">
+            <h3 class="font-semibold" data-release-form-title>
+              Add Release
+            </h3>
+            <input type="hidden" name="original_tag" />
+            <div class="grid gap-4 sm:grid-cols-2">
+              <label class="grid gap-2 text-sm font-medium">
+                Version Tag
+                <input
+                  class="input w-full"
+                  name="version_tag"
+                  required
+                  maxlength="100"
+                  placeholder="1.3.0"
+                />
+              </label>
+              <label class="grid gap-2 text-sm font-medium">
+                Release Date
+                <input
+                  class="input w-full"
+                  type="date"
+                  name="release_date"
+                  required
+                />
+              </label>
+            </div>
+            <label class="grid gap-2 text-sm font-medium">
+              Download URL
+              <input
+                class="input w-full"
+                type="url"
+                name="download_url"
+                required
+                placeholder="https://…"
+              />
+            </label>
+            <label class="grid gap-2 text-sm font-medium">
+              Changelog URL{' '}
+              <span class="font-normal text-muted-foreground">Optional</span>
+              <input
+                class="input w-full"
+                type="url"
+                name="changelog_url"
+                placeholder="https://…"
+              />
+            </label>
+            <RequirementsFields />
+            <p class="text-xs text-muted-foreground">
+              The latest version is selected automatically and supplies the
+              listing’s primary download. Release changes join your draft and
+              need moderator approval.
+            </p>
+            <p
+              data-release-error
+              role="alert"
+              class="text-sm text-destructive"
+              hidden
+            ></p>
+            <div class="flex gap-2">
+              <button type="submit" class="btn">
+                Save Release to Draft
+              </button>
+              <button
+                type="button"
+                class="btn"
+                data-variant="ghost"
+                data-cancel-release
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+      <ExtensionReleases
+        releases={releaseItems}
+        editable={Boolean(editorContent)}
+        showActions={Boolean(editor)}
+        disabledReason={disabledReason}
+      />
+      {editorContent && (
+        <footer class="border-t p-5 text-xs text-muted-foreground">
+          Keep at least one release. Removing the latest release automatically
+          selects the next version.
+        </footer>
+      )}
+    </section>
+  ) : (
+    <div class="grid min-w-0 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
+      {(['listing', 'readme'] as const).map((section) => (
+        <section
+          class:list={[
+            'min-w-0 rounded-xl border bg-card',
+            section === 'listing' ? 'lg:order-2' : 'lg:order-1',
+          ]}
+          id={`extension-${section}`}
+        >
+          <header class="flex items-center justify-between gap-3 border-b p-5 sm:px-6">
+            <h2 class="font-semibold">
+              {labels[section]}{' '}
+              {editor && (
+                <span
+                  data-section-changed={section}
+                  class="badge ml-2"
+                  data-variant="secondary"
+                  hidden
+                >
+                  Draft
+                </span>
+              )}
+            </h2>
+            {editor &&
+              (pendingEditUrl ? (
+                <a
+                  class="btn"
+                  data-size="sm"
+                  data-variant="ghost"
+                  href={`${pendingEditUrl}#extension-${section}`}
+                >
+                  <Pencil class="size-3.5" aria-hidden="true" />
+                  Edit Pending<span class="sr-only"> {labels[section]}</span>
+                </a>
+              ) : (
+                <button
+                  type="button"
+                  class="btn"
+                  data-size="sm"
+                  data-variant="ghost"
+                  data-edit-section={section}
+                  disabled={!editorContent}
+                  title={!editorContent ? disabledReason : undefined}
+                  aria-expanded={editorContent ? 'false' : undefined}
+                  aria-controls={
+                    editorContent ? `editor-${section}` : undefined
+                  }
+                >
+                  <Pencil class="size-3.5" aria-hidden="true" />
+                  <span data-edit-label>Edit</span>
+                  <span class="sr-only"> {labels[section]}</span>
+                </button>
+              ))}
+          </header>
+          {editorContent && (
+            <form
+              id={`editor-${section}`}
+              data-section-form={section}
+              hidden
+              class="space-y-4 rounded-b-xl bg-muted/30 p-5 sm:p-6"
+            >
+              <ExtensionSectionFields
+                section={section}
+                content={editorContent}
+              />
+              <p
+                data-section-error
+                role="alert"
+                class="text-sm text-destructive"
+                hidden
+              ></p>
+              <div class="flex gap-2">
+                <button type="submit" class="btn">
+                  Save to Draft
+                </button>
+                <button
+                  type="button"
+                  class="btn"
+                  data-variant="ghost"
+                  data-cancel-section={section}
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          )}
+          <div class="p-5 sm:p-6" data-section-preview={section}>
+            {section === 'listing' ? (
+              <ExtensionOverviewDetails
+                developerName={developerName}
+                content={content}
+                showIconUrl={Boolean(editor)}
+              />
+            ) : (
+              <div
+                class="markdown-body break-words"
+                data-preview-readme
+                set:html={renderMarkdown(
+                  content.readme || 'No README is available for this version.',
+                )}
+              />
+            )}
+          </div>
+        </section>
+      ))}
+    </div>
+  )}
+</div>
+
+<script>
+  import { initExtensionWorkspace } from '@/scripts/extension-workspace';
+  initExtensionWorkspace();
+</script>

@@ -1,7 +1,9 @@
 import { isPackageIconPath } from './package-icon';
-import { isExtensionType, isSourceType, SPDX_LICENSE_IDS } from '@/types';
+import { isExtensionType, SPDX_LICENSE_IDS } from '@/types';
 import type { Extension, Release } from '@/types';
 import type { ExtensionCreate, ExtensionUpdate } from '@/lib/api/client';
+import { latestRelease } from './releases';
+import { repositoryFromFields, repositoryInputUrl } from './repository';
 import { formString } from './form';
 import { withHttpsScheme } from './url-prefix';
 
@@ -15,7 +17,7 @@ export class ExtensionValidationError extends Error {}
 // The combobox offers SPDX identifiers; Other also accepts compound expressions.
 export const OTHER_LICENSE = 'other';
 
-function buildLicense(form: FormData): string {
+export function buildLicense(form: FormData): string {
   const selected = formString(form, 'license_spdx_id');
   const license =
     selected === OTHER_LICENSE
@@ -54,16 +56,24 @@ function moduleRequirements(input: string): Record<string, string> | undefined {
   return modules;
 }
 
-function buildRequirements(form: FormData) {
+export function formatModuleRequirements(
+  modules?: Record<string, string>,
+): string {
+  return Object.entries(modules ?? {})
+    .map(([id, constraint]) => `${id}: ${constraint}`)
+    .join('\n');
+}
+
+export function buildRequirements(form: FormData) {
   const fossbilling = formString(form, 'requires_fossbilling');
   const php = formString(form, 'requires_php');
-  if (!fossbilling || !php || fossbilling.length > 1000 || php.length > 1000)
+  if (!fossbilling || fossbilling.length > 1000 || php.length > 1000)
     throw new ExtensionValidationError(
-      'Enter the FOSSBilling and PHP version requirements.',
+      'Enter a FOSSBilling requirement and, optionally, an additional PHP constraint (up to 1,000 characters each).',
     );
   return {
     fossbilling,
-    php,
+    ...(php ? { php } : {}),
     modules: moduleRequirements(formString(form, 'requires_modules')),
   };
 }
@@ -97,7 +107,11 @@ function buildContent(
     // collision — since it replaces the whole array verbatim on approval, a
     // collision would silently duplicate the entry. Catch both here instead
     // of only one of them surfacing as a 422 from the api.
-    if (releases.some((r) => r.tag === newReleaseTag)) {
+    if (
+      releases.some(
+        (r) => r.tag.replace(/^v/, '') === newReleaseTag.replace(/^v/, ''),
+      )
+    ) {
       throw new ExtensionValidationError(
         `A release tagged "${newReleaseTag}" already exists — use a different version tag.`,
       );
@@ -128,12 +142,21 @@ function buildContent(
     downloadUrl = release.download_url;
   }
 
+  const latest = latestRelease(releases);
+  if (latest) {
+    version = latest.tag.replace(/^v(?=\d)/, '');
+    downloadUrl = latest.download_url;
+  }
+
   const typeInput = str('type');
-  const sourceTypeInput = str('source_type');
-  if (!isExtensionType(typeInput) || !isSourceType(sourceTypeInput)) {
+  const sourceFields = Object.fromEntries(form);
+  const source = repositoryFromFields(sourceFields);
+  if (!source)
     throw new ExtensionValidationError(
-      'Choose a valid extension type and repository host.',
+      'Enter a valid Source URL. Repository paths and custom URLs must be at most 500 characters.',
     );
+  if (!isExtensionType(typeInput)) {
+    throw new ExtensionValidationError('Choose a valid extension type.');
   }
 
   const icon = str('icon_url');
@@ -158,10 +181,7 @@ function buildContent(
     license: buildLicense(form),
     icon_url: icon || undefined,
     readme: str('readme'),
-    source: {
-      type: sourceTypeInput,
-      repo: str('source_repo'),
-    },
+    source,
     version,
     download_url: downloadUrl,
   };
@@ -231,9 +251,9 @@ export function echoExtensionFromForm(
     license: isRecognizedLicense
       ? selectedLicenseId
       : formString(form, 'license_name_custom'),
-    source: {
-      type: formString(form, 'source_type') as Extension['source']['type'],
-      repo: formString(form, 'source_repo'),
+    source: repositoryFromFields(Object.fromEntries(form)) ?? {
+      type: 'custom',
+      repo: repositoryInputUrl(Object.fromEntries(form)),
     },
   };
 }

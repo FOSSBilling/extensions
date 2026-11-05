@@ -1,10 +1,11 @@
 ---
-import { EXTENSION_TYPES, SOURCE_TYPES, SPDX_LICENSE_IDS } from '@/types';
+import { EXTENSION_TYPES, SPDX_LICENSE_IDS, repositoryURL } from '@/types';
 import type { Developer, Extension } from '@/types';
 import { CircleAlert, SquarePen, ChevronDown } from '@lucide/astro';
 import { stripUrlScheme } from '@/lib/url-prefix';
 import {
   OTHER_LICENSE,
+  formatModuleRequirements,
   type ExtensionFormEcho,
   type ReleaseDraft,
 } from '@/lib/extension-form';
@@ -287,15 +288,16 @@ const otherSpdxIds = SPDX_LICENSE_IDS.filter((id) => !popularSpdxIds.has(id));
             />
           </div>
           <div class="field">
-            <label for="requires_php">PHP *</label>
+            <label for="requires_php">
+              Additional PHP Requirement (Optional)
+            </label>
             <input
               class="input"
               id="requires_php"
               name="requires_php"
-              required
               maxlength="1000"
               value={shown?.requires.php}
-              placeholder=">=8.3"
+              placeholder="Inherit FOSSBilling Requirements"
             />
           </div>
           <div class="field">
@@ -305,7 +307,7 @@ const otherSpdxIds = SPDX_LICENSE_IDS.filter((id) => !popularSpdxIds.has(id));
               id="requires_modules"
               name="requires_modules"
               placeholder="branding: ^1.2"
-            >{echo?.moduleRequirementsInput ?? Object.entries(shown?.requires.modules ?? {}).map(([id, range]) => `${id}: ${range}`).join('\n')}</textarea>
+            >{echo?.moduleRequirementsInput ?? formatModuleRequirements(shown?.requires.modules)}</textarea>
             <p class="text-muted-foreground">
               One module-id: constraint per line.
             </p>
@@ -414,27 +416,18 @@ const otherSpdxIds = SPDX_LICENSE_IDS.filter((id) => !popularSpdxIds.has(id));
         <fieldset class="fieldset space-y-4">
           <legend>Source</legend>
           <div class="field">
-            <label for="source_type">Repository Host</label>
-            <select class="select w-full" id="source_type" name="source_type">
-              {SOURCE_TYPES.map((t) => (
-                <option value={t} selected={shown?.source.type === t}>
-                  {t}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div class="field">
-            <label for="source_repo">
-              Repository <span class="text-destructive">*</span>
+            <label for="source_url">
+              Source URL <span class="text-destructive">*</span>
             </label>
             <input
               class="input"
-              type="text"
-              id="source_repo"
-              name="source_repo"
+              type="url"
+              id="source_url"
+              name="source_url"
               required
-              value={shown?.source.repo}
-              placeholder="owner/repo, or a full URL for 'custom'"
+              maxlength="2048"
+              value={shown ? repositoryURL(shown.source) : ''}
+              placeholder="https://github.com/owner/project"
             />
           </div>
         </fieldset>
@@ -555,7 +548,7 @@ const otherSpdxIds = SPDX_LICENSE_IDS.filter((id) => !popularSpdxIds.has(id));
                 id="correction_note"
                 name="correction_note"
                 required
-                maxlength="2000"
+                maxlength="2048"
                 rows="2"
                 placeholder="What was wrong with the live listing"
               >{correctionNote}</textarea>
@@ -616,7 +609,7 @@ const otherSpdxIds = SPDX_LICENSE_IDS.filter((id) => !popularSpdxIds.has(id));
 <script>
   import { renderMarkdown } from '@/lib/markdown';
 
-  // Same pipeline as Overview.astro, so authors see what visitors will.
+  // Same pipeline as ExtensionWorkspace.astro, so authors see what visitors will.
   const readmeInput = document.querySelector<HTMLTextAreaElement>('#readme');
   const readmePreview = document.querySelector<HTMLElement>('#readme-preview');
 

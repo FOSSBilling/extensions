@@ -1,48 +1,110 @@
 ---
-import type { Extension } from '@/types';
-import { ArrowLeft } from '@lucide/astro';
-import { extensionIconUrl } from '@/lib/extension-icon';
+import type { StoredExtensionFields } from '@/lib/extensions-data';
+import type { Developer } from '@/types';
+import { latestRelease } from '@/lib/releases';
+import { ArrowLeft, Download, Package, User } from '@lucide/astro';
 import { getSignedImageUrl } from '@/lib/signed-image-url';
-
+import { extensionIconUrl } from '@/lib/extension-icon';
+import { isSafeHttpUrl } from '@/lib/safe-url';
 interface Props {
-  ext: Extension;
+  id: string;
+  content: StoredExtensionFields;
+  developer: Pick<Developer, 'id' | 'name'>;
+  versionLabel?: string;
+  backHref?: string;
+  backLabel?: string;
 }
-
-const { ext } = Astro.props;
+const {
+  id,
+  content,
+  developer,
+  versionLabel = 'Latest Version',
+  backHref = '/',
+  backLabel = 'Extensions',
+} = Astro.props;
+const latest = latestRelease(content.releases ?? []);
+const version = latest?.tag ?? content.version;
 const iconUrl = await getSignedImageUrl(
-  extensionIconUrl(ext),
+  extensionIconUrl({
+    ...content,
+    id,
+    source: content.source ?? { type: 'custom', repo: '' },
+  }),
   'icon',
   Astro.locals.env.sessionSecret,
 );
+const downloadUrl = latest?.download_url ?? content.download_url;
 ---
 
-<div class="flex items-start space-x-4">
-  <a
-    href="/"
-    class="btn"
-    data-size="sm"
-    data-variant="ghost"
-    aria-label="Back to Extensions"
-  >
-    <ArrowLeft class="w-4 h-4" />
-  </a>
-  {iconUrl ? (
-    <img
-      src={iconUrl}
-      width="48"
-      height="48"
-      class="w-12 h-12 rounded-lg object-contain"
-      alt={`${ext.name} icon`}
-      decoding="async"
-    />
-  ) : (
-    <span class="w-12 h-12 rounded-lg bg-primary/10" aria-hidden="true" />
-  )}
-  <div class="flex-1">
-    <div class="flex items-baseline flex-wrap gap-2">
-      <h1 class="text-2xl font-semibold">{ext.name}</h1>
-      <span class="text-muted-foreground">v{ext.version || 'unknown'}</span>
+<a
+  href={backHref}
+  class="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+>
+  <ArrowLeft class="size-4" aria-hidden="true" />
+  {backLabel}
+</a>
+<header class="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
+  <div class="flex min-w-0 items-start gap-4">
+    <div class="flex size-16 shrink-0 items-center justify-center rounded-xl border bg-muted/50">
+      {iconUrl ? (
+        <img
+          src={iconUrl}
+          width="48"
+          height="48"
+          alt=""
+          class="size-12 object-contain"
+          decoding="async"
+        />
+      ) : (
+        <Package class="size-7 text-muted-foreground" aria-hidden="true" />
+      )}
     </div>
-    <p class="text-muted-foreground mt-1">{ext.description}</p>
+    <div class="min-w-0 space-y-2">
+      <p class="text-xs font-medium uppercase tracking-widest text-muted-foreground">
+        Extension Overview
+      </p>
+      <div class="flex flex-wrap items-center gap-3">
+        <h1
+          data-extension-name
+          class="break-words text-2xl font-semibold tracking-tight sm:text-3xl"
+        >
+          {content.name ?? id}
+        </h1>
+        <span
+          class="text-lg text-muted-foreground"
+          data-extension-version
+          hidden={!version}
+        >
+          <span class="sr-only">{versionLabel} </span>
+          <span data-extension-version-value>
+            {version && /^\d/.test(version) ? `v${version}` : version}
+          </span>
+        </span>
+        <slot name="status" />
+      </div>
+      <p class="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+        <a
+          href={`/developer/${developer.id}`}
+          class="inline-flex items-center gap-1.5 underline-offset-4 hover:underline"
+          data-astro-prefetch="false"
+        >
+          <User class="size-3.5" aria-hidden="true" />
+          {developer.name}
+        </a>
+        <span aria-hidden="true">/</span>
+        <span class="break-all">{id}</span>
+      </p>
+    </div>
   </div>
-</div>
+  <a
+    data-extension-download
+    hidden={!isSafeHttpUrl(downloadUrl)}
+    href={isSafeHttpUrl(downloadUrl) ? downloadUrl : undefined}
+    class="btn shrink-0 self-start"
+    target="_blank"
+    rel="noopener noreferrer"
+  >
+    <Download class="size-4" aria-hidden="true" />
+    Download
+  </a>
+</header>

@@ -1,0 +1,44 @@
+---
+import { formatModuleRequirements } from '@/lib/extension-form';
+import type { Requirements } from '@/types';
+interface Props {
+  requires?: Requirements;
+}
+const { requires } = Astro.props;
+---
+
+<label class="grid gap-2 text-sm font-medium">
+  FOSSBilling Requirement
+  <input
+    class="input w-full"
+    name="requires_fossbilling"
+    required
+    maxlength="1000"
+    placeholder="^0.8.9 || ^1.0"
+    value={requires?.fossbilling}
+  />
+</label>
+<label class="grid gap-2 text-sm font-medium">
+  Additional PHP Requirement{' '}
+  <span class="font-normal text-muted-foreground">Optional</span>
+  <input
+    class="input w-full"
+    name="requires_php"
+    maxlength="1000"
+    placeholder="Inherit FOSSBilling Requirements"
+    value={requires?.php}
+  />
+  <span class="text-xs font-normal text-muted-foreground">
+    Leave blank to use FOSSBilling’s PHP requirements.
+  </span>
+</label>
+<label class="grid gap-2 text-sm font-medium">
+  Module Dependencies{' '}
+  <span class="font-normal text-muted-foreground">Optional</span>
+  <textarea
+    class="textarea w-full font-mono text-sm"
+    name="requires_modules"
+    rows="3"
+    placeholder="branding: ^1.2"
+  >{formatModuleRequirements(requires?.modules)}</textarea>
+</label>

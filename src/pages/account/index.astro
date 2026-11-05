@@ -365,7 +365,12 @@ const reconnectUrl = buildGithubReconnectUrl(Astro.url.origin, '/account');
               return (
                 <li class="py-3 flex items-center justify-between gap-3">
                   <div>
-                    <p class="font-medium">{ext.published?.name ?? ext.id}</p>
+                    <a
+                      href={`/extension/${ext.id}`}
+                      class="font-medium hover:underline underline-offset-4"
+                    >
+                      {ext.published?.name ?? ext.id}
+                    </a>
                     <p class="text-sm text-muted-foreground">
                       {ext.published ? `v${ext.published.version}` : ext.id}
                     </p>
@@ -380,7 +385,7 @@ const reconnectUrl = buildGithubReconnectUrl(Astro.url.origin, '/account');
                   <div class="flex items-center gap-2">
                     {ext.pending_revision ? (
                       <span class="badge" data-variant="secondary">
-                        Awaiting review
+                        Pending
                       </span>
                     ) : rejectedNeverPublished ? (
                       <span class="badge" data-variant="destructive">
@@ -391,23 +396,13 @@ const reconnectUrl = buildGithubReconnectUrl(Astro.url.origin, '/account');
                         Edit rejected
                       </span>
                     ) : null}
-                    {ext.published && (
-                      <a
-                        href={`/extension/${ext.id}`}
-                        class="btn"
-                        data-size="sm"
-                        data-variant="ghost"
-                      >
-                        View
-                      </a>
-                    )}
                     <a
-                      href={`/account/extensions/${ext.id}/edit`}
+                      href={`/extension/${ext.id}`}
                       class="btn"
                       data-size="sm"
                       data-variant="outline"
                     >
-                      Edit
+                      Manage
                     </a>
                   </div>
                 </li>
