@@ -244,6 +244,25 @@ describe('extension drafts', () => {
       ExtensionValidationError,
     );
   });
+  it('does not rewrite release requirements when editing only the overview', () => {
+    const requires = { fossbilling: '^0.8.9 || ^1.0', php: '>=8.3 <9' };
+    const manifest = { ...base, requires };
+    const result = applyExtensionDraft(
+      manifest,
+      draft({
+        listing: {
+          name: base.name,
+          description: 'Updated listing',
+          type: base.type,
+          author_name: base.author.name,
+          requires_fossbilling: requires.fossbilling,
+          requires_php: requires.php,
+        },
+      }),
+    );
+    expect(result.requires).toEqual(requires);
+    expect(result.releases).toEqual(base.releases);
+  });
   it('keeps overview requirements aligned with the latest release, including inherited PHP', () => {
     const requires = { fossbilling: '>=0.8.0' };
     const releases = [

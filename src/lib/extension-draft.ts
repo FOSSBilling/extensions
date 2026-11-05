@@ -311,8 +311,6 @@ export function applyExtensionDraft(
       // sync with release edits, including removal of an extra PHP constraint.
       if (value.releases !== undefined)
         result.requires = structuredClone(latest.requires);
-      else if ('listing' in value.sections)
-        latest.requires = structuredClone(result.requires);
       result.version = latest.tag.replace(/^v(?=\d)/, '');
       result.download_url = latest.download_url;
     }
