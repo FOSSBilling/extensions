@@ -202,16 +202,24 @@ export function initExtensionWorkspace() {
         !current.author.name ||
         current.author.name.trim() === config.developerName?.trim();
     }
-    text(
+    const requirementsList = find<HTMLUListElement>(
       '[data-preview-requirements]',
-      [
-        `FOSSBilling ${compatibilityLabel(requires.fossbilling)}`,
-        ...(requires.php ? [`PHP ${compatibilityLabel(requires.php)}`] : []),
-        ...Object.entries(requires.modules ?? {}).map(
-          ([id, constraint]) => `${id}: ${constraint}`,
-        ),
-      ].join('\n'),
     );
+    if (requirementsList) {
+      requirementsList.replaceChildren(
+        ...[
+          `FOSSBilling ${compatibilityLabel(requires.fossbilling)}`,
+          ...(requires.php ? [`PHP ${compatibilityLabel(requires.php)}`] : []),
+          ...Object.entries(requires.modules ?? {}).map(
+            ([id, constraint]) => `${id}: ${constraint}`,
+          ),
+        ].map((requirement) => {
+          const item = document.createElement('li');
+          item.textContent = requirement;
+          return item;
+        }),
+      );
+    }
     const requirementsDetail = find<HTMLElement>('[data-requirements-detail]');
     if (requirementsDetail) requirementsDetail.hidden = false;
     text('[data-release-count]', String(current.releases.length));
@@ -381,7 +389,8 @@ export function initExtensionWorkspace() {
       links.className = 'mt-2 max-w-xl text-xs text-muted-foreground';
       const download = document.createElement('a');
       download.className = 'break-all underline-offset-4';
-      download.textContent = release.download_url;
+      download.textContent = 'Download';
+      download.setAttribute('aria-label', `Download Release ${release.tag}`);
       if (isSafeHttpUrl(release.download_url)) {
         download.href = release.download_url;
         download.target = '_blank';

@@ -37,7 +37,7 @@ const licenseHref = licenseUrl(content.license);
       Description
     </dt>
     <dd
-      class="mt-1 whitespace-pre-wrap leading-relaxed text-muted-foreground"
+      class="mt-1 whitespace-pre-wrap leading-relaxed"
       data-preview-description
     >
       {content.description}
@@ -179,9 +179,13 @@ const licenseHref = licenseUrl(content.license);
       <CircleCheck class="size-3.5" aria-hidden="true" />
       Compatibility
     </dt>
-    <dd class="mt-1 whitespace-pre-line" data-preview-requirements>
-      {requires
-        ? [
+    <dd class="mt-2">
+      <ul
+        class="list-disc space-y-1 pl-4 marker:text-muted-foreground"
+        data-preview-requirements
+      >
+        {requires &&
+          [
             `FOSSBilling ${compatibilityLabel(requires.fossbilling)}`,
             ...(requires.php
               ? [`PHP ${compatibilityLabel(requires.php)}`]
@@ -189,8 +193,8 @@ const licenseHref = licenseUrl(content.license);
             ...Object.entries(requires.modules ?? {}).map(
               ([id, constraint]) => `${id}: ${constraint}`,
             ),
-          ].join('\n')
-        : ''}
+          ].map((requirement) => <li>{requirement}</li>)}
+      </ul>
     </dd>
   </div>
 </dl>
