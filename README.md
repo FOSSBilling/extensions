@@ -36,7 +36,7 @@ https://api.fossbilling.net/extensions/v2/extensions/branding/badges/fossbilling
 https://api.fossbilling.net/extensions/v2/extensions/branding/badges/license
 ```
 
-The `fossbilling` badge displays the latest release's complete version requirement, including upper bounds, exclusions, and compound ranges. Replace `branding` with your extension ID. Colors can be customized with `?color=green`. Existing v1 badge URLs remain available for older embeds, but their minimum-version badge does not express the full compatibility range.
+Replace `branding` with your extension ID. The `fossbilling` badge shows the full requirement, such as `>=0.8.9 <1.0 || ^2.0`. Use `?color=green` to change the color. Existing v1 URLs still work, but minimum-version badges cannot show the full range.
 
 ## Contributing
 
