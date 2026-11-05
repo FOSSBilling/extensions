@@ -54,11 +54,11 @@ describe('personalized extension HTML caching', () => {
       'https://extensions.example.test/account',
     );
   });
-  it('preserves catalogue page caching', async () => {
+  it('preserves extension directory page caching', async () => {
     const response = await onRequest(
       context('/'),
       async () =>
-        new Response('catalogue', {
+        new Response('extensions', {
           headers: { 'Cloudflare-CDN-Cache-Control': 'public, max-age=120' },
         }),
     );
