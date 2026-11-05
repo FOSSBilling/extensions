@@ -68,26 +68,11 @@ describe('Source URL detection', () => {
     });
     expect(parseRepositoryUrl('https://github.com/' + repo + 'a')).toBeNull();
   });
-  it('reads older draft fields while detecting the host from a new URL when supplied', () => {
+  it('reads the source URL from form fields', () => {
     expect(
-      repositoryFromFields({
-        source_type: 'github',
-        source_repo: 'owner/project',
-      }),
-    ).toEqual({ type: 'github', repo: 'owner/project' });
-    expect(
-      repositoryFromFields({
-        source_type: 'github',
-        source_repo: 'owner/project',
-        source_url: 'https://gitlab.com/group/project',
-      }),
+      repositoryFromFields({ source_url: 'https://gitlab.com/group/project' }),
     ).toEqual({ type: 'gitlab', repo: 'group/project' });
-    expect(
-      repositoryFromFields({
-        source_type: 'github',
-        source_repo: 'owner/project',
-        source_url: '',
-      }),
-    ).toBeNull();
+    expect(repositoryFromFields({ source_url: '' })).toBeNull();
+    expect(repositoryFromFields({})).toBeNull();
   });
 });

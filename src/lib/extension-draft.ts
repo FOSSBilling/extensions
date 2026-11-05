@@ -10,7 +10,7 @@ import { latestRelease } from './releases';
 import { repositoryFromFields } from './repository';
 import { withHttpsScheme } from './url-prefix';
 
-export type DraftSection = 'listing' | 'readme' | 'details';
+export type DraftSection = 'listing' | 'readme';
 export interface ExtensionDraft {
   baselineHash: string;
   pendingRevisionId?: string;
@@ -241,8 +241,6 @@ export function applyExtensionDraft(
       if (
         [
           'source_url',
-          'source_type',
-          'source_repo',
           'license_spdx_id',
           'license_name_custom',
           'license_url',
@@ -251,8 +249,6 @@ export function applyExtensionDraft(
         applySourceAndLicense(result, raw);
     } else if (section === 'readme') {
       result.readme = required(raw, 'readme', 'README');
-    } else if (section === 'details') {
-      applySourceAndLicense(result, raw);
     } else
       throw new ExtensionValidationError(
         'This draft contains an unknown section.',
@@ -301,8 +297,7 @@ export function applyExtensionDraft(
       return release;
     });
   }
-  // Recompute the primary download whenever a draft is changed. Older saved
-  // drafts may carry a manual selection; it deliberately has no authority.
+  // Keep the primary download aligned with the latest release.
   if (Object.keys(value.sections).length || value.releases !== undefined) {
     const latest = latestRelease(result.releases);
     if (latest) {

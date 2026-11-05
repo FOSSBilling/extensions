@@ -1,4 +1,4 @@
-import { isSourceType, repositoryURL, type Repository } from '@/types';
+import type { Repository } from '@/types';
 
 // Form inputs use one URL; the API retains its existing typed repository
 // representation. Match real public hostnames rather than lookalike suffixes.
@@ -47,22 +47,8 @@ export function parseRepositoryUrl(value: string): Repository | null {
   return custom();
 }
 
-// Read older browser drafts and cached forms without retaining a host picker.
-// A new URL always takes precedence, including an intentionally cleared URL.
 export function repositoryInputUrl(fields: Record<string, unknown>): string {
-  if ('source_url' in fields)
-    return typeof fields.source_url === 'string' ? fields.source_url : '';
-  if (
-    typeof fields.source_type === 'string' &&
-    isSourceType(fields.source_type) &&
-    typeof fields.source_repo === 'string'
-  ) {
-    return repositoryURL({
-      type: fields.source_type,
-      repo: fields.source_repo,
-    });
-  }
-  return '';
+  return typeof fields.source_url === 'string' ? fields.source_url : '';
 }
 
 export function repositoryFromFields(

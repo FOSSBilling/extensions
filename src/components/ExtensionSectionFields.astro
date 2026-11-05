@@ -110,7 +110,7 @@ const { section, content } = Astro.props;
     </p>
   </>
 )}
-{(section === 'listing' || section === 'details') && (
+{section === 'listing' && (
   <>
     <label class="grid gap-2 text-sm font-medium">
       Source URL

@@ -9,7 +9,6 @@ import { compatibilityLabel } from '@/lib/requirements';
 import { latestRelease, releasesDescending } from '@/lib/releases';
 import type { ExtensionUpdate } from '@/lib/api/client';
 import { EXTENSION_TYPE_LABELS, repositoryURL } from '@/types';
-import { repositoryInputUrl } from '@/lib/repository';
 import { licenseUrl } from '@/lib/license';
 import { isSafeHttpUrl } from '@/lib/safe-url';
 import { renderMarkdown } from '@/lib/markdown';
@@ -61,13 +60,6 @@ export function initExtensionWorkspace() {
     if (raw) {
       stored = true;
       draft = JSON.parse(raw);
-      delete (draft as ExtensionDraft & { currentRelease?: unknown })
-        .currentRelease;
-      for (const section of Object.values(draft.sections)) {
-        if (section && !('source_url' in section) && 'source_repo' in section) {
-          section.source_url = repositoryInputUrl(section);
-        }
-      }
       applyExtensionDraft(config.base, draft);
       if (
         draft.baselineHash !== config.baselineHash ||
@@ -228,10 +220,8 @@ export function initExtensionWorkspace() {
     root
       .querySelectorAll<HTMLElement>('[data-section-changed]')
       .forEach((node) => {
-        node.hidden = !(
-          draft.sections[node.dataset.sectionChanged as DraftSection] ||
-          (node.dataset.sectionChanged === 'listing' && draft.sections.details)
-        );
+        node.hidden =
+          !draft.sections[node.dataset.sectionChanged as DraftSection];
       });
     renderReleases(current);
     updateButtons();
@@ -298,7 +288,6 @@ export function initExtensionWorkspace() {
         if (!unsaved.has(form))
           fill(form, {
             ...initial,
-            ...(section === 'listing' ? draft.sections.details : {}),
             ...draft.sections[section],
           });
         setSectionEditing(form, section, true);
@@ -324,8 +313,6 @@ export function initExtensionWorkspace() {
         event.preventDefault();
         try {
           const sections = { ...draft.sections, [section]: fields(form) };
-          // The merged Listing form supersedes older Source & License drafts.
-          if (section === 'listing') delete sections.details;
           save({ ...draft, sections });
           sectionError.hidden = true;
           closeSection(form, section);

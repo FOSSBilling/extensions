@@ -116,19 +116,26 @@ describe('extension drafts', () => {
     expect(result.releases).toEqual(base.releases);
     expect(result).not.toHaveProperty('developer_id');
   });
-  it('keeps custom licensing and source edits isolated from listing content', () => {
+  it('saves custom licensing and source through the overview', () => {
     const result = applyExtensionDraft(
       base,
       draft({
-        details: {
-          source_type: 'custom',
-          source_repo: 'https://example.test/source',
+        listing: {
+          name: base.name,
+          description: base.description,
+          type: base.type,
+          author_name: base.author.name,
+          source_url: 'https://example.test/source',
           license_spdx_id: 'other',
           license_name_custom: 'Commercial',
           license_url: 'https://example.test/license',
         },
       }),
     );
+    expect(result.source).toEqual({
+      type: 'custom',
+      repo: 'https://example.test/source',
+    });
     expect(result.license).toBe('Commercial');
     expect(result.name).toBe(base.name);
     expect(result.readme).toBe(base.readme);

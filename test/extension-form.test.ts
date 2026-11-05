@@ -24,8 +24,7 @@ function extensionForm(overrides: Record<string, string | undefined> = {}) {
     requires_modules: 'branding: ^1.2',
     license_spdx_id: 'MIT',
     readme: '# Example',
-    source_type: 'github',
-    source_repo: 'fossbilling/example',
+    source_url: 'https://github.com/fossbilling/example',
     version_tag: '1.0.0',
     release_date: '2026-01-01',
     download_url: 'example.test/example.zip',
@@ -217,7 +216,7 @@ describe('manifest publishing forms', () => {
       { author_name: '' },
       { requires_fossbilling: '' },
       { type: 'mod' },
-      { source_type: 'ftp' },
+      { source_url: 'ftp://example.test/source' },
       { requires_modules: 'bad/name: ^1' },
       { requires_modules: 'branding: ^1\nbranding: ^2' },
     ] satisfies Record<string, string>[])
