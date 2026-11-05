@@ -36,6 +36,9 @@ import type {
   GetDevelopersMeErrors,
   GetDevelopersMeResponses,
   GetDevelopersResponses,
+  GetExtensionsByIdBadgesByTypeData,
+  GetExtensionsByIdBadgesByTypeErrors,
+  GetExtensionsByIdBadgesByTypeResponses,
   GetExtensionsByIdData,
   GetExtensionsByIdErrors,
   GetExtensionsByIdResponses,
@@ -242,6 +245,24 @@ export const putExtensionsById = <ThrowOnError extends boolean = false>(
       ...options.headers,
     },
   });
+
+/**
+ * Get a public extension badge
+ */
+export const getExtensionsByIdBadgesByType = <
+  ThrowOnError extends boolean = false,
+>(
+  options: Options<GetExtensionsByIdBadgesByTypeData, ThrowOnError>,
+): RequestResult<
+  GetExtensionsByIdBadgesByTypeResponses,
+  GetExtensionsByIdBadgesByTypeErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    GetExtensionsByIdBadgesByTypeResponses,
+    GetExtensionsByIdBadgesByTypeErrors,
+    ThrowOnError
+  >({ url: '/extensions/{id}/badges/{type}', ...options });
 
 /**
  * Read one revision; compacted content is null

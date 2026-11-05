@@ -810,6 +810,53 @@ export type PutExtensionsByIdResponses = {
 export type PutExtensionsByIdResponse =
   PutExtensionsByIdResponses[keyof PutExtensionsByIdResponses];
 
+export type GetExtensionsByIdBadgesByTypeData = {
+  body?: never;
+  path: {
+    id: string;
+    /**
+     * Latest release version, full FOSSBilling requirement, or license
+     */
+    type: 'version' | 'fossbilling' | 'license';
+  };
+  query?: {
+    color?: string;
+  };
+  url: '/extensions/{id}/badges/{type}';
+};
+
+export type GetExtensionsByIdBadgesByTypeErrors = {
+  /**
+   * No published, listed extension with that id
+   */
+  404: Error;
+  /**
+   * Stored badge fields require manual correction
+   */
+  409: Error;
+  /**
+   * Invalid badge type or color length (1–100 characters)
+   */
+  422: Error;
+  /**
+   * Database error
+   */
+  500: Error;
+};
+
+export type GetExtensionsByIdBadgesByTypeError =
+  GetExtensionsByIdBadgesByTypeErrors[keyof GetExtensionsByIdBadgesByTypeErrors];
+
+export type GetExtensionsByIdBadgesByTypeResponses = {
+  /**
+   * SVG badge for the latest release's version or full FOSSBilling requirement, or the package license
+   */
+  200: Blob | File;
+};
+
+export type GetExtensionsByIdBadgesByTypeResponse =
+  GetExtensionsByIdBadgesByTypeResponses[keyof GetExtensionsByIdBadgesByTypeResponses];
+
 export type GetExtensionsByIdRevisionsByRevisionIdData = {
   body?: never;
   path: {

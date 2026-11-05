@@ -3,7 +3,7 @@
   "info": {
     "title": "FOSSBilling Extensions API (v2)",
     "version": "2.0.0",
-    "description": "Self-service extension publishing, ownership, moderation, and public browsing. v1 (/extensions/v1) remains available for existing integrations."
+    "description": "Self-service extension publishing, ownership, moderation, and public browsing. v1 (/extensions/v1) is deprecated. V1 badge URLs retire on 5 February 2027 at 00:00 UTC; other v1 endpoints remain available until at least six months after a stable FOSSBilling release ships the v2 installer."
   },
   "servers": [
     {
@@ -2439,6 +2439,97 @@
           },
           "409": {
             "description": "The extension is published and cannot be withdrawn",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Database error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/extensions/{id}/badges/{type}": {
+      "get": {
+        "tags": ["Extensions"],
+        "summary": "Get a public extension badge",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "b6e2c9c4-3f1a-4e9b-9c3a-2e4b1a2f9d10"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": ["version", "fossbilling", "license"],
+              "description": "Latest release version, full FOSSBilling requirement, or license"
+            },
+            "required": true,
+            "description": "Latest release version, full FOSSBilling requirement, or license",
+            "name": "type",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100,
+              "example": "green"
+            },
+            "required": false,
+            "name": "color",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "SVG badge for the latest release's version or full FOSSBilling requirement, or the package license",
+            "content": {
+              "image/svg+xml": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No published, listed extension with that id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Stored badge fields require manual correction",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid badge type or color length (1–100 characters)",
             "content": {
               "application/json": {
                 "schema": {
