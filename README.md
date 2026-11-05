@@ -31,12 +31,12 @@ Your [account profile](https://extensions.fossbilling.org/account/profile) (disp
 The [`FOSSBilling/api`](https://github.com/FOSSBilling/api) repo serves badges for use in READMEs and project pages:
 
 ```text
-https://api.fossbilling.net/extensions/v1/Example/badges/version
-https://api.fossbilling.net/extensions/v1/Example/badges/min_fossbilling_version
-https://api.fossbilling.net/extensions/v1/Example/badges/license
+https://api.fossbilling.net/extensions/v2/extensions/branding/badges/version
+https://api.fossbilling.net/extensions/v2/extensions/branding/badges/fossbilling
+https://api.fossbilling.net/extensions/v2/extensions/branding/badges/license
 ```
 
-Colors can be customized with `?color=`.
+Replace `branding` with your extension ID. The `fossbilling` badge shows the full requirement, such as `>=0.8.9 <1.0 || ^2.0`. Use `?color=green` to change the color. Existing v1 URLs still work, but minimum-version badges cannot show the full range.
 
 ## Contributing
 
