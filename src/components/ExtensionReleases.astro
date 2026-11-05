@@ -35,6 +35,7 @@ const latest = latestRelease(releases);
                 ? release.download_url
                 : undefined
             }
+            aria-label={`Download Release ${release.tag}`}
             target="_blank"
             rel="noopener noreferrer"
             class:list={[
@@ -42,7 +43,7 @@ const latest = latestRelease(releases);
               { underline: isSafeHttpUrl(release.download_url) },
             ]}
           >
-            {release.download_url}
+            Download
           </a>
           {release.changelog_url && isSafeHttpUrl(release.changelog_url) && (
             <span class="whitespace-nowrap">
