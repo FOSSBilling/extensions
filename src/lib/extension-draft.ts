@@ -51,13 +51,15 @@ export function editableContent(value: unknown): ExtensionUpdate | null {
     typeof value.author.name !== 'string' ||
     !record(value.requires) ||
     typeof value.requires.fossbilling !== 'string' ||
-    typeof value.requires.php !== 'string' ||
+    (value.requires.php !== undefined &&
+      typeof value.requires.php !== 'string') ||
     value.releases.some(
       (release) =>
         !record(release) ||
         !record(release.requires) ||
         typeof release.requires.fossbilling !== 'string' ||
-        typeof release.requires.php !== 'string',
+        (release.requires.php !== undefined &&
+          typeof release.requires.php !== 'string'),
     ) ||
     !record(value.source) ||
     !isSourceType(String(value.source.type)) ||

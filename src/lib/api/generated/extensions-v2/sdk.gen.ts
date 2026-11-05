@@ -266,7 +266,9 @@ export const getExtensionsByIdRevisionsByRevisionId = <
   });
 
 /**
- * Replace the pending submission the owner opened
+ * Replace a pending submission for an extension the caller owns
+ *
+ * The active owner can replace publisher-created submissions. The replacement records the owner as submitter.
  */
 export const putExtensionsByIdRevisionsByRevisionId = <
   ThrowOnError extends boolean = false,

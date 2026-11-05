@@ -264,6 +264,18 @@ describe('extension drafts', () => {
     ).toEqual(base);
     expect(editableContent({ ...base, source: null })).toBeNull();
   });
+  it('allows an editable baseline with inherited PHP requirements', () => {
+    const requires = { fossbilling: '>=0.7.0' };
+    const content = {
+      ...base,
+      requires,
+      releases: base.releases.map((release) => ({ ...release, requires })),
+    };
+    expect(editableContent(content)).toEqual(content);
+    expect(
+      editableContent({ ...content, requires: { ...requires, php: null } }),
+    ).toBeNull();
+  });
   it('keeps available historical fields when rebuilding an incomplete submission', () => {
     const reconstructed = reconstructionContent({
       name: 'Historical name',

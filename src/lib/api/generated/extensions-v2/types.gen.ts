@@ -150,7 +150,10 @@ export type Extension = ExtensionContent & {
 
 export type ManifestRequirements = {
   fossbilling: string;
-  php: string;
+  /**
+   * Additional PHP constraint; when omitted, FOSSBilling runtime requirements apply
+   */
+  php?: string;
   modules?: {
     [key: string]: string;
   };
@@ -913,7 +916,7 @@ export type PutExtensionsByIdRevisionsByRevisionIdError =
 
 export type PutExtensionsByIdRevisionsByRevisionIdResponses = {
   /**
-   * Pending content replaced with a new revision id. The old pending id is removed; reviewed history and published content are unchanged.
+   * Replaced with a new pending revision ID. Published content and reviewed history are unchanged.
    */
   202: {
     result: {

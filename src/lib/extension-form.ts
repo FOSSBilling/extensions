@@ -59,13 +59,13 @@ function moduleRequirements(input: string): Record<string, string> | undefined {
 export function buildRequirements(form: FormData) {
   const fossbilling = formString(form, 'requires_fossbilling');
   const php = formString(form, 'requires_php');
-  if (!fossbilling || !php || fossbilling.length > 1000 || php.length > 1000)
+  if (!fossbilling || fossbilling.length > 1000 || php.length > 1000)
     throw new ExtensionValidationError(
-      'Enter the FOSSBilling and PHP version requirements.',
+      'Enter a FOSSBilling requirement and, optionally, an additional PHP constraint (up to 1,000 characters each).',
     );
   return {
     fossbilling,
-    php,
+    ...(php ? { php } : {}),
     modules: moduleRequirements(formString(form, 'requires_modules')),
   };
 }

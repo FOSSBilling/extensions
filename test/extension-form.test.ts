@@ -191,10 +191,16 @@ describe('manifest publishing forms', () => {
       buildExtensionCreatePayload(extensionForm({ icon_url })),
     ).toThrow(ExtensionValidationError);
   });
+  it('inherits FOSSBilling PHP requirements when no additional constraint is set', () => {
+    const body = buildExtensionCreatePayload(
+      extensionForm({ requires_php: '' }),
+    );
+    expect(body.requires).not.toHaveProperty('php');
+    expect(body.releases[0].requires).not.toHaveProperty('php');
+  });
   it('validates required metadata and dependency syntax without losing ranges', () => {
     for (const overrides of [
       { author_name: '' },
-      { requires_php: '' },
       { requires_fossbilling: '' },
       { type: 'mod' },
       { source_type: 'ftp' },

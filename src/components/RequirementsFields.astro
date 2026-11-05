@@ -18,15 +18,18 @@ const { requires } = Astro.props;
   />
 </label>
 <label class="grid gap-2 text-sm font-medium">
-  PHP Requirement
+  Additional PHP Requirement{' '}
+  <span class="font-normal text-muted-foreground">Optional</span>
   <input
     class="input w-full"
     name="requires_php"
-    required
     maxlength="1000"
-    placeholder=">=8.3 <9"
+    placeholder="Inherit FOSSBilling Requirements"
     value={requires?.php}
   />
+  <span class="text-xs font-normal text-muted-foreground">
+    Leave blank to use FOSSBilling’s PHP requirements.
+  </span>
 </label>
 <label class="grid gap-2 text-sm font-medium">
   Module Dependencies{' '}

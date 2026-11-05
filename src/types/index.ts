@@ -50,7 +50,7 @@ export function isDeveloperType(value: string): value is DeveloperType {
 // components. These intentionally do not depend on API transport DTOs.
 export type Requirements = {
   fossbilling: string;
-  php: string;
+  php?: string;
   modules?: Record<string, string>;
 };
 export type PackageAuthor = { name: string; url?: string };

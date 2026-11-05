@@ -287,15 +287,16 @@ const otherSpdxIds = SPDX_LICENSE_IDS.filter((id) => !popularSpdxIds.has(id));
             />
           </div>
           <div class="field">
-            <label for="requires_php">PHP *</label>
+            <label for="requires_php">
+              Additional PHP Requirement (Optional)
+            </label>
             <input
               class="input"
               id="requires_php"
               name="requires_php"
-              required
               maxlength="1000"
               value={shown?.requires.php}
-              placeholder=">=8.3"
+              placeholder="Inherit FOSSBilling Requirements"
             />
           </div>
           <div class="field">

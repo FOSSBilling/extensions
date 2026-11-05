@@ -473,7 +473,8 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 1000,
-            "pattern": "\\S"
+            "pattern": "\\S",
+            "description": "Additional PHP constraint; when omitted, FOSSBilling runtime requirements apply"
           },
           "modules": {
             "type": "object",
@@ -485,7 +486,7 @@
             }
           }
         },
-        "required": ["fossbilling", "php"],
+        "required": ["fossbilling"],
         "additionalProperties": false
       },
       "Release": {
@@ -2462,7 +2463,8 @@
     "/extensions/{id}/revisions/{revisionId}": {
       "put": {
         "tags": ["Extensions"],
-        "summary": "Replace the pending submission the owner opened",
+        "summary": "Replace a pending submission for an extension the caller owns",
+        "description": "The active owner can replace publisher-created submissions. The replacement records the owner as submitter.",
         "security": [
           {
             "Bearer": []
@@ -2499,7 +2501,7 @@
         },
         "responses": {
           "202": {
-            "description": "Pending content replaced with a new revision id. The old pending id is removed; reviewed history and published content are unchanged.",
+            "description": "Replaced with a new pending revision ID. Published content and reviewed history are unchanged.",
             "content": {
               "application/json": {
                 "schema": {

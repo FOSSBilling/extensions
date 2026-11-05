@@ -186,7 +186,7 @@ export function initExtensionWorkspace() {
       '[data-preview-requirements]',
       [
         `FOSSBilling ${current.requires.fossbilling}`,
-        `PHP ${current.requires.php}`,
+        ...(current.requires.php ? [`PHP ${current.requires.php}`] : []),
         ...Object.entries(current.requires.modules ?? {}).map(
           ([id, constraint]) => `${id}: ${constraint}`,
         ),
@@ -363,7 +363,7 @@ export function initExtensionWorkspace() {
       title.textContent = `${release.tag}${release.tag === latest?.tag ? ' · Latest Version' : ''}`;
       const detail = document.createElement('p');
       detail.className = 'mt-1 text-xs text-muted-foreground';
-      detail.textContent = `${release.date} · FOSSBilling ${release.requires.fossbilling} · PHP ${release.requires.php}`;
+      detail.textContent = `${release.date} · FOSSBilling ${release.requires.fossbilling}${release.requires.php ? ` · PHP ${release.requires.php}` : ''}`;
       const links = document.createElement('p');
       links.className = 'mt-2 max-w-xl text-xs text-muted-foreground';
       const download = document.createElement('a');

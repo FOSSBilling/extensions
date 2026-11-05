@@ -173,7 +173,7 @@ const licenseHref = licenseUrl(content.license);
       {content.requires
         ? [
             `FOSSBilling ${content.requires.fossbilling}`,
-            `PHP ${content.requires.php}`,
+            ...(content.requires.php ? [`PHP ${content.requires.php}`] : []),
             ...Object.entries(content.requires.modules ?? {}).map(
               ([id, constraint]) => `${id}: ${constraint}`,
             ),
