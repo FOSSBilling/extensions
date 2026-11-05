@@ -14,6 +14,7 @@ interface Props {
   content: StoredExtensionFields;
   id: string;
   releases: boolean;
+  developerName?: string;
   selectedVersion?: 'pending' | 'published';
   editor?: {
     userId: string;
@@ -23,7 +24,8 @@ interface Props {
     pendingEditUrl?: string;
   };
 }
-const { content, id, releases, selectedVersion, editor } = Astro.props;
+const { content, id, releases, selectedVersion, editor, developerName } =
+  Astro.props;
 const { pendingRevisionId, disabledReason, pendingEditUrl } = editor ?? {};
 const editorContent = editor?.canEdit ? editableContent(content) : null;
 const releaseItems = content.releases ?? [];
@@ -37,6 +39,7 @@ const config =
   editorContent && editor
     ? serializeDraftConfig({
         base: editorContent,
+        developerName,
         pendingRevisionId,
         submitLabel,
         baselineHash: await sha256Hex(JSON.stringify(editorContent)),
@@ -317,6 +320,7 @@ const labels: Record<DraftSection, string> = {
           <div class="p-5 sm:p-6" data-section-preview={section}>
             {section === 'listing' ? (
               <ExtensionOverviewDetails
+                developerName={developerName}
                 content={content}
                 showIconUrl={Boolean(editor)}
               />

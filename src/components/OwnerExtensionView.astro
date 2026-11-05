@@ -199,6 +199,7 @@ const previewLabel = showSubmission
   </div>
 ) : (
   <ExtensionWorkspace
+    developerName={owned.developer.name}
     content={editable ?? content ?? {}}
     id={id}
     releases={managingReleases}

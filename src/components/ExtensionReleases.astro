@@ -1,4 +1,5 @@
 ---
+import { compatibilityLabel } from '@/lib/requirements';
 import type { Release } from '@/types';
 import { latestRelease, releasesDescending } from '@/lib/releases';
 import { isSafeHttpUrl } from '@/lib/safe-url';
@@ -21,8 +22,11 @@ const latest = latestRelease(releases);
           {release.tag === latest?.tag ? ' · Latest Version' : ''}
         </p>
         <p class="mt-1 text-xs text-muted-foreground">
-          {release.date} · FOSSBilling {release.requires.fossbilling}
-          {release.requires.php ? ` · PHP ${release.requires.php}` : ''}
+          {release.date} · FOSSBilling{' '}
+          {compatibilityLabel(release.requires.fossbilling)}
+          {release.requires.php
+            ? ` · PHP ${compatibilityLabel(release.requires.php)}`
+            : ''}
         </p>
         <p class="mt-2 max-w-xl text-xs text-muted-foreground">
           <a

@@ -1,4 +1,5 @@
 ---
+import { compatibilityLabel } from '@/lib/requirements';
 import type { StoredExtensionFields } from '@/lib/extensions-data';
 import { EXTENSION_TYPE_LABELS, repositoryURL, isExtensionType } from '@/types';
 import { licenseUrl } from '@/lib/license';
@@ -18,8 +19,9 @@ import {
 interface Props {
   content: StoredExtensionFields;
   showIconUrl?: boolean;
+  developerName?: string;
 }
-const { content, showIconUrl = false } = Astro.props;
+const { content, showIconUrl = false, developerName } = Astro.props;
 const homepageUrl = content.homepage_url ?? content.website;
 const sourceUrl = content.source ? repositoryURL(content.source) : undefined;
 const licenseHref = licenseUrl(content.license);
@@ -141,7 +143,13 @@ const licenseHref = licenseUrl(content.license);
       </a>
     </dd>
   </div>
-  <div data-author-detail hidden={!content.author?.name}>
+  <div
+    data-author-detail
+    hidden={
+      !content.author?.name ||
+      content.author.name.trim() === developerName?.trim()
+    }
+  >
     <dt class="flex items-center gap-2 text-xs text-muted-foreground">
       <User class="size-3.5" aria-hidden="true" />
       Author
@@ -171,8 +179,10 @@ const licenseHref = licenseUrl(content.license);
     <dd class="mt-1 whitespace-pre-line" data-preview-requirements>
       {content.requires
         ? [
-            `FOSSBilling ${content.requires.fossbilling}`,
-            ...(content.requires.php ? [`PHP ${content.requires.php}`] : []),
+            `FOSSBilling ${compatibilityLabel(content.requires.fossbilling)}`,
+            ...(content.requires.php
+              ? [`PHP ${compatibilityLabel(content.requires.php)}`]
+              : []),
             ...Object.entries(content.requires.modules ?? {}).map(
               ([id, constraint]) => `${id}: ${constraint}`,
             ),

@@ -101,6 +101,7 @@ const releasesView = Astro.url.searchParams.get('view') === 'releases';
           <ExtensionWorkspace
             id={view.extension.id}
             content={view.extension}
+            developerName={view.extension.developer.name}
             releases={releasesView}
           />
         </>

@@ -5,6 +5,7 @@ import {
   type DraftSection,
 } from '@/lib/extension-draft';
 import { formatModuleRequirements } from '@/lib/extension-form';
+import { compatibilityLabel } from '@/lib/requirements';
 import { latestRelease, releasesDescending } from '@/lib/releases';
 import type { ExtensionUpdate } from '@/lib/api/client';
 import { EXTENSION_TYPE_LABELS, repositoryURL } from '@/types';
@@ -23,6 +24,7 @@ export function initExtensionWorkspace() {
   if (!configNode) return;
   const config = JSON.parse(configNode.textContent!) as {
     base: ExtensionUpdate;
+    developerName?: string;
     baselineHash: string;
     pendingRevisionId?: string;
     submitLabel: string;
@@ -203,13 +205,17 @@ export function initExtensionWorkspace() {
         'underline',
         isSafeHttpUrl(current.author.url),
       );
-      find<HTMLElement>('[data-author-detail]').hidden = !current.author.name;
+      find<HTMLElement>('[data-author-detail]').hidden =
+        !current.author.name ||
+        current.author.name.trim() === config.developerName?.trim();
     }
     text(
       '[data-preview-requirements]',
       [
-        `FOSSBilling ${current.requires.fossbilling}`,
-        ...(current.requires.php ? [`PHP ${current.requires.php}`] : []),
+        `FOSSBilling ${compatibilityLabel(current.requires.fossbilling)}`,
+        ...(current.requires.php
+          ? [`PHP ${compatibilityLabel(current.requires.php)}`]
+          : []),
         ...Object.entries(current.requires.modules ?? {}).map(
           ([id, constraint]) => `${id}: ${constraint}`,
         ),
@@ -384,7 +390,7 @@ export function initExtensionWorkspace() {
       title.textContent = `${release.tag}${release.tag === latest?.tag ? ' · Latest Version' : ''}`;
       const detail = document.createElement('p');
       detail.className = 'mt-1 text-xs text-muted-foreground';
-      detail.textContent = `${release.date} · FOSSBilling ${release.requires.fossbilling}${release.requires.php ? ` · PHP ${release.requires.php}` : ''}`;
+      detail.textContent = `${release.date} · FOSSBilling ${compatibilityLabel(release.requires.fossbilling)}${release.requires.php ? ` · PHP ${compatibilityLabel(release.requires.php)}` : ''}`;
       const links = document.createElement('p');
       links.className = 'mt-2 max-w-xl text-xs text-muted-foreground';
       const download = document.createElement('a');
