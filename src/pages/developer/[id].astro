@@ -1,7 +1,7 @@
 ---
 import Base from '../../layouts/Base.astro';
 import DirectorySection from '@/components/DirectorySection.astro';
-import { getDeveloperById } from '@/lib/extensions-data';
+import { getDeveloperByIdentifier } from '@/lib/extensions-data';
 import {
   ApiRequestError,
   createApiClient,
@@ -33,10 +33,10 @@ if (!id) {
 // on an invalid id, but keeps listExtensions off the critical path for every
 // valid request — the far more common case — and repeat misses hit the
 // per-colo data cache.
-const extensionsPromise = listExtensions(env, { developer_id: id });
+const extensionsPromise = listExtensions(env, { developer_identifier: id });
 extensionsPromise.catch(() => {});
 
-const developer = await getDeveloperById(env, id);
+const developer = await getDeveloperByIdentifier(env, id);
 
 if (!developer) {
   return Astro.rewrite('/404');
@@ -58,7 +58,7 @@ if (Astro.request.method === 'POST' && developer.unclaimed) {
 
   const api = createApiClient(env, user.sub);
   try {
-    await api.claimDeveloper(developer.id, submittedNote || undefined);
+    await api.claimDeveloper(developer.identifier, submittedNote || undefined);
     claimSubmitted = true;
   } catch (e) {
     claimError =
@@ -189,7 +189,7 @@ const extensions = extensionsPage?.result ?? [];
     data-extension-directory
     data-api-url="/api/extensions/cards"
     data-limit="50"
-    data-developer-id={developer.id}
+    data-developer-id={developer.identifier}
     data-has-more={
       extensionsPage ? hasNextPage(extensionsPage.pagination) : false
     }

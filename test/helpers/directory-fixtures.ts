@@ -5,6 +5,7 @@ import type { ExtensionListItem } from '@/lib/api/client';
 export function item(id: string, name = id): ExtensionListItem {
   return {
     id,
+    identifier: id,
     manifest_version: 1 as const,
     author: { name: 'Package Author' },
     type: 'module',
@@ -17,6 +18,7 @@ export function item(id: string, name = id): ExtensionListItem {
     download_url: `https://example.test/${id}.zip`,
     developer: {
       id: 'fossbilling',
+      identifier: 'fossbilling',
       type: 'organization',
       name: 'FOSSBilling',
       approved: true,

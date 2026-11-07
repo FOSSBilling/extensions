@@ -14,7 +14,7 @@ import { EXTENSION_TYPES, isExtensionType } from '@/types';
 const env = Astro.locals.env;
 const requestedType = Astro.url.searchParams.get('type');
 const activeType = isExtensionType(requestedType) ? requestedType : undefined;
-const requestedDeveloperId = Astro.url.searchParams.get('developer_id');
+const requestedDeveloperId = Astro.url.searchParams.get('developer_identifier');
 const activeDeveloperId = requestedDeveloperId || undefined;
 const requestedLimit = Astro.url.searchParams.get('limit');
 const activeLimit = clampApiPageLimit(
@@ -27,7 +27,7 @@ let directoryError: string | null = null;
 try {
   directoryPage = await listExtensions(env, {
     type: activeType,
-    developer_id: activeDeveloperId,
+    developer_identifier: activeDeveloperId,
     limit: activeLimit,
   });
 } catch (error) {
@@ -113,7 +113,7 @@ const activeFilterCount =
             <span class="font-medium text-sm">Developer ID</span>
             <input
               type="text"
-              name="developer_id"
+              name="developer_identifier"
               value={activeDeveloperId ?? ''}
               placeholder="Filter by Developer"
               class="input w-full"

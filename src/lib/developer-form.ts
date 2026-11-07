@@ -18,13 +18,14 @@ export function buildDeveloperProfile(
 ): DeveloperProfileInput {
   const str = (name: string) => formString(form, name);
   const typeInput = str('type');
-  const id = existingDeveloper?.id ?? str('id').toLowerCase();
-  if (!id) {
-    throw new DeveloperValidationError('Publisher ID is required.');
+  const identifier =
+    existingDeveloper?.identifier ?? str('identifier').toLowerCase();
+  if (!identifier) {
+    throw new DeveloperValidationError('Publisher Identifier is required.');
   }
 
   return {
-    id,
+    identifier,
     type: isDeveloperType(typeInput) ? typeInput : 'user',
     name: str('name'),
     URL: withHttpsScheme(str('url')),

@@ -40,7 +40,7 @@ if (Astro.request.method === 'POST') {
     await setFlash(Astro, Astro.locals.env.sessionSecret, {
       title: 'Submitted for Review.',
     });
-    return Astro.redirect(`/extension/${payload.id}`);
+    return Astro.redirect(`/extension/${payload.identifier}`);
   } catch (e) {
     error =
       e instanceof ApiRequestError

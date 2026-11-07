@@ -3,7 +3,7 @@
 // generated Extensions v2 client.
 import {
   createApiClient,
-  getDeveloperById as getDeveloperByIdFromApi,
+  getDeveloperByIdentifier as getDeveloperByIdentifierFromApi,
   paginateAll,
   type DeveloperProfile as ApiDeveloperProfile,
   type Extension as ApiExtension,
@@ -52,6 +52,7 @@ export interface LastReview {
 // must not collapse them into a single derived status.
 export interface OwnedExtensionDetail {
   id: string;
+  identifier: string;
   developer: PublicDeveloperProfile;
   published: Extension | null;
   pendingRevision: PendingRevision | null;
@@ -64,6 +65,7 @@ function toDeveloperProfile(
 ): DeveloperProfile & { has_pending_transfer?: boolean } {
   return {
     id: developer.id,
+    identifier: developer.identifier,
     type: developer.type,
     name: developer.name,
     URL: developer.URL,
@@ -86,6 +88,7 @@ function toDeveloperProfile(
 function toPublicDeveloper(developer: PublicDeveloper): PublicDeveloperProfile {
   return {
     id: developer.id,
+    identifier: developer.identifier,
     type: developer.type,
     name: developer.name,
     URL: developer.URL,
@@ -101,6 +104,7 @@ function toExtension(extension: ApiExtension): Extension {
     author: extension.author,
     requires: extension.requires,
     id: extension.id,
+    identifier: extension.identifier,
     type: extension.type,
     name: extension.name,
     description: extension.description,
@@ -126,11 +130,13 @@ export function toOwnedExtensionDetail(
 ): OwnedExtensionDetail {
   return {
     id: owned.id,
+    identifier: owned.identifier,
     developer: toPublicDeveloper(owned.developer),
     published: owned.published
       ? toExtension({
           ...owned.published,
           id: owned.id,
+          identifier: owned.identifier,
           developer: owned.developer,
         })
       : null,
@@ -215,12 +221,12 @@ export async function getDeveloperByOwner(
   }
 }
 
-export async function getDeveloperById(
+export async function getDeveloperByIdentifier(
   env: ApplicationEnv,
   id: string,
 ): Promise<PublicDeveloperProfile | null> {
   try {
-    return toPublicDeveloper(await getDeveloperByIdFromApi(env, id));
+    return toPublicDeveloper(await getDeveloperByIdentifierFromApi(env, id));
   } catch {
     // Public pages historically treated any domain read failure as a missing
     // profile. Keep that fail-soft behavior at the API adapter boundary.

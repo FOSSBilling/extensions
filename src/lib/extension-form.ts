@@ -7,7 +7,9 @@ import { repositoryFromFields, repositoryInputUrl } from './repository';
 import { formString } from './form';
 import { withHttpsScheme } from './url-prefix';
 
-export type ExtensionFormEcho = Extension & { moduleRequirementsInput: string };
+export type ExtensionFormEcho = Omit<Extension, 'id'> & {
+  moduleRequirementsInput: string;
+};
 
 // Thrown for form-level validation failures that should be shown to the
 // user, distinct from ApiRequestError (the api rejecting an otherwise
@@ -191,7 +193,7 @@ function buildContent(
 // PUT can't rename, since the id comes from the path and is immutable.
 export function buildExtensionCreatePayload(form: FormData): ExtensionCreate {
   return {
-    id: formString(form, 'extension_id').toLowerCase(),
+    identifier: formString(form, 'extension_identifier').toLowerCase(),
     ...buildContent(
       form,
       { releases: [], version: '', download_url: '' },
@@ -223,7 +225,7 @@ export function buildExtensionUpdatePayload(
 // page so a new form field only needs adding here.
 export function echoExtensionFromForm(
   form: FormData,
-  base: Extension,
+  base: Omit<Extension, 'id'>,
 ): ExtensionFormEcho {
   const selectedLicenseId = formString(form, 'license_spdx_id');
   const isRecognizedLicense =
@@ -281,7 +283,7 @@ export function echoReleaseDraftFromForm(form: FormData): ReleaseDraft {
 }
 
 // Best-effort echo for the create page: there is no existing extension to
-// spread over, so the base is a blank, submission-shaped extension — the id
+// spread over, so the base is a blank, submission-shaped extension — the identifier
 // comes from the form (lowercased, matching what a successful submit would
 // store) and the developer is the submitter's own profile. Returns both the
 // field echo and the release draft for ExtensionForm's redisplay props.
@@ -289,11 +291,11 @@ export function echoNewExtensionFromForm(
   form: FormData,
   developer: Extension['developer'],
 ): { extension: ExtensionFormEcho; releaseDraft: ReleaseDraft } {
-  const base: Extension = {
+  const base: Omit<Extension, 'id'> = {
     manifest_version: 1,
     author: { name: developer.name, url: developer.URL },
     requires: { fossbilling: '', php: '' },
-    id: formString(form, 'extension_id').toLowerCase(),
+    identifier: formString(form, 'extension_identifier').toLowerCase(),
     type: 'module',
     name: '',
     description: '',

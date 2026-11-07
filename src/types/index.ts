@@ -66,6 +66,7 @@ export type License = string;
 
 export type Developer = {
   id: string;
+  identifier: string;
   type: DeveloperType;
   name: string;
   URL?: string;
@@ -74,6 +75,7 @@ export type Developer = {
 };
 
 export type Extension = {
+  identifier: string;
   manifest_version: 1;
   author: PackageAuthor;
   requires: Requirements;
@@ -104,7 +106,7 @@ export type DeveloperProfile = Developer & {
   unclaimed?: boolean;
 };
 
-// What getDeveloperById (the public /developer/[id] read) returns — private
+// What getDeveloperByIdentifier (the public /developer/[id] read) returns — private
 // owner and moderation fields are excluded from the local public view.
 export type PublicDeveloperProfile = Omit<
   DeveloperProfile,

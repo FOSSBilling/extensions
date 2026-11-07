@@ -19,7 +19,7 @@ interface Props {
   // Best-effort redisplay of a failed submission's values (see
   // echoNewExtensionFromForm and echoExtensionFromForm). Values only:
   // passing an echo never flips the form into edit mode, so create keeps
-  // its writable extension_id and create submit semantics.
+  // its writable extension_identifier and create submit semantics.
   echo?: ExtensionFormEcho;
   error?: string | null;
   submitLabel?: string;
@@ -102,7 +102,8 @@ const otherSpdxIds = SPDX_LICENSE_IDS.filter((id) => !popularSpdxIds.has(id));
           <legend>Publisher</legend>
           <p class="flex items-center gap-1">
             <span>
-              Publishing as <strong>{developer.name}</strong> ({developer.id}).
+              Publishing as <strong>{developer.name}</strong> (
+              {developer.identifier}).
             </span>
             <a
               href="/account/developer"
@@ -138,18 +139,18 @@ const otherSpdxIds = SPDX_LICENSE_IDS.filter((id) => !popularSpdxIds.has(id));
             />
           </div>
           <div class="field">
-            <label for="extension_id">
-              Extension ID <span class="text-destructive">*</span>
+            <label for="extension_identifier">
+              Extension Identifier <span class="text-destructive">*</span>
             </label>
             <input
               class="input"
               type="text"
-              id="extension_id"
-              name="extension_id"
+              id="extension_identifier"
+              name="extension_identifier"
               required
               pattern="[a-z0-9_\-]+"
               maxlength={64}
-              value={shown?.id}
+              value={shown?.identifier}
               disabled={isEdit}
             />
             {isEdit ? (
@@ -582,7 +583,9 @@ const otherSpdxIds = SPDX_LICENSE_IDS.filter((id) => !popularSpdxIds.has(id));
   // GitHub repo creation, etc.) — a manual edit always wins. Only wired up
   // for new extensions; the edit form disables this field entirely.
   const nameInput = document.querySelector<HTMLInputElement>('#name');
-  const idInput = document.querySelector<HTMLInputElement>('#extension_id');
+  const idInput = document.querySelector<HTMLInputElement>(
+    '#extension_identifier',
+  );
 
   if (nameInput && idInput && !idInput.disabled) {
     const slugify = (value: string) =>

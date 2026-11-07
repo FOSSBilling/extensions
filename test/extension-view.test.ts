@@ -2,13 +2,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
   getOwnDeveloper: vi.fn(),
   getMyExtension: vi.fn(),
-  getExtensionById: vi.fn(),
+  getExtensionByIdentifier: vi.fn(),
   createApiClient: vi.fn(),
 }));
 vi.mock('@/lib/api/client', async (original) => ({
   ...(await original<typeof import('@/lib/api/client')>()),
   createApiClient: mocks.createApiClient,
-  getExtensionById: mocks.getExtensionById,
+  getExtensionByIdentifier: mocks.getExtensionByIdentifier,
 }));
 import { loadExtensionView } from '@/lib/extension-view';
 import { ApiRequestError } from '@/lib/api/client';
@@ -27,7 +27,7 @@ beforeEach(() => {
   mocks.createApiClient.mockReturnValue(mocks);
   mocks.getOwnDeveloper.mockResolvedValue({ id: 'my-profile' });
   mocks.getMyExtension.mockResolvedValue(owned);
-  mocks.getExtensionById.mockResolvedValue(published);
+  mocks.getExtensionByIdentifier.mockResolvedValue(published);
 });
 describe('permission-aware extension view', () => {
   it('uses only the public read for anonymous visitors', async () => {
@@ -44,12 +44,12 @@ describe('permission-aware extension view', () => {
       userId: user.sub,
     });
     expect(mocks.createApiClient).toHaveBeenCalledWith(env, user.sub);
-    expect(mocks.getExtensionById).not.toHaveBeenCalled();
+    expect(mocks.getExtensionByIdentifier).not.toHaveBeenCalled();
   });
   it('allows an owner to view a first submission without a public listing', async () => {
     mocks.getMyExtension.mockResolvedValue({ ...owned, published: null });
     expect((await loadExtensionView(env, 'sample', user)).kind).toBe('owner');
-    expect(mocks.getExtensionById).not.toHaveBeenCalled();
+    expect(mocks.getExtensionByIdentifier).not.toHaveBeenCalled();
   });
   it('does not grant editing from a moderator cookie flag', async () => {
     mocks.getOwnDeveloper.mockResolvedValue(null);
@@ -90,7 +90,7 @@ describe('permission-aware extension view', () => {
   });
   it('keeps unpublished content inaccessible to unrelated visitors', async () => {
     mocks.getOwnDeveloper.mockResolvedValue(null);
-    mocks.getExtensionById.mockRejectedValue(
+    mocks.getExtensionByIdentifier.mockRejectedValue(
       new ApiRequestError(404, 'NOT_FOUND', 'Not published'),
     );
     await expect(loadExtensionView(env, 'sample', user)).rejects.toMatchObject({
@@ -106,7 +106,7 @@ describe('permission-aware extension view', () => {
       await expect(
         loadExtensionView(env, 'sample', user),
       ).rejects.toMatchObject({ status: 503 });
-      expect(mocks.getExtensionById).not.toHaveBeenCalled();
+      expect(mocks.getExtensionByIdentifier).not.toHaveBeenCalled();
     },
   );
 });

@@ -70,7 +70,7 @@ const correctable = Boolean(
   <div slot="actions">
     {ext && correctable && (
       <a
-        href={`/account/admin/extensions/${ext.id}/edit`}
+        href={`/account/admin/extensions/${ext.identifier}/edit`}
         class="btn"
         data-size="sm"
         data-variant="outline"
@@ -106,7 +106,7 @@ const correctable = Boolean(
           <p class="font-medium">
             {ext.developer.name}
             <span class="text-muted-foreground text-sm ml-2">
-              ({ext.developer.id})
+              ({ext.developer.identifier})
             </span>
           </p>
           <div class="flex items-center gap-2">
