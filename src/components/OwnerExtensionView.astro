@@ -20,6 +20,7 @@ const api = createApiClient(env, userId);
 const pending = owned.pending_revision;
 const review = owned.last_review;
 const published = owned.published;
+const draft = !published && !pending && !review;
 const listed = Boolean(published && !owned.delisted);
 const showSubmission = Boolean(
   pending &&
@@ -49,7 +50,9 @@ const previewLabel = showSubmission
   ? 'Pending Version'
   : published
     ? 'Published Version'
-    : 'Previous Submission';
+    : draft
+      ? 'Draft'
+      : 'Previous Submission';
 ---
 
 <ExtensionHeader
@@ -136,7 +139,7 @@ const previewLabel = showSubmission
     />
   </details>
 )}
-{rebuilding && canEdit && (
+{rebuilding && canEdit && !draft && (
   <div class="alert">
     <h2>Rebuild Your Submission</h2>
     <section>
