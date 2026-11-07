@@ -19,7 +19,7 @@ import {
   clampApiPageLimit,
   createApiClient,
   getApiErrorMessage,
-  getExtensionById,
+  getExtensionByIdentifier,
   listExtensions,
   type Extension,
   type ExtensionCreate,
@@ -144,7 +144,7 @@ describe('generated Extensions v2 façade', () => {
       .mockResolvedValue(apiResponse(page([], null, false)));
     const request = {
       type: 'theme' as const,
-      developer_id: 'developer-id',
+      developer_identifier: 'developer-id',
       limit: 25,
       cursor: 'opaque-cursor',
     };
@@ -257,14 +257,14 @@ describe('generated Extensions v2 façade', () => {
 
     await listExtensions(publicEnv, {
       type: 'theme',
-      developer_id: 'developer-id',
+      developer_identifier: 'developer-id',
       limit: 100,
       cursor: opaqueCursor,
     });
 
     const url = requestUrl(fetchMock);
     expect(url.searchParams.get('type')).toBe('theme');
-    expect(url.searchParams.get('developer_id')).toBe('developer-id');
+    expect(url.searchParams.get('developer_identifier')).toBe('developer-id');
     expect(url.searchParams.get('cursor')).toBe(opaqueCursor);
   });
 
@@ -296,7 +296,10 @@ describe('generated Extensions v2 façade', () => {
       .mockResolvedValue(apiResponse({ result: detail }));
     vi.stubGlobal('fetch', fetchMock);
 
-    const response = await getExtensionById(publicEnv, 'full-extension');
+    const response = await getExtensionByIdentifier(
+      publicEnv,
+      'full-extension',
+    );
 
     expect(requestFrom(fetchMock).url).toBe(
       'https://api.example.test/extensions/v2/extensions/full-extension',
@@ -352,17 +355,17 @@ describe('generated Extensions v2 façade', () => {
       'opaque cursor',
     );
     // The mine scope forwards a type filter when asked, and never carries
-    // the public directory's developer_id filter.
+    // the public directory's developer_identifier filter.
     expect(requestUrl(fetchMock, 0).searchParams.get('type')).toBe('theme');
-    expect(requestUrl(fetchMock, 0).searchParams.has('developer_id')).toBe(
-      false,
-    );
+    expect(
+      requestUrl(fetchMock, 0).searchParams.has('developer_identifier'),
+    ).toBe(false);
     expect(requestUrl(fetchMock, 1).searchParams.has('cursor')).toBe(false);
   });
 
   it('serializes a create payload with no developer field and reports the new revision', async () => {
     const payload = {
-      id: 'body-extension',
+      identifier: 'body-extension',
       manifest_version: 1 as const,
       author: { name: 'Package Author' },
       requires: { fossbilling: '^0.8.9', php: '>=8.3' },
@@ -381,7 +384,7 @@ describe('generated Extensions v2 façade', () => {
       apiResponse(
         {
           result: {
-            id: 'body-extension',
+            identifier: 'body-extension',
             revision_id: 'revision-1',
             status: 'pending',
           },
@@ -402,7 +405,7 @@ describe('generated Extensions v2 façade', () => {
     expect(request.headers.get('content-type')).toBe('application/json');
     expect(await request.json()).toEqual(payload);
     expect(result).toEqual({
-      id: 'body-extension',
+      identifier: 'body-extension',
       revision_id: 'revision-1',
       status: 'pending',
     });
@@ -428,7 +431,7 @@ describe('generated Extensions v2 façade', () => {
       apiResponse(
         {
           result: {
-            id: 'body-extension',
+            identifier: 'body-extension',
             revision_id: 'revision-2',
             status: 'pending',
           },
@@ -934,6 +937,7 @@ describe('cursor-paginated moderator lists', () => {
   function developerProfile(id: string): DeveloperProfile {
     return {
       id,
+      identifier: id,
       type: 'user',
       name: id,
       approved: true,
@@ -945,7 +949,8 @@ describe('cursor-paginated moderator lists', () => {
   function myClaim(id: string): PendingDeveloperClaim {
     return {
       id,
-      developer_id: 'dev-1',
+      developer_id: '019a0000-0000-7000-8000-000000000001',
+      developer_identifier: 'dev-1',
       claimant_id: 'user-1',
       status: 'pending',
       created_at: '2026-01-01T00:00:00Z',
@@ -1000,7 +1005,7 @@ describe('cursor-paginated moderator lists', () => {
   it('walks the claims queue and profile history with explicit pages', async () => {
     const claim = myClaim('claim-1');
     const entry: DeveloperHistoryEntry = {
-      developer_id: 'dev-1',
+      developer_id: '019a0000-0000-7000-8000-000000000001',
       type: 'user',
       name: 'Dev One',
       changed_by: 'user-1',
@@ -1029,7 +1034,9 @@ describe('cursor-paginated moderator lists', () => {
     ]);
 
     expect(claims.map((c) => c.id)).toEqual(['claim-1']);
-    expect(history.map((h) => h.developer_id)).toEqual(['dev-1']);
+    expect(history.map((h) => h.developer_id)).toEqual([
+      '019a0000-0000-7000-8000-000000000001',
+    ]);
     const urls = fetchMock.mock.calls.map(
       (call) => new URL((call[0] as Request).url),
     );

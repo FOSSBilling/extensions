@@ -13,7 +13,7 @@ import type { Extension } from '@/types';
 function extensionForm(overrides: Record<string, string | undefined> = {}) {
   const form = new FormData();
   const values = {
-    extension_id: 'example_module',
+    extension_identifier: 'example_module',
     type: 'module',
     name: 'Example',
     description: 'Description',
@@ -49,7 +49,8 @@ function buildExtensionCreatePayload(form: FormData) {
   });
 }
 const developer = {
-  id: 'owner',
+  id: '019a0000-0000-7000-8000-000000000001',
+  identifier: 'owner',
   type: 'organization' as const,
   name: 'Developer',
 };
@@ -84,7 +85,8 @@ const published: Extension = {
       },
     },
   ],
-  id: 'example_module',
+  id: '019a0000-0000-7000-8000-000000000002',
+  identifier: 'example_module',
   developer,
 };
 
@@ -92,7 +94,7 @@ describe('manifest publishing forms', () => {
   it('sends the new manifest fields without transforming constraints or attribution', () => {
     const body = buildExtensionCreatePayload(extensionForm());
     expect(body).toMatchObject({
-      id: 'example_module',
+      identifier: 'example_module',
       manifest_version: 1,
       type: 'module',
       license: 'MIT',
@@ -112,9 +114,9 @@ describe('manifest publishing forms', () => {
   });
   it('lowercases new ids and accepts an omitted homepage', () => {
     const body = buildExtensionCreatePayload(
-      extensionForm({ extension_id: 'My_Module', homepage_url: '' }),
+      extensionForm({ extension_identifier: 'My_Module', homepage_url: '' }),
     );
-    expect(body.id).toBe('my_module');
+    expect(body.identifier).toBe('my_module');
     expect(body.homepage_url).toBeUndefined();
   });
   it('aligns the latest release requirements with corrected metadata', () => {
@@ -215,7 +217,10 @@ describe('manifest publishing forms', () => {
     expect(echo.moduleRequirementsInput).toBe('unfinished dependency');
     expect(echo.license).toBe('MIT OR BSD-3-Clause');
     expect(echoReleaseDraftFromForm(form).version_tag).toBe('1.0.0');
-    expect(echoNewExtensionFromForm(form, developer).extension.id).toBe(
+    expect(
+      echoNewExtensionFromForm(form, developer).extension,
+    ).not.toHaveProperty('id');
+    expect(echoNewExtensionFromForm(form, developer).extension.identifier).toBe(
       'example_module',
     );
   });
@@ -250,7 +255,7 @@ it('safely echoes blank new-extension and release submissions', () => {
   });
   const echo = echoNewExtensionFromForm(form, developer);
   expect(echo.extension).toMatchObject({
-    id: '',
+    identifier: '',
     name: '',
     license: '',
     moduleRequirementsInput: '',

@@ -115,6 +115,10 @@
             "maxLength": 2048
           },
           "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "identifier": {
             "type": "string"
           },
           "developer": {
@@ -132,6 +136,7 @@
           "version",
           "download_url",
           "id",
+          "identifier",
           "developer"
         ]
       },
@@ -154,7 +159,7 @@
       "PublicDeveloper": {
         "type": "object",
         "properties": {
-          "id": {
+          "identifier": {
             "type": "string",
             "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
           },
@@ -177,6 +182,10 @@
             "maxLength": 2048,
             "format": "uri"
           },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
           "approved": {
             "type": "boolean"
           },
@@ -184,12 +193,23 @@
             "type": "boolean"
           }
         },
-        "required": ["id", "type", "name", "approved", "unclaimed"]
+        "required": [
+          "identifier",
+          "type",
+          "name",
+          "id",
+          "approved",
+          "unclaimed"
+        ]
       },
       "OwnedExtensionListItem": {
         "type": "object",
         "properties": {
           "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "identifier": {
             "type": "string"
           },
           "developer": {
@@ -300,6 +320,7 @@
         },
         "required": [
           "id",
+          "identifier",
           "developer",
           "published",
           "pending_revision",
@@ -450,13 +471,17 @@
                 "type": "string"
               },
               "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "identifier": {
                 "type": "string"
               },
               "developer": {
                 "$ref": "#/components/schemas/PublicDeveloper"
               }
             },
-            "required": ["id", "developer"]
+            "required": ["id", "identifier", "developer"]
           }
         ]
       },
@@ -954,7 +979,7 @@
             "maxLength": 2048,
             "format": "uri"
           },
-          "id": {
+          "identifier": {
             "type": "string",
             "minLength": 1,
             "maxLength": 64,
@@ -974,7 +999,7 @@
           "source",
           "version",
           "download_url",
-          "id"
+          "identifier"
         ],
         "additionalProperties": false
       },
@@ -1087,6 +1112,10 @@
             "type": "string"
           },
           "extension_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "extension_identifier": {
             "type": "string"
           },
           "developer_id": {
@@ -1140,6 +1169,7 @@
         "required": [
           "id",
           "extension_id",
+          "extension_identifier",
           "developer_id",
           "submitted_by",
           "status",
@@ -1163,6 +1193,10 @@
             "type": "string"
           },
           "extension_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "extension_identifier": {
             "type": "string"
           },
           "developer_id": {
@@ -1226,6 +1260,7 @@
         "required": [
           "id",
           "extension_id",
+          "extension_identifier",
           "developer_id",
           "submitted_by",
           "status",
@@ -1326,7 +1361,8 @@
             "type": "string"
           },
           "developer_id": {
-            "type": "string"
+            "type": "string",
+            "format": "uuid"
           },
           "claimant_id": {
             "type": "string"
@@ -1383,6 +1419,9 @@
           {
             "type": "object",
             "properties": {
+              "developer_identifier": {
+                "type": "string"
+              },
               "developer_name": {
                 "type": "string"
               },
@@ -1398,6 +1437,7 @@
               }
             },
             "required": [
+              "developer_identifier",
               "developer_name",
               "developer_type",
               "claimant_name",
@@ -1414,6 +1454,10 @@
           {
             "type": "object",
             "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
               "approved": {
                 "type": "boolean"
               },
@@ -1447,14 +1491,19 @@
                 "type": ["string", "null"]
               }
             },
-            "required": ["approved", "content_revision", "profile_generation"]
+            "required": [
+              "id",
+              "approved",
+              "content_revision",
+              "profile_generation"
+            ]
           }
         ]
       },
       "Developer": {
         "type": "object",
         "properties": {
-          "id": {
+          "identifier": {
             "type": "string",
             "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
           },
@@ -1483,7 +1532,7 @@
             "format": "email"
           }
         },
-        "required": ["id", "type", "name"]
+        "required": ["identifier", "type", "name"]
       },
       "ReviewNoteRequired": {
         "type": "object",
@@ -1710,7 +1759,8 @@
             "type": "string"
           },
           "developer_id": {
-            "type": "string"
+            "type": "string",
+            "format": "uuid"
           },
           "can_publish": {
             "type": "boolean"
@@ -1735,8 +1785,7 @@
         "properties": {
           "developer_id": {
             "type": "string",
-            "minLength": 1,
-            "maxLength": 200
+            "format": "uuid"
           },
           "can_publish": {
             "type": "boolean",
@@ -1753,7 +1802,7 @@
             "type": "string",
             "format": "uuid"
           },
-          "extension_id": {
+          "extension_identifier": {
             "type": "string"
           },
           "status": {
@@ -1794,7 +1843,7 @@
         },
         "required": [
           "id",
-          "extension_id",
+          "extension_identifier",
           "status",
           "artifact",
           "error",
@@ -1951,7 +2000,7 @@
       "DeveloperInput": {
         "type": "object",
         "properties": {
-          "id": {
+          "identifier": {
             "type": "string",
             "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
           },
@@ -1980,7 +2029,7 @@
             "format": "email"
           }
         },
-        "required": ["id", "type", "name"],
+        "required": ["identifier", "type", "name"],
         "additionalProperties": false
       },
       "DeveloperDetailResponse": {
@@ -2039,7 +2088,7 @@
             },
             "required": false,
             "description": "Public scope only",
-            "name": "developer_id",
+            "name": "developer_identifier",
             "in": "query"
           },
           {
@@ -2182,7 +2231,7 @@
                     "result": {
                       "type": "object",
                       "properties": {
-                        "id": {
+                        "identifier": {
                           "type": "string"
                         },
                         "revision_id": {
@@ -2191,9 +2240,13 @@
                         "status": {
                           "type": "string",
                           "enum": ["pending"]
+                        },
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
                         }
                       },
-                      "required": ["id", "revision_id", "status"]
+                      "required": ["identifier", "revision_id", "status", "id"]
                     }
                   },
                   "required": ["result"]
@@ -2406,7 +2459,7 @@
                     "result": {
                       "type": "object",
                       "properties": {
-                        "id": {
+                        "identifier": {
                           "type": "string"
                         },
                         "revision_id": {
@@ -2417,7 +2470,7 @@
                           "enum": ["pending"]
                         }
                       },
-                      "required": ["id", "revision_id", "status"]
+                      "required": ["identifier", "revision_id", "status"]
                     }
                   },
                   "required": ["result"]
@@ -2548,6 +2601,10 @@
                       "type": "object",
                       "properties": {
                         "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "identifier": {
                           "type": "string"
                         },
                         "deleted": {
@@ -2555,7 +2612,7 @@
                           "enum": [true]
                         }
                       },
-                      "required": ["id", "deleted"]
+                      "required": ["id", "identifier", "deleted"]
                     }
                   },
                   "required": ["result"]
@@ -2757,7 +2814,7 @@
                     "result": {
                       "type": "object",
                       "properties": {
-                        "id": {
+                        "identifier": {
                           "type": "string"
                         },
                         "revision_id": {
@@ -2768,7 +2825,7 @@
                           "enum": ["pending"]
                         }
                       },
-                      "required": ["id", "revision_id", "status"]
+                      "required": ["identifier", "revision_id", "status"]
                     }
                   },
                   "required": ["result"]
@@ -4661,6 +4718,10 @@
                       "type": "object",
                       "properties": {
                         "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "identifier": {
                           "type": "string"
                         },
                         "status": {
@@ -4673,7 +4734,7 @@
                           "example": true
                         }
                       },
-                      "required": ["id", "status", "notified"]
+                      "required": ["id", "identifier", "status", "notified"]
                     }
                   },
                   "required": ["result"]
@@ -4796,6 +4857,10 @@
                       "type": "object",
                       "properties": {
                         "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "identifier": {
                           "type": "string"
                         },
                         "status": {
@@ -4808,7 +4873,7 @@
                           "example": true
                         }
                       },
-                      "required": ["id", "status", "notified"]
+                      "required": ["id", "identifier", "status", "notified"]
                     }
                   },
                   "required": ["result"]
@@ -4920,6 +4985,10 @@
                       "type": "object",
                       "properties": {
                         "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "identifier": {
                           "type": "string"
                         },
                         "revision_id": {
@@ -4930,7 +4999,7 @@
                           "enum": ["approved"]
                         }
                       },
-                      "required": ["id", "revision_id", "status"]
+                      "required": ["id", "identifier", "revision_id", "status"]
                     }
                   },
                   "required": ["result"]
@@ -5093,6 +5162,10 @@
                       "type": "object",
                       "properties": {
                         "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "identifier": {
                           "type": "string"
                         },
                         "approved": {
@@ -5105,7 +5178,7 @@
                           "example": true
                         }
                       },
-                      "required": ["id", "approved", "notified"]
+                      "required": ["id", "identifier", "approved", "notified"]
                     }
                   },
                   "required": ["result"]

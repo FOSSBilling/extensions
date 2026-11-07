@@ -37,6 +37,7 @@ export type ExtensionListItem = {
   download_url: string | null;
   icon_url?: string;
   id: string;
+  identifier: string;
   developer: PublicDeveloper;
 };
 
@@ -46,17 +47,19 @@ export type Repository = {
 };
 
 export type PublicDeveloper = {
-  id: string;
+  identifier: string;
   type: 'user' | 'organization';
   name: string;
   URL?: string;
   avatar_url?: string;
+  id: string;
   approved: boolean;
   unclaimed: boolean;
 };
 
 export type OwnedExtensionListItem = {
   id: string;
+  identifier: string;
   developer: PublicDeveloper;
   published: {
     manifest_version: 1;
@@ -145,6 +148,7 @@ export type Extension = ExtensionContent & {
   download_url?: string;
   icon_url?: string;
   id: string;
+  identifier: string;
   developer: PublicDeveloper;
 };
 
@@ -290,7 +294,7 @@ export type ExtensionCreate = {
   source: Repository;
   version: string;
   download_url: string;
-  id: string;
+  identifier: string;
 };
 
 export type ExtensionUpdate = {
@@ -321,6 +325,7 @@ export type ExtensionUpdate = {
 export type ExtensionRevisionSummary = {
   id: string;
   extension_id: string;
+  extension_identifier: string;
   developer_id: string;
   submitted_by: string;
   status: 'pending' | 'approved' | 'rejected';
@@ -340,6 +345,7 @@ export type ExtensionRevisionSummary = {
 export type ExtensionRevision = {
   id: string;
   extension_id: string;
+  extension_identifier: string;
   developer_id: string;
   submitted_by: string;
   status: 'pending' | 'approved' | 'rejected';
@@ -400,6 +406,7 @@ export type ClaimNote = {
 };
 
 export type PendingDeveloperClaim = DeveloperClaim & {
+  developer_identifier: string;
   developer_name: string;
   developer_type: 'user' | 'organization';
   claimant_name: string | null;
@@ -407,6 +414,7 @@ export type PendingDeveloperClaim = DeveloperClaim & {
 };
 
 export type DeveloperProfile = Developer & {
+  id: string;
   approved: boolean;
   content_revision: number;
   profile_generation: string;
@@ -420,7 +428,7 @@ export type DeveloperProfile = Developer & {
 };
 
 export type Developer = {
-  id: string;
+  identifier: string;
   type: 'user' | 'organization';
   name: string;
   URL?: string;
@@ -505,7 +513,7 @@ export type PublisherRegister = {
 
 export type PackageJob = {
   id: string;
-  extension_id: string;
+  extension_identifier: string;
   status: 'queued' | 'processing' | 'ready' | 'failed';
   artifact: PackageArtifact | null;
   error: {
@@ -556,7 +564,7 @@ export type OwnedDeveloperProfile =
   | null;
 
 export type DeveloperInput = {
-  id: string;
+  identifier: string;
   type: 'user' | 'organization';
   name: string;
   URL?: string;
@@ -582,7 +590,7 @@ export type GetExtensionsData = {
     /**
      * Public scope only
      */
-    developer_id?: string;
+    developer_identifier?: string;
     limit?: number;
     /**
      * Opaque cursor returned by the previous page
@@ -686,9 +694,10 @@ export type PostExtensionsResponses = {
    */
   201: {
     result: {
-      id: string;
+      identifier: string;
       revision_id: string;
       status: 'pending';
+      id: string;
     };
   };
 };
@@ -738,6 +747,7 @@ export type DeleteExtensionsByIdResponses = {
   200: {
     result: {
       id: string;
+      identifier: string;
       deleted: true;
     };
   };
@@ -848,7 +858,7 @@ export type PutExtensionsByIdResponses = {
    */
   202: {
     result: {
-      id: string;
+      identifier: string;
       revision_id: string;
       status: 'pending';
     };
@@ -1015,7 +1025,7 @@ export type PutExtensionsByIdRevisionsByRevisionIdResponses = {
    */
   202: {
     result: {
-      id: string;
+      identifier: string;
       revision_id: string;
       status: 'pending';
     };
@@ -1862,6 +1872,7 @@ export type PostExtensionsByIdDelistResponses = {
   200: {
     result: {
       id: string;
+      identifier: string;
       status: 'delisted';
       /**
        * Whether a notification email was dispatched - delivery itself is asynchronous
@@ -1925,6 +1936,7 @@ export type PostExtensionsByIdRelistResponses = {
   200: {
     result: {
       id: string;
+      identifier: string;
       status: 'relisted';
       /**
        * Whether a notification email was dispatched - delivery itself is asynchronous
@@ -1999,6 +2011,7 @@ export type PostExtensionsByIdModeratorCorrectResponses = {
   200: {
     result: {
       id: string;
+      identifier: string;
       revision_id: string;
       status: 'approved';
     };
@@ -2059,6 +2072,7 @@ export type PostDevelopersByIdApproveResponses = {
   200: {
     result: {
       id: string;
+      identifier: string;
       approved: true;
       /**
        * Whether a notification email was dispatched - delivery itself is asynchronous

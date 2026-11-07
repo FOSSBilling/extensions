@@ -108,7 +108,7 @@ beforeEach(() => {
   mocks.buildPackage.mockResolvedValue(artifact);
   mocks.queuePackage.mockResolvedValue({
     id: '44444444-4444-4444-8444-444444444444',
-    extension_id: 'example',
+    extension_identifier: 'example',
     status: 'queued',
     artifact: null,
     error: null,
@@ -257,7 +257,7 @@ describe('release package editor', () => {
     );
     mocks.getPackageJob.mockResolvedValue({
       id,
-      extension_id: 'example',
+      extension_identifier: 'example',
       status: 'queued',
     });
     const response = await GET(ctx);
@@ -268,7 +268,7 @@ describe('release package editor', () => {
     });
     mocks.getPackageJob.mockResolvedValue({
       id,
-      extension_id: 'another',
+      extension_identifier: 'another',
       status: 'queued',
     });
     expect((await GET(ctx)).status).toBe(404);

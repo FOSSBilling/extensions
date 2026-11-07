@@ -11,7 +11,7 @@ import { directoryAssetAvifUrl } from '@/lib/image-url';
 interface Props {
   id: string;
   content: StoredExtensionFields;
-  developer: Pick<Developer, 'id' | 'name'>;
+  developer: Pick<Developer, 'identifier' | 'name'>;
   versionLabel?: string;
   backHref?: string;
   backLabel?: string;
@@ -95,7 +95,7 @@ const downloadUrl = latest
       </div>
       <p class="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
         <a
-          href={`/developer/${developer.id}`}
+          href={`/developer/${developer.identifier}`}
           class="inline-flex items-center gap-1.5 underline-offset-4 hover:underline"
           data-astro-prefetch="false"
         >

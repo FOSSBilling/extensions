@@ -12,7 +12,7 @@ import { item, page } from './helpers/directory-fixtures';
 describe('directory page accumulation', () => {
   const filters = {
     type: 'module' as const,
-    developer_id: 'developer-id',
+    developer_identifier: 'developer-id',
     limit: 100,
   };
 

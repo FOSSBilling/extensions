@@ -21,6 +21,12 @@ const IMAGE_SOURCE_HOSTS = [
 
 export type ImageVariant = keyof typeof IMAGE_VARIANTS;
 
+const UUID_PATH =
+  '[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}';
+const DIRECTORY_ASSET_PATH = new RegExp(
+  `^/extensions/${UUID_PATH}/icons/${UUID_PATH}\\.(svg|png|avif)$`,
+);
+
 export function isDirectoryAssetUrl(source: string): boolean {
   try {
     const url = new URL(source);
@@ -30,7 +36,7 @@ export function isDirectoryAssetUrl(source: string): boolean {
       !url.password &&
       !url.search &&
       !url.hash &&
-      /^\/[\w-]+\/icons\/[a-f0-9]{64}\.(svg|png|avif)$/.test(url.pathname)
+      DIRECTORY_ASSET_PATH.test(url.pathname)
     );
   } catch {
     return false;

@@ -21,9 +21,9 @@ export function parseDirectoryFilters(params: URLSearchParams):
   if (type) {
     filters.type = type;
   }
-  const developerId = params.get('developer_id');
+  const developerId = params.get('developer_identifier');
   if (developerId !== null) {
-    filters.developer_id = developerId;
+    filters.developer_identifier = developerId;
   }
   const limit = params.get('limit');
   if (limit !== null) {

@@ -16,12 +16,12 @@ describe('application boundary validation', () => {
 describe('directory filter parsing', () => {
   it('parses every supported filter and ignores unknown params', () => {
     const params = new URLSearchParams(
-      'type=module&developer_id=dev-1&limit=24&cursor=opaque&q=ignored',
+      'type=module&developer_identifier=dev-1&limit=24&cursor=opaque&q=ignored',
     );
     expect(parseDirectoryFilters(params)).toEqual({
       filters: {
         type: 'module',
-        developer_id: 'dev-1',
+        developer_identifier: 'dev-1',
         limit: 24,
         cursor: 'opaque',
       },

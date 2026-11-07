@@ -86,18 +86,18 @@ if (
     }
     const payload = await rebuildLatestPackage(
       api,
-      owned.id,
+      owned.identifier,
       buildExtensionUpdatePayload(form, base),
     );
-    await api.correctExtension(owned.id, payload, submittedNote);
+    await api.correctExtension(owned.identifier, payload, submittedNote);
     purgeDirectory(Astro);
     await setFlash(Astro, env.sessionSecret, {
       category: 'success',
-      title: `"${owned.id}" corrected.`,
+      title: `"${owned.identifier}" corrected.`,
       description:
         'Recorded as a moderator revision — the author sees it in history; no email was sent.',
     });
-    return Astro.redirect(`/account/admin/extensions/${owned.id}`);
+    return Astro.redirect(`/account/admin/extensions/${owned.identifier}`);
   } catch (e) {
     error =
       e instanceof ApiRequestError
@@ -120,7 +120,7 @@ const title = base?.name || owned?.id || id;
     <a
       href={
         owned
-          ? `/account/admin/extensions/${owned.id}`
+          ? `/account/admin/extensions/${owned.identifier}`
           : '/account/admin/extensions'
       }
       class="btn"
@@ -147,7 +147,7 @@ const title = base?.name || owned?.id || id;
   {owned && (
     <div class="max-w-2xl mx-auto space-y-6">
       <h1 class="text-2xl font-semibold tracking-tight">
-        Correct {owned.published?.name ?? owned.id}
+        Correct {owned.published?.name ?? owned.identifier}
       </h1>
 
       {!owned.published ? (
@@ -179,8 +179,10 @@ const title = base?.name || owned?.id || id;
             An edit submitted {formatDate(owned.pendingRevision.createdAt)} is
             still awaiting review. Approve or reject it first — a correction
             cannot supersede a pending edit. See the{' '}
-            <a href={`/account/admin/extensions/${owned.id}`}>detail page</a> or
-            the <a href="/account/admin/revisions">revision queue</a>.
+            <a href={`/account/admin/extensions/${owned.identifier}`}>
+              detail page
+            </a>{' '}
+            or the <a href="/account/admin/revisions">revision queue</a>.
           </section>
         </div>
       ) : (
@@ -196,7 +198,7 @@ const title = base?.name || owned?.id || id;
               echo={submitted ?? undefined}
               error={error}
               submitLabel="Correct Live Listing"
-              cancelHref={`/account/admin/extensions/${owned.id}`}
+              cancelHref={`/account/admin/extensions/${owned.identifier}`}
               correctionNote={submittedNote}
             />
           </Fragment>

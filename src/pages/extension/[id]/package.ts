@@ -101,7 +101,7 @@ export const GET: APIRoute = async (context) => {
     );
   try {
     const job = await createApiClient(env, guard.sub).getPackageJob(jobId);
-    if (job.extension_id !== context.params.id)
+    if (job.extension_identifier !== context.params.id)
       return Response.json(
         { error: 'Package job not found.' },
         { status: 404, headers },

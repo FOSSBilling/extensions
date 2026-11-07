@@ -31,23 +31,27 @@ const DETAIL_COLUMNS = 4;
     </thead>
     <tbody class="divide-y divide-border">
       {revisions.map((r) => {
-        const title = r.name ?? r.extension_id;
+        const title = r.name ?? r.extension_identifier;
         const version = r.version?.trim() || null;
         const description = r.description?.trim() || null;
         return (
           <>
             <tr
               data-pending-row
-              data-extension-id={r.extension_id}
+              data-extension-id={r.extension_identifier}
               data-revision-id={r.id}
             >
               <td class="px-4 py-2">
                 <p class="font-medium">
-                  <a href={`/account/admin/extensions/${r.extension_id}`}>
+                  <a
+                    href={`/account/admin/extensions/${r.extension_identifier}`}
+                  >
                     {title}
                   </a>
                 </p>
-                <p class="text-xs text-muted-foreground">{r.extension_id}</p>
+                <p class="text-xs text-muted-foreground">
+                  {r.extension_identifier}
+                </p>
               </td>
               <td class="px-4 py-2 text-muted-foreground whitespace-nowrap">
                 {version ?? '—'}
@@ -79,7 +83,7 @@ const DETAIL_COLUMNS = 4;
                     data-size="sm"
                     disabled={!r.content_available}
                     data-open-approve={r.id}
-                    data-extension-id={r.extension_id}
+                    data-extension-id={r.extension_identifier}
                     data-revision-id={r.id}
                     data-title={title}
                   >
@@ -91,7 +95,7 @@ const DETAIL_COLUMNS = 4;
                     data-size="sm"
                     data-variant="destructive"
                     data-open-reject={r.id}
-                    data-extension-id={r.extension_id}
+                    data-extension-id={r.extension_identifier}
                     data-revision-id={r.id}
                     data-title={title}
                   >

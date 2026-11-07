@@ -4,7 +4,7 @@ import type { PackageJob } from '@/lib/api/client';
 
 const queued = {
   id: 'job',
-  extension_id: 'example',
+  extension_identifier: 'example',
   status: 'queued',
   artifact: null,
   error: null,

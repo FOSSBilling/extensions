@@ -32,7 +32,7 @@ describe('package API transport', () => {
         {
           result: {
             id: 'job',
-            extension_id: 'example',
+            extension_identifier: 'example',
             status: 'ready',
             artifact: { id: 'artifact' },
             error: null,

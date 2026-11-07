@@ -11,7 +11,7 @@ type DirectoryPage<Item extends DirectoryItem = ExtensionListItem> = {
 
 type DirectoryPageFilters = {
   type?: string;
-  developer_id?: string;
+  developer_identifier?: string;
   limit?: number;
 };
 

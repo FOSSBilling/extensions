@@ -52,17 +52,22 @@ const DETAIL_COLUMNS = showNote ? 5 : 4;
       {revisions.map((r) => {
         return (
           <>
-            <tr data-extension-id={r.extension_id} data-revision-id={r.id}>
+            <tr
+              data-extension-id={r.extension_identifier}
+              data-revision-id={r.id}
+            >
               <td class="px-4 py-2">
                 <p class="font-medium">
                   <a
-                    href={`/account/admin/extensions/${r.extension_id}`}
+                    href={`/account/admin/extensions/${r.extension_identifier}`}
                     title={`Submitted on ${formatDateTime(r.created_at)}.`}
                   >
-                    {r.name ?? r.extension_id}
+                    {r.name ?? r.extension_identifier}
                   </a>
                 </p>
-                <p class="text-xs text-muted-foreground">{r.extension_id}</p>
+                <p class="text-xs text-muted-foreground">
+                  {r.extension_identifier}
+                </p>
                 {!showNote && r.review_note && (
                   <p
                     class="text-xs text-muted-foreground truncate"

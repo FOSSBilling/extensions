@@ -21,7 +21,7 @@ const Title = titleTag;
 <li class="card gap-4 p-5 scroll-mt-24" id={`claim-${c.id}`}>
   <header class="px-0">
     <Title class="font-semibold flex flex-wrap items-center gap-2">
-      {c.developer_name} ({c.developer_id})
+      {c.developer_name} ({c.developer_identifier})
       {c.github_org_verified && <span class="badge">GitHub Verified</span>}
     </Title>
     <p class="text-sm text-muted-foreground">
@@ -61,7 +61,7 @@ const Title = titleTag;
 
   <ApproveDialog
     id={`approve-claim-${c.id}`}
-    title={`Approve claim on "${c.developer_id}"?`}
+    title={`Approve claim on "${c.developer_identifier}"?`}
     description="The claimant will gain ownership of this profile immediately."
     formAction={`/account/admin/developers/claims/${c.id}/approve`}
     notifyRecipient="claimant"
@@ -69,7 +69,7 @@ const Title = titleTag;
   />
   <RejectDialog
     id={`reject-claim-${c.id}`}
-    title={`Reject claim on "${c.developer_id}"?`}
+    title={`Reject claim on "${c.developer_identifier}"?`}
     description="The claimant will see this reason."
     formAction={`/account/admin/developers/claims/${c.id}/reject`}
     notifyRecipient="claimant"

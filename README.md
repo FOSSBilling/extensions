@@ -111,4 +111,10 @@ Package preparation is queued. The API returns a private job ID; the release edi
 
 Authors upload ready-to-install distribution ZIPs. Icons use `icon.svg`, `icon.png`, `icon.webp` or `icon.avif` at the package root, without a manifest field. The API prepares private display images during processing and publishes approved images through the configured asset CDN. Package downloads and pending previews use permission-checked API routes.
 
+Published icon URLs use `https://extensions-assets.fossbilling.net/extensions/<extension UUID>/icons/<asset UUID>.<format>`. The extension UUID is independent of its public identifier. SVG or AVIF/PNG variants share the processed icon's immutable asset UUID, so metadata-only edits retain the same icon URL.
+
 API mutations and site mutations purge the directory cache. Deploy and smoke-test the configured, package-enabled API before deploying this site or enabling the modules publisher. The Queue and private image-storage bindings must exist before the API's automatic deployment, even when package mode is disabled.
+
+## Directory Identity
+
+Extension and developer records use UUIDv7 internal IDs. Public routes, profile handles and manifest IDs use their separate `identifier` fields. Keep UUIDs for record identity and use identifiers when constructing public links or package manifests.

@@ -83,12 +83,12 @@ type ExtensionListQuery = NonNullable<GetExtensionsData['query']>;
 type RevisionQueueQuery = NonNullable<GetRevisionsData['query']>;
 type ListFilters = Pick<
   ExtensionListQuery,
-  'type' | 'developer_id' | 'status' | 'q' | 'limit' | 'cursor'
+  'type' | 'developer_identifier' | 'status' | 'q' | 'limit' | 'cursor'
 >;
 
 export type ExtensionDirectoryFilters = Pick<
   ExtensionListQuery,
-  'type' | 'developer_id' | 'limit' | 'cursor'
+  'type' | 'developer_identifier' | 'limit' | 'cursor'
 >;
 
 type ExtensionMineFilters = Pick<ListFilters, 'type' | 'limit' | 'cursor'>;
@@ -394,8 +394,8 @@ function listQuery(
   if (filters.type !== undefined) {
     query.type = filters.type;
   }
-  if (filters.developer_id !== undefined) {
-    query.developer_id = filters.developer_id;
+  if (filters.developer_identifier !== undefined) {
+    query.developer_identifier = filters.developer_identifier;
   }
   if (filters.status !== undefined) {
     query.status = filters.status;
@@ -422,7 +422,7 @@ export async function listExtensions(
   return cachedEdgeRead(
     dataCacheKey('extensions', {
       cursor: query.cursor,
-      developer_id: query.developer_id,
+      developer_identifier: query.developer_identifier,
       limit: query.limit,
       type: query.type,
     }),
@@ -441,7 +441,7 @@ export async function listExtensions(
   );
 }
 
-export async function getExtensionById(
+export async function getExtensionByIdentifier(
   env: ApplicationEnv,
   id: string,
 ): Promise<Extension> {
@@ -457,7 +457,7 @@ export async function getExtensionById(
   );
 }
 
-export async function getDeveloperById(
+export async function getDeveloperByIdentifier(
   env: ApplicationEnv,
   id: string,
 ): Promise<PublicDeveloper> {

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   createApiClient: vi.fn(),
-  getDeveloperById: vi.fn(),
+  getDeveloperByIdentifier: vi.fn(),
 }));
 
 // paginateAll stays real: the adapters under test route their whole-list
@@ -10,11 +10,11 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@/lib/api/client', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/api/client')>()),
   createApiClient: mocks.createApiClient,
-  getDeveloperById: mocks.getDeveloperById,
+  getDeveloperByIdentifier: mocks.getDeveloperByIdentifier,
 }));
 
 import {
-  getDeveloperById,
+  getDeveloperByIdentifier,
   getDeveloperByOwner,
   getExtensionsByOwner,
   getOwnedExtension,
@@ -26,6 +26,7 @@ const env = makeEnv();
 
 const developer = {
   id: 'developer',
+  identifier: 'developer',
   type: 'organization' as const,
   name: 'Example developer',
   approved: true,
@@ -34,7 +35,7 @@ const developer = {
 
 beforeEach(() => {
   mocks.createApiClient.mockReset();
-  mocks.getDeveloperById.mockReset();
+  mocks.getDeveloperByIdentifier.mockReset();
 });
 
 describe('API-backed extension data adapters', () => {
@@ -52,6 +53,7 @@ describe('API-backed extension data adapters', () => {
     mocks.createApiClient.mockReturnValue({
       getMyExtension: vi.fn().mockResolvedValue({
         id: 'extension-id',
+        identifier: 'example',
         developer,
         published: {
           manifest_version: 1 as const,
@@ -115,6 +117,7 @@ describe('API-backed extension data adapters', () => {
   it('maps either detail view to the same shape, delisted state included', () => {
     const detail = toOwnedExtensionDetail({
       id: 'extension-id',
+      identifier: 'example',
       developer,
       published: {
         manifest_version: 1 as const,
@@ -150,9 +153,13 @@ describe('API-backed extension data adapters', () => {
   });
 
   it('treats failed public developer reads as missing profiles', async () => {
-    mocks.getDeveloperById.mockRejectedValue(new Error('API unavailable'));
+    mocks.getDeveloperByIdentifier.mockRejectedValue(
+      new Error('API unavailable'),
+    );
 
-    await expect(getDeveloperById(env, 'developer-id')).resolves.toBeNull();
+    await expect(
+      getDeveloperByIdentifier(env, 'developer-id'),
+    ).resolves.toBeNull();
   });
 
   it('keeps owner pages usable when the API cannot load the profile or list', async () => {
