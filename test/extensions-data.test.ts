@@ -40,13 +40,15 @@ beforeEach(() => {
 
 describe('API-backed extension data adapters', () => {
   it('treats a failed or unauthorized owner detail read as a missing resource', async () => {
-    mocks.createApiClient.mockReturnValue({
-      getMyExtension: vi.fn().mockRejectedValue(new Error('API unavailable')),
-    });
+    const getMyExtension = vi
+      .fn()
+      .mockRejectedValue(new Error('API unavailable'));
+    mocks.createApiClient.mockReturnValue({ getMyExtension });
 
     await expect(
       getOwnedExtension(env, 'user-subject', 'example'),
     ).resolves.toBe(null);
+    expect(getMyExtension).toHaveBeenCalledExactlyOnceWith('example');
   });
 
   it('splits the owner detail response into published/pendingRevision/lastReview', async () => {
