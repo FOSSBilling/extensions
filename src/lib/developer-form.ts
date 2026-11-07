@@ -10,8 +10,8 @@ import { withHttpsScheme } from './url-prefix';
 export class DeveloperValidationError extends Error {}
 
 // Builds a DeveloperProfileInput from the developer-profile form, for
-// PUT /developers/me. The id is immutable once a developer profile exists —
-// see the readonly id field in /account/developer.
+// PUT /developers/me. An existing profile keeps its public identifier;
+// the API generates the UUID when creating a profile.
 export function buildDeveloperProfile(
   form: FormData,
   existingDeveloper: Developer | null,

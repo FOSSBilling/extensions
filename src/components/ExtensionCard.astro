@@ -14,6 +14,7 @@ const iconUrl = await getSignedImageUrl(
   'icon',
   Astro.locals.env.sessionSecret,
 );
+const avifIconUrl = directoryAssetAvifUrl(iconUrl);
 ---
 
 <!-- Prefetch is disabled: Cloudflare's edge refuses Sec-Purpose: prefetch
@@ -30,7 +31,7 @@ const iconUrl = await getSignedImageUrl(
       <div class="p-2 bg-primary/10 rounded-lg w-14 h-14 flex items-center justify-center shrink-0">
         {iconUrl && (
           <picture>
-            <source type="image/avif" srcset={directoryAssetAvifUrl(iconUrl)} />
+            {avifIconUrl && <source type="image/avif" srcset={avifIconUrl} />}
             <img
               src={iconUrl}
               width="40"

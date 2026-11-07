@@ -44,7 +44,6 @@ export const GET: APIRoute = async (context) => {
         : null;
     return Response.json({
       result: {
-        extension_identifier: revision.extension_identifier,
         revision: revision.content,
         published: ext?.published ?? null,
       },

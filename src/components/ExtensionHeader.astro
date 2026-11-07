@@ -4,10 +4,10 @@ import type { Developer } from '@/types';
 import { latestRelease } from '@/lib/releases';
 import { ArrowLeft, Download, Package, User } from '@lucide/astro';
 import { getSignedImageUrl } from '@/lib/signed-image-url';
+import { directoryAssetAvifUrl } from '@/lib/image-url';
 import { extensionIconUrl } from '@/lib/extension-icon';
 import { releaseDownloadHref } from '@/lib/extension-package';
 import { isSafeHttpUrl } from '@/lib/safe-url';
-import { directoryAssetAvifUrl } from '@/lib/image-url';
 interface Props {
   id: string;
   content: StoredExtensionFields;
@@ -27,9 +27,7 @@ const {
 const latest = latestRelease(content.releases ?? []);
 const version = latest?.tag ?? content.version;
 const iconUrl = await getSignedImageUrl(
-  extensionIconUrl({
-    ...content,
-  }),
+  extensionIconUrl(content),
   'icon',
   Astro.locals.env.sessionSecret,
 );

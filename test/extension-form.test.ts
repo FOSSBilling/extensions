@@ -112,7 +112,7 @@ describe('manifest publishing forms', () => {
     expect(body).not.toHaveProperty('website');
     expect(body.releases[0]).not.toHaveProperty('min_fossbilling_version');
   });
-  it('lowercases new ids and accepts an omitted homepage', () => {
+  it('lowercases new identifiers and accepts an omitted homepage', () => {
     const body = buildExtensionCreatePayload(
       extensionForm({ extension_identifier: 'My_Module', homepage_url: '' }),
     );
@@ -217,12 +217,9 @@ describe('manifest publishing forms', () => {
     expect(echo.moduleRequirementsInput).toBe('unfinished dependency');
     expect(echo.license).toBe('MIT OR BSD-3-Clause');
     expect(echoReleaseDraftFromForm(form).version_tag).toBe('1.0.0');
-    expect(
-      echoNewExtensionFromForm(form, developer).extension,
-    ).not.toHaveProperty('id');
-    expect(echoNewExtensionFromForm(form, developer).extension.identifier).toBe(
-      'example_module',
-    );
+    const createdEcho = echoNewExtensionFromForm(form, developer).extension;
+    expect(createdEcho).not.toHaveProperty('id');
+    expect(createdEcho.identifier).toBe('example_module');
   });
 });
 

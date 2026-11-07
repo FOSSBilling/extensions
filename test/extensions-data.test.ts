@@ -25,7 +25,7 @@ import { makeEnv } from './helpers/env';
 const env = makeEnv();
 
 const developer = {
-  id: 'developer',
+  id: '019a0000-0000-7000-8000-000000000001',
   identifier: 'developer',
   type: 'organization' as const,
   name: 'Example developer',
@@ -40,19 +40,21 @@ beforeEach(() => {
 
 describe('API-backed extension data adapters', () => {
   it('treats a failed or unauthorized owner detail read as a missing resource', async () => {
-    mocks.createApiClient.mockReturnValue({
-      getMyExtension: vi.fn().mockRejectedValue(new Error('API unavailable')),
-    });
+    const getMyExtension = vi
+      .fn()
+      .mockRejectedValue(new Error('API unavailable'));
+    mocks.createApiClient.mockReturnValue({ getMyExtension });
 
     await expect(
-      getOwnedExtension(env, 'user-subject', 'extension-id'),
+      getOwnedExtension(env, 'user-subject', 'example'),
     ).resolves.toBe(null);
+    expect(getMyExtension).toHaveBeenCalledExactlyOnceWith('example');
   });
 
   it('splits the owner detail response into published/pendingRevision/lastReview', async () => {
     mocks.createApiClient.mockReturnValue({
       getMyExtension: vi.fn().mockResolvedValue({
-        id: 'extension-id',
+        id: '019a0000-0000-7000-8000-000000000002',
         identifier: 'example',
         developer,
         published: {
@@ -90,8 +92,17 @@ describe('API-backed extension data adapters', () => {
       }),
     });
 
-    const detail = await getOwnedExtension(env, 'user-subject', 'extension-id');
+    const detail = await getOwnedExtension(env, 'user-subject', 'example');
 
+    expect(detail).toMatchObject({
+      id: '019a0000-0000-7000-8000-000000000002',
+      identifier: 'example',
+      developer: { id: developer.id, identifier: developer.identifier },
+      published: {
+        id: '019a0000-0000-7000-8000-000000000002',
+        identifier: 'example',
+      },
+    });
     expect(detail?.published?.name).toBe('Example');
     expect(detail?.published?.author).toEqual({ name: 'Package Author' });
     expect(detail?.published?.requires).toEqual({
@@ -116,7 +127,7 @@ describe('API-backed extension data adapters', () => {
 
   it('maps either detail view to the same shape, delisted state included', () => {
     const detail = toOwnedExtensionDetail({
-      id: 'extension-id',
+      id: '019a0000-0000-7000-8000-000000000002',
       identifier: 'example',
       developer,
       published: {

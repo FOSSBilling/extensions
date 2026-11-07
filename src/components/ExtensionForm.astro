@@ -565,33 +565,27 @@ const otherSpdxIds = SPDX_LICENSE_IDS.filter((id) => !popularSpdxIds.has(id));
 </div>
 
 <script>
-  // Suggests an Extension ID from the Name field, matching the server's
-  // `[a-z0-9]+(-[a-z0-9]+)*` pattern. Stops once the user edits the ID
-  // directly, same as the slug-from-title pattern elsewhere (WordPress,
-  // GitHub repo creation, etc.) — a manual edit always wins. Only wired up
-  // for new extensions; the edit form disables this field entirely.
+  // Suggest an identifier from the name for new extensions. A manual edit,
+  // including a redisplayed failed submission, always wins.
   const nameInput = document.querySelector<HTMLInputElement>('#name');
-  const idInput = document.querySelector<HTMLInputElement>(
+  const identifierInput = document.querySelector<HTMLInputElement>(
     '#extension_identifier',
   );
 
-  if (nameInput && idInput && !idInput.disabled) {
+  if (nameInput && identifierInput && !identifierInput.disabled) {
     const slugify = (value: string) =>
       value
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/^-+|-+$/g, '');
 
-    let idEditedByUser = idInput.value.length > 0;
-    // A prefilled id is a previously submitted one (the failed-create echo):
-    // treat it as user-authored so a later name edit doesn't silently
-    // replace the id the submitter already chose.
-    idInput.addEventListener('input', () => {
-      idEditedByUser = true;
+    let identifierEditedByUser = identifierInput.value.length > 0;
+    identifierInput.addEventListener('input', () => {
+      identifierEditedByUser = true;
     });
     nameInput.addEventListener('input', () => {
-      if (!idEditedByUser) {
-        idInput.value = slugify(nameInput.value);
+      if (!identifierEditedByUser) {
+        identifierInput.value = slugify(nameInput.value);
       }
     });
   }
