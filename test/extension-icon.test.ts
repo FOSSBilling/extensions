@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { extensionIconUrl } from '@/lib/extension-icon';
 const extension = {
-  id: 'branding',
+  id: '019a0000-0000-7000-8000-000000000001',
+  identifier: 'branding',
   icon_url: 'assets/icon.svg',
   download_url:
     'https://github.com/FOSSBilling/modules/releases/download/branding-v0.8.9/branding.zip',

@@ -4,6 +4,7 @@ import type { Developer } from '@/types';
 import { latestRelease } from '@/lib/releases';
 import { ArrowLeft, Download, Package, User } from '@lucide/astro';
 import { getSignedImageUrl } from '@/lib/signed-image-url';
+import { directoryAssetAvifUrl } from '@/lib/image-url';
 import { extensionIconUrl } from '@/lib/extension-icon';
 import { isSafeHttpUrl } from '@/lib/safe-url';
 interface Props {
@@ -27,13 +28,14 @@ const version = latest?.tag ?? content.version;
 const iconUrl = await getSignedImageUrl(
   extensionIconUrl({
     ...content,
-    id,
+    identifier: id,
     source: content.source ?? { type: 'custom', repo: '' },
   }),
   'icon',
   Astro.locals.env.sessionSecret,
 );
 const downloadUrl = latest?.download_url ?? content.download_url;
+const avifIconUrl = directoryAssetAvifUrl(iconUrl);
 ---
 
 <a
@@ -47,14 +49,17 @@ const downloadUrl = latest?.download_url ?? content.download_url;
   <div class="flex min-w-0 items-start gap-4">
     <div class="flex size-16 shrink-0 items-center justify-center rounded-xl border bg-muted/50">
       {iconUrl ? (
-        <img
-          src={iconUrl}
-          width="48"
-          height="48"
-          alt=""
-          class="size-12 object-contain"
-          decoding="async"
-        />
+        <picture>
+          {avifIconUrl && <source type="image/avif" srcset={avifIconUrl} />}
+          <img
+            src={iconUrl}
+            width="48"
+            height="48"
+            alt=""
+            class="size-12 object-contain"
+            decoding="async"
+          />
+        </picture>
       ) : (
         <Package class="size-7 text-muted-foreground" aria-hidden="true" />
       )}

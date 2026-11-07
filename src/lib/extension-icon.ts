@@ -2,7 +2,7 @@ import { isPackageIconPath } from './package-icon';
 
 /** Resolve manifest paths from supported GitHub release assets; retain legacy URLs. */
 export function extensionIconUrl(extension: {
-  id: string;
+  identifier: string;
   icon_url?: string;
   download_url?: string | null;
   source: { type: string; repo: string };
@@ -50,7 +50,8 @@ export function extensionIconUrl(extension: {
       return undefined;
     const packageRoot =
       extension.source.repo.toLowerCase() === 'fossbilling/modules'
-        ? extension.id.charAt(0).toUpperCase() + extension.id.slice(1)
+        ? extension.identifier.charAt(0).toUpperCase() +
+          extension.identifier.slice(1)
         : '';
     const path = [packageRoot, ...icon.split('/')]
       .filter(Boolean)

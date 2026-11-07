@@ -109,6 +109,8 @@ The generated v2 client follows the API's manifest v1 contract: `module`, string
 
 Package icons are paths relative to the distribution root. For GitHub release assets matching the declared source repository, the site resolves them against the release tag. `FOSSBilling/modules` uses its `Ucfirst(id)/` package directory; other GitHub sources use the repository root. Unsupported sources omit relative icons. Legacy HTTP(S) icons continue to work.
 
+Prepared CDN icons use `https://extensions-assets.fossbilling.net/extensions/<extension UUID>/icons/<asset UUID>.<format>`. These images load directly without the site's image transformer. SVG remains vector; a prepared PNG icon offers its AVIF sibling through `<picture>`. Other image URLs use the existing image handling.
+
 API mutations and site mutations both purge the `extensions` and `developers` tags. The `developers` tag is currently a no-op reserved for future cached surfaces; developer pages are uncached. Deploy this site with the API's manifest migration and cache-tag change before enabling the updated modules publisher. Existing cached pages expire through their cache windows; deployment must coordinate the new contract and tag. Old pending revisions require resubmission using the manifest fields before approval.
 
 ## Directory Identity
