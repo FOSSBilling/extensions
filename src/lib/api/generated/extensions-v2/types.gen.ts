@@ -557,7 +557,7 @@ export type GetExtensionsData = {
      */
     status?: 'published' | 'delisted' | 'unpublished';
     /**
-     * All scope only: case-insensitive substring match on the extension id
+     * All scope only: case-insensitive substring match on the extension identifier
      */
     q?: string;
   };
@@ -2040,6 +2040,9 @@ export type PostDevelopersByIdApproveResponse =
 export type GetDevelopersByIdHistoryData = {
   body?: never;
   path: {
+    /**
+     * Internal developer UUID
+     */
     id: string;
   };
   query?: {

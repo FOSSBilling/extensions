@@ -53,9 +53,9 @@ if (historyQuery) {
 ---
 
 <Admin
-  title={`Profile History: ${id} — FOSSBilling Extensions`}
+  title={`Profile History${entries[0] ? `: ${entries[0].name}` : ''} — FOSSBilling Extensions`}
   active="developers"
-  description={`Recorded writes for ${id}, newest first.`}
+  description={`Recorded writes for ${entries[0]?.name ?? 'this developer profile'}, newest first.`}
 >
   <div slot="actions">
     <a

@@ -1986,10 +1986,10 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 200,
-              "description": "All scope only: case-insensitive substring match on the extension id"
+              "description": "All scope only: case-insensitive substring match on the extension identifier"
             },
             "required": false,
-            "description": "All scope only: case-insensitive substring match on the extension id",
+            "description": "All scope only: case-insensitive substring match on the extension identifier",
             "name": "q",
             "in": "query"
           }
@@ -5106,9 +5106,11 @@
           {
             "schema": {
               "type": "string",
-              "example": "b6e2c9c4-3f1a-4e9b-9c3a-2e4b1a2f9d10"
+              "format": "uuid",
+              "description": "Internal developer UUID"
             },
             "required": true,
+            "description": "Internal developer UUID",
             "name": "id",
             "in": "path"
           },

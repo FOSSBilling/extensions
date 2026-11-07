@@ -1030,7 +1030,7 @@ describe('cursor-paginated moderator lists', () => {
     const api = createApiClient(authenticatedEnv, 'moderator-sub');
     const [claims, history] = await Promise.all([
       api.listPendingClaims(),
-      api.listDeveloperHistory('dev-1'),
+      api.listDeveloperHistory('019a0000-0000-7000-8000-000000000001'),
     ]);
 
     expect(claims.map((c) => c.id)).toEqual(['claim-1']);
@@ -1044,6 +1044,9 @@ describe('cursor-paginated moderator lists', () => {
       u.pathname.endsWith('/developers/claims'),
     );
     const historyUrl = urls.find((u) => u.pathname.endsWith('/history'));
+    expect(historyUrl?.pathname).toBe(
+      '/extensions/v2/developers/019a0000-0000-7000-8000-000000000001/history',
+    );
     expect(claimsUrl?.searchParams.get('scope')).toBe('pending');
     expect(claimsUrl?.searchParams.get('limit')).toBe('100');
     expect(claimsUrl?.searchParams.get('cursor')).toBe(null);
