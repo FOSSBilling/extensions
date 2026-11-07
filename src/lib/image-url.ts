@@ -21,6 +21,34 @@ const IMAGE_SOURCE_HOSTS = [
 
 export type ImageVariant = keyof typeof IMAGE_VARIANTS;
 
+const UUID_PATH =
+  '[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}';
+const DIRECTORY_ASSET_PATH = new RegExp(
+  `^/extensions/${UUID_PATH}/icons/${UUID_PATH}\\.(svg|png|avif)$`,
+);
+
+function isDirectoryAssetUrl(source: string): boolean {
+  try {
+    const url = new URL(source);
+    return (
+      url.origin === 'https://extensions-assets.fossbilling.net' &&
+      !url.username &&
+      !url.password &&
+      !url.search &&
+      !url.hash &&
+      DIRECTORY_ASSET_PATH.test(url.pathname)
+    );
+  } catch {
+    return false;
+  }
+}
+
+export function directoryAssetAvifUrl(source?: string): string | undefined {
+  return source && isDirectoryAssetUrl(source) && source.endsWith('.png')
+    ? source.replace(/\.png$/, '.avif')
+    : undefined;
+}
+
 export function isImageVariant(
   value: string | undefined,
 ): value is ImageVariant {
@@ -38,6 +66,7 @@ function isAllowedImageHost(hostname: string): boolean {
 }
 
 export function isTransformableImageSource(sourceUrl: string): boolean {
+  if (isDirectoryAssetUrl(sourceUrl)) return false;
   try {
     const url = new URL(sourceUrl);
     return (
