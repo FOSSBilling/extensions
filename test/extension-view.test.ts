@@ -72,12 +72,14 @@ describe('permission-aware extension view', () => {
     expect(mocks.getExtensionByIdentifier).toHaveBeenCalledWith(env, 'sample');
     expect(mocks.getMyExtension).not.toHaveBeenCalled();
   });
-  it('does not mistake a moderator-readable record for an owned extension', async () => {
+  it('does not grant editing when a profile identifier has been reused', async () => {
+    // The profile can be deleted and its identifier reused between the two
+    // API reads. A moderator can then read the replacement's extension.
     mocks.getMyExtension.mockResolvedValue({
       ...owned,
       developer: {
         id: '019a0000-0000-7000-8000-000000000003',
-        identifier: 'someone-else',
+        identifier: 'my-profile',
       },
     });
     expect(await loadExtensionView(env, 'sample', user)).toEqual({
