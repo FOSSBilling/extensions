@@ -23,7 +23,7 @@ const { section, content } = Astro.props;
         class="input w-full"
         name="name"
         required
-        maxlength="120"
+        maxlength="100"
         value={content.name}
       />
     </label>
@@ -34,7 +34,7 @@ const { section, content } = Astro.props;
         name="description"
         rows="3"
         required
-        maxlength="4000"
+        maxlength="500"
       >{content.description}</textarea>
     </label>
     <label class="grid gap-2 text-sm font-medium">
@@ -54,15 +54,6 @@ const { section, content } = Astro.props;
         name="homepage_url"
         type="url"
         value={content.homepage_url}
-      />
-    </label>
-    <label class="grid gap-2 text-sm font-medium">
-      Icon Path <span class="font-normal text-muted-foreground">Optional</span>
-      <input
-        class="input w-full"
-        name="icon_url"
-        type="text"
-        value={content.icon_url}
       />
     </label>
   </>

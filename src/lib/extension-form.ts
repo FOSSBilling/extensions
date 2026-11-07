@@ -1,7 +1,11 @@
-import { isPackageIconPath } from './package-icon';
 import { isExtensionType, SPDX_LICENSE_IDS } from '@/types';
-import type { Extension, Release } from '@/types';
-import type { ExtensionCreate, ExtensionUpdate } from '@/lib/api/client';
+import type { Extension } from '@/types';
+import type {
+  ExtensionCreate,
+  ExtensionUpdate,
+  Manifest,
+  PackageArtifact,
+} from '@/lib/api/client';
 import { latestRelease } from './releases';
 import { repositoryFromFields, repositoryInputUrl } from './repository';
 import { formString } from './form';
@@ -12,7 +16,14 @@ export type ExtensionFormEcho = Extension & { moduleRequirementsInput: string };
 // Thrown for form-level validation failures that should be shown to the
 // user, distinct from ApiRequestError (the api rejecting an otherwise
 // well-formed payload) — see the try/catch in new.astro/edit.astro.
-export class ExtensionValidationError extends Error {}
+export class ExtensionValidationError extends Error {
+  constructor(
+    message: string,
+    readonly status = 422,
+  ) {
+    super(message);
+  }
+}
 
 // The combobox offers SPDX identifiers; Other also accepts compound expressions.
 export const OTHER_LICENSE = 'other';
@@ -78,141 +89,99 @@ export function buildRequirements(form: FormData) {
   };
 }
 
-// Shared by both builders below. A new release is only appended when
-// version_tag is filled — required when there are no existing releases to
-// carry through (a brand new extension, or one resubmitting after rejection
-// with nothing ever published), optional otherwise, since the api replaces
-// the whole releases array on approval and existing releases are always
-// carried through unchanged.
-function buildContent(
-  form: FormData,
-  existing: { releases: Release[]; version: string; download_url: string },
-  requireRelease: boolean,
-) {
-  const str = (name: string) => formString(form, name);
-  const requires = buildRequirements(form);
-
-  const releases = [...existing.releases];
-  let version = existing.version;
-  let downloadUrl = existing.download_url;
-
-  const newReleaseTag = str('version_tag');
-  if (requireRelease && !newReleaseTag) {
-    throw new ExtensionValidationError(
-      'An initial release (version, release date, and download URL) is required.',
-    );
-  }
-  if (newReleaseTag) {
-    // The api stores at most 100 releases, and doesn't itself reject a tag
-    // collision — since it replaces the whole array verbatim on approval, a
-    // collision would silently duplicate the entry. Catch both here instead
-    // of only one of them surfacing as a 422 from the api.
-    if (
-      releases.some(
-        (r) => r.tag.replace(/^v/, '') === newReleaseTag.replace(/^v/, ''),
-      )
-    ) {
-      throw new ExtensionValidationError(
-        `A release tagged "${newReleaseTag}" already exists — use a different version tag.`,
-      );
-    }
-    if (releases.length >= 100) {
-      throw new ExtensionValidationError(
-        'This extension already has the maximum of 100 releases.',
-      );
-    }
-
-    const releaseDate = str('release_date');
-    const releaseDownloadUrl = withHttpsScheme(str('download_url'));
-    if (!releaseDate || !releaseDownloadUrl) {
-      throw new ExtensionValidationError(
-        'To add a new release, fill in the release date and download URL.',
-      );
-    }
-
-    const release: Release = {
-      tag: newReleaseTag,
-      date: releaseDate,
-      download_url: releaseDownloadUrl,
-      changelog_url: withHttpsScheme(str('changelog_url')),
-      requires,
-    };
-    releases.push(release);
-    version = release.tag;
-    downloadUrl = release.download_url;
-  }
-
-  const latest = latestRelease(releases);
-  if (latest) {
-    version = latest.tag.replace(/^v(?=\d)/, '');
-    downloadUrl = latest.download_url;
-  }
-
-  const typeInput = str('type');
-  const sourceFields = Object.fromEntries(form);
-  const source = repositoryFromFields(sourceFields);
+function listingFields(form: FormData) {
+  const source = repositoryFromFields(Object.fromEntries(form));
   if (!source)
     throw new ExtensionValidationError(
       'Enter a valid Source URL. Repository paths and custom URLs must be at most 500 characters.',
     );
+  return {
+    ...manifestFields(form),
+    readme: formString(form, 'readme'),
+    source,
+  };
+}
+
+function manifestFields(form: FormData): Omit<Manifest, 'id' | 'version'> {
+  const str = (name: string) => formString(form, name);
+  const typeInput = str('type');
   if (!isExtensionType(typeInput)) {
     throw new ExtensionValidationError('Choose a valid extension type.');
   }
 
-  const icon = str('icon_url');
-  if (icon && !isPackageIconPath(icon))
-    throw new ExtensionValidationError(
-      'Enter an icon path relative to the package root, such as icon.svg.',
-    );
   if (!str('author_name'))
     throw new ExtensionValidationError('Enter the package author name.');
   return {
-    manifest_version: 1 as const,
+    manifest_version: 1,
     author: {
       name: str('author_name'),
       url: withHttpsScheme(str('author_url')),
     },
-    requires,
+    requires: buildRequirements(form),
     type: typeInput,
     name: str('name'),
     description: str('description'),
-    releases,
     homepage_url: withHttpsScheme(str('homepage_url')),
     license: buildLicense(form),
-    icon_url: icon || undefined,
-    readme: str('readme'),
-    source,
-    version,
-    download_url: downloadUrl,
   };
 }
 
-// Builds the payload for POST /extensions. The id is only ever set here —
-// PUT can't rename, since the id comes from the path and is immutable.
-export function buildExtensionCreatePayload(form: FormData): ExtensionCreate {
+export function manifestFromCreateForm(form: FormData): Manifest {
+  return {
+    ...manifestFields(form),
+    id: formString(form, 'extension_id').toLowerCase(),
+    version: formString(form, 'version_tag').replace(/^v(?=\d)/, ''),
+  };
+}
+
+export function buildExtensionCreatePayload(
+  form: FormData,
+  artifact: PackageArtifact,
+): ExtensionCreate {
+  if (!formString(form, 'version_tag') || !formString(form, 'release_date'))
+    throw new ExtensionValidationError(
+      'An initial release and release date are required.',
+    );
   return {
     id: formString(form, 'extension_id').toLowerCase(),
-    ...buildContent(
-      form,
-      { releases: [], version: '', download_url: '' },
-      true,
-    ),
+    ...listingFields(form),
+    version: artifact.manifest.version,
+    requires: artifact.manifest.requires,
+    download_url: artifact.download_url,
+    releases: [
+      {
+        tag: artifact.manifest.version,
+        date: formString(form, 'release_date'),
+        changelog_url: withHttpsScheme(formString(form, 'changelog_url')),
+        requires: artifact.manifest.requires,
+        artifact_id: artifact.id,
+        sha256: artifact.sha256,
+        download_url: artifact.download_url,
+        is_latest: true,
+      },
+    ],
   };
 }
 
-// Builds the payload for PUT /extensions/{id}. `existing` is the extension's
-// current published content, when it has any — an extension can be edited
-// with nothing published yet (rejected and never resubmitted), in which case
-// a release is required same as creation.
+// Moderator corrections change listing metadata; release creation uses the release editor.
 export function buildExtensionUpdatePayload(
   form: FormData,
-  existing: Extension | null,
+  existing: Extension,
 ): ExtensionUpdate {
-  return buildContent(
-    form,
-    existing ?? { releases: [], version: '', download_url: '' },
-    !existing?.releases.length,
-  );
+  const fields = listingFields(form);
+  const latest = latestRelease(existing.releases);
+  if (!latest?.artifact_id)
+    throw new ExtensionValidationError(
+      'The latest release needs a stored package before its metadata can be corrected.',
+    );
+  return {
+    ...fields,
+    releases: existing.releases.map((release) =>
+      release === latest ? { ...release, requires: fields.requires } : release,
+    ),
+    version: latest.tag.replace(/^v(?=\d)/, ''),
+    download_url: latest.download_url,
+  };
 }
 
 // Best-effort echo of what the user submitted, spread over the extension's
@@ -235,7 +204,7 @@ export function echoExtensionFromForm(
     name: formString(form, 'name'),
     description: formString(form, 'description'),
     homepage_url: formString(form, 'homepage_url'),
-    icon_url: formString(form, 'icon_url') || undefined,
+
     readme: formString(form, 'readme'),
     manifest_version: 1,
     author: {
@@ -258,16 +227,10 @@ export function echoExtensionFromForm(
   };
 }
 
-// The release-section input values as submitted, echoed alongside
-// echoExtensionFromForm: the Extension model has nowhere to hold a pending
-// release draft (version tag, date, URLs, minimum version), so without this
-// a failed submission would redisplay that fieldset blank and discard it.
-// Values are echoed exactly as typed — no scheme normalization — matching
-// the best-effort redisplay contract above.
+// Values needed to redisplay a failed initial-release submission.
 export interface ReleaseDraft {
   version_tag: string;
   release_date: string;
-  download_url: string;
   changelog_url: string;
 }
 
@@ -275,7 +238,6 @@ export function echoReleaseDraftFromForm(form: FormData): ReleaseDraft {
   return {
     version_tag: formString(form, 'version_tag'),
     release_date: formString(form, 'release_date'),
-    download_url: formString(form, 'download_url'),
     changelog_url: formString(form, 'changelog_url'),
   };
 }

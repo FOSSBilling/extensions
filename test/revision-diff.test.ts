@@ -17,7 +17,6 @@ const published: ExtensionContent = {
   license: 'MIT',
   source: { type: 'github', repo: 'org/old' },
   download_url: 'https://example.test/old.zip',
-  icon_url: 'https://example.test/icon.png',
   readme: 'Old readme',
   releases: [
     {

@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { latestRelease, releasesDescending } from '@/lib/releases';
+import {
+  defaultLatestForVersion,
+  latestRelease,
+  releasesDescending,
+  selectLatestRelease,
+} from '@/lib/releases';
 import type { Release } from '@/types';
 
 function release(tag: string, date = '2026-01-01'): Release {
@@ -62,4 +67,32 @@ describe('automatic latest release', () => {
         ?.tag,
     ).toBe('first');
   });
+});
+
+describe('selected latest release', () => {
+  it('uses an explicit choice without reordering version history', () => {
+    const older = { ...release('1.0.0'), is_latest: true };
+    const newer = release('2.0.0');
+    expect(latestRelease([newer, older])).toBe(older);
+    expect(releasesDescending([older, newer]).map((item) => item.tag)).toEqual([
+      '2.0.0',
+      '1.0.0',
+    ]);
+  });
+  it('defaults to stable versions when no release has been selected', () => {
+    expect(latestRelease([release('3.0.0-rc.1'), release('2.0.0')])?.tag).toBe(
+      '2.0.0',
+    );
+  });
+});
+
+it('moves the sole latest flag and defaults prereleases to unchecked', () => {
+  const result = selectLatestRelease(
+    [{ ...release('1.0.0'), is_latest: true }, release('2.0.0')],
+    '2.0.0',
+  );
+  expect(result.filter((item) => item.is_latest)).toHaveLength(1);
+  expect(latestRelease(result)?.tag).toBe('2.0.0');
+  expect(defaultLatestForVersion('2.1.0')).toBe(true);
+  expect(defaultLatestForVersion('2.1.0-beta.1')).toBe(false);
 });

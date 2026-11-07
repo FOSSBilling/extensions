@@ -1,7 +1,10 @@
 ---
+import { Copy } from '@lucide/astro';
+import ReleaseChecksum from './ReleaseChecksum.astro';
 import { compatibilityLabel } from '@/lib/requirements';
 import type { Release } from '@/types';
 import { latestRelease, releasesDescending } from '@/lib/releases';
+import { releaseDownloadHref } from '@/lib/extension-package';
 import { isSafeHttpUrl } from '@/lib/safe-url';
 interface Props {
   releases: Release[];
@@ -13,13 +16,18 @@ const { releases, editable, disabledReason, showActions = true } = Astro.props;
 const latest = latestRelease(releases);
 ---
 
+{editable && (
+  <template data-checksum-icon>
+    <Copy class="size-3" aria-hidden="true" />
+  </template>
+)}
 <ul data-release-list class="divide-y">
   {releasesDescending(releases).map((release) => (
     <li class="flex flex-wrap items-center justify-between gap-4 p-5 sm:px-6">
       <div class="min-w-0 max-w-full">
         <p class="text-sm font-semibold">
           {release.tag}
-          {release.tag === latest?.tag ? ' · Latest Version' : ''}
+          {release.tag === latest?.tag ? ' · Latest Release' : ''}
         </p>
         <p class="mt-1 text-xs text-muted-foreground">
           {release.date} · FOSSBilling{' '}
@@ -32,7 +40,7 @@ const latest = latestRelease(releases);
           <a
             href={
               isSafeHttpUrl(release.download_url)
-                ? release.download_url
+                ? releaseDownloadHref(release)
                 : undefined
             }
             aria-label={`Download Release ${release.tag}`}
@@ -45,6 +53,7 @@ const latest = latestRelease(releases);
           >
             Download
           </a>
+          <ReleaseChecksum sha256={release.sha256} tag={release.tag} />
           {release.changelog_url && isSafeHttpUrl(release.changelog_url) && (
             <span class="whitespace-nowrap">
               <span aria-hidden="true">{' | '}</span>

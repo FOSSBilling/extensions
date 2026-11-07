@@ -14,11 +14,10 @@ import {
 import {
   buildExtensionUpdatePayload,
   echoExtensionFromForm,
-  echoReleaseDraftFromForm,
   ExtensionValidationError,
-  type ReleaseDraft,
 } from '@/lib/extension-form';
 import { formString } from '@/lib/form';
+import { rebuildLatestPackage } from '@/lib/extension-package';
 import { formatDate } from '@/lib/format-date';
 import { setFlash } from '@/lib/flash';
 import { purgeDirectory } from '@/lib/cache-invalidate';
@@ -69,7 +68,6 @@ let error: string | null = null;
 // submitted echo as the author edit page.
 let submitted: ReturnType<typeof echoExtensionFromForm> | null = null;
 let submittedNote = '';
-let submittedReleaseDraft: ReleaseDraft | null = null;
 
 if (
   !loadError &&
@@ -80,14 +78,17 @@ if (
 ) {
   const form = await Astro.request.formData();
   submitted = echoExtensionFromForm(form, base);
-  submittedReleaseDraft = echoReleaseDraftFromForm(form);
   submittedNote = formString(form, 'correction_note');
 
   try {
     if (!submittedNote) {
       throw new ExtensionValidationError('A correction note is required.');
     }
-    const payload = buildExtensionUpdatePayload(form, base);
+    const payload = await rebuildLatestPackage(
+      api,
+      owned.id,
+      buildExtensionUpdatePayload(form, base),
+    );
     await api.correctExtension(owned.id, payload, submittedNote);
     purgeDirectory(Astro);
     await setFlash(Astro, env.sessionSecret, {
@@ -193,7 +194,6 @@ const title = base?.name || owned?.id || id;
               developer={owned.developer}
               extension={base}
               echo={submitted ?? undefined}
-              releaseDraft={submittedReleaseDraft ?? undefined}
               error={error}
               submitLabel="Correct Live Listing"
               cancelHref={`/account/admin/extensions/${owned.id}`}

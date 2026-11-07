@@ -18,7 +18,7 @@ export const base: ExtensionUpdate = {
   name: 'Original',
   description: 'Original description',
   homepage_url: 'http://example.test',
-  icon_url: 'icon.svg',
+
   readme: '# Original',
   license: 'MIT',
   source: { type: 'github', repo: 'example/original' },
@@ -51,7 +51,7 @@ describe('extension drafts', () => {
           description: 'Updated description',
           type: 'module',
           homepage_url: 'https://example.test',
-          icon_url: '',
+
           source_url: 'https://gitlab.com/example/updated',
           license_spdx_id: 'Apache-2.0',
           license_url: 'https://example.test/license',
@@ -78,7 +78,8 @@ describe('extension drafts', () => {
           description: 'Revised description',
           type: 'theme',
           homepage_url: 'https://example.test/new',
-          icon_url: '',
+          source_url: 'https://github.com/example/original',
+          license_spdx_id: 'MIT',
         },
       }),
     );
@@ -87,7 +88,6 @@ describe('extension drafts', () => {
       type: 'theme',
       readme: '# Revised',
     });
-    expect(result.icon_url).toBeUndefined();
     expect(result.releases).toEqual(base.releases);
     expect(result.version).toBe(base.version);
     expect(result.download_url).toBe(base.download_url);
@@ -201,18 +201,18 @@ describe('extension drafts', () => {
     expect(result.version).toBe('2.0.0');
     expect(result.download_url).toBe(newer.download_url);
   });
-  it('keeps the version label and untouched historic release values when editing another release', () => {
+  it('keeps the selected version when adding another release', () => {
     const published = {
       ...base,
       releases: [
         {
           ...base.releases[0],
           tag: 'v1.0.0',
-          date: '2026-01-01T12:00:00Z',
-          download_url: 'http://example.test/1.zip',
+          date: '2026-01-01',
+          download_url: 'https://example.test/1.zip',
         },
       ],
-      download_url: 'http://example.test/1.zip',
+      download_url: 'https://example.test/1.zip',
     };
     const next = {
       ...base.releases[0],
@@ -225,8 +225,8 @@ describe('extension drafts', () => {
       currentRelease: 'v1.0.0',
     });
     expect(result.version).toBe('1.0.0');
-    expect(result.releases[0]).toEqual(published.releases[0]);
-    expect(result.download_url).toBe('http://example.test/1.zip');
+    expect(result.releases[0]).toMatchObject(published.releases[0]);
+    expect(result.download_url).toBe('https://example.test/1.zip');
   });
   it.each([
     { releases: [], currentRelease: '' },
@@ -260,6 +260,8 @@ describe('extension drafts', () => {
         listing: {
           name: base.name,
           description: 'Updated listing',
+          source_url: 'https://github.com/example/original',
+          license_spdx_id: 'MIT',
           type: base.type,
           author_name: base.author.name,
           requires_fossbilling: requires.fossbilling,

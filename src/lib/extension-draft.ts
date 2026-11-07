@@ -5,7 +5,6 @@ import {
   buildRequirements,
   ExtensionValidationError,
 } from './extension-form';
-import { isPackageIconPath } from './package-icon';
 import { latestRelease } from './releases';
 import { repositoryFromFields } from './repository';
 import { withHttpsScheme } from './url-prefix';
@@ -75,7 +74,6 @@ export function editableContent(value: unknown): ExtensionUpdate | null {
     name: content.name,
     description: content.description,
     homepage_url: content.homepage_url,
-    icon_url: content.icon_url,
     readme: content.readme,
     license: content.license,
     source: content.source,
@@ -85,8 +83,7 @@ export function editableContent(value: unknown): ExtensionUpdate | null {
   };
 }
 
-// Compacted or pre-v2 rejected submissions can lack required fields. Owners
-// can rebuild these sections in a draft rather than losing the extension ID.
+// A compacted rejected submission may need its missing fields filled again.
 export function reconstructionContent(value: unknown): ExtensionUpdate {
   const fields = record(value) ? value : {};
   const string = (key: string) =>
@@ -104,8 +101,7 @@ export function reconstructionContent(value: unknown): ExtensionUpdate {
     type: isExtensionType(type) ? type : 'module',
     name: string('name'),
     description: string('description'),
-    homepage_url: string('homepage_url') || string('website') || undefined,
-    icon_url: string('icon_url') || undefined,
+    homepage_url: string('homepage_url') || undefined,
     readme: string('readme'),
     source:
       record(fields.source) &&
@@ -113,12 +109,7 @@ export function reconstructionContent(value: unknown): ExtensionUpdate {
       typeof fields.source.repo === 'string'
         ? (fields.source as ExtensionUpdate['source'])
         : { type: 'github', repo: '' },
-    license:
-      typeof fields.license === 'string'
-        ? fields.license
-        : record(fields.license)
-          ? String(fields.license.spdx_id ?? fields.license.name ?? '')
-          : '',
+    license: string('license'),
     releases: Array.isArray(fields.releases)
       ? fields.releases.map((value) => {
           const release = record(value) ? value : {};
@@ -130,6 +121,13 @@ export function reconstructionContent(value: unknown): ExtensionUpdate {
               typeof release.changelog_url === 'string'
                 ? release.changelog_url
                 : undefined,
+            is_latest: release.is_latest === true ? true : undefined,
+            artifact_id:
+              typeof release.artifact_id === 'string'
+                ? release.artifact_id
+                : undefined,
+            sha256:
+              typeof release.sha256 === 'string' ? release.sha256 : undefined,
             requires: record(release.requires)
               ? (release.requires as ExtensionUpdate['requires'])
               : { fossbilling: '', php: '' },
@@ -176,7 +174,13 @@ function url(
   throw new ExtensionValidationError(`Enter a valid ${label}.`);
 }
 
-export function releaseFromFields(fields: Record<string, unknown>): Release {
+export function releaseFromFields(
+  fields: Record<string, unknown>,
+  packageFields?: Pick<
+    Release,
+    'download_url' | 'artifact_id' | 'sha256' | 'is_latest'
+  >,
+): Release {
   const date = required(fields, 'release_date', 'Release date');
   if (
     !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
@@ -187,7 +191,13 @@ export function releaseFromFields(fields: Record<string, unknown>): Release {
   return {
     tag: required(fields, 'version_tag', 'Version tag'),
     date,
-    download_url: url(fields, 'download_url', 'download URL')!,
+    download_url: packageFields
+      ? packageFields.download_url
+      : url(fields, 'download_url', 'download URL')!,
+    ...(packageFields?.artifact_id
+      ? { artifact_id: packageFields.artifact_id, sha256: packageFields.sha256 }
+      : {}),
+    ...(packageFields?.is_latest ? { is_latest: true } : {}),
     changelog_url: url(fields, 'changelog_url', 'changelog URL', true),
     requires: buildRequirements(toFormData(fields)),
   };
@@ -228,25 +238,11 @@ export function applyExtensionDraft(
       result.description = required(raw, 'description', 'Description');
       result.type = type;
       result.homepage_url = url(raw, 'homepage_url', 'homepage URL', true);
-      const icon = text(raw, 'icon_url');
-      if (icon && !isPackageIconPath(icon))
-        throw new ExtensionValidationError(
-          'Enter an icon path relative to the package root.',
-        );
-      result.icon_url = icon || undefined;
       result.author = {
         name: required(raw, 'author_name', 'Author name'),
         url: url(raw, 'author_url', 'author URL', true),
       };
-      if (
-        [
-          'source_url',
-          'license_spdx_id',
-          'license_name_custom',
-          'license_url',
-        ].some((key) => key in raw)
-      )
-        applySourceAndLicense(result, raw);
+      applySourceAndLicense(result, raw);
     } else if (section === 'readme') {
       result.readme = required(raw, 'readme', 'README');
     } else
@@ -267,28 +263,36 @@ export function applyExtensionDraft(
         throw new ExtensionValidationError(
           'This draft contains an invalid release.',
         );
-      // Preserve untouched historical releases, including timestamp dates and
-      // HTTP URLs; only changed release fields need input normalization.
-      const original = base.releases.find((release) => release.tag === raw.tag);
-      const release =
-        original && JSON.stringify(original) === JSON.stringify(raw)
-          ? structuredClone(original)
-          : releaseFromFields({
-              version_tag: raw.tag,
-              release_date: raw.date,
-              download_url: raw.download_url,
-              changelog_url: raw.changelog_url,
-              requires_fossbilling: record(raw.requires)
-                ? raw.requires.fossbilling
-                : undefined,
-              requires_php: record(raw.requires) ? raw.requires.php : undefined,
-              requires_modules:
-                record(raw.requires) && record(raw.requires.modules)
-                  ? Object.entries(raw.requires.modules)
-                      .map(([id, constraint]) => `${id}: ${constraint}`)
-                      .join('\n')
-                  : '',
-            });
+      const release = releaseFromFields(
+        {
+          version_tag: raw.tag,
+          release_date: raw.date,
+          download_url: raw.download_url,
+          changelog_url: raw.changelog_url,
+          requires_fossbilling: record(raw.requires)
+            ? raw.requires.fossbilling
+            : undefined,
+          requires_php: record(raw.requires) ? raw.requires.php : undefined,
+          requires_modules:
+            record(raw.requires) && record(raw.requires.modules)
+              ? Object.entries(raw.requires.modules)
+                  .map(([id, constraint]) => `${id}: ${constraint}`)
+                  .join('\n')
+              : '',
+        },
+        typeof raw.artifact_id === 'string'
+          ? {
+              artifact_id: raw.artifact_id,
+              sha256: typeof raw.sha256 === 'string' ? raw.sha256 : undefined,
+              download_url: String(raw.download_url ?? ''),
+            }
+          : undefined,
+      );
+      if (raw.is_latest !== undefined && typeof raw.is_latest !== 'boolean')
+        throw new ExtensionValidationError(
+          'This draft contains an invalid latest release selection.',
+        );
+      if (raw.is_latest === true) release.is_latest = true;
       if (tags.has(release.tag.replace(/^v/, '')))
         throw new ExtensionValidationError(
           `A release tagged "${release.tag}" already exists.`,
@@ -297,7 +301,11 @@ export function applyExtensionDraft(
       return release;
     });
   }
-  // Keep the primary download aligned with the latest release.
+  if (
+    result.releases.filter((release) => release.is_latest === true).length > 1
+  )
+    throw new ExtensionValidationError('Select only one latest release.');
+  // Keep the main download and manifest aligned with the selected release.
   if (Object.keys(value.sections).length || value.releases !== undefined) {
     const latest = latestRelease(result.releases);
     if (latest) {
