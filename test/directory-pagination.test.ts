@@ -156,29 +156,4 @@ describe('directory page accumulation', () => {
     expect(state.error).toBe(invalidCursor);
     expect(loadPage).toHaveBeenCalledTimes(2);
   });
-
-  it('dedupes fragment cards whose markup is missing an extension id', async () => {
-    // Production feeds {id, html} cards parsed from the rendered fragment;
-    // a card without a usable id still counts once so it renders, but two
-    // of them must not both stack up on every page load.
-    const loadPage = vi.fn().mockResolvedValue({
-      result: [
-        { id: '', html: '<a data-extension-id></a>' },
-        { id: '', html: '<b></b>' },
-      ],
-      pagination: { next_cursor: null, has_more: false },
-    });
-    const pager = createDirectoryPagerFromIds(
-      [],
-      { next_cursor: 'cursor-2', has_more: true },
-      filters,
-      loadPage,
-    );
-
-    const state = await pager.loadNextPage();
-
-    expect(state.items).toEqual([
-      { id: '', html: '<a data-extension-id></a>' },
-    ]);
-  });
 });

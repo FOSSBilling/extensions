@@ -431,7 +431,7 @@ const reconnectUrl = buildGithubReconnectUrl(
                   Shown on your public developer page at
                   {developer
                     ? ` /developer/${developer.identifier}`
-                    : ' /developer/<your-id>'}
+                    : ' /developer/<your-identifier>'}
                   .
                 </p>
                 <div class="field">
@@ -612,8 +612,8 @@ const reconnectUrl = buildGithubReconnectUrl(
             <>
               <p class="text-sm text-muted-foreground">
                 Permanently deletes your publisher identity (name, contact info)
-                and its public page. This can't be undone, and the ID may be
-                used by someone else afterward.
+                and its public page. This can't be undone, and the public
+                identifier may be used by someone else afterward.
               </p>
               <button
                 type="button"
@@ -627,7 +627,7 @@ const reconnectUrl = buildGithubReconnectUrl(
               <ConfirmDeleteDialog
                 id="delete-developer-profile"
                 title="Delete developer profile"
-                description="Permanently deletes your publisher identity and its public page. This can't be undone, and the ID may be used by someone else afterward."
+                description="Permanently deletes your publisher identity and its public page. This can't be undone, and the public identifier may be used by someone else afterward."
                 confirmText={developer!.identifier}
                 intentField={{ name: 'intent', value: 'delete' }}
                 submitLabel="Delete Developer Profile"
