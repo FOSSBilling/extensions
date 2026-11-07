@@ -105,8 +105,10 @@ Individual extensions are licensed by their respective authors.
 
 ## Manifest API contract
 
-The generated v2 client follows the API's manifest v1 contract: `module`, string licenses, optional `homepage_url`, package authors, and full FOSSBilling/PHP/module requirements. Author/edit/moderator forms preserve these fields; historical revision diffs also accept pre-manifest license objects and `website` fields.
+The generated v2 client follows the API's manifest v1 contract: `module`, string licenses, optional `homepage_url`, package authors, and full FOSSBilling/PHP/module requirements. Author/edit/moderator forms preserve these fields.
 
-Package icons are paths relative to the distribution root. For GitHub release assets matching the declared source repository, the site resolves them against the release tag. `FOSSBilling/modules` uses its `Ucfirst(id)/` package directory; other GitHub sources use the repository root. Unsupported sources omit relative icons. Legacy HTTP(S) icons continue to work.
+Package preparation is queued. The API returns a private job ID; the release editor shows queued/processing status and saves that reference in browser storage so it can resume after a reload. A completed release joins the local draft and still needs review. Manifest corrections reuse stored source; new submissions and server-side corrections wait for the same job contract with a bounded timeout.
 
-API mutations and site mutations both purge the `extensions` and `developers` tags. The `developers` tag is currently a no-op reserved for future cached surfaces; developer pages are uncached. Deploy this site with the API's manifest migration and cache-tag change before enabling the updated modules publisher. Existing cached pages expire through their cache windows; deployment must coordinate the new contract and tag. Old pending revisions require resubmission using the manifest fields before approval.
+Authors upload ready-to-install distribution ZIPs. Icons use `icon.svg`, `icon.png`, `icon.webp` or `icon.avif` at the package root, without a manifest field. The API prepares private display images during processing and publishes approved images through the configured asset CDN. Package downloads and pending previews use permission-checked API routes.
+
+API mutations and site mutations purge the directory cache. Deploy and smoke-test the configured, package-enabled API before deploying this site or enabling the modules publisher. The Queue and private image-storage bindings must exist before the API's automatic deployment, even when package mode is disabled.

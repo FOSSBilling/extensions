@@ -1,0 +1,53 @@
+---
+import { Copy } from '@lucide/astro';
+interface Props {
+  sha256?: string;
+  tag: string;
+}
+const { sha256, tag } = Astro.props;
+---
+
+{sha256 && (
+  <>
+    <span aria-hidden="true">{' · '}</span>
+    <button
+      type="button"
+      data-release-checksum={sha256}
+      aria-label={`Copy SHA-256 for Release ${tag}`}
+      title={`sha256:${sha256}`}
+      class="inline-flex cursor-pointer items-center gap-1 align-middle font-mono text-muted-foreground/80 hover:text-foreground focus-visible:text-foreground"
+    >
+      <span data-checksum-label>{sha256.slice(-8)}</span>
+      <Copy class="size-3" aria-hidden="true" />
+    </button>
+  </>
+)}
+
+<script>
+  document.addEventListener('click', async (event) => {
+    if (!(event.target instanceof Element)) return;
+    const button = event.target.closest<HTMLButtonElement>(
+      'button[data-release-checksum]',
+    );
+    if (!button || button.disabled) return;
+    const checksum = button.dataset.releaseChecksum;
+    if (!checksum) return;
+    const text = button.querySelector<HTMLElement>('[data-checksum-label]')!;
+    const label = text.textContent;
+    const accessibleLabel = button.getAttribute('aria-label')!;
+    button.disabled = true;
+    try {
+      await navigator.clipboard.writeText(checksum);
+      text.textContent = 'Copied';
+      button.setAttribute('aria-label', 'SHA-256 Copied');
+    } catch {
+      text.textContent = 'Copy Failed';
+      button.setAttribute('aria-label', 'Copy Failed. Try Again.');
+    }
+    setTimeout(() => {
+      text.textContent = label;
+      button.setAttribute('aria-label', accessibleLabel);
+      button.disabled = false;
+    }, 2000);
+  });
+</script>

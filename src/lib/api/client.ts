@@ -1,4 +1,13 @@
+import { waitForPackageJob, PackageJobError } from '../package-job';
 import {
+  postPackages,
+  getPackageJobsByJobId,
+  type PackageJob,
+  getPackagesByPackageId,
+  getPackagesByPackageIdDownload,
+  getPackagesByPackageIdIcon,
+  type PackageArtifact,
+  type Manifest,
   deleteDevelopersMe,
   deleteExtensionsById,
   getDevelopers,
@@ -122,6 +131,9 @@ export type ExtensionRevision = Omit<GeneratedExtensionRevision, 'content'> & {
 };
 
 export type {
+  PackageJob,
+  PackageArtifact,
+  Manifest,
   Developer,
   DeveloperApproval,
   DeveloperHistoryEntry,
@@ -486,6 +498,25 @@ export function createApiClient(env: ApplicationEnv, subject: string) {
       ),
     );
 
+  const queuePackage = (
+    manifest: Manifest,
+    source: File | { sourceId: string },
+  ): Promise<PackageJob> =>
+    callResult(
+      postPackages({
+        client,
+        body: {
+          manifest: JSON.stringify(manifest),
+          ...(source instanceof File
+            ? { source }
+            : { source_id: source.sourceId }),
+        },
+      }),
+    );
+
+  const getPackageJob = (jobId: string): Promise<PackageJob> =>
+    callResult(getPackageJobsByJobId({ client, path: { jobId } }));
+
   return {
     // Identity sync carries a dedicated body-bound proof instead of the
     // shared bearer assertion: the API requires purpose 'identity-sync' plus
@@ -553,6 +584,26 @@ export function createApiClient(env: ApplicationEnv, subject: string) {
         await callResult(getExtensionsById({ client, path: { id } })),
         id,
       ),
+
+    queuePackage,
+    getPackageJob,
+
+    buildPackage: async (
+      manifest: Manifest,
+      source: File | { sourceId: string },
+    ): Promise<PackageArtifact> => {
+      const job = await queuePackage(manifest, source);
+      try {
+        return await waitForPackageJob(job, getPackageJob, { attempts: 60 });
+      } catch (error) {
+        if (error instanceof PackageJobError)
+          throw new ApiRequestError(error.status, error.code, error.message);
+        throw error;
+      }
+    },
+
+    getPackage: (packageId: string): Promise<PackageArtifact> =>
+      callResult(getPackagesByPackageId({ client, path: { packageId } })),
 
     createExtension: (payload: ExtensionCreate) =>
       callResult(postExtensions({ client, body: payload })),
@@ -766,4 +817,26 @@ export function createApiClient(env: ApplicationEnv, subject: string) {
         }),
       ),
   };
+}
+
+export async function downloadPackage(
+  env: ApplicationEnv,
+  packageId: string,
+  subject?: string,
+  resource: 'download' | 'icon' = 'download',
+  accept?: string,
+): Promise<Response> {
+  const read =
+    resource === 'icon'
+      ? getPackagesByPackageIdIcon
+      : getPackagesByPackageIdDownload;
+  const result = await read({
+    client: createApiTransport(env, subject),
+    path: { packageId },
+    headers: accept ? { Accept: accept } : undefined,
+    parseAs: 'stream',
+  });
+  if (result.error || !result.response?.ok)
+    throw apiErrorFrom(result.error, result.response?.status);
+  return result.response;
 }

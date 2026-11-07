@@ -5,13 +5,9 @@ import {
   ApiRequestError,
   getApiErrorMessage,
 } from '@/lib/api/client';
-import {
-  applyExtensionDraft,
-  editableContent,
-  reconstructionContent,
-} from '@/lib/extension-draft';
+import { prepareExtensionDraft } from '@/lib/extension-draft-server';
+import { rebuildLatestPackage } from '@/lib/extension-package';
 import { ExtensionValidationError } from '@/lib/extension-form';
-import { sha256Hex } from '@/lib/hash';
 import { formString } from '@/lib/form';
 import { setFlash } from '@/lib/flash';
 
@@ -36,36 +32,14 @@ export const POST: APIRoute = async (context) => {
       return fail('This draft could not be read.');
     }
     const api = createApiClient(env, guard.sub);
-    const owned = await api.getMyExtension(id);
-    const pending = owned.pending_revision;
-    if ((draft?.pendingRevisionId ?? null) !== (pending?.id ?? null))
-      return fail(
-        'The pending submission changed or was reviewed. Your local draft has been kept. Reload the overview before editing again.',
-        409,
-      );
-    const previous =
-      !pending && !owned.published && owned.last_review
-        ? await api.getRevision(id, owned.last_review.revision_id)
-        : null;
-    const stored = pending?.content ?? owned.published ?? previous?.content;
-    const base =
-      editableContent(stored) ??
-      (pending || !owned.published
-        ? editableContent(reconstructionContent(stored))
-        : null);
-    if (!base)
-      return fail(
-        'The original content is unavailable. Your local draft has been kept.',
-        409,
-      );
-    if (draft?.baselineHash !== (await sha256Hex(JSON.stringify(base))))
-      return fail(
-        'This extension changed since you started editing. Your local draft has been kept. Reload the overview to review it.',
-        409,
-      );
-    const payload = applyExtensionDraft(base, draft);
-    if (JSON.stringify(payload) === JSON.stringify(base))
+    const {
+      base,
+      payload: changed,
+      pending,
+    } = await prepareExtensionDraft(api, id, draft);
+    if (JSON.stringify(changed) === JSON.stringify(base))
       return fail('There are no changes to submit.');
+    const payload = await rebuildLatestPackage(api, id, changed);
     if (pending) await api.replacePendingRevision(id, pending.id, payload);
     else await api.updateExtension(id, payload);
     await setFlash(context, env.sessionSecret, {
@@ -78,7 +52,8 @@ export const POST: APIRoute = async (context) => {
       { headers: { 'Cache-Control': 'no-store' } },
     );
   } catch (error) {
-    if (error instanceof ExtensionValidationError) return fail(error.message);
+    if (error instanceof ExtensionValidationError)
+      return fail(error.message, error.status);
     if (error instanceof ApiRequestError)
       return fail(getApiErrorMessage(error), error.status);
     return fail(

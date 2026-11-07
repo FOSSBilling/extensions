@@ -39,6 +39,7 @@ const config =
   editorContent && editor
     ? serializeDraftConfig({
         base: editorContent,
+        packageUrl: `${baseUrl}/package`,
         developerName,
         pendingRevisionId,
         submitLabel,
@@ -73,7 +74,7 @@ const labels: Record<DraftSection, string> = {
           </p>
           <p class="mt-1 text-xs text-muted-foreground">
             Save changes across sections, then submit them together. Drafts stay
-            in this browser.
+            in this browser. Package metadata is rebuilt when needed.
           </p>
         </div>
         <div class="flex shrink-0 flex-wrap gap-2">
@@ -117,8 +118,8 @@ const labels: Record<DraftSection, string> = {
           </h2>
           {editor && (
             <p class="mt-1 text-sm text-muted-foreground">
-              Manage versions, downloads, and compatibility independently of
-              your listing.
+              Manage packages, versions, and compatibility independently of your
+              listing.
             </p>
           )}
         </div>
@@ -143,57 +144,77 @@ const labels: Record<DraftSection, string> = {
       {editorContent && (
         <div data-release-editor hidden class="border-b bg-muted/30 p-5 sm:p-6">
           <form data-release-form class="max-w-2xl space-y-4">
-            <h3 class="font-semibold" data-release-form-title>
+            <h3
+              id="release-editor-title"
+              class="font-semibold"
+              data-release-form-title
+            >
               Add Release
             </h3>
-            <input type="hidden" name="original_tag" />
-            <div class="grid gap-4 sm:grid-cols-2">
-              <label class="grid gap-2 text-sm font-medium">
-                Version Tag
+            <fieldset
+              data-release-fields
+              class="min-w-0 space-y-4"
+              aria-labelledby="release-editor-title"
+            >
+              <input type="hidden" name="original_tag" />
+              <div class="grid gap-4 sm:grid-cols-2">
+                <label class="grid gap-2 text-sm font-medium">
+                  Version Tag
+                  <input
+                    class="input w-full"
+                    name="version_tag"
+                    required
+                    maxlength="100"
+                    placeholder="1.3.0"
+                  />
+                </label>
+                <label class="grid gap-2 text-sm font-medium">
+                  Release Date
+                  <input
+                    class="input w-full"
+                    type="date"
+                    name="release_date"
+                    required
+                  />
+                </label>
+              </div>
+              <label class="grid gap-2 text-sm font-medium" data-source-control>
+                Source ZIP
                 <input
                   class="input w-full"
-                  name="version_tag"
-                  required
-                  maxlength="100"
-                  placeholder="1.3.0"
+                  type="file"
+                  name="source"
+                  accept=".zip,application/zip"
+                  data-source-file
                 />
               </label>
+              <p class="text-xs text-muted-foreground" data-source-help>
+                Upload ready-to-install files, without a wrapping directory.
+                Maximum 5 MiB.
+              </p>
               <label class="grid gap-2 text-sm font-medium">
-                Release Date
+                Changelog URL{' '}
+                <span class="font-normal text-muted-foreground">Optional</span>
                 <input
                   class="input w-full"
-                  type="date"
-                  name="release_date"
-                  required
+                  type="url"
+                  name="changelog_url"
+                  placeholder="https://…"
                 />
               </label>
-            </div>
-            <label class="grid gap-2 text-sm font-medium">
-              Download URL
-              <input
-                class="input w-full"
-                type="url"
-                name="download_url"
-                required
-                placeholder="https://…"
-              />
-            </label>
-            <label class="grid gap-2 text-sm font-medium">
-              Changelog URL{' '}
-              <span class="font-normal text-muted-foreground">Optional</span>
-              <input
-                class="input w-full"
-                type="url"
-                name="changelog_url"
-                placeholder="https://…"
-              />
-            </label>
-            <RequirementsFields />
-            <p class="text-xs text-muted-foreground">
-              The latest version is selected automatically and supplies the
-              listing’s primary download. Release changes join your draft and
-              need moderator approval.
-            </p>
+              <RequirementsFields />
+              <label
+                class="flex items-center gap-2 text-sm"
+                data-latest-release-option
+              >
+                <input type="checkbox" class="input" name="is_latest" checked />
+                Set as Latest Release
+              </label>
+              <p class="text-xs text-muted-foreground">
+                The latest release supplies the main download. Release changes
+                join your draft and need moderator approval.
+              </p>
+            </fieldset>
             <p
               data-release-error
               role="alert"
@@ -224,8 +245,8 @@ const labels: Record<DraftSection, string> = {
       />
       {editorContent && (
         <footer class="border-t p-5 text-xs text-muted-foreground">
-          Keep at least one release. Removing the latest release automatically
-          selects the next version.
+          Keep at least one release. Removing the latest release selects another
+          release.
         </footer>
       )}
     </section>
@@ -321,7 +342,6 @@ const labels: Record<DraftSection, string> = {
               <ExtensionOverviewDetails
                 developerName={developerName}
                 content={content}
-                showIconUrl={Boolean(editor)}
               />
             ) : (
               <div

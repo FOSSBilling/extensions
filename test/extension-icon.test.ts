@@ -1,65 +1,69 @@
 import { describe, expect, it } from 'vitest';
 import { extensionIconUrl } from '@/lib/extension-icon';
-const extension = {
-  id: 'branding',
-  icon_url: 'assets/icon.svg',
-  download_url:
-    'https://github.com/FOSSBilling/modules/releases/download/branding-v0.8.9/branding.zip',
-  source: { type: 'github', repo: 'FOSSBilling/modules' },
-};
-describe('package icons', () => {
-  it('resolves first-party package paths against the published release tag', () => {
-    expect(extensionIconUrl(extension)).toBe(
-      'https://raw.githubusercontent.com/FOSSBilling/modules/branding-v0.8.9/Branding/assets/icon.svg',
-    );
-  });
-  it('resolves single-repository package paths at the repository root', () => {
+import {
+  directoryAssetAvifUrl,
+  isTransformableImageSource,
+} from '@/lib/image-url';
+import { getSignedImageUrl } from '@/lib/signed-image-url';
+
+describe('extension icons', () => {
+  it('serves prepared published images directly from the CDN with AVIF/PNG fallback', async () => {
+    const url = `https://extensions-assets.fossbilling.net/local/icons/${'a'.repeat(64)}.png`;
     expect(
       extensionIconUrl({
-        ...extension,
-        source: { type: 'github', repo: 'owner/module' },
-        download_url:
-          'https://github.com/owner/module/releases/download/v1.0.0/module.zip',
+        icon_url: url,
+        releases: [
+          {
+            tag: '1.0.0',
+            date: '2026-11-05',
+            requires: { fossbilling: '^0.8' },
+            download_url: 'https://example.test/zip',
+            artifact_id: '11111111-1111-4111-8111-111111111111',
+          },
+        ],
       }),
-    ).toBe(
-      'https://raw.githubusercontent.com/owner/module/v1.0.0/assets/icon.svg',
-    );
-  });
-  it('retains legacy absolute HTTP(S) icons', () => {
+    ).toBe(url);
+    expect(isTransformableImageSource(url)).toBe(false);
+    expect(await getSignedImageUrl(url, 'icon', 'test')).toBe(url);
+    expect(directoryAssetAvifUrl(url)).toBe(url.replace(/\.png$/, '.avif'));
     expect(
-      extensionIconUrl({
-        ...extension,
-        icon_url: 'https://example.test/icon.svg',
-      }),
-    ).toBe('https://example.test/icon.svg');
-  });
-  it.each([
-    '../icon.svg',
-    'x\n../icon.svg',
-    'a\n/../../icon.svg',
-    'x\r../icon.svg',
-    'x\u2028../icon.svg',
-    'x\u2029../icon.svg',
-    'assets/\u0000icon.svg',
-    '/icon.svg',
-    'javascript:alert(1)',
-    'a\\icon.svg',
-    'https://user:password@example.com/icon.svg',
-  ])('rejects unsafe icon %s', (icon_url) => {
-    expect(extensionIconUrl({ ...extension, icon_url })).toBeUndefined();
-  });
-  it('rejects mismatched asset sources, unsupported hosts, and refs containing paths', () => {
-    for (const download_url of [
-      'https://github.com/other/repo/releases/download/v1.0.0/a.zip',
-      'https://example.com/icon.zip',
-      'https://github.com/FOSSBilling/modules/releases/download/a%2Fb/a.zip',
-    ])
-      expect(extensionIconUrl({ ...extension, download_url })).toBeUndefined();
-    expect(
-      extensionIconUrl({
-        ...extension,
-        source: { type: 'custom', repo: 'https://example.com' },
-      }),
+      directoryAssetAvifUrl(url.replace(/\.png$/, '.svg')),
     ).toBeUndefined();
+    expect(
+      directoryAssetAvifUrl(
+        url.replace('extensions-assets.fossbilling.net', 'untrusted.example'),
+      ),
+    ).toBeUndefined();
+  });
+  it('uses the permission-aware package icon endpoint for the latest release', () => {
+    const id = '11111111-1111-4111-8111-111111111111';
+    expect(
+      extensionIconUrl({
+        releases: [
+          {
+            tag: '1.0.0',
+            date: '2026-11-05',
+            download_url: 'https://example.test/package',
+            requires: { fossbilling: '^0.8' },
+            artifact_id: id,
+          },
+        ],
+      }),
+    ).toBe(`/package/${id}/icon`);
+  });
+  it('retains read-only image URLs for existing public records', () => {
+    expect(
+      extensionIconUrl({ icon_url: 'https://example.test/icon.png' }),
+    ).toBe('https://example.test/icon.png');
+  });
+  it('does not interpret old paths or unsafe URLs as public images', () => {
+    for (const icon_url of [
+      'icon.svg',
+      '../icon.svg',
+      'javascript:alert(1)',
+      'https://user:secret@example.test/icon.svg',
+    ])
+      expect(extensionIconUrl({ icon_url })).toBeUndefined();
+    expect(extensionIconUrl({})).toBeUndefined();
   });
 });

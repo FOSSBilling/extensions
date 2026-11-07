@@ -53,13 +53,11 @@ let shareImage: string | undefined;
 const metadataIcon = metadata
   ? extensionIconUrl({
       ...metadata,
-      id,
-      source: metadata.source ?? { type: 'custom', repo: '' },
     })
   : undefined;
 if (metadataIcon) {
   try {
-    shareImage = new URL(metadataIcon).href;
+    shareImage = new URL(metadataIcon, Astro.url.origin).href;
   } catch {
     /* Omit malformed stored URLs. */
   }

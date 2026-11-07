@@ -5,7 +5,9 @@ import { latestRelease } from '@/lib/releases';
 import { ArrowLeft, Download, Package, User } from '@lucide/astro';
 import { getSignedImageUrl } from '@/lib/signed-image-url';
 import { extensionIconUrl } from '@/lib/extension-icon';
+import { releaseDownloadHref } from '@/lib/extension-package';
 import { isSafeHttpUrl } from '@/lib/safe-url';
+import { directoryAssetAvifUrl } from '@/lib/image-url';
 interface Props {
   id: string;
   content: StoredExtensionFields;
@@ -18,7 +20,7 @@ const {
   id,
   content,
   developer,
-  versionLabel = 'Latest Version',
+  versionLabel = 'Latest Release',
   backHref = '/',
   backLabel = 'Extensions',
 } = Astro.props;
@@ -27,13 +29,13 @@ const version = latest?.tag ?? content.version;
 const iconUrl = await getSignedImageUrl(
   extensionIconUrl({
     ...content,
-    id,
-    source: content.source ?? { type: 'custom', repo: '' },
   }),
   'icon',
   Astro.locals.env.sessionSecret,
 );
-const downloadUrl = latest?.download_url ?? content.download_url;
+const downloadUrl = latest
+  ? new URL(releaseDownloadHref(latest), Astro.url).href
+  : content.download_url;
 ---
 
 <a
@@ -46,18 +48,27 @@ const downloadUrl = latest?.download_url ?? content.download_url;
 <header class="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
   <div class="flex min-w-0 items-start gap-4">
     <div class="flex size-16 shrink-0 items-center justify-center rounded-xl border bg-muted/50">
-      {iconUrl ? (
+      <picture>
+        <source
+          data-extension-icon-avif
+          type="image/avif"
+          srcset={directoryAssetAvifUrl(iconUrl)}
+        />
         <img
+          data-extension-icon
+          data-extension-icon-source={iconUrl}
           src={iconUrl}
+          hidden={!iconUrl}
           width="48"
           height="48"
           alt=""
           class="size-12 object-contain"
           decoding="async"
         />
-      ) : (
+      </picture>
+      <span data-extension-icon-fallback hidden={Boolean(iconUrl)}>
         <Package class="size-7 text-muted-foreground" aria-hidden="true" />
-      )}
+      </span>
     </div>
     <div class="min-w-0 space-y-2">
       <p class="text-xs font-medium uppercase tracking-widest text-muted-foreground">

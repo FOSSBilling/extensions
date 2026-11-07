@@ -1,6 +1,7 @@
 ---
 import MarkdownValue from './MarkdownValue.astro';
 import TruncatedText from './TruncatedText.astro';
+import { isPackageDownloadPath } from '@/lib/package-download';
 import { isSafeHttpUrl } from '@/lib/safe-url';
 import { URL_FIELDS } from '@/lib/revision-diff-shared';
 
@@ -19,7 +20,7 @@ interface Props {
 
 const { field, value, emptyLabel = '—', href = null, id } = Astro.props;
 const link =
-  href && isSafeHttpUrl(href)
+  href && (isSafeHttpUrl(href) || isPackageDownloadPath(href))
     ? href
     : URL_FIELDS.has(field) && value !== null && isSafeHttpUrl(value)
       ? value
