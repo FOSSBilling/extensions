@@ -1,23 +1,27 @@
+import { createHash } from 'node:crypto';
 import type { ExtensionListItem } from '@/lib/api/client';
 
-// Full ExtensionListItem fixture: the generated DTO requires every field,
-// even though most tests only assert on ids.
-export function item(id: string, name = id): ExtensionListItem {
+// Keep record UUIDs distinct from public identifiers in API fixtures.
+export function item(identifier: string, name = identifier): ExtensionListItem {
+  const suffix = createHash('sha256')
+    .update(identifier.toLowerCase())
+    .digest('hex')
+    .slice(0, 12);
   return {
-    id,
-    identifier: id,
+    id: `019a0000-0000-7000-8000-${suffix}`,
+    identifier,
     manifest_version: 1 as const,
     author: { name: 'Package Author' },
     type: 'module',
     name,
     description: `${name} description`,
-    homepage_url: `https://example.test/${id}`,
+    homepage_url: `https://example.test/${identifier}`,
     license: 'MIT',
-    source: { type: 'github', repo: `fossbilling/${id}` },
+    source: { type: 'github', repo: `fossbilling/${identifier}` },
     version: '1.0.0',
-    download_url: `https://example.test/${id}.zip`,
+    download_url: `https://example.test/${identifier}.zip`,
     developer: {
-      id: 'fossbilling',
+      id: '019a0000-0000-7000-8000-000000000001',
       identifier: 'fossbilling',
       type: 'organization',
       name: 'FOSSBilling',

@@ -314,7 +314,10 @@ describe('generated Extensions v2 façade', () => {
     expect(response.source.repo).toBe('fossbilling/full-extension');
     expect(response.version).toBe('1.0.0');
     expect(response.download_url).toContain('full-extension.zip');
-    expect(response.developer.id).toBe('fossbilling');
+    expect(response.id).toBe(detail.id);
+    expect(response.identifier).toBe('full-extension');
+    expect(response.developer.id).toBe(detail.developer.id);
+    expect(response.developer.identifier).toBe('fossbilling');
   });
 
   it('uses generated serialization and a fresh bearer callback for authenticated requests', async () => {

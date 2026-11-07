@@ -36,6 +36,8 @@ try {
       : 'Unable to load history for this developer profile.';
 }
 
+const developerName = entries[0]?.name;
+
 // listDeveloperHistory walks every page of the API's 100-row window, so a
 // server-side substring filter over the loaded rows is complete.
 const historyQuery = Astro.url.searchParams.get('q')?.trim() || undefined;
@@ -53,9 +55,9 @@ if (historyQuery) {
 ---
 
 <Admin
-  title={`Profile History${entries[0] ? `: ${entries[0].name}` : ''} — FOSSBilling Extensions`}
+  title={`Profile History${developerName ? `: ${developerName}` : ''} — FOSSBilling Extensions`}
   active="developers"
-  description={`Recorded writes for ${entries[0]?.name ?? 'this developer profile'}, newest first.`}
+  description={`Recorded writes for ${developerName ?? 'this developer profile'}, newest first.`}
 >
   <div slot="actions">
     <a

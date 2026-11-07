@@ -36,7 +36,7 @@ describe('directory page accumulation', () => {
       ...filters,
       cursor: 'cursor-2',
     } satisfies DirectoryPageRequest);
-    expect(state.items.map((extension) => extension.id)).toEqual([
+    expect(state.items.map((extension) => extension.identifier)).toEqual([
       'zeta',
       'alpha',
       'beta',
@@ -50,7 +50,7 @@ describe('directory page accumulation', () => {
       .fn()
       .mockResolvedValue(page([item('ALPHA'), item('second')], null, false));
     const pager = createDirectoryPagerFromIds(
-      ['alpha'],
+      [item('alpha').id],
       { next_cursor: 'cursor-2', has_more: true },
       filters,
       loadPage,
@@ -58,7 +58,9 @@ describe('directory page accumulation', () => {
 
     const state = await pager.loadNextPage();
 
-    expect(state.items.map((extension) => extension.id)).toEqual(['second']);
+    expect(state.items.map((extension) => extension.identifier)).toEqual([
+      'second',
+    ]);
   });
 
   it('does not duplicate concurrent next-page requests', async () => {
@@ -73,7 +75,7 @@ describe('directory page accumulation', () => {
         }),
     );
     const pager = createDirectoryPagerFromIds(
-      ['first'],
+      [item('first').id],
       { next_cursor: 'cursor-2', has_more: true },
       filters,
       loadPage,
@@ -87,9 +89,9 @@ describe('directory page accumulation', () => {
     resolvePage?.(page([item('first'), item('second')], null, false));
     await Promise.all([firstRequest, duplicateRequest]);
 
-    expect(pager.getState().items.map((extension) => extension.id)).toEqual([
-      'second',
-    ]);
+    expect(
+      pager.getState().items.map((extension) => extension.identifier),
+    ).toEqual(['second']);
   });
 
   it('appends a final page and offers no further request', async () => {
@@ -105,7 +107,7 @@ describe('directory page accumulation', () => {
     const state = await pager.loadNextPage();
     await pager.loadNextPage();
 
-    expect(state.items.map((extension) => extension.id)).toEqual([
+    expect(state.items.map((extension) => extension.identifier)).toEqual([
       'first',
       'last',
     ]);
@@ -137,7 +139,7 @@ describe('directory page accumulation', () => {
       .mockResolvedValueOnce(page([item('second')], 'invalid-cursor', true))
       .mockRejectedValueOnce(invalidCursor);
     const pager = createDirectoryPagerFromIds(
-      ['first'],
+      [item('first').id],
       { next_cursor: 'cursor-2', has_more: true },
       filters,
       loadPage,
@@ -146,7 +148,9 @@ describe('directory page accumulation', () => {
     await pager.loadNextPage();
     const state = await pager.loadNextPage();
 
-    expect(state.items.map((extension) => extension.id)).toEqual(['second']);
+    expect(state.items.map((extension) => extension.identifier)).toEqual([
+      'second',
+    ]);
     expect(state.nextCursor).toBe('invalid-cursor');
     expect(state.hasMore).toBe(true);
     expect(state.error).toBe(invalidCursor);

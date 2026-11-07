@@ -189,8 +189,8 @@ function buildContent(
   };
 }
 
-// Builds the payload for POST /extensions. The id is only ever set here —
-// PUT can't rename, since the id comes from the path and is immutable.
+// POST /extensions supplies the public identifier; the API generates the UUID.
+// PUT uses the existing identifier from the path and cannot change it.
 export function buildExtensionCreatePayload(form: FormData): ExtensionCreate {
   return {
     identifier: formString(form, 'extension_identifier').toLowerCase(),

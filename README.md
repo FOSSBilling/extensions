@@ -113,4 +113,4 @@ API mutations and site mutations both purge the `extensions` and `developers` ta
 
 ## Directory Identity
 
-Extension and developer records use UUIDv7 internal IDs. Public routes, profile handles and manifest IDs use their separate `identifier` fields. Keep UUIDs for record identity and use identifiers when constructing public links or package manifests.
+Extension and developer records use UUIDv7 internal IDs. Public routes, profile handles and publishing requests use the separate `identifier` fields. Keep UUIDs for record identity and audit-history links. A package manifest keeps its `id` field, whose value is the public extension identifier.
