@@ -1,7 +1,7 @@
 import {
   ApiRequestError,
   createApiClient,
-  getExtensionById,
+  getExtensionByIdentifier,
   type OwnedExtension,
 } from './api/client';
 import type { Extension } from '@/types';
@@ -39,5 +39,5 @@ export async function loadExtensionView(
         throw error;
     }
   }
-  return { kind: 'public', extension: await getExtensionById(env, id) };
+  return { kind: 'public', extension: await getExtensionByIdentifier(env, id) };
 }

@@ -13,7 +13,7 @@ export const POST: APIRoute = formAction({
     const developer = await getDeveloperByOwner(env, user.sub);
     if (!developer) return '/account/developer';
 
-    await createApiClient(env, user.sub).revokeTransfer(developer.id);
+    await createApiClient(env, user.sub).revokeTransfer(developer.identifier);
     await setFlash(context, env.sessionSecret, {
       title: 'Pending transfer link revoked.',
     });

@@ -232,12 +232,14 @@ const reconnectUrl = buildGithubReconnectUrl(Astro.url.origin, '/account');
                       githubVerifiedAt={developer.github_verified_at}
                     />
                   </p>
-                  <p class="text-sm text-muted-foreground">{developer.id}</p>
+                  <p class="text-sm text-muted-foreground">
+                    {developer.identifier}
+                  </p>
                 </div>
               </div>
               <div class="flex items-center gap-2">
                 <a
-                  href={`/developer/${developer.id}`}
+                  href={`/developer/${developer.identifier}`}
                   class="btn"
                   data-size="sm"
                   data-variant="outline"
@@ -290,7 +292,7 @@ const reconnectUrl = buildGithubReconnectUrl(Astro.url.origin, '/account');
         ) : displayClaim ? (
           <div class="space-y-2">
             <p class="text-sm flex items-center gap-2">
-              Claim on <strong>{displayClaim.developer_id}</strong>
+              Claim on <strong>{displayClaim.developer_identifier}</strong>
               {displayClaim.status === 'pending' && (
                 <span class="badge" data-variant="secondary">
                   Pending Review
@@ -366,13 +368,15 @@ const reconnectUrl = buildGithubReconnectUrl(Astro.url.origin, '/account');
                 <li class="py-3 flex items-center justify-between gap-3">
                   <div>
                     <a
-                      href={`/extension/${ext.id}`}
+                      href={`/extension/${ext.identifier}`}
                       class="font-medium hover:underline underline-offset-4"
                     >
-                      {ext.published?.name ?? ext.id}
+                      {ext.published?.name ?? ext.identifier}
                     </a>
                     <p class="text-sm text-muted-foreground">
-                      {ext.published ? `v${ext.published.version}` : ext.id}
+                      {ext.published
+                        ? `v${ext.published.version}`
+                        : ext.identifier}
                     </p>
                     {rejectedEdit && ext.last_review?.review_note && (
                       <p
@@ -397,7 +401,7 @@ const reconnectUrl = buildGithubReconnectUrl(Astro.url.origin, '/account');
                       </span>
                     ) : null}
                     <a
-                      href={`/extension/${ext.id}`}
+                      href={`/extension/${ext.identifier}`}
                       class="btn"
                       data-size="sm"
                       data-variant="outline"

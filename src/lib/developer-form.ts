@@ -10,21 +10,22 @@ import { withHttpsScheme } from './url-prefix';
 export class DeveloperValidationError extends Error {}
 
 // Builds a DeveloperProfileInput from the developer-profile form, for
-// PUT /developers/me. The id is immutable once a developer profile exists —
-// see the readonly id field in /account/developer.
+// PUT /developers/me. An existing profile keeps its public identifier;
+// the API generates the UUID when creating a profile.
 export function buildDeveloperProfile(
   form: FormData,
   existingDeveloper: Developer | null,
 ): DeveloperProfileInput {
   const str = (name: string) => formString(form, name);
   const typeInput = str('type');
-  const id = existingDeveloper?.id ?? str('id').toLowerCase();
-  if (!id) {
-    throw new DeveloperValidationError('Publisher ID is required.');
+  const identifier =
+    existingDeveloper?.identifier ?? str('identifier').toLowerCase();
+  if (!identifier) {
+    throw new DeveloperValidationError('Publisher Identifier is required.');
   }
 
   return {
-    id,
+    identifier,
     type: isDeveloperType(typeInput) ? typeInput : 'user',
     name: str('name'),
     URL: withHttpsScheme(str('url')),

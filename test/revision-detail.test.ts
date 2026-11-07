@@ -25,7 +25,6 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocks.guard.mockResolvedValue({ sub: 'moderator' });
   mocks.getRevision.mockResolvedValue({
-    extension_id: 'ext',
     content_available: true,
     content: { name: 'Proposed' },
   });
@@ -49,6 +48,9 @@ describe('on-demand revision proxy', () => {
   it('fetches only one frozen revision unless comparison was requested', async () => {
     const response = await GET(context('extensionId=ext&revisionId=rev'));
     expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      result: { revision: { name: 'Proposed' }, published: null },
+    });
     expect(mocks.getRevision).toHaveBeenCalledExactlyOnceWith('ext', 'rev');
     expect(mocks.getModerationExtension).not.toHaveBeenCalled();
     await GET(context('extensionId=ext&revisionId=rev&compare=1'));

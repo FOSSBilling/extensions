@@ -32,7 +32,7 @@ const { developers } = Astro.props;
                 {d.name}
               </a>
             </p>
-            <p class="text-xs text-muted-foreground">{d.id}</p>
+            <p class="text-xs text-muted-foreground">{d.identifier}</p>
             {d.URL && (
               <p
                 class="text-xs text-muted-foreground truncate max-w-64"
@@ -81,7 +81,7 @@ const { developers } = Astro.props;
                   class="btn"
                   data-size="sm"
                   data-approve-developer
-                  data-developer-id={d.id}
+                  data-developer-id={d.identifier}
                   data-developer-name={d.name}
                   data-expected-revision={d.content_revision}
                   data-expected-generation={d.profile_generation}

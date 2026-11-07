@@ -32,11 +32,11 @@ function statusOf(ext: OwnedExtensionListItem) {
         <tr class="align-middle">
           <td class="px-4 py-2">
             <p class="font-medium">
-              <a href={`/account/admin/extensions/${ext.id}`}>
-                {ext.published?.name ?? ext.id}
+              <a href={`/account/admin/extensions/${ext.identifier}`}>
+                {ext.published?.name ?? ext.identifier}
               </a>
             </p>
-            <p class="text-xs text-muted-foreground">{ext.id}</p>
+            <p class="text-xs text-muted-foreground">{ext.identifier}</p>
           </td>
           <td class="px-4 py-2 text-muted-foreground">
             <a
@@ -66,7 +66,7 @@ function statusOf(ext: OwnedExtensionListItem) {
           <td class="px-4 py-2">
             <div class="flex items-center gap-2">
               <a
-                href={`/account/admin/extensions/${ext.id}`}
+                href={`/account/admin/extensions/${ext.identifier}`}
                 class="btn px-0 flex-1 justify-start"
                 data-size="sm"
                 data-variant="ghost"
@@ -79,7 +79,7 @@ function statusOf(ext: OwnedExtensionListItem) {
                   class="btn"
                   data-size="sm"
                   data-variant="destructive"
-                  data-delist-id={ext.id}
+                  data-delist-id={ext.identifier}
                   data-delist-name={ext.published.name}
                 >
                   Delist

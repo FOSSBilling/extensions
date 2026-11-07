@@ -8,7 +8,7 @@ import {
 } from '@/lib/api/client';
 import {
   getDeveloperByOwner,
-  getDeveloperById,
+  getDeveloperByIdentifier,
   getExtensionsByOwner,
 } from '@/lib/extensions-data';
 import {
@@ -98,7 +98,7 @@ if (Astro.request.method === 'POST') {
   // route (transfer/revoke.ts), matching the rest of the app.
   if (form.get('intent') === 'transfer-initiate' && developer) {
     try {
-      transferResult = await api.initiateTransfer(developer.id);
+      transferResult = await api.initiateTransfer(developer.identifier);
       pendingTransfer = true;
     } catch (e) {
       error =
@@ -153,9 +153,12 @@ if (Astro.request.method === 'POST') {
         !isEdit &&
         e instanceof ApiRequestError &&
         e.code === 'DEVELOPER_ID_TAKEN' &&
-        submitted?.id
+        submitted?.identifier
       ) {
-        const conflicting = await getDeveloperById(env, submitted.id);
+        const conflicting = await getDeveloperByIdentifier(
+          env,
+          submitted.identifier,
+        );
         idTaken = conflicting?.unclaimed === true;
       }
       if (e instanceof ApiRequestError && e.code === 'GITHUB_MISMATCH') {
@@ -205,7 +208,7 @@ const reconnectUrl = buildGithubReconnectUrl(
           <ul class="space-y-2">
             {myClaims.map((c) => (
               <li class="text-sm flex items-center justify-between gap-3">
-                <code>{c.developer_id}</code>
+                <code>{c.developer_identifier}</code>
                 <div class="flex items-center gap-2">
                   {c.status === 'pending' && (
                     <span class="badge" data-variant="secondary">
@@ -248,12 +251,12 @@ const reconnectUrl = buildGithubReconnectUrl(
         <CircleAlert class="size-4" />
         <section>
           <p>{error}</p>
-          {idTaken && submitted?.id && (
+          {idTaken && submitted?.identifier && (
             <p>
               If this is your existing extension author profile, you can request
               to claim it instead of creating a new one — visit{' '}
-              <a href={`/developer/${submitted.id}`} class="underline">
-                the public profile page for "{submitted.id}"
+              <a href={`/developer/${submitted.identifier}`} class="underline">
+                the public profile page for "{submitted.identifier}"
               </a>{' '}
               and use the "Claim this profile" option.
             </p>
@@ -285,9 +288,9 @@ const reconnectUrl = buildGithubReconnectUrl(
         ) : !isEdit && pendingClaim ? (
           <p class="text-muted-foreground text-sm">
             You have a pending claim on{' '}
-            <strong>{pendingClaim.developer_id}</strong>. Cancel it above before
-            creating a separate profile — a claim can be approved at any time,
-            and you can only ever own one.
+            <strong>{pendingClaim.developer_identifier}</strong>. Cancel it
+            above before creating a separate profile — a claim can be approved
+            at any time, and you can only ever own one.
           </p>
         ) : (
           <form method="POST" class="space-y-8">
@@ -299,18 +302,18 @@ const reconnectUrl = buildGithubReconnectUrl(
               <fieldset class="fieldset space-y-4">
                 <legend>Publisher Identity</legend>
                 <div class="field">
-                  <label for="id">
-                    Publisher ID <span class="text-destructive">*</span>
+                  <label for="identifier">
+                    Publisher Identifier <span class="text-destructive">*</span>
                   </label>
                   <input
                     class="input"
                     type="text"
-                    id="id"
-                    name="id"
+                    id="identifier"
+                    name="identifier"
                     required
                     pattern="[a-z0-9]+(-[a-z0-9]+)*"
                     placeholder="my-org"
-                    value={fields?.id}
+                    value={fields?.identifier}
                     disabled={isEdit}
                   />
                   {isEdit ? (
@@ -350,7 +353,8 @@ const reconnectUrl = buildGithubReconnectUrl(
                         <section>
                           <h3>User</h3>
                           <p>
-                            Publisher ID must match your own GitHub username.
+                            Publisher Identifier must match your own GitHub
+                            username.
                           </p>
                         </section>
                         <input
@@ -374,8 +378,8 @@ const reconnectUrl = buildGithubReconnectUrl(
                         <section>
                           <h3>Organization</h3>
                           <p>
-                            Publisher ID must match a GitHub organization you
-                            belong to.
+                            Publisher Identifier must match a GitHub
+                            organization you belong to.
                           </p>
                         </section>
                         <input
@@ -426,8 +430,8 @@ const reconnectUrl = buildGithubReconnectUrl(
                 <p>
                   Shown on your public developer page at
                   {developer
-                    ? ` /developer/${developer.id}`
-                    : ' /developer/<your-id>'}
+                    ? ` /developer/${developer.identifier}`
+                    : ' /developer/<your-identifier>'}
                   .
                 </p>
                 <div class="field">
@@ -608,8 +612,8 @@ const reconnectUrl = buildGithubReconnectUrl(
             <>
               <p class="text-sm text-muted-foreground">
                 Permanently deletes your publisher identity (name, contact info)
-                and its public page. This can't be undone, and the ID may be
-                used by someone else afterward.
+                and its public page. This can't be undone, and the public
+                identifier may be used by someone else afterward.
               </p>
               <button
                 type="button"
@@ -623,8 +627,8 @@ const reconnectUrl = buildGithubReconnectUrl(
               <ConfirmDeleteDialog
                 id="delete-developer-profile"
                 title="Delete developer profile"
-                description="Permanently deletes your publisher identity and its public page. This can't be undone, and the ID may be used by someone else afterward."
-                confirmText={developer!.id}
+                description="Permanently deletes your publisher identity and its public page. This can't be undone, and the public identifier may be used by someone else afterward."
+                confirmText={developer!.identifier}
                 intentField={{ name: 'intent', value: 'delete' }}
                 submitLabel="Delete Developer Profile"
               />

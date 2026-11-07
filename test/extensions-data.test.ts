@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   createApiClient: vi.fn(),
-  getDeveloperById: vi.fn(),
+  getDeveloperByIdentifier: vi.fn(),
 }));
 
 // paginateAll stays real: the adapters under test route their whole-list
@@ -10,11 +10,11 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@/lib/api/client', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/api/client')>()),
   createApiClient: mocks.createApiClient,
-  getDeveloperById: mocks.getDeveloperById,
+  getDeveloperByIdentifier: mocks.getDeveloperByIdentifier,
 }));
 
 import {
-  getDeveloperById,
+  getDeveloperByIdentifier,
   getDeveloperByOwner,
   getExtensionsByOwner,
   getOwnedExtension,
@@ -25,7 +25,8 @@ import { makeEnv } from './helpers/env';
 const env = makeEnv();
 
 const developer = {
-  id: 'developer',
+  id: '019a0000-0000-7000-8000-000000000001',
+  identifier: 'developer',
   type: 'organization' as const,
   name: 'Example developer',
   approved: true,
@@ -34,24 +35,27 @@ const developer = {
 
 beforeEach(() => {
   mocks.createApiClient.mockReset();
-  mocks.getDeveloperById.mockReset();
+  mocks.getDeveloperByIdentifier.mockReset();
 });
 
 describe('API-backed extension data adapters', () => {
   it('treats a failed or unauthorized owner detail read as a missing resource', async () => {
-    mocks.createApiClient.mockReturnValue({
-      getMyExtension: vi.fn().mockRejectedValue(new Error('API unavailable')),
-    });
+    const getMyExtension = vi
+      .fn()
+      .mockRejectedValue(new Error('API unavailable'));
+    mocks.createApiClient.mockReturnValue({ getMyExtension });
 
     await expect(
-      getOwnedExtension(env, 'user-subject', 'extension-id'),
+      getOwnedExtension(env, 'user-subject', 'example'),
     ).resolves.toBe(null);
+    expect(getMyExtension).toHaveBeenCalledExactlyOnceWith('example');
   });
 
   it('splits the owner detail response into published/pendingRevision/lastReview', async () => {
     mocks.createApiClient.mockReturnValue({
       getMyExtension: vi.fn().mockResolvedValue({
-        id: 'extension-id',
+        id: '019a0000-0000-7000-8000-000000000002',
+        identifier: 'example',
         developer,
         published: {
           manifest_version: 1 as const,
@@ -88,8 +92,17 @@ describe('API-backed extension data adapters', () => {
       }),
     });
 
-    const detail = await getOwnedExtension(env, 'user-subject', 'extension-id');
+    const detail = await getOwnedExtension(env, 'user-subject', 'example');
 
+    expect(detail).toMatchObject({
+      id: '019a0000-0000-7000-8000-000000000002',
+      identifier: 'example',
+      developer: { id: developer.id, identifier: developer.identifier },
+      published: {
+        id: '019a0000-0000-7000-8000-000000000002',
+        identifier: 'example',
+      },
+    });
     expect(detail?.published?.name).toBe('Example');
     expect(detail?.published?.author).toEqual({ name: 'Package Author' });
     expect(detail?.published?.requires).toEqual({
@@ -114,7 +127,8 @@ describe('API-backed extension data adapters', () => {
 
   it('maps either detail view to the same shape, delisted state included', () => {
     const detail = toOwnedExtensionDetail({
-      id: 'extension-id',
+      id: '019a0000-0000-7000-8000-000000000002',
+      identifier: 'example',
       developer,
       published: {
         manifest_version: 1 as const,
@@ -150,9 +164,13 @@ describe('API-backed extension data adapters', () => {
   });
 
   it('treats failed public developer reads as missing profiles', async () => {
-    mocks.getDeveloperById.mockRejectedValue(new Error('API unavailable'));
+    mocks.getDeveloperByIdentifier.mockRejectedValue(
+      new Error('API unavailable'),
+    );
 
-    await expect(getDeveloperById(env, 'developer-id')).resolves.toBeNull();
+    await expect(
+      getDeveloperByIdentifier(env, 'developer-id'),
+    ).resolves.toBeNull();
   });
 
   it('keeps owner pages usable when the API cannot load the profile or list', async () => {

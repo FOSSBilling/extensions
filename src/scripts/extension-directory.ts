@@ -41,8 +41,8 @@ async function loadPage(
   if (request.type !== undefined) {
     params.set('type', request.type);
   }
-  if (request.developer_id !== undefined) {
-    params.set('developer_id', request.developer_id);
+  if (request.developer_identifier !== undefined) {
+    params.set('developer_identifier', request.developer_identifier);
   }
   // Cursors are opaque. URLSearchParams performs transport encoding only;
   // the cursor value itself is passed through unchanged.
@@ -110,7 +110,7 @@ function installDirectory(root: HTMLElement): void {
   };
   const filters = {
     type: root.dataset.type || undefined,
-    developer_id: root.dataset.developerId,
+    developer_identifier: root.dataset.developerId,
     limit: Number(root.dataset.limit) || DEFAULT_PAGE_LIMIT,
   };
   const pager = createDirectoryPagerFromIds<DirectoryCard>(

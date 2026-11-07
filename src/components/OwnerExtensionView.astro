@@ -12,7 +12,7 @@ interface Props {
   userId: string;
 }
 const { owned, userId } = Astro.props;
-const id = owned.id;
+const id = owned.identifier;
 const env = Astro.locals.env;
 const api = createApiClient(env, userId);
 // A review decision and publication are independent: rejecting an update

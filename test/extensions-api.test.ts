@@ -19,7 +19,7 @@ import {
   clampApiPageLimit,
   createApiClient,
   getApiErrorMessage,
-  getExtensionById,
+  getExtensionByIdentifier,
   listExtensions,
   type Extension,
   type ExtensionCreate,
@@ -144,7 +144,7 @@ describe('generated Extensions v2 façade', () => {
       .mockResolvedValue(apiResponse(page([], null, false)));
     const request = {
       type: 'theme' as const,
-      developer_id: 'developer-id',
+      developer_identifier: 'developer-id',
       limit: 25,
       cursor: 'opaque-cursor',
     };
@@ -257,14 +257,14 @@ describe('generated Extensions v2 façade', () => {
 
     await listExtensions(publicEnv, {
       type: 'theme',
-      developer_id: 'developer-id',
+      developer_identifier: 'developer-id',
       limit: 100,
       cursor: opaqueCursor,
     });
 
     const url = requestUrl(fetchMock);
     expect(url.searchParams.get('type')).toBe('theme');
-    expect(url.searchParams.get('developer_id')).toBe('developer-id');
+    expect(url.searchParams.get('developer_identifier')).toBe('developer-id');
     expect(url.searchParams.get('cursor')).toBe(opaqueCursor);
   });
 
@@ -296,7 +296,10 @@ describe('generated Extensions v2 façade', () => {
       .mockResolvedValue(apiResponse({ result: detail }));
     vi.stubGlobal('fetch', fetchMock);
 
-    const response = await getExtensionById(publicEnv, 'full-extension');
+    const response = await getExtensionByIdentifier(
+      publicEnv,
+      'full-extension',
+    );
 
     expect(requestFrom(fetchMock).url).toBe(
       'https://api.example.test/extensions/v2/extensions/full-extension',
@@ -311,7 +314,10 @@ describe('generated Extensions v2 façade', () => {
     expect(response.source.repo).toBe('fossbilling/full-extension');
     expect(response.version).toBe('1.0.0');
     expect(response.download_url).toContain('full-extension.zip');
-    expect(response.developer.id).toBe('fossbilling');
+    expect(response.id).toBe(detail.id);
+    expect(response.identifier).toBe('full-extension');
+    expect(response.developer.id).toBe(detail.developer.id);
+    expect(response.developer.identifier).toBe('fossbilling');
   });
 
   it('uses generated serialization and a fresh bearer callback for authenticated requests', async () => {
@@ -352,17 +358,17 @@ describe('generated Extensions v2 façade', () => {
       'opaque cursor',
     );
     // The mine scope forwards a type filter when asked, and never carries
-    // the public directory's developer_id filter.
+    // the public directory's developer_identifier filter.
     expect(requestUrl(fetchMock, 0).searchParams.get('type')).toBe('theme');
-    expect(requestUrl(fetchMock, 0).searchParams.has('developer_id')).toBe(
-      false,
-    );
+    expect(
+      requestUrl(fetchMock, 0).searchParams.has('developer_identifier'),
+    ).toBe(false);
     expect(requestUrl(fetchMock, 1).searchParams.has('cursor')).toBe(false);
   });
 
   it('serializes a create payload with no developer field and reports the new revision', async () => {
     const payload = {
-      id: 'body-extension',
+      identifier: 'body-extension',
       manifest_version: 1 as const,
       author: { name: 'Package Author' },
       requires: { fossbilling: '^0.8.9', php: '>=8.3' },
@@ -381,7 +387,8 @@ describe('generated Extensions v2 façade', () => {
       apiResponse(
         {
           result: {
-            id: 'body-extension',
+            id: '019a0000-0000-7000-8000-000000000001',
+            identifier: 'body-extension',
             revision_id: 'revision-1',
             status: 'pending',
           },
@@ -402,7 +409,8 @@ describe('generated Extensions v2 façade', () => {
     expect(request.headers.get('content-type')).toBe('application/json');
     expect(await request.json()).toEqual(payload);
     expect(result).toEqual({
-      id: 'body-extension',
+      id: '019a0000-0000-7000-8000-000000000001',
+      identifier: 'body-extension',
       revision_id: 'revision-1',
       status: 'pending',
     });
@@ -428,7 +436,7 @@ describe('generated Extensions v2 façade', () => {
       apiResponse(
         {
           result: {
-            id: 'body-extension',
+            identifier: 'body-extension',
             revision_id: 'revision-2',
             status: 'pending',
           },
@@ -455,7 +463,11 @@ describe('generated Extensions v2 façade', () => {
   it('withdraws an unpublished extension with DELETE', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       apiResponse({
-        result: { id: 'body-extension', deleted: true },
+        result: {
+          id: '019a0000-0000-7000-8000-000000000001',
+          identifier: 'body-extension',
+          deleted: true,
+        },
       }),
     );
     vi.stubGlobal('fetch', fetchMock);
@@ -470,7 +482,11 @@ describe('generated Extensions v2 façade', () => {
       '/extensions/v2/extensions/body-extension',
     );
     expect(request.method).toBe('DELETE');
-    expect(result).toEqual({ id: 'body-extension', deleted: true });
+    expect(result).toEqual({
+      id: '019a0000-0000-7000-8000-000000000001',
+      identifier: 'body-extension',
+      deleted: true,
+    });
   });
 
   it('approves and rejects a revision by extension id + revision id', async () => {
@@ -515,7 +531,12 @@ describe('generated Extensions v2 façade', () => {
   it('corrects live content as a moderator with no notify query', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       apiResponse({
-        result: { id: 'live-ext', revision_id: 'rev-1', status: 'approved' },
+        result: {
+          id: '019a0000-0000-7000-8000-000000000001',
+          identifier: 'live-ext',
+          revision_id: 'rev-1',
+          status: 'approved',
+        },
       }),
     );
     vi.stubGlobal('fetch', fetchMock);
@@ -552,7 +573,8 @@ describe('generated Extensions v2 façade', () => {
       correction_note: 'Fix truncated readme',
     });
     expect(result).toEqual({
-      id: 'live-ext',
+      id: '019a0000-0000-7000-8000-000000000001',
+      identifier: 'live-ext',
       revision_id: 'rev-1',
       status: 'approved',
     });
@@ -561,7 +583,12 @@ describe('generated Extensions v2 façade', () => {
   it('skips the author email on moderation writes when asked', async () => {
     const delistFetch = vi.fn().mockResolvedValue(
       apiResponse({
-        result: { id: 'body-extension', status: 'delisted', notified: false },
+        result: {
+          id: '019a0000-0000-7000-8000-000000000001',
+          identifier: 'body-extension',
+          status: 'delisted',
+          notified: false,
+        },
       }),
     );
     vi.stubGlobal('fetch', delistFetch);
@@ -572,14 +599,20 @@ describe('generated Extensions v2 façade', () => {
     expect(delistFetch).toHaveBeenCalledOnce();
     expect(requestUrl(delistFetch).searchParams.get('notify')).toBe('false');
     expect(delisted).toEqual({
-      id: 'body-extension',
+      id: '019a0000-0000-7000-8000-000000000001',
+      identifier: 'body-extension',
       status: 'delisted',
       notified: false,
     });
 
     const approveFetch = vi.fn().mockResolvedValue(
       apiResponse({
-        result: { id: 'dev-1', approved: true, notified: true },
+        result: {
+          id: '019a0000-0000-7000-8000-000000000001',
+          identifier: 'dev-1',
+          approved: true,
+          notified: true,
+        },
       }),
     );
     vi.stubGlobal('fetch', approveFetch);
@@ -596,7 +629,12 @@ describe('generated Extensions v2 façade', () => {
 
     const optOutFetch = vi.fn().mockResolvedValue(
       apiResponse({
-        result: { id: 'dev-1', approved: true, notified: false },
+        result: {
+          id: '019a0000-0000-7000-8000-000000000001',
+          identifier: 'dev-1',
+          approved: true,
+          notified: false,
+        },
       }),
     );
     vi.stubGlobal('fetch', optOutFetch);
@@ -703,7 +741,8 @@ describe('generated Extensions v2 façade', () => {
   it('fetches one revision on demand and supports compacted content', async () => {
     const compacted = {
       id: 'revision-1',
-      extension_id: 'extension-1',
+      extension_id: '019a0000-0000-7000-8000-000000000001',
+      extension_identifier: 'extension-1',
       content: null,
       content_available: false,
       content_hash: 'hash',
@@ -931,11 +970,12 @@ describe('cursor-paginated moderator lists', () => {
   // The API caps these lists at 100 rows per request, so the wrappers walk
   // keyset pages with the opaque cursor instead of assuming one whole-list
   // response.
-  function developerProfile(id: string): DeveloperProfile {
+  function developerProfile(id: string, identifier: string): DeveloperProfile {
     return {
       id,
+      identifier,
       type: 'user',
-      name: id,
+      name: identifier,
       approved: true,
       content_revision: 1,
       profile_generation: '0123456789abcdef0123456789abcdef',
@@ -945,7 +985,8 @@ describe('cursor-paginated moderator lists', () => {
   function myClaim(id: string): PendingDeveloperClaim {
     return {
       id,
-      developer_id: 'dev-1',
+      developer_id: '019a0000-0000-7000-8000-000000000001',
+      developer_identifier: 'dev-1',
       claimant_id: 'user-1',
       status: 'pending',
       created_at: '2026-01-01T00:00:00Z',
@@ -960,17 +1001,29 @@ describe('cursor-paginated moderator lists', () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(
-        apiResponse(page([developerProfile('a')], 'cursor-1', true)),
+        apiResponse(
+          page(
+            [developerProfile('019a0000-0000-7000-8000-000000000001', 'a')],
+            'cursor-1',
+            true,
+          ),
+        ),
       )
       .mockResolvedValueOnce(
-        apiResponse(page([developerProfile('b')], null, false)),
+        apiResponse(
+          page(
+            [developerProfile('019a0000-0000-7000-8000-000000000002', 'b')],
+            null,
+            false,
+          ),
+        ),
       );
     vi.stubGlobal('fetch', fetchMock);
 
     const api = createApiClient(authenticatedEnv, 'moderator-sub');
     const developers = await api.listAllDevelopers();
 
-    expect(developers.map((d) => d.id)).toEqual(['a', 'b']);
+    expect(developers.map((d) => d.identifier)).toEqual(['a', 'b']);
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(requestUrl(fetchMock, 0).searchParams.get('limit')).toBe('100');
     expect(requestUrl(fetchMock, 0).searchParams.get('cursor')).toBe(null);
@@ -985,14 +1038,20 @@ describe('cursor-paginated moderator lists', () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValue(
-        apiResponse(page([developerProfile('only')], null, false)),
+        apiResponse(
+          page(
+            [developerProfile('019a0000-0000-7000-8000-000000000003', 'only')],
+            null,
+            false,
+          ),
+        ),
       );
     vi.stubGlobal('fetch', fetchMock);
 
     const api = createApiClient(authenticatedEnv, 'moderator-sub');
     const developers = await api.listUnapprovedDevelopers();
 
-    expect(developers.map((d) => d.id)).toEqual(['only']);
+    expect(developers.map((d) => d.identifier)).toEqual(['only']);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(requestUrl(fetchMock).searchParams.get('scope')).toBe('unapproved');
   });
@@ -1000,7 +1059,7 @@ describe('cursor-paginated moderator lists', () => {
   it('walks the claims queue and profile history with explicit pages', async () => {
     const claim = myClaim('claim-1');
     const entry: DeveloperHistoryEntry = {
-      developer_id: 'dev-1',
+      developer_id: '019a0000-0000-7000-8000-000000000001',
       type: 'user',
       name: 'Dev One',
       changed_by: 'user-1',
@@ -1025,11 +1084,13 @@ describe('cursor-paginated moderator lists', () => {
     const api = createApiClient(authenticatedEnv, 'moderator-sub');
     const [claims, history] = await Promise.all([
       api.listPendingClaims(),
-      api.listDeveloperHistory('dev-1'),
+      api.listDeveloperHistory('019a0000-0000-7000-8000-000000000001'),
     ]);
 
     expect(claims.map((c) => c.id)).toEqual(['claim-1']);
-    expect(history.map((h) => h.developer_id)).toEqual(['dev-1']);
+    expect(history.map((h) => h.developer_id)).toEqual([
+      '019a0000-0000-7000-8000-000000000001',
+    ]);
     const urls = fetchMock.mock.calls.map(
       (call) => new URL((call[0] as Request).url),
     );
@@ -1037,6 +1098,9 @@ describe('cursor-paginated moderator lists', () => {
       u.pathname.endsWith('/developers/claims'),
     );
     const historyUrl = urls.find((u) => u.pathname.endsWith('/history'));
+    expect(historyUrl?.pathname).toBe(
+      '/extensions/v2/developers/019a0000-0000-7000-8000-000000000001/history',
+    );
     expect(claimsUrl?.searchParams.get('scope')).toBe('pending');
     expect(claimsUrl?.searchParams.get('limit')).toBe('100');
     expect(claimsUrl?.searchParams.get('cursor')).toBe(null);

@@ -72,7 +72,7 @@ if (query) {
     claims = claims.filter((c) =>
       [
         c.developer_name,
-        c.developer_id,
+        c.developer_identifier,
         c.claimant_name ?? '',
         c.claimant_id,
         c.claimant_github_login ?? '',
@@ -80,7 +80,7 @@ if (query) {
     );
   } else {
     developers = developers.filter((d) =>
-      [d.name, d.id, d.owner_name ?? ''].some((field) =>
+      [d.name, d.identifier, d.owner_name ?? ''].some((field) =>
         field.toLowerCase().includes(needle),
       ),
     );
