@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  buildExtensionCreatePayload,
+  buildExtensionCreatePayload as createPayload,
+  manifestFromCreateForm,
   buildExtensionUpdatePayload,
   echoExtensionFromForm,
   echoNewExtensionFromForm,
@@ -27,13 +28,23 @@ function extensionForm(overrides: Record<string, string | undefined> = {}) {
     source_url: 'https://github.com/fossbilling/example',
     version_tag: '1.0.0',
     release_date: '2026-01-01',
-    download_url: 'example.test/example.zip',
-    icon_url: 'assets/icon.svg',
     ...overrides,
   };
   for (const [key, value] of Object.entries(values))
     if (typeof value === 'string') form.set(key, value);
   return form;
+}
+function buildExtensionCreatePayload(form: FormData) {
+  const manifest = manifestFromCreateForm(form);
+  return createPayload(form, {
+    id: '11111111-1111-4111-8111-111111111111',
+    source_id: '22222222-2222-4222-8222-222222222222',
+    manifest,
+    download_url: 'https://api.test/packages/download',
+    sha256: 'a'.repeat(64),
+    created_at: '2026-01-01',
+    published_at: null,
+  });
 }
 const developer = {
   id: '019a0000-0000-7000-8000-000000000001',
@@ -61,6 +72,8 @@ const published: Extension = {
   releases: [
     {
       tag: '1.0.0',
+      artifact_id: '11111111-1111-4111-8111-111111111111',
+      sha256: 'a'.repeat(64),
       date: '2026-01-01',
       download_url: 'https://example.test/example.zip',
       requires: {
@@ -84,7 +97,6 @@ describe('manifest publishing forms', () => {
       type: 'module',
       license: 'MIT',
       homepage_url: 'https://example.test',
-      icon_url: 'assets/icon.svg',
       author: { name: 'Package Author', url: 'https://author.example.test' },
       requires: {
         fossbilling: '^0.8.9 || ^1.0',
@@ -104,66 +116,44 @@ describe('manifest publishing forms', () => {
     expect(body.identifier).toBe('my_module');
     expect(body.homepage_url).toBeUndefined();
   });
-  it('carries published releases unchanged when editing metadata', () => {
+  it('aligns the latest release requirements with corrected metadata', () => {
+    const body = buildExtensionUpdatePayload(
+      extensionForm({ requires_php: '>=8.4' }),
+      published,
+    );
+    expect(body.requires.php).toBe('>=8.4');
+    expect(body.releases[0].requires.php).toBe('>=8.4');
+    expect(body.releases[0].artifact_id).toBe(
+      published.releases[0].artifact_id,
+    );
+    expect(published.releases[0].requires.php).toBe('>=8.3 <9');
+  });
+  it('keeps releases and download identity out of moderator form inputs', () => {
     const body = buildExtensionUpdatePayload(
       extensionForm({
-        version_tag: '',
-        release_date: '',
-        download_url: '',
-        requires_php: '>=8.4',
+        version_tag: '9.0.0',
+        download_url: 'https://other.test/zip',
       }),
       published,
     );
-    expect(body).not.toHaveProperty('id');
-    expect(body.releases).toEqual(published.releases);
     expect(body.version).toBe(published.version);
-    expect(body.requires.php).toBe('>=8.4');
-    expect(body.releases[0].requires.php).toBe('>=8.3 <9');
+    expect(body.download_url).toBe(published.download_url);
+    expect(body.releases).toHaveLength(1);
   });
-  it('appends a release with its own requirements while preserving history', () => {
-    const body = buildExtensionUpdatePayload(
-      extensionForm({ version_tag: '1.1.0', requires_php: '>=8.4' }),
-      published,
-    );
-    expect(body.releases).toHaveLength(2);
-    expect(body.releases[0]).toEqual(published.releases[0]);
-    expect(body.releases[1].requires.php).toBe('>=8.4');
-    expect(body.version).toBe('1.1.0');
-  });
-  it('normalizes v-prefixed latest versions and rejects duplicate tag spellings', () => {
-    expect(
-      buildExtensionUpdatePayload(
-        extensionForm({ version_tag: 'v2.0.0' }),
-        published,
-      ).version,
-    ).toBe('2.0.0');
+  it('requires a stored package for metadata corrections', () => {
     expect(() =>
-      buildExtensionUpdatePayload(
-        extensionForm({ version_tag: 'v1.0.0' }),
-        published,
-      ),
-    ).toThrow(ExtensionValidationError);
-  });
-  it('rejects duplicate tags and overflowing release history', () => {
-    expect(() =>
-      buildExtensionUpdatePayload(extensionForm(), published),
-    ).toThrow(/already exists/);
-    expect(() =>
-      buildExtensionUpdatePayload(extensionForm({ version_tag: '2.0.0' }), {
+      buildExtensionUpdatePayload(extensionForm(), {
         ...published,
-        releases: Array.from({ length: 100 }, () => published.releases[0]),
+        releases: [],
       }),
-    ).toThrow(/100 releases/);
+    ).toThrow(/stored package/);
   });
-  it('requires an initial release for creation and unpublished resubmission', () => {
+  it('requires an initial release and date for creation', () => {
     expect(() =>
-      buildExtensionCreatePayload(extensionForm({ version_tag: '' })),
+      manifestFromCreateForm(extensionForm({ version_tag: '' })),
     ).toThrow(ExtensionValidationError);
     expect(() =>
-      buildExtensionUpdatePayload(extensionForm({ version_tag: '' }), null),
-    ).toThrow(ExtensionValidationError);
-    expect(() =>
-      buildExtensionCreatePayload(extensionForm({ release_date: '' })),
+      manifestFromCreateForm(extensionForm({ release_date: '' })),
     ).toThrow(ExtensionValidationError);
   });
   it('supports compound SPDX expressions and custom license references', () => {
@@ -188,22 +178,6 @@ describe('manifest publishing forms', () => {
           license_name_custom: 'invalid/license',
         }),
       ),
-    ).toThrow(ExtensionValidationError);
-  });
-  it.each([
-    '../icon.svg',
-    'x\n../icon.svg',
-    'a\n/../../icon.svg',
-    'x\r../icon.svg',
-    'x\u2028../icon.svg',
-    'x\u2029../icon.svg',
-    'assets/\u0000icon.svg',
-    '/icon.svg',
-    'https://example.com/icon.svg',
-    'a\\icon.svg',
-  ])('rejects unsafe package icon %s', (icon_url) => {
-    expect(() =>
-      buildExtensionCreatePayload(extensionForm({ icon_url })),
     ).toThrow(ExtensionValidationError);
   });
   it('inherits FOSSBilling PHP requirements when no additional constraint is set', () => {
@@ -270,7 +244,6 @@ it('safely echoes blank new-extension and release submissions', () => {
   expect(echoReleaseDraftFromForm(form)).toEqual({
     version_tag: '',
     release_date: '',
-    download_url: '',
     changelog_url: '',
   });
   const echo = echoNewExtensionFromForm(form, developer);

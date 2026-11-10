@@ -27,7 +27,7 @@ const DIRECTORY_ASSET_PATH = new RegExp(
   `^/extensions/${UUID_PATH}/icons/${UUID_PATH}\\.(svg|png|avif)$`,
 );
 
-function isDirectoryAssetUrl(source: string): boolean {
+export function isDirectoryAssetUrl(source: string): boolean {
   try {
     const url = new URL(source);
     return (
@@ -90,6 +90,12 @@ export function getOptimizedImageUrl(
   if (!source) {
     return undefined;
   }
+  if (
+    /^\/package\/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}\/icon$/i.test(
+      source,
+    )
+  )
+    return source;
 
   try {
     const url = new URL(source);

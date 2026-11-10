@@ -4,6 +4,8 @@ const mocks = vi.hoisted(() => ({
   guard: vi.fn(),
   getMyExtension: vi.fn(),
   getRevision: vi.fn(),
+  getPackage: vi.fn(),
+  buildPackage: vi.fn(),
   updateExtension: vi.fn(),
   replacePendingRevision: vi.fn(),
   setFlash: vi.fn(),
@@ -18,6 +20,7 @@ import { POST } from '@/pages/extension/[id]/draft';
 import { sha256Hex } from '@/lib/hash';
 import { editableContent, reconstructionContent } from '@/lib/extension-draft';
 import { ApiRequestError, type ExtensionUpdate } from '@/lib/api/client';
+import { packageManifest } from '@/lib/extension-package';
 const base: ExtensionUpdate = {
   manifest_version: 1,
   author: { name: 'Author' },
@@ -40,12 +43,15 @@ const base: ExtensionUpdate = {
   version: '1.0.0',
   download_url: 'https://example.test/1.zip',
 };
-async function context(overrides: Record<string, unknown> = {}) {
+async function context(
+  overrides: Record<string, unknown> = {},
+  baseline = base,
+) {
   const body = new FormData();
   body.set(
     'draft',
     JSON.stringify({
-      baselineHash: await sha256Hex(JSON.stringify(editableContent(base))),
+      baselineHash: await sha256Hex(JSON.stringify(editableContent(baseline))),
       sections: { readme: { readme: '# Changed' } },
       ...overrides,
     }),
@@ -173,29 +179,50 @@ describe('draft submission', () => {
       readme: '# Changed',
     });
   });
-  it('saves rebuilt pending content using the same normalized baseline as the browser', async () => {
-    const stored = {
+  it('rebuilds a rejected submission after its content has been compacted', async () => {
+    const rebuilt = reconstructionContent(null);
+    const restored = {
       ...base,
-      manifest_version: undefined,
-      license: { name: 'MIT' },
+      readme: '# Changed',
+      releases: [
+        {
+          ...base.releases[0],
+          artifact_id: '11111111-1111-4111-8111-111111111111',
+          sha256: 'a'.repeat(64),
+        },
+      ],
     };
-    const rebuilt = editableContent(reconstructionContent(stored))!;
     mocks.getMyExtension.mockResolvedValue({
       published: null,
-      pending_revision: { id: 'pending', content: stored },
+      pending_revision: null,
+      last_review: { revision_id: 'rejected' },
+    });
+    mocks.getRevision.mockResolvedValue({ content: null });
+    mocks.getPackage.mockResolvedValue({
+      manifest: packageManifest('example', restored),
     });
     const response = await POST(
-      await context({
-        pendingRevisionId: 'pending',
-        baselineHash: await sha256Hex(JSON.stringify(rebuilt)),
-      }),
+      await context(
+        {
+          sections: {
+            listing: {
+              name: base.name,
+              description: base.description,
+              type: base.type,
+              homepage_url: base.homepage_url,
+              author_name: base.author.name,
+              source_url: 'https://github.com/example/original',
+              license_spdx_id: base.license,
+            },
+            readme: { readme: '# Changed' },
+          },
+          releases: restored.releases,
+        },
+        rebuilt,
+      ),
     );
     expect(response.status).toBe(200);
-    expect(mocks.replacePendingRevision).toHaveBeenCalledWith(
-      'example',
-      'pending',
-      { ...rebuilt, readme: '# Changed' },
-    );
+    expect(mocks.updateExtension).toHaveBeenCalledWith('example', restored);
   });
   it('rejects empty changes and malformed section edits', async () => {
     expect((await POST(await context({ sections: {} }))).status).toBe(422);
@@ -212,3 +239,68 @@ describe('draft submission', () => {
     expect(await response.text()).toContain('draft has been kept');
   });
 });
+
+it.each(['success', 'failure', 'conflict'])(
+  'handles a manifest-changing draft rebuild: %s',
+  async (outcome) => {
+    const managed = {
+      ...base,
+      releases: [
+        {
+          ...base.releases[0],
+          artifact_id: '11111111-1111-4111-8111-111111111111',
+          sha256: 'a'.repeat(64),
+        },
+      ],
+    };
+    const payload = {
+      ...managed,
+      releases: [
+        { ...managed.releases[0], requires: { fossbilling: '>=0.9.0' } },
+      ],
+    };
+    mocks.getMyExtension.mockResolvedValue({
+      published: managed,
+      pending_revision: null,
+    });
+    mocks.getPackage.mockResolvedValue({
+      source_id: '22222222-2222-4222-8222-222222222222',
+      manifest: packageManifest('example', managed),
+    });
+    mocks.buildPackage.mockImplementation(async () => {
+      if (outcome === 'failure')
+        throw new ApiRequestError(503, 'PACKAGE_UNAVAILABLE', 'Package failed');
+      if (outcome === 'conflict')
+        mocks.getMyExtension.mockResolvedValue({
+          published: { ...managed, readme: '# Changed elsewhere' },
+          pending_revision: null,
+        });
+      return {
+        id: '33333333-3333-4333-8333-333333333333',
+        manifest: packageManifest('example', payload),
+        sha256: 'b'.repeat(64),
+        download_url: 'https://example.test/rebuilt.zip',
+      };
+    });
+    const response = await POST(
+      await context({ sections: {}, releases: payload.releases }, managed),
+    );
+    expect(response.status).toBe(
+      outcome === 'success' ? 200 : outcome === 'failure' ? 503 : 409,
+    );
+    expect(mocks.buildPackage).toHaveBeenCalledOnce();
+    if (outcome === 'success')
+      expect(mocks.updateExtension).toHaveBeenCalledWith(
+        'example',
+        expect.objectContaining({
+          download_url: 'https://example.test/rebuilt.zip',
+          releases: [
+            expect.objectContaining({
+              artifact_id: '33333333-3333-4333-8333-333333333333',
+            }),
+          ],
+        }),
+      );
+    else expect(mocks.updateExtension).not.toHaveBeenCalled();
+  },
+);

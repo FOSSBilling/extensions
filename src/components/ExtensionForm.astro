@@ -46,11 +46,6 @@ const isEdit = Boolean(extension);
 // Redisplay values: a failed submission's echo wins over the extension being
 // edited, so a rejected edit shows what the user typed.
 const shown = echo ?? extension;
-// A release is required, same as a brand new extension, whenever there's
-// nothing already published to carry through — an extension can reach this
-// form with no releases yet (rejected and never resubmitted).
-const requireRelease = !isEdit || extension!.releases.length === 0;
-
 const existingSpdxId = shown?.license;
 // An existing license only lands in the custom bucket when it truly isn't
 // one of the ids this form offers — covers both genuinely custom/proprietary
@@ -96,7 +91,7 @@ const otherSpdxIds = SPDX_LICENSE_IDS.filter((id) => !popularSpdxIds.has(id));
 
 <div class="card">
   <section>
-    <form method="POST" class="space-y-8">
+    <form method="POST" enctype="multipart/form-data" class="space-y-8">
       <div role="group" aria-label="Extension fields" class="fieldset">
         <fieldset class="fieldset space-y-4">
           <legend>Publisher</legend>
@@ -199,22 +194,6 @@ const otherSpdxIds = SPDX_LICENSE_IDS.filter((id) => !popularSpdxIds.has(id));
                 id="homepage_url"
                 name="homepage_url"
                 value={stripUrlScheme(shown?.homepage_url)}
-              />
-            </div>
-          </div>
-          <div class="field">
-            <label for="icon_url" class="flex w-full items-center gap-1.5">
-              Package Icon Path
-              <span class="badge ml-auto" data-variant="secondary">
-                Optional
-              </span>
-            </label>
-            <div class="input-group">
-              <input
-                type="text"
-                id="icon_url"
-                name="icon_url"
-                value={shown?.icon_url}
               />
             </div>
           </div>
@@ -457,79 +436,88 @@ const otherSpdxIds = SPDX_LICENSE_IDS.filter((id) => !popularSpdxIds.has(id));
           </Fragment>
         )}
 
-        <fieldset class="fieldset space-y-4">
-          <legend>
-            {requireRelease
-              ? 'Initial release'
-              : 'Add a new release (optional)'}
-          </legend>
-          <div class="field">
-            <label for="version_tag">
-              Version Tag{' '}
-              {requireRelease && <span class="text-destructive">*</span>}
-            </label>
-            <input
-              class="input"
-              type="text"
-              id="version_tag"
-              name="version_tag"
-              required={requireRelease}
-              placeholder="1.0.0"
-              value={releaseDraft?.version_tag ?? ''}
-            />
-          </div>
-          <div class="field">
-            <label for="release_date">
-              Release Date{' '}
-              {requireRelease && <span class="text-destructive">*</span>}
-            </label>
-            <input
-              class="input"
-              type="date"
-              id="release_date"
-              name="release_date"
-              required={requireRelease}
-              value={releaseDraft?.release_date ?? ''}
-            />
-          </div>
-          <div class="field">
-            <label for="download_url">
-              Download URL{' '}
-              {requireRelease && <span class="text-destructive">*</span>}
-            </label>
-            <div class="input-group">
-              <span data-align="start" class="text-muted-foreground">
-                https://
-              </span>
+        {!isEdit && (
+          <fieldset class="fieldset space-y-4">
+            <legend>Initial Release</legend>
+            <div class="field">
+              <label for="version_tag">
+                Version Tag <span class="text-destructive">*</span>
+              </label>
               <input
+                class="input"
                 type="text"
-                id="download_url"
-                name="download_url"
-                required={requireRelease}
-                value={releaseDraft?.download_url ?? ''}
+                id="version_tag"
+                name="version_tag"
+                required
+                placeholder="1.0.0"
+                value={releaseDraft?.version_tag ?? ''}
               />
             </div>
-          </div>
-          <div class="field">
-            <label for="changelog_url" class="flex w-full items-center gap-1.5">
-              Changelog URL
-              <span class="badge ml-auto" data-variant="secondary">
-                Optional
-              </span>
-            </label>
-            <div class="input-group">
-              <span data-align="start" class="text-muted-foreground">
-                https://
-              </span>
+            <div class="field">
+              <label for="release_date">
+                Release Date <span class="text-destructive">*</span>
+              </label>
               <input
-                type="text"
-                id="changelog_url"
-                name="changelog_url"
-                value={releaseDraft?.changelog_url ?? ''}
+                class="input"
+                type="date"
+                id="release_date"
+                name="release_date"
+                required
+                value={releaseDraft?.release_date ?? ''}
               />
             </div>
-          </div>
-        </fieldset>
+
+            <div class="field">
+              <label for="source">
+                Source ZIP <span class="text-destructive">*</span>
+              </label>
+              <input
+                class="input w-full"
+                type="file"
+                id="source"
+                name="source"
+                accept=".zip,application/zip"
+                required
+              />
+              <p class="text-xs text-muted-foreground">
+                Upload ready-to-install files, without a wrapping directory.
+                Maximum 5 MiB. The package manifest and download are generated
+                from this listing.
+              </p>
+              <p class="text-xs text-muted-foreground">
+                Optional icon: include one of icon.svg, icon.png, icon.webp, or
+                icon.avif at the package root.
+              </p>
+              {error && (
+                <p class="text-xs text-muted-foreground">
+                  Please select the source ZIP again before retrying.
+                </p>
+              )}
+            </div>
+            <div class="field">
+              <label
+                for="changelog_url"
+                class="flex w-full items-center gap-1.5"
+              >
+                Changelog URL
+                <span class="badge ml-auto" data-variant="secondary">
+                  Optional
+                </span>
+              </label>
+              <div class="input-group">
+                <span data-align="start" class="text-muted-foreground">
+                  https://
+                </span>
+                <input
+                  type="text"
+                  id="changelog_url"
+                  name="changelog_url"
+                  value={releaseDraft?.changelog_url ?? ''}
+                />
+              </div>
+            </div>
+          </fieldset>
+        )}
       </div>
 
       {correctionNote !== undefined && (
@@ -638,5 +626,17 @@ const otherSpdxIds = SPDX_LICENSE_IDS.filter((id) => !popularSpdxIds.has(id));
     const isOther = event.detail.value === OTHER_LICENSE;
     customField.hidden = !isOther;
     customInput.required = isOther;
+  });
+</script>
+
+<script>
+  import { MAX_SOURCE_BYTES } from '@/lib/extension-package';
+  const source = document.querySelector<HTMLInputElement>('#source');
+  source?.addEventListener('change', () => {
+    source.setCustomValidity(
+      source.files?.[0] && source.files[0].size > MAX_SOURCE_BYTES
+        ? 'Source ZIPs must be 5 MiB or smaller.'
+        : '',
+    );
   });
 </script>

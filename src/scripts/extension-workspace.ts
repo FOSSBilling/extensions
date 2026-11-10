@@ -1,12 +1,27 @@
+import { waitForPackageJob, PackageJobError } from '@/lib/package-job';
+import type { PackageJob } from '@/lib/api/client';
+import type { Release } from '@/types';
+import { extensionIconUrl } from '@/lib/extension-icon';
+import { directoryAssetAvifUrl } from '@/lib/image-url';
 import {
   applyExtensionDraft,
   releaseFromFields,
   type ExtensionDraft,
   type DraftSection,
 } from '@/lib/extension-draft';
+import {
+  artifactRelease,
+  releaseDownloadHref,
+  MAX_SOURCE_BYTES,
+} from '@/lib/extension-package';
 import { formatModuleRequirements } from '@/lib/extension-form';
 import { compatibilityLabel } from '@/lib/requirements';
-import { latestRelease, releasesDescending } from '@/lib/releases';
+import {
+  defaultLatestForVersion,
+  latestRelease,
+  releasesDescending,
+  selectLatestRelease,
+} from '@/lib/releases';
 import type { ExtensionUpdate } from '@/lib/api/client';
 import { EXTENSION_TYPE_LABELS, repositoryURL } from '@/types';
 import { licenseUrl } from '@/lib/license';
@@ -23,6 +38,7 @@ export function initExtensionWorkspace() {
   if (!configNode) return;
   const config = JSON.parse(configNode.textContent!) as {
     base: ExtensionUpdate;
+    packageUrl: string;
     developerName?: string;
     baselineHash: string;
     pendingRevisionId?: string;
@@ -51,11 +67,34 @@ export function initExtensionWorkspace() {
   let stored = false;
   let blocked = false;
   let busy = false;
+  type PendingPackage = {
+    job: PackageJob;
+    release: Release;
+    input: Record<string, string>;
+    baselineHash: string;
+    pendingRevisionId?: string;
+  };
+  let pendingPackage: PendingPackage | null = null;
+  let packagePolling = false;
+  const packageKey = config.key + ':package';
   const error = (text: string) => {
     message.textContent = text;
     message.hidden = !text;
   };
   try {
+    const packageRaw = localStorage.getItem(packageKey);
+    if (packageRaw) {
+      pendingPackage = JSON.parse(packageRaw);
+      if (
+        pendingPackage?.baselineHash !== config.baselineHash ||
+        pendingPackage?.pendingRevisionId !== config.pendingRevisionId
+      ) {
+        blocked = true;
+        error(
+          'The extension changed while a package was processing. Your saved package reference has been kept. Discard the old draft before editing again.',
+        );
+      }
+    }
     const raw = localStorage.getItem(config.key);
     if (raw) {
       stored = true;
@@ -95,16 +134,30 @@ export function initExtensionWorkspace() {
     } catch {
       /* Invalid stored draft stays blocked. */
     }
-    submit.disabled = busy || blocked || !changed || unsaved.size > 0;
-    discard.disabled = busy || (!stored && !unsaved.size && !blocked);
-    draftBar.hidden = !changed && !unsaved.size && !blocked && !busy;
+    submit.disabled =
+      busy || blocked || !!pendingPackage || !changed || unsaved.size > 0;
+    discard.disabled =
+      busy ||
+      packagePolling ||
+      (!stored && !unsaved.size && !blocked && !pendingPackage);
+    draftBar.hidden =
+      !changed && !unsaved.size && !blocked && !busy && !pendingPackage;
+    root
+      .querySelectorAll<HTMLButtonElement>(
+        '[data-release-action],[data-add-release],[data-cancel-release]',
+      )
+      .forEach((button) => {
+        button.disabled = busy || !!pendingPackage;
+      });
     status.textContent = blocked
       ? 'Draft Needs Attention'
-      : unsaved.size
-        ? 'Unsaved Section Edits'
-        : changed
-          ? 'Draft Saved in This Browser'
-          : 'No Local Changes';
+      : pendingPackage
+        ? 'Package Processing'
+        : unsaved.size
+          ? 'Unsaved Section Edits'
+          : changed
+            ? 'Draft Saved in This Browser'
+            : 'No Local Changes';
   }
   function save(next: ExtensionDraft) {
     if (blocked || busy)
@@ -134,6 +187,27 @@ export function initExtensionWorkspace() {
     const current = content();
     if (headerName) headerName.textContent = current.name || fallbackName;
     const latest = latestRelease(current.releases);
+    const headerIcon = document.querySelector<HTMLImageElement>(
+      '[data-extension-icon]',
+    );
+    const iconFallback = document.querySelector<HTMLElement>(
+      '[data-extension-icon-fallback]',
+    );
+    if (headerIcon && iconFallback) {
+      const source =
+        extensionIconUrl(current) ?? headerIcon.dataset.extensionIconSource;
+      headerIcon.hidden = !source;
+      iconFallback.hidden = Boolean(source);
+      if (source) headerIcon.src = source;
+      else headerIcon.removeAttribute('src');
+      const avif = document.querySelector<HTMLSourceElement>(
+        '[data-extension-icon-avif]',
+      );
+      const avifUrl = directoryAssetAvifUrl(source);
+      if (avifUrl) avif?.setAttribute('srcset', avifUrl);
+      else avif?.removeAttribute('srcset');
+    }
+
     const requires = latest?.requires ?? current.requires;
     const version = latest?.tag ?? current.version;
     const headerVersion = document.querySelector<HTMLElement>(
@@ -147,7 +221,9 @@ export function initExtensionWorkspace() {
       if (value)
         value.textContent = /^\d/.test(version) ? `v${version}` : version;
     }
-    const downloadUrl = latest?.download_url ?? current.download_url;
+    const downloadUrl = latest
+      ? new URL(releaseDownloadHref(latest), window.location.href).href
+      : current.download_url;
     const headerDownload = document.querySelector<HTMLAnchorElement>(
       '[data-extension-download]',
     );
@@ -166,10 +242,6 @@ export function initExtensionWorkspace() {
       else websiteLink.removeAttribute('href');
       websiteLink.classList.toggle('underline', safe);
     }
-    text('[data-preview-icon]', current.icon_url || '');
-    const iconUrlDetail = find<HTMLElement>('[data-icon-url-detail]');
-    if (iconUrlDetail) iconUrlDetail.hidden = !current.icon_url;
-
     const sourceUrl = repositoryURL(current.source);
     const github = current.source.type === 'github';
     text('[data-preview-source]', github ? current.source.repo : sourceUrl);
@@ -337,6 +409,22 @@ export function initExtensionWorkspace() {
 
   const releaseForm = find<HTMLFormElement>('[data-release-form]');
   const releaseEditor = find<HTMLElement>('[data-release-editor]');
+  const releaseFields = find<HTMLFieldSetElement>('[data-release-fields]');
+  let latestChoiceTouched = false;
+  const latestCheckbox = releaseForm?.elements.namedItem(
+    'is_latest',
+  ) as HTMLInputElement | null;
+  latestCheckbox?.addEventListener('change', () => {
+    latestChoiceTouched = true;
+  });
+  (
+    releaseForm?.elements.namedItem('version_tag') as HTMLInputElement | null
+  )?.addEventListener('input', (event) => {
+    if (latestCheckbox && !latestChoiceTouched)
+      latestCheckbox.checked = defaultLatestForVersion(
+        (event.target as HTMLInputElement).value,
+      );
+  });
   function editRelease(tag?: string) {
     if (!releaseForm) return;
     if (
@@ -345,18 +433,46 @@ export function initExtensionWorkspace() {
     )
       return;
     releaseForm.reset();
+    latestChoiceTouched = false;
     const current = content();
     const release = current.releases.find((item) => item.tag === tag);
     fill(releaseForm, {
       original_tag: tag ?? '',
       version_tag: release?.tag ?? '',
       release_date: release?.date.slice(0, 10) ?? '',
-      download_url: release?.download_url ?? '',
       changelog_url: release?.changelog_url ?? '',
       requires_fossbilling: release?.requires.fossbilling ?? '',
       requires_php: release?.requires.php ?? '',
       requires_modules: formatModuleRequirements(release?.requires.modules),
     });
+    if (latestCheckbox) {
+      latestCheckbox.checked =
+        !release || release.tag === latestRelease(current.releases)?.tag;
+      const hasPackages = current.releases.some((item) => item.artifact_id);
+      const selectable = current.releases.filter(
+        (item) => !hasPackages || item.artifact_id,
+      );
+      latestCheckbox.disabled = Boolean(
+        release && latestCheckbox.checked && selectable.length <= 1,
+      );
+      latestCheckbox.title = latestCheckbox.disabled
+        ? 'Keep one latest release. Add another package before changing this selection.'
+        : '';
+    }
+    const versionField = releaseForm.elements.namedItem(
+      'version_tag',
+    ) as HTMLInputElement;
+    versionField.readOnly = Boolean(release);
+    const file = releaseForm.elements.namedItem('source') as HTMLInputElement;
+    file.required = !release?.artifact_id;
+    file.disabled = Boolean(release?.artifact_id);
+    find('[data-source-control]').hidden = Boolean(release?.artifact_id);
+    find('[data-source-help]').textContent = release?.artifact_id
+      ? 'The stored source will be reused. Add a new release to change files.'
+      : 'Upload ready-to-install files, without a wrapping directory. Maximum 5 MiB.';
+    if (!release?.artifact_id)
+      find('[data-source-help]').textContent +=
+        ' Optional icon: include one of icon.svg, icon.png, icon.webp, or icon.avif at the package root.';
     find('[data-release-form-title]').textContent = tag
       ? 'Edit Release'
       : 'Add Release';
@@ -381,7 +497,7 @@ export function initExtensionWorkspace() {
       info.className = 'min-w-0 max-w-full';
       const title = document.createElement('p');
       title.className = 'text-sm font-semibold';
-      title.textContent = `${release.tag}${release.tag === latest?.tag ? ' · Latest Version' : ''}`;
+      title.textContent = `${release.tag}${release.tag === latest?.tag ? ' · Latest Release' : ''}`;
       const detail = document.createElement('p');
       detail.className = 'mt-1 text-xs text-muted-foreground';
       detail.textContent = `${release.date} · FOSSBilling ${compatibilityLabel(release.requires.fossbilling)}${release.requires.php ? ` · PHP ${compatibilityLabel(release.requires.php)}` : ''}`;
@@ -392,7 +508,7 @@ export function initExtensionWorkspace() {
       download.textContent = 'Download';
       download.setAttribute('aria-label', `Download Release ${release.tag}`);
       if (isSafeHttpUrl(release.download_url)) {
-        download.href = release.download_url;
+        download.href = releaseDownloadHref(release);
         download.target = '_blank';
         download.rel = 'noopener noreferrer';
         download.classList.add('underline');
@@ -400,6 +516,38 @@ export function initExtensionWorkspace() {
       info.appendChild(title);
       info.appendChild(detail);
       links.appendChild(download);
+      if (release.sha256) {
+        const checksum = document.createElement('button');
+        checksum.type = 'button';
+        checksum.dataset.releaseChecksum = release.sha256;
+        checksum.className =
+          'inline-flex cursor-pointer items-center gap-1 align-middle font-mono text-muted-foreground/80 hover:text-foreground focus-visible:text-foreground';
+        const hash = document.createElement('span');
+        hash.dataset.checksumLabel = '';
+        hash.textContent = release.sha256.slice(-8);
+        checksum.appendChild(hash);
+        checksum.appendChild(
+          find<HTMLTemplateElement>('[data-checksum-icon]').content.cloneNode(
+            true,
+          ),
+        );
+        checksum.title = `sha256:${release.sha256}`;
+        checksum.setAttribute(
+          'aria-label',
+          `Copy SHA-256 for Release ${release.tag}`,
+        );
+        const separator = document.createElement('span');
+        separator.setAttribute('aria-hidden', 'true');
+        separator.textContent = ' · ';
+        links.appendChild(separator);
+        links.appendChild(checksum);
+        const copyStatus = document.createElement('span');
+        copyStatus.className = 'sr-only';
+        copyStatus.setAttribute('role', 'status');
+        copyStatus.setAttribute('aria-live', 'polite');
+        copyStatus.dataset.checksumStatus = '';
+        links.appendChild(copyStatus);
+      }
       if (release.changelog_url && isSafeHttpUrl(release.changelog_url)) {
         const changelog = document.createElement('a');
         changelog.className = 'underline underline-offset-4';
@@ -421,6 +569,7 @@ export function initExtensionWorkspace() {
       const actions = document.createElement('div');
       actions.className = 'flex flex-wrap gap-2';
       const edit = document.createElement('button');
+      edit.dataset.releaseAction = '';
       edit.type = 'button';
       edit.className = 'btn';
       edit.dataset.variant = 'outline';
@@ -430,6 +579,7 @@ export function initExtensionWorkspace() {
       edit.addEventListener('click', () => editRelease(release.tag));
       actions.appendChild(edit);
       const remove = document.createElement('button');
+      remove.dataset.releaseAction = '';
       remove.type = 'button';
       remove.className = 'btn';
       remove.dataset.variant = 'destructive';
@@ -481,12 +631,133 @@ export function initExtensionWorkspace() {
     unsaved.add(releaseForm);
     updateButtons();
   });
-  releaseForm?.addEventListener('submit', (event) => {
-    event.preventDefault();
+  function savePreparedRelease(
+    release: Release,
+    input: Record<string, string>,
+  ) {
+    const current = content();
+    busy = false;
+    let releases = input.original_tag
+      ? current.releases.map((item) =>
+          item.tag === input.original_tag ? release : item,
+        )
+      : [...current.releases, release];
+    let selected =
+      input.is_latest === 'on'
+        ? release.tag
+        : latestRelease(current.releases)?.tag;
+    if (input.is_latest !== 'on' && input.original_tag === selected) {
+      const hasPackages = releases.some((item) => item.artifact_id);
+      const alternatives = releases.filter(
+        (item) =>
+          item.tag !== input.original_tag && (!hasPackages || item.artifact_id),
+      );
+      selected = latestRelease(alternatives)?.tag ?? selected;
+    }
+    if (selected) releases = selectLatestRelease(releases, selected);
+    save({ ...draft, releases });
+    releaseEditor.hidden = true;
+    unsaved.delete(releaseForm);
+    find('[data-release-error]').hidden = true;
+    refresh();
+    localStorage.removeItem(packageKey);
+    pendingPackage = null;
+  }
+
+  async function resumePackage() {
+    if (!pendingPackage || packagePolling) return;
+    const pending = pendingPackage;
+    packagePolling = true;
+    busy = false;
+    releaseEditor.hidden = false;
+    updateButtons();
+    root.inert = false;
+    root.removeAttribute('aria-busy');
+    releaseEditor.setAttribute('aria-busy', 'true');
+    const button =
+      releaseForm.querySelector<HTMLButtonElement>('[type="submit"]')!;
+    button.textContent = 'Processing Release…';
+    button.disabled = true;
+    releaseFields.disabled = true;
     try {
+      const artifact = await waitForPackageJob(
+        pending.job,
+        async (id) => {
+          const url = new URL(config.packageUrl, window.location.origin);
+          url.searchParams.set('jobId', id);
+          const response = await fetch(url, { redirect: 'manual' });
+          const body = (await response.json()) as {
+            job?: PackageJob;
+            error?: string;
+          };
+          if (!response.ok || !body.job)
+            throw Object.assign(
+              new Error(
+                body.error ??
+                  'Unable to read package status. Your processing job has been kept.',
+              ),
+              { status: response.status || 503 },
+            );
+          return body.job;
+        },
+        {
+          progress: (job) => {
+            button.textContent =
+              job.status === 'queued'
+                ? 'Release Queued…'
+                : 'Processing Release…';
+          },
+        },
+      );
+      savePreparedRelease(
+        artifactRelease(pending.release, artifact),
+        pending.input,
+      );
+    } catch (cause) {
+      if (
+        cause instanceof PackageJobError &&
+        cause.code !== 'PACKAGE_PROCESSING'
+      ) {
+        pendingPackage = null;
+        try {
+          localStorage.removeItem(packageKey);
+        } catch {
+          // Storage may also be blocked while clearing a failed job.
+        }
+      }
+      throw cause;
+    } finally {
+      packagePolling = false;
+      button.disabled = false;
+      releaseEditor.removeAttribute('aria-busy');
+      releaseFields.disabled = !!pendingPackage;
+      button.textContent = pendingPackage
+        ? 'Resume Package Processing'
+        : 'Save Release to Draft';
+      updateButtons();
+    }
+  }
+
+  releaseForm?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (busy || blocked || packagePolling) return;
+    const button =
+      releaseForm.querySelector<HTMLButtonElement>('[type="submit"]')!;
+    try {
+      if (pendingPackage) {
+        await resumePackage();
+        return;
+      }
       const input = fields(releaseForm);
-      const release = releaseFromFields(input);
+      input.is_latest = latestCheckbox?.checked ? 'on' : '';
       const current = content();
+      const original = current.releases.find(
+        (item) => item.tag === input.original_tag,
+      );
+      const release = releaseFromFields(
+        input,
+        original ?? { download_url: '' },
+      );
       if (
         current.releases.some(
           (item) =>
@@ -495,35 +766,78 @@ export function initExtensionWorkspace() {
         )
       )
         throw new Error(`A release tagged "${release.tag}" already exists.`);
-      if (
-        input.original_tag &&
-        !current.releases.some((item) => item.tag === input.original_tag)
-      )
+      if (input.original_tag && !original)
         throw new Error(
           'This release was removed from the draft. Close the editor and choose another release.',
         );
-      const releases = input.original_tag
-        ? current.releases.map((item) =>
-            item.tag === input.original_tag ? release : item,
-          )
-        : [...current.releases, release];
-      save({
-        ...draft,
-        releases,
+      const body = new FormData();
+      const source = new FormData(releaseForm).get('source');
+      if (source instanceof File && source.size) {
+        if (source.size > MAX_SOURCE_BYTES)
+          throw new Error('Source ZIPs must be 5 MiB or smaller.');
+        body.set('source', source);
+      } else if (!original?.artifact_id)
+        throw new Error('Choose a source ZIP for this release.');
+      body.set('draft', JSON.stringify(draft));
+      body.set('release', JSON.stringify(input));
+      busy = true;
+      updateButtons();
+      button.textContent = 'Preparing Release…';
+      root.inert = true;
+      root.setAttribute('aria-busy', 'true');
+      const response = await fetch(config.packageUrl, {
+        method: 'POST',
+        body,
+        redirect: 'manual',
       });
-      releaseEditor.hidden = true;
-      unsaved.delete(releaseForm);
-      refresh();
+      if (response.status === 0 || response.status === 302)
+        throw new Error(
+          'Your session has expired. Sign in again; your edits have been kept.',
+        );
+      const result = (await response.json()) as {
+        release?: typeof release;
+        job?: PackageJob;
+        error?: string;
+      };
+      if (!response.ok || !result.release || !result.job)
+        throw new Error(
+          result.error || 'Unable to prepare this release. Please try again.',
+        );
+      pendingPackage = {
+        job: result.job,
+        release: result.release,
+        input,
+        baselineHash: config.baselineHash,
+        pendingRevisionId: config.pendingRevisionId,
+      };
+      try {
+        localStorage.setItem(packageKey, JSON.stringify(pendingPackage));
+      } catch {
+        error(
+          'Package processing could not be saved in this browser. Keep this page open while it finishes.',
+        );
+      }
+      await resumePackage();
     } catch (cause) {
       const node = find('[data-release-error]');
       node.textContent =
         cause instanceof Error ? cause.message : 'Unable to save release.';
       node.hidden = false;
+    } finally {
+      busy = false;
+      root.inert = false;
+      root.removeAttribute('aria-busy');
+      button.textContent = pendingPackage
+        ? 'Resume Package Processing'
+        : 'Save Release to Draft';
+      updateButtons();
     }
   });
   discard.addEventListener('click', () => {
     if (!confirm('Discard all local draft changes for this extension?')) return;
     try {
+      localStorage.removeItem(packageKey);
+      pendingPackage = null;
       localStorage.removeItem(config.key);
     } catch {
       error('The draft could not be removed from browser storage.');
@@ -539,6 +853,7 @@ export function initExtensionWorkspace() {
         setSectionEditing(form, form.dataset.sectionForm!, false);
       });
     if (releaseEditor) releaseEditor.hidden = true;
+    releaseFields.disabled = false;
     error('');
     refresh();
   });
@@ -608,4 +923,34 @@ export function initExtensionWorkspace() {
     }
   });
   refresh();
+  if (pendingPackage && !blocked) {
+    const input = pendingPackage.input;
+    releaseForm
+      ?.querySelectorAll<HTMLElement>('input,select,textarea')
+      .forEach((field) => {
+        if (!(
+          field instanceof HTMLInputElement ||
+          field instanceof HTMLSelectElement ||
+          field instanceof HTMLTextAreaElement
+        ))
+          return;
+        if (field instanceof HTMLInputElement && field.type === 'file') return;
+        if (field instanceof HTMLInputElement && field.type === 'checkbox')
+          field.checked = input[field.name] === 'on';
+        else if (field.name in input) field.value = input[field.name];
+      });
+    void resumePackage().catch((cause) => {
+      error(
+        cause instanceof Error
+          ? cause.message
+          : 'Unable to resume package processing.',
+      );
+      const node = find('[data-release-error]');
+      node.textContent =
+        cause instanceof Error
+          ? cause.message
+          : 'Unable to resume package processing.';
+      node.hidden = false;
+    });
+  }
 }

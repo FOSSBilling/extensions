@@ -96,10 +96,6 @@
             "minLength": 1,
             "maxLength": 1000
           },
-          "icon_url": {
-            "type": "string",
-            "maxLength": 2048
-          },
           "source": {
             "$ref": "#/components/schemas/Repository"
           },
@@ -113,6 +109,10 @@
             "maxLength": 2048,
             "format": "uri",
             "description": "Null when a legacy URL exceeds the card length bound"
+          },
+          "icon_url": {
+            "type": "string",
+            "maxLength": 2048
           },
           "id": {
             "type": "string",
@@ -271,10 +271,6 @@
                 "minLength": 1,
                 "maxLength": 1000
               },
-              "icon_url": {
-                "type": "string",
-                "maxLength": 2048
-              },
               "source": {
                 "$ref": "#/components/schemas/Repository"
               },
@@ -288,6 +284,10 @@
                 "maxLength": 2048,
                 "format": "uri",
                 "description": "Null when a legacy URL exceeds the card length bound"
+              },
+              "icon_url": {
+                "type": "string",
+                "maxLength": 2048
               }
             },
             "required": [
@@ -458,9 +458,6 @@
                 "type": "string",
                 "minLength": 1
               },
-              "icon_url": {
-                "type": "string"
-              },
               "version": {
                 "type": "string",
                 "minLength": 1,
@@ -469,6 +466,9 @@
               "download_url": {
                 "type": "string",
                 "minLength": 1
+              },
+              "icon_url": {
+                "type": "string"
               },
               "id": {
                 "type": "string",
@@ -536,6 +536,18 @@
             "type": "string",
             "maxLength": 2048,
             "format": "uri"
+          },
+          "is_latest": {
+            "type": "boolean",
+            "description": "Explicitly selected latest release; at most one release may be selected"
+          },
+          "artifact_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
           },
           "requires": {
             "$ref": "#/components/schemas/ManifestRequirements"
@@ -610,12 +622,6 @@
             "minLength": 1,
             "maxLength": 1000,
             "pattern": "^[A-Za-z0-9.\\-+_:() |]+$"
-          },
-          "icon_url": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 2048,
-            "pattern": "^(?!\\/)(?![a-zA-Z][a-zA-Z0-9+.-]*:)(?!.*\\.\\.)[^\\\\]+$"
           },
           "readme": {
             "type": "string",
@@ -713,9 +719,6 @@
                         "type": "string",
                         "minLength": 1
                       },
-                      "icon_url": {
-                        "type": "string"
-                      },
                       "version": {
                         "type": "string",
                         "minLength": 1,
@@ -724,6 +727,9 @@
                       "download_url": {
                         "type": "string",
                         "minLength": 1
+                      },
+                      "icon_url": {
+                        "type": "string"
                       }
                     }
                   }
@@ -859,21 +865,6 @@
               }
             ]
           },
-          "icon_url": {
-            "anyOf": [
-              {
-                "type": "string",
-                "minLength": 1,
-                "maxLength": 2048,
-                "pattern": "^(?!\\/)(?![a-zA-Z][a-zA-Z0-9+.-]*:)(?!.*\\.\\.)[^\\\\]+$"
-              },
-              {
-                "type": "string",
-                "maxLength": 2048,
-                "format": "uri"
-              }
-            ]
-          },
           "readme": {
             "type": "string",
             "minLength": 1,
@@ -891,6 +882,10 @@
             "type": "string",
             "maxLength": 2048,
             "format": "uri"
+          },
+          "icon_url": {
+            "type": "string",
+            "maxLength": 2048
           },
           "website": {
             "type": "string",
@@ -965,12 +960,6 @@
             "minLength": 1,
             "maxLength": 1000,
             "pattern": "^[A-Za-z0-9.\\-+_:() |]+$"
-          },
-          "icon_url": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 2048,
-            "pattern": "^(?!\\/)(?![a-zA-Z][a-zA-Z0-9+.-]*:)(?!.*\\.\\.)[^\\\\]+$"
           },
           "readme": {
             "type": "string",
@@ -1080,12 +1069,6 @@
             "minLength": 1,
             "maxLength": 1000,
             "pattern": "^[A-Za-z0-9.\\-+_:() |]+$"
-          },
-          "icon_url": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 2048,
-            "pattern": "^(?!\\/)(?![a-zA-Z][a-zA-Z0-9+.-]*:)(?!.*\\.\\.)[^\\\\]+$"
           },
           "readme": {
             "type": "string",
@@ -1676,12 +1659,6 @@
             "maxLength": 1000,
             "pattern": "^[A-Za-z0-9.\\-+_:() |]+$"
           },
-          "icon_url": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 2048,
-            "pattern": "^(?!\\/)(?![a-zA-Z][a-zA-Z0-9+.-]*:)(?!.*\\.\\.)[^\\\\]+$"
-          },
           "readme": {
             "type": "string",
             "minLength": 1,
@@ -1816,6 +1793,185 @@
           }
         },
         "required": ["developer_id"],
+        "additionalProperties": false
+      },
+      "PackageJob": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "extension_identifier": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["queued", "processing", "ready", "failed"]
+          },
+          "artifact": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PackageArtifact"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "type": ["object", "null"],
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "status": {
+                "type": "integer"
+              }
+            },
+            "required": ["code", "message", "status"]
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "extension_identifier",
+          "status",
+          "artifact",
+          "error",
+          "created_at",
+          "updated_at"
+        ]
+      },
+      "PackageArtifact": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "source_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "manifest": {
+            "$ref": "#/components/schemas/Manifest"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "download_url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "published_at": {
+            "type": ["string", "null"]
+          },
+          "created_at": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "source_id",
+          "manifest",
+          "sha256",
+          "download_url",
+          "published_at",
+          "created_at"
+        ]
+      },
+      "Manifest": {
+        "type": "object",
+        "properties": {
+          "manifest_version": {
+            "type": "number",
+            "enum": [1]
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "module",
+              "theme",
+              "payment-gateway",
+              "server-manager",
+              "domain-registrar",
+              "translation"
+            ]
+          },
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "^[a-z0-9_-]+$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "version": {
+            "type": "string",
+            "maxLength": 100,
+            "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$"
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "author": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "url": {
+                "type": "string",
+                "maxLength": 2048,
+                "format": "uri"
+              }
+            },
+            "required": ["name"],
+            "additionalProperties": false
+          },
+          "license": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000,
+            "pattern": "^[A-Za-z0-9.\\-+_:() |]+$"
+          },
+          "homepage_url": {
+            "type": "string",
+            "maxLength": 2048,
+            "format": "uri"
+          },
+          "requires": {
+            "$ref": "#/components/schemas/ManifestRequirements"
+          }
+        },
+        "required": [
+          "manifest_version",
+          "type",
+          "id",
+          "name",
+          "version",
+          "description",
+          "author",
+          "license",
+          "requires"
+        ],
         "additionalProperties": false
       },
       "OwnedDeveloperProfile": {
@@ -5663,6 +5819,740 @@
           },
           "500": {
             "description": "Database error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/packages": {
+      "post": {
+        "tags": ["Packages"],
+        "summary": "Queue package preparation from a distribution ZIP or stored source",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "manifest": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 65536,
+                    "description": "JSON manifest v1"
+                  },
+                  "source": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "source_id": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                },
+                "required": ["manifest"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Private processing job; identical requests reuse queued or completed work",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "$ref": "#/components/schemas/PackageJob"
+                    }
+                  },
+                  "required": ["result"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The bearer is valid but the account is inactive",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Package not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Source version conflict, ownership changed, or storage quota exhausted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Upload exceeds size limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid manifest or source ZIP",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Write allowance exhausted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Package storage is not configured or is unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/package-jobs/{jobId}": {
+      "get": {
+        "tags": ["Packages"],
+        "summary": "Read an owning developer's private package-processing job",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "jobId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Package processing state and completed artifact",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "$ref": "#/components/schemas/PackageJob"
+                    }
+                  },
+                  "required": ["result"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The bearer is valid but the account is inactive",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Package not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Source version conflict, ownership changed, or storage quota exhausted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Upload exceeds size limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid manifest or source ZIP",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Write allowance exhausted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Package storage is not configured or is unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/packages/cleanup": {
+      "post": {
+        "tags": ["Packages"],
+        "summary": "Reclaim abandoned local package objects older than one day",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cleanup completed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "deleted": {
+                          "type": "number"
+                        }
+                      },
+                      "required": ["deleted"]
+                    }
+                  },
+                  "required": ["result"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The bearer is valid but the account is inactive",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Package not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Source version conflict, ownership changed, or storage quota exhausted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Upload exceeds size limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid manifest or source ZIP",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Write allowance exhausted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Package storage is not configured or is unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/packages/{packageId}": {
+      "get": {
+        "tags": ["Packages"],
+        "summary": "Read an approved package or an authorized private preview",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "packageId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Package manifest and checksum",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "$ref": "#/components/schemas/PackageArtifact"
+                    }
+                  },
+                  "required": ["result"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The bearer is valid but the account is inactive",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Package not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Source version conflict, ownership changed, or storage quota exhausted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Upload exceeds size limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid manifest or source ZIP",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Write allowance exhausted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Package storage is not configured or is unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/packages/{packageId}/download": {
+      "get": {
+        "tags": ["Packages"],
+        "summary": "Download an approved package, or preview as owner/moderator",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "packageId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Verified immutable ZIP",
+            "content": {
+              "application/zip": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The bearer is valid but the account is inactive",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Package not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Source version conflict, ownership changed, or storage quota exhausted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Upload exceeds size limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid manifest or source ZIP",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Write allowance exhausted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Package storage is not configured or is unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/packages/{packageId}/icon": {
+      "get": {
+        "tags": ["Packages"],
+        "summary": "Read an approved package or an authorized private preview",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "packageId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sanitized SVG, optimized AVIF/PNG, or generic fallback",
+            "content": {
+              "image/svg+xml": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/png": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/avif": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The bearer is valid but the account is inactive",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Package not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Source version conflict, ownership changed, or storage quota exhausted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Upload exceeds size limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid manifest or source ZIP",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Write allowance exhausted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Package storage is not configured or is unavailable",
             "content": {
               "application/json": {
                 "schema": {

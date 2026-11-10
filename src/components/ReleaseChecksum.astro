@@ -1,0 +1,63 @@
+---
+import { Copy } from '@lucide/astro';
+interface Props {
+  sha256?: string;
+  tag: string;
+}
+const { sha256, tag } = Astro.props;
+---
+
+{sha256 && (
+  <>
+    <span aria-hidden="true">{' · '}</span>
+    <button
+      type="button"
+      data-release-checksum={sha256}
+      aria-label={`Copy SHA-256 for Release ${tag}`}
+      title={`sha256:${sha256}`}
+      class="inline-flex cursor-pointer items-center gap-1 align-middle font-mono text-muted-foreground/80 hover:text-foreground focus-visible:text-foreground"
+    >
+      <span data-checksum-label>{sha256.slice(-8)}</span>
+      <Copy class="size-3" aria-hidden="true" />
+    </button>
+    <span
+      class="sr-only"
+      role="status"
+      aria-live="polite"
+      data-checksum-status
+    ></span>
+  </>
+)}
+
+<script>
+  document.addEventListener('click', async (event) => {
+    if (!(event.target instanceof Element)) return;
+    const button = event.target.closest<HTMLButtonElement>(
+      'button[data-release-checksum]',
+    );
+    if (!button || button.getAttribute('aria-disabled') === 'true') return;
+    const checksum = button.dataset.releaseChecksum;
+    if (!checksum) return;
+    const text = button.querySelector<HTMLElement>('[data-checksum-label]')!;
+    const label = text.textContent;
+    const accessibleLabel = button.getAttribute('aria-label')!;
+    const status = button.nextElementSibling!;
+    button.setAttribute('aria-disabled', 'true');
+    try {
+      await navigator.clipboard.writeText(checksum);
+      text.textContent = 'Copied';
+      status.textContent = 'SHA-256 copied.';
+      button.setAttribute('aria-label', 'SHA-256 Copied');
+    } catch {
+      text.textContent = 'Copy Failed';
+      status.textContent = 'Copy failed. Try again.';
+      button.setAttribute('aria-label', 'Copy Failed. Try Again.');
+    }
+    setTimeout(() => {
+      text.textContent = label;
+      button.setAttribute('aria-label', accessibleLabel);
+      button.removeAttribute('aria-disabled');
+      status.textContent = '';
+    }, 2000);
+  });
+</script>

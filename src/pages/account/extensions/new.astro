@@ -10,9 +10,11 @@ import {
 import { getDeveloperByOwner } from '@/lib/extensions-data';
 import {
   buildExtensionCreatePayload,
+  manifestFromCreateForm,
   echoNewExtensionFromForm,
   ExtensionValidationError,
 } from '@/lib/extension-form';
+import { packageFormData, sourceFile } from '@/lib/package-upload';
 import { setFlash } from '@/lib/flash';
 
 const env = Astro.locals.env;
@@ -31,11 +33,13 @@ let error: string | null = null;
 let submitted: ReturnType<typeof echoNewExtensionFromForm> | null = null;
 
 if (Astro.request.method === 'POST') {
-  const form = await Astro.request.formData();
-  submitted = echoNewExtensionFromForm(form, developer);
   const api = createApiClient(env, user.sub);
   try {
-    const payload = buildExtensionCreatePayload(form);
+    const form = await packageFormData(Astro.request);
+    submitted = echoNewExtensionFromForm(form, developer);
+    const file = sourceFile(form, true)!;
+    const artifact = await api.buildPackage(manifestFromCreateForm(form), file);
+    const payload = buildExtensionCreatePayload(form, artifact);
     await api.createExtension(payload);
     await setFlash(Astro, Astro.locals.env.sessionSecret, {
       title: 'Submitted for Review.',

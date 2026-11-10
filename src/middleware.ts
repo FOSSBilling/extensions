@@ -12,7 +12,8 @@ function applySecurityHeaders(response: Response): Response {
     target.headers.set('X-Content-Type-Options', 'nosniff');
     target.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
     target.headers.set('X-Frame-Options', 'DENY');
-    target.headers.set('Content-Security-Policy', "frame-ancestors 'none'");
+    // Keep resource-specific restrictions, including the package icon sandbox.
+    target.headers.append('Content-Security-Policy', "frame-ancestors 'none'");
   };
   try {
     apply(response);

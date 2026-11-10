@@ -59,6 +59,9 @@ export type Release = {
   date: string;
   download_url: string;
   changelog_url?: string;
+  is_latest?: boolean;
+  artifact_id?: string;
+  sha256?: string;
   requires: Requirements;
 };
 export type Repository = { type: SourceType; repo: string };

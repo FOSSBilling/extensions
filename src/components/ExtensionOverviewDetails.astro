@@ -9,7 +9,6 @@ import GitHubMark from './icons/GitHubMark.astro';
 import {
   Package,
   Globe,
-  Image,
   Scale,
   Link,
   CircleCheck,
@@ -19,10 +18,9 @@ import {
 } from '@lucide/astro';
 interface Props {
   content: StoredExtensionFields;
-  showIconUrl?: boolean;
   developerName?: string;
 }
-const { content, showIconUrl = false, developerName } = Astro.props;
+const { content, developerName } = Astro.props;
 const homepageUrl = content.homepage_url ?? content.website;
 const requires =
   latestRelease(content.releases ?? [])?.requires ?? content.requires;
@@ -74,19 +72,6 @@ const licenseHref = licenseUrl(content.license);
       >
         {homepageUrl || 'Not Available'}
       </a>
-    </dd>
-  </div>
-  <div
-    class="sm:col-span-2 lg:col-span-1"
-    data-icon-url-detail
-    hidden={!showIconUrl || !content.icon_url}
-  >
-    <dt class="flex items-center gap-2 text-xs text-muted-foreground">
-      <Image class="size-3.5" aria-hidden="true" />
-      Icon Path
-    </dt>
-    <dd class="mt-1 break-all" data-preview-icon>
-      {content.icon_url}
     </dd>
   </div>
 

@@ -1,6 +1,6 @@
 // Pure field registry + label/compare helpers shared by the server diff
 // (revision-diff.ts) and the browser queue client
-// (admin-revisions-client.ts). Zero runtime dependencies by design: the
+// (admin-revisions-client.ts). Only pure link helpers are imported: the
 // client bundle cannot import @/types (semver) or the API client, so
 // everything here operates on minimal structural shapes that the generated
 // content types already satisfy.
@@ -9,6 +9,8 @@
 // that changes only a link target (source host, license URL) must count as
 // changed even though its visible text is identical. Link targets are
 // returned raw; renderers still validate the scheme before linking.
+
+import { packageDownloadPath } from './package-download';
 
 interface DiffSource {
   type?: string;
@@ -23,6 +25,8 @@ interface DiffLicense {
 
 interface DiffRelease {
   tag?: string;
+  download_url?: string;
+  artifact_id?: string;
 }
 
 interface DiffContent {
@@ -46,7 +50,6 @@ export const DIFF_FIELDS = [
   'requires',
   'homepage_url',
   'download_url',
-  'icon_url',
   'source',
   'license',
   'releases',
@@ -60,7 +63,6 @@ export type DiffField = (typeof DIFF_FIELDS)[number];
 export const URL_FIELDS: ReadonlySet<string> = new Set([
   'homepage_url',
   'download_url',
-  'icon_url',
 ]);
 
 // Plain-text diff values longer than this render truncated behind a
@@ -86,7 +88,6 @@ export const FIELD_LABELS: Record<DiffField, string> = {
   requires: 'Requirements',
   homepage_url: 'Website',
   download_url: 'Download URL',
-  icon_url: 'Icon URL',
   source: 'Source Repo',
   license: 'License',
   releases: 'Releases',
@@ -234,6 +235,14 @@ export function fieldUrl(
 ): string | null {
   if (!content) return null;
   switch (field) {
+    case 'download_url': {
+      const release = content.releases?.find(
+        (release) =>
+          release?.download_url === content.download_url &&
+          release?.artifact_id,
+      );
+      return packageDownloadPath(release?.artifact_id);
+    }
     case 'author':
       return scalarLabel(content.author?.url);
     case 'license':

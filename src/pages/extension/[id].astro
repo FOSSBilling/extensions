@@ -50,16 +50,10 @@ const shareDescription = metadata
     : metadata.description
   : (detailError ?? 'Extension details are temporarily unavailable.');
 let shareImage: string | undefined;
-const metadataIcon = metadata
-  ? extensionIconUrl({
-      ...metadata,
-      identifier: id,
-      source: metadata.source ?? { type: 'custom', repo: '' },
-    })
-  : undefined;
+const metadataIcon = metadata ? extensionIconUrl(metadata) : undefined;
 if (metadataIcon) {
   try {
-    shareImage = new URL(metadataIcon).href;
+    shareImage = new URL(metadataIcon, Astro.site).href;
   } catch {
     /* Omit malformed stored URLs. */
   }

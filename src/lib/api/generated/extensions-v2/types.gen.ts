@@ -29,13 +29,13 @@ export type ExtensionListItem = {
    */
   homepage_url?: string | null;
   license: string;
-  icon_url?: string;
   source: Repository;
   version: string;
   /**
    * Null when a legacy URL exceeds the card length bound
    */
   download_url: string | null;
+  icon_url?: string;
   id: string;
   identifier: string;
   developer: PublicDeveloper;
@@ -81,13 +81,13 @@ export type OwnedExtensionListItem = {
      */
     homepage_url?: string | null;
     license: string;
-    icon_url?: string;
     source: Repository;
     version: string;
     /**
      * Null when a legacy URL exceeds the card length bound
      */
     download_url: string | null;
+    icon_url?: string;
   } | null;
   pending_revision: PendingRevisionRef;
   last_review: RevisionReview;
@@ -144,9 +144,9 @@ export type Extension = ExtensionContent & {
   description?: string;
   homepage_url?: string;
   license?: string;
-  icon_url?: string;
   version?: string;
   download_url?: string;
+  icon_url?: string;
   id: string;
   identifier: string;
   developer: PublicDeveloper;
@@ -168,6 +168,12 @@ export type Release = {
   date: string;
   download_url: string;
   changelog_url?: string;
+  /**
+   * Explicitly selected latest release; at most one release may be selected
+   */
+  is_latest?: boolean;
+  artifact_id?: string;
+  sha256?: string;
   requires: ManifestRequirements;
 };
 
@@ -190,7 +196,6 @@ export type ExtensionContent = {
   releases: Array<Release>;
   homepage_url?: string;
   license: string;
-  icon_url?: string;
   readme: string;
   source: Repository;
   version: string;
@@ -213,9 +218,9 @@ export type OwnedExtension = OwnedExtensionListItem & {
       >;
       homepage_url?: string;
       license?: string;
-      icon_url?: string;
       version?: string;
       download_url?: string;
+      icon_url?: string;
     } | null);
   pending_revision?: PendingRevisionRef &
     ({
@@ -258,11 +263,11 @@ export type StoredExtensionContent = {
         spdx_id?: string;
         URL?: string;
       };
-  icon_url?: string | string;
   readme?: string;
   source?: Repository;
   version?: string;
   download_url?: string;
+  icon_url?: string;
   website?: string;
 };
 
@@ -285,7 +290,6 @@ export type ExtensionCreate = {
   releases: Array<Release>;
   homepage_url?: string;
   license: string;
-  icon_url?: string;
   readme: string;
   source: Repository;
   version: string;
@@ -312,7 +316,6 @@ export type ExtensionUpdate = {
   releases: Array<Release>;
   homepage_url?: string;
   license: string;
-  icon_url?: string;
   readme: string;
   source: Repository;
   version: string;
@@ -473,7 +476,6 @@ export type ModeratorCorrect = {
   releases: Array<Release>;
   homepage_url?: string;
   license: string;
-  icon_url?: string;
   readme: string;
   source: Repository;
   version: string;
@@ -507,6 +509,52 @@ export type PublisherClient = {
 export type PublisherRegister = {
   developer_id: string;
   can_publish?: boolean;
+};
+
+export type PackageJob = {
+  id: string;
+  extension_identifier: string;
+  status: 'queued' | 'processing' | 'ready' | 'failed';
+  artifact: PackageArtifact | null;
+  error: {
+    code: string;
+    message: string;
+    status: number;
+  } | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PackageArtifact = {
+  id: string;
+  source_id: string;
+  manifest: Manifest;
+  sha256: string;
+  download_url: string;
+  published_at: string | null;
+  created_at: string;
+};
+
+export type Manifest = {
+  manifest_version: 1;
+  type:
+    | 'module'
+    | 'theme'
+    | 'payment-gateway'
+    | 'server-manager'
+    | 'domain-registrar'
+    | 'translation';
+  id: string;
+  name: string;
+  version: string;
+  description: string;
+  author: {
+    name: string;
+    url?: string;
+  };
+  license: string;
+  homepage_url?: string;
+  requires: ManifestRequirements;
 };
 
 export type OwnedDeveloperProfile =
@@ -2316,6 +2364,360 @@ export type GetRevisionsResponses = {
 
 export type GetRevisionsResponse =
   GetRevisionsResponses[keyof GetRevisionsResponses];
+
+export type PostPackagesData = {
+  body: {
+    /**
+     * JSON manifest v1
+     */
+    manifest: string;
+    source?: Blob | File;
+    source_id?: string;
+  };
+  path?: never;
+  query?: never;
+  url: '/packages';
+};
+
+export type PostPackagesErrors = {
+  /**
+   * Missing or invalid bearer token
+   */
+  401: Error;
+  /**
+   * The bearer is valid but the account is inactive
+   */
+  403: Error;
+  /**
+   * Package not found
+   */
+  404: Error;
+  /**
+   * Source version conflict, ownership changed, or storage quota exhausted
+   */
+  409: Error;
+  /**
+   * Upload exceeds size limit
+   */
+  413: Error;
+  /**
+   * Invalid manifest or source ZIP
+   */
+  422: Error;
+  /**
+   * Write allowance exhausted
+   */
+  429: Error;
+  /**
+   * Package storage is not configured or is unavailable
+   */
+  503: Error;
+};
+
+export type PostPackagesError = PostPackagesErrors[keyof PostPackagesErrors];
+
+export type PostPackagesResponses = {
+  /**
+   * Private processing job; identical requests reuse queued or completed work
+   */
+  202: {
+    result: PackageJob;
+  };
+};
+
+export type PostPackagesResponse =
+  PostPackagesResponses[keyof PostPackagesResponses];
+
+export type GetPackageJobsByJobIdData = {
+  body?: never;
+  path: {
+    jobId: string;
+  };
+  query?: never;
+  url: '/package-jobs/{jobId}';
+};
+
+export type GetPackageJobsByJobIdErrors = {
+  /**
+   * Missing or invalid bearer token
+   */
+  401: Error;
+  /**
+   * The bearer is valid but the account is inactive
+   */
+  403: Error;
+  /**
+   * Package not found
+   */
+  404: Error;
+  /**
+   * Source version conflict, ownership changed, or storage quota exhausted
+   */
+  409: Error;
+  /**
+   * Upload exceeds size limit
+   */
+  413: Error;
+  /**
+   * Invalid manifest or source ZIP
+   */
+  422: Error;
+  /**
+   * Write allowance exhausted
+   */
+  429: Error;
+  /**
+   * Package storage is not configured or is unavailable
+   */
+  503: Error;
+};
+
+export type GetPackageJobsByJobIdError =
+  GetPackageJobsByJobIdErrors[keyof GetPackageJobsByJobIdErrors];
+
+export type GetPackageJobsByJobIdResponses = {
+  /**
+   * Package processing state and completed artifact
+   */
+  200: {
+    result: PackageJob;
+  };
+};
+
+export type GetPackageJobsByJobIdResponse =
+  GetPackageJobsByJobIdResponses[keyof GetPackageJobsByJobIdResponses];
+
+export type PostPackagesCleanupData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/packages/cleanup';
+};
+
+export type PostPackagesCleanupErrors = {
+  /**
+   * Missing or invalid bearer token
+   */
+  401: Error;
+  /**
+   * The bearer is valid but the account is inactive
+   */
+  403: Error;
+  /**
+   * Package not found
+   */
+  404: Error;
+  /**
+   * Source version conflict, ownership changed, or storage quota exhausted
+   */
+  409: Error;
+  /**
+   * Upload exceeds size limit
+   */
+  413: Error;
+  /**
+   * Invalid manifest or source ZIP
+   */
+  422: Error;
+  /**
+   * Write allowance exhausted
+   */
+  429: Error;
+  /**
+   * Package storage is not configured or is unavailable
+   */
+  503: Error;
+};
+
+export type PostPackagesCleanupError =
+  PostPackagesCleanupErrors[keyof PostPackagesCleanupErrors];
+
+export type PostPackagesCleanupResponses = {
+  /**
+   * Cleanup completed
+   */
+  200: {
+    result: {
+      deleted: number;
+    };
+  };
+};
+
+export type PostPackagesCleanupResponse =
+  PostPackagesCleanupResponses[keyof PostPackagesCleanupResponses];
+
+export type GetPackagesByPackageIdData = {
+  body?: never;
+  path: {
+    packageId: string;
+  };
+  query?: never;
+  url: '/packages/{packageId}';
+};
+
+export type GetPackagesByPackageIdErrors = {
+  /**
+   * Missing or invalid bearer token
+   */
+  401: Error;
+  /**
+   * The bearer is valid but the account is inactive
+   */
+  403: Error;
+  /**
+   * Package not found
+   */
+  404: Error;
+  /**
+   * Source version conflict, ownership changed, or storage quota exhausted
+   */
+  409: Error;
+  /**
+   * Upload exceeds size limit
+   */
+  413: Error;
+  /**
+   * Invalid manifest or source ZIP
+   */
+  422: Error;
+  /**
+   * Write allowance exhausted
+   */
+  429: Error;
+  /**
+   * Package storage is not configured or is unavailable
+   */
+  503: Error;
+};
+
+export type GetPackagesByPackageIdError =
+  GetPackagesByPackageIdErrors[keyof GetPackagesByPackageIdErrors];
+
+export type GetPackagesByPackageIdResponses = {
+  /**
+   * Package manifest and checksum
+   */
+  200: {
+    result: PackageArtifact;
+  };
+};
+
+export type GetPackagesByPackageIdResponse =
+  GetPackagesByPackageIdResponses[keyof GetPackagesByPackageIdResponses];
+
+export type GetPackagesByPackageIdDownloadData = {
+  body?: never;
+  path: {
+    packageId: string;
+  };
+  query?: never;
+  url: '/packages/{packageId}/download';
+};
+
+export type GetPackagesByPackageIdDownloadErrors = {
+  /**
+   * Missing or invalid bearer token
+   */
+  401: Error;
+  /**
+   * The bearer is valid but the account is inactive
+   */
+  403: Error;
+  /**
+   * Package not found
+   */
+  404: Error;
+  /**
+   * Source version conflict, ownership changed, or storage quota exhausted
+   */
+  409: Error;
+  /**
+   * Upload exceeds size limit
+   */
+  413: Error;
+  /**
+   * Invalid manifest or source ZIP
+   */
+  422: Error;
+  /**
+   * Write allowance exhausted
+   */
+  429: Error;
+  /**
+   * Package storage is not configured or is unavailable
+   */
+  503: Error;
+};
+
+export type GetPackagesByPackageIdDownloadError =
+  GetPackagesByPackageIdDownloadErrors[keyof GetPackagesByPackageIdDownloadErrors];
+
+export type GetPackagesByPackageIdDownloadResponses = {
+  /**
+   * Verified immutable ZIP
+   */
+  200: Blob | File;
+};
+
+export type GetPackagesByPackageIdDownloadResponse =
+  GetPackagesByPackageIdDownloadResponses[keyof GetPackagesByPackageIdDownloadResponses];
+
+export type GetPackagesByPackageIdIconData = {
+  body?: never;
+  path: {
+    packageId: string;
+  };
+  query?: never;
+  url: '/packages/{packageId}/icon';
+};
+
+export type GetPackagesByPackageIdIconErrors = {
+  /**
+   * Missing or invalid bearer token
+   */
+  401: Error;
+  /**
+   * The bearer is valid but the account is inactive
+   */
+  403: Error;
+  /**
+   * Package not found
+   */
+  404: Error;
+  /**
+   * Source version conflict, ownership changed, or storage quota exhausted
+   */
+  409: Error;
+  /**
+   * Upload exceeds size limit
+   */
+  413: Error;
+  /**
+   * Invalid manifest or source ZIP
+   */
+  422: Error;
+  /**
+   * Write allowance exhausted
+   */
+  429: Error;
+  /**
+   * Package storage is not configured or is unavailable
+   */
+  503: Error;
+};
+
+export type GetPackagesByPackageIdIconError =
+  GetPackagesByPackageIdIconErrors[keyof GetPackagesByPackageIdIconErrors];
+
+export type GetPackagesByPackageIdIconResponses = {
+  /**
+   * Sanitized SVG, optimized AVIF/PNG, or generic fallback
+   */
+  200: Blob | File;
+};
+
+export type GetPackagesByPackageIdIconResponse =
+  GetPackagesByPackageIdIconResponses[keyof GetPackagesByPackageIdIconResponses];
 
 export type GetDevelopersData = {
   body?: never;

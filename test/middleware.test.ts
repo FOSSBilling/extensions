@@ -68,3 +68,19 @@ describe('personalized extension HTML caching', () => {
     );
   });
 });
+
+it('retains the package icon sandbox alongside the framing policy', async () => {
+  const response = await onRequest(
+    context('/package/example/icon'),
+    async () =>
+      new Response('<svg/>', {
+        headers: { 'Content-Security-Policy': "sandbox; default-src 'none'" },
+      }),
+  );
+  expect(response?.headers.get('Content-Security-Policy')).toContain(
+    "sandbox; default-src 'none'",
+  );
+  expect(response?.headers.get('Content-Security-Policy')).toContain(
+    "frame-ancestors 'none'",
+  );
+});

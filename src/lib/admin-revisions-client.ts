@@ -1,3 +1,4 @@
+import { isSafeDiffHref } from './package-download';
 // Client-side behaviour for /account/admin/revisions: on-demand
 // "compare with live" (one GET /api/admin/revision-detail per expanded row,
 // cached per revision id) plus wiring the row buttons to the single shared
@@ -5,7 +6,6 @@
 // .astro file) so it gets full TypeScript checking like any other lib file.
 
 import { renderMarkdown } from '@/lib/markdown';
-import { isSafeHttpUrl } from '@/lib/safe-url';
 import { initTruncateToggles } from '@/lib/truncate-toggles';
 import {
   DIFF_FIELDS,
@@ -75,7 +75,7 @@ function valueCell(
   // text below. Links are never truncated: a 400+ char URL is vanishingly
   // rare, and clipping an href's visible text while keeping the full target
   // would mislead reviewers.
-  const link = href && isSafeHttpUrl(href) ? href : null;
+  const link = href && isSafeDiffHref(href) ? href : null;
   if (link) {
     const anchor = document.createElement('a');
     anchor.href = link;
@@ -137,20 +137,13 @@ function renderDiff(
     tdField.className = 'py-1 pr-3 font-medium whitespace-nowrap';
     tdField.textContent = label + (isChanged ? ' •' : '');
     // Source, license and author rows link via their own URL (type-aware for
-    // sources); URL fields link via their own value. Everything else
+    // sources); downloads prefer their package route, and other URL fields link
+    // via their own value. Everything else
     // renders as text.
-    const linkedField =
-      field === 'source' || field === 'license' || field === 'author';
-    const oldHref = linkedField
-      ? fieldUrl(field, published)
-      : URL_FIELDS.has(field)
-        ? oldValue
-        : null;
-    const newHref = linkedField
-      ? fieldUrl(field, revision)
-      : URL_FIELDS.has(field)
-        ? newValue
-        : null;
+    const oldHref =
+      fieldUrl(field, published) ?? (URL_FIELDS.has(field) ? oldValue : null);
+    const newHref =
+      fieldUrl(field, revision) ?? (URL_FIELDS.has(field) ? newValue : null);
     const tdOld =
       field === 'readme' && oldValue !== null
         ? markdownCell(
@@ -246,11 +239,8 @@ export function initRevisionQueue(): void {
             label.textContent = FIELD_LABELS[field];
             const value = fieldDisplay(field, revision);
             const href =
-              field === 'source' || field === 'license' || field === 'author'
-                ? fieldUrl(field, revision)
-                : URL_FIELDS.has(field)
-                  ? value
-                  : null;
+              fieldUrl(field, revision) ??
+              (URL_FIELDS.has(field) ? value : null);
             tr.appendChild(label);
             tr.appendChild(
               field === 'readme' && value !== null

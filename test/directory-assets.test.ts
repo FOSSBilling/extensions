@@ -13,9 +13,7 @@ describe('prepared directory assets', () => {
     async (format) => {
       const url = `${iconBase}.${format}`;
       const icon = extensionIconUrl({
-        identifier: 'branding',
         icon_url: url,
-        source: { type: 'github', repo: 'FOSSBilling/modules' },
       });
       expect(await getSignedImageUrl(icon, 'icon', 'test-secret')).toBe(url);
     },
