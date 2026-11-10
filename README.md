@@ -97,6 +97,12 @@ npx wrangler secret put ASSERTION_SIGNING_SECRET
 npx wrangler secret put EXTENSIONS_REVALIDATE_SECRET
 ```
 
+Branch Previews use HTTP transport to the shared staging API and display synthetic
+data. Use the fixed staging directory or localhost for authenticated testing; the
+development OAuth client registers those exact callbacks, rather than every branch
+hostname. Its assertion-signing and revalidation secrets must match the API's
+Previews Base settings.
+
 ## License
 
 The extension directory website is licensed under the GNU Affero General Public License Version 3. See [LICENSE](./LICENSE) for details.
