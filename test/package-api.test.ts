@@ -2,6 +2,7 @@ import { fieldUrl } from '@/lib/revision-diff-shared';
 import {
   packageDownloadPath,
   isPackageDownloadPath,
+  isSafeDiffHref,
 } from '@/lib/package-download';
 import { describe, expect, it, vi } from 'vitest';
 import { createApiClient, downloadPackage } from '@/lib/api/client';
@@ -81,6 +82,16 @@ describe('package API transport', () => {
 });
 
 describe('moderator package links', () => {
+  it.each([
+    ['javascript:alert(1)', false],
+    ['data:text/html,<script>alert(1)</script>', false],
+    ['https://example.test/package.zip', true],
+    ['/package/ABCDEFAB-1234-4567-89AB-ABCDEFABCDEF', true],
+    ['/package/aBcDeFaB-1234-4567-89aB-aBcDeFaBcDeF', true],
+  ] as const)('checks whether %s is a safe diff link', (href, expected) => {
+    expect(isSafeDiffHref(href)).toBe(expected);
+  });
+
   it('links the reviewed artifact through the permission-aware download endpoint', () => {
     const id = '11111111-1111-4111-8111-111111111111';
     expect(
