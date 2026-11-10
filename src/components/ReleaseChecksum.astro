@@ -20,6 +20,12 @@ const { sha256, tag } = Astro.props;
       <span data-checksum-label>{sha256.slice(-8)}</span>
       <Copy class="size-3" aria-hidden="true" />
     </button>
+    <span
+      class="sr-only"
+      role="status"
+      aria-live="polite"
+      data-checksum-status
+    ></span>
   </>
 )}
 
@@ -29,25 +35,29 @@ const { sha256, tag } = Astro.props;
     const button = event.target.closest<HTMLButtonElement>(
       'button[data-release-checksum]',
     );
-    if (!button || button.disabled) return;
+    if (!button || button.getAttribute('aria-disabled') === 'true') return;
     const checksum = button.dataset.releaseChecksum;
     if (!checksum) return;
     const text = button.querySelector<HTMLElement>('[data-checksum-label]')!;
     const label = text.textContent;
     const accessibleLabel = button.getAttribute('aria-label')!;
-    button.disabled = true;
+    const status = button.nextElementSibling!;
+    button.setAttribute('aria-disabled', 'true');
     try {
       await navigator.clipboard.writeText(checksum);
       text.textContent = 'Copied';
+      status.textContent = 'SHA-256 copied.';
       button.setAttribute('aria-label', 'SHA-256 Copied');
     } catch {
       text.textContent = 'Copy Failed';
+      status.textContent = 'Copy failed. Try again.';
       button.setAttribute('aria-label', 'Copy Failed. Try Again.');
     }
     setTimeout(() => {
       text.textContent = label;
       button.setAttribute('aria-label', accessibleLabel);
-      button.disabled = false;
+      button.removeAttribute('aria-disabled');
+      status.textContent = '';
     }, 2000);
   });
 </script>

@@ -38,12 +38,19 @@ export async function packageResponse(
     }
     return new Response(upstream.body, { headers });
   } catch (error) {
+    if (!(error instanceof ApiRequestError))
+      console.error('[package] Unable to read package', error);
+    const status = error instanceof ApiRequestError ? error.status : 503;
     return new Response(
-      error instanceof ApiRequestError && error.status === 404
+      status === 404
         ? 'Package not found.'
-        : 'This package is temporarily unavailable. Please try again.',
+        : status === 401 || status === 403
+          ? 'You do not have access to this package.'
+          : status < 500 && status !== 429
+            ? 'This package request could not be completed.'
+            : 'This package is temporarily unavailable. Please try again.',
       {
-        status: error instanceof ApiRequestError ? error.status : 503,
+        status,
         headers: {
           'Cache-Control': 'private, no-store',
           'Cloudflare-CDN-Cache-Control': 'no-store',

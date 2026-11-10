@@ -65,6 +65,7 @@ async function context(
     source?: File;
     fields?: Record<string, string>;
     baselineHash?: string;
+    releases?: ExtensionUpdate['releases'];
   } = {},
 ) {
   const form = new FormData();
@@ -75,6 +76,7 @@ async function context(
         options.baselineHash ??
         (await sha256Hex(JSON.stringify(editableContent(content)))),
       sections: {},
+      releases: options.releases,
     }),
   );
   form.set(
@@ -296,7 +298,7 @@ describe('release package editor', () => {
 });
 
 describe('overview package rebuilds', () => {
-  it('preserves packages for directory-only changes and equivalent dependency maps', async () => {
+  it('preserves packages for directory-only changes', async () => {
     const changed = {
       ...content,
       readme: '# Updated',
@@ -341,5 +343,59 @@ describe('overview package rebuilds', () => {
     ).rejects.toThrow('Storage unavailable');
     expect(changed.releases[0].artifact_id).toBe(original.id);
     expect(changed.download_url).toBe(original.download_url);
+  });
+});
+
+it('rejects browser artifacts for another extension or version before queuing work', async () => {
+  const foreign = '55555555-5555-4555-8555-555555555555';
+  for (const manifest of [
+    { ...original.manifest, id: 'another-extension' },
+    { ...original.manifest, version: '2.0.0' },
+  ]) {
+    mocks.getPackage.mockResolvedValueOnce({
+      ...original,
+      id: foreign,
+      manifest,
+    });
+    const response = await POST(
+      await context({
+        releases: [{ ...content.releases[0], artifact_id: foreign }],
+        fields: {
+          original_tag: '1.0.0',
+          version_tag: '1.0.0',
+          release_date: '2026-11-05',
+          requires_fossbilling: '>=0.8.0',
+        },
+      }),
+    );
+    expect(response.status).toBe(409);
+    expect(mocks.queuePackage).not.toHaveBeenCalled();
+  }
+});
+it('reuses a package prepared in the local draft before it has been submitted', async () => {
+  const sourceId = '66666666-6666-4666-8666-666666666666';
+  mocks.getPackage.mockResolvedValueOnce({ ...artifact, source_id: sourceId });
+  const response = await POST(
+    await context({
+      releases: [
+        {
+          ...content.releases[0],
+          tag: '1.1.0',
+          artifact_id: artifact.id,
+          download_url: artifact.download_url,
+          sha256: artifact.sha256,
+        },
+      ],
+      fields: {
+        original_tag: '1.1.0',
+        version_tag: '1.1.0',
+        release_date: '2026-11-05',
+        requires_fossbilling: '>=0.8.0',
+      },
+    }),
+  );
+  expect(response.status).toBe(202);
+  expect(mocks.queuePackage).toHaveBeenCalledWith(artifact.manifest, {
+    sourceId,
   });
 });

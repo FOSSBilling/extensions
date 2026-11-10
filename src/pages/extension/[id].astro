@@ -57,7 +57,7 @@ const metadataIcon = metadata
   : undefined;
 if (metadataIcon) {
   try {
-    shareImage = new URL(metadataIcon, Astro.url.origin).href;
+    shareImage = new URL(metadataIcon, Astro.site).href;
   } catch {
     /* Omit malformed stored URLs. */
   }

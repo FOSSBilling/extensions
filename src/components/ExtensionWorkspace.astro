@@ -185,10 +185,15 @@ const labels: Record<DraftSection, string> = {
                   type="file"
                   name="source"
                   accept=".zip,application/zip"
+                  aria-describedby="release-source-help"
                   data-source-file
                 />
               </label>
-              <p class="text-xs text-muted-foreground" data-source-help>
+              <p
+                id="release-source-help"
+                class="text-xs text-muted-foreground"
+                data-source-help
+              >
                 Upload ready-to-install files, without a wrapping directory.
                 Maximum 5 MiB.
               </p>

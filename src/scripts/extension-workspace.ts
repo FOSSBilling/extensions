@@ -541,6 +541,12 @@ export function initExtensionWorkspace() {
         separator.textContent = ' · ';
         links.appendChild(separator);
         links.appendChild(checksum);
+        const copyStatus = document.createElement('span');
+        copyStatus.className = 'sr-only';
+        copyStatus.setAttribute('role', 'status');
+        copyStatus.setAttribute('aria-live', 'polite');
+        copyStatus.dataset.checksumStatus = '';
+        links.appendChild(copyStatus);
       }
       if (release.changelog_url && isSafeHttpUrl(release.changelog_url)) {
         const changelog = document.createElement('a');
@@ -685,9 +691,12 @@ export function initExtensionWorkspace() {
             error?: string;
           };
           if (!response.ok || !body.job)
-            throw new Error(
-              body.error ??
-                'Unable to read package status. Your processing job has been kept.',
+            throw Object.assign(
+              new Error(
+                body.error ??
+                  'Unable to read package status. Your processing job has been kept.',
+              ),
+              { status: response.status || 503 },
             );
           return body.job;
         },
@@ -709,8 +718,12 @@ export function initExtensionWorkspace() {
         cause instanceof PackageJobError &&
         cause.code !== 'PACKAGE_PROCESSING'
       ) {
-        localStorage.removeItem(packageKey);
         pendingPackage = null;
+        try {
+          localStorage.removeItem(packageKey);
+        } catch {
+          // Storage may also be blocked while clearing a failed job.
+        }
       }
       throw cause;
     } finally {
@@ -797,7 +810,13 @@ export function initExtensionWorkspace() {
         baselineHash: config.baselineHash,
         pendingRevisionId: config.pendingRevisionId,
       };
-      localStorage.setItem(packageKey, JSON.stringify(pendingPackage));
+      try {
+        localStorage.setItem(packageKey, JSON.stringify(pendingPackage));
+      } catch {
+        error(
+          'Package processing could not be saved in this browser. Keep this page open while it finishes.',
+        );
+      }
       await resumePackage();
     } catch (cause) {
       const node = find('[data-release-error]');

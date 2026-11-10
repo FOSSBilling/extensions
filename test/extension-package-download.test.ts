@@ -103,3 +103,33 @@ describe('permission-aware package icons', () => {
     expect(response.headers.get('Vary')).toContain('Accept');
   });
 });
+
+it.each([401, 403, 422, 503])(
+  'returns appropriate copy for API status %i',
+  async (status) => {
+    mocks.download.mockRejectedValueOnce(
+      new ApiRequestError(status, 'REJECTED', 'Rejected'),
+    );
+    const response = await GET(context());
+    expect(response.status).toBe(status);
+    const message = await response.text();
+    if (status === 401 || status === 403)
+      expect(message).toContain('do not have access');
+    else if (status === 503)
+      expect(message).toContain('temporarily unavailable');
+    else expect(message).not.toContain('try again');
+  },
+);
+it('logs an unexpected proxy failure while keeping the response generic', async () => {
+  const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
+  try {
+    const failure = new Error('transport failed');
+    mocks.download.mockRejectedValueOnce(failure);
+    const response = await GET(context());
+    expect(response.status).toBe(503);
+    expect(await response.text()).not.toContain(failure.message);
+    expect(logged).toHaveBeenCalledWith(expect.any(String), failure);
+  } finally {
+    logged.mockRestore();
+  }
+});

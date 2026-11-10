@@ -149,7 +149,6 @@ describe('extension drafts', () => {
     const result = applyExtensionDraft(base, {
       ...draft({}),
       releases: [...base.releases, next],
-      currentRelease: '1.0.0',
       download_url: 'https://injected.test',
     });
     expect(result.version).toBe('2.0.0');
@@ -208,32 +207,31 @@ describe('extension drafts', () => {
         {
           ...base.releases[0],
           tag: 'v1.0.0',
-          date: '2026-01-01',
-          download_url: 'https://example.test/1.zip',
+          date: '2026-01-01T12:00:00Z',
+          is_latest: true,
+          download_url: 'http://example.test/1.zip',
         },
       ],
-      download_url: 'https://example.test/1.zip',
+      download_url: 'http://example.test/1.zip',
     };
     const next = {
       ...base.releases[0],
-      tag: '0.9.0',
+      tag: '2.0.0',
       download_url: 'https://example.test/old.zip',
     };
     const result = applyExtensionDraft(published, {
       ...draft({}),
       releases: [...published.releases, next],
-      currentRelease: 'v1.0.0',
     });
     expect(result.version).toBe('1.0.0');
-    expect(result.releases[0]).toMatchObject(published.releases[0]);
-    expect(result.download_url).toBe('https://example.test/1.zip');
+    expect(result.releases[0]).toEqual(published.releases[0]);
+    expect(result.download_url).toBe('http://example.test/1.zip');
   });
   it.each([
-    { releases: [], currentRelease: '' },
-    { releases: [base.releases[0], base.releases[0]], currentRelease: '1.0.0' },
+    { releases: [] },
+    { releases: [base.releases[0], base.releases[0]] },
     {
       releases: new Array(101).fill(base.releases[0]),
-      currentRelease: '1.0.0',
     },
   ])('rejects invalid release sets: %j', (releases) => {
     expect(() =>
@@ -420,4 +418,37 @@ describe('manifest fields in section drafts', () => {
       php: '',
     });
   });
+});
+
+it('validates download URLs when an artifact reference is empty', () => {
+  expect(() =>
+    applyExtensionDraft(base, {
+      sections: {},
+      releases: [{ ...base.releases[0], artifact_id: '', download_url: '' }],
+    }),
+  ).toThrow(/download URL/);
+});
+
+it('keeps historical dates and URLs when only a latest-release flag changes', () => {
+  const old = {
+    ...base.releases[0],
+    date: '2026-01-01T12:00:00Z',
+    download_url: 'http://example.test/old.zip',
+    is_latest: true,
+  };
+  const newer = {
+    ...base.releases[0],
+    tag: '2.0.0',
+    download_url: 'https://example.test/new.zip',
+  };
+  const { is_latest: _selected, ...demoted } = old;
+  const result = applyExtensionDraft(
+    { ...base, releases: [old, newer] },
+    {
+      sections: {},
+      releases: [demoted, { ...newer, is_latest: true }],
+    },
+  );
+  expect(result.releases[0]).toEqual(demoted);
+  expect(result.version).toBe('2.0.0');
 });

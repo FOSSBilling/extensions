@@ -96,3 +96,11 @@ it('moves the sole latest flag and defaults prereleases to unchecked', () => {
   expect(defaultLatestForVersion('2.1.0')).toBe(true);
   expect(defaultLatestForVersion('2.1.0-beta.1')).toBe(false);
 });
+
+it('does not select unknown releases or default invalid tags to latest', () => {
+  expect(() => selectLatestRelease([release('1.0.0')], '9.9.9')).toThrow(
+    'Choose an existing release.',
+  );
+  expect(defaultLatestForVersion('1.0')).toBe(false);
+  expect(defaultLatestForVersion('2.0-beta')).toBe(false);
+});

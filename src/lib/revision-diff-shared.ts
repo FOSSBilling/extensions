@@ -1,7 +1,6 @@
-import { packageDownloadPath } from './package-download';
 // Pure field registry + label/compare helpers shared by the server diff
 // (revision-diff.ts) and the browser queue client
-// (admin-revisions-client.ts). Zero runtime dependencies by design: the
+// (admin-revisions-client.ts). Only pure link helpers are imported: the
 // client bundle cannot import @/types (semver) or the API client, so
 // everything here operates on minimal structural shapes that the generated
 // content types already satisfy.
@@ -10,6 +9,8 @@ import { packageDownloadPath } from './package-download';
 // that changes only a link target (source host, license URL) must count as
 // changed even though its visible text is identical. Link targets are
 // returned raw; renderers still validate the scheme before linking.
+
+import { packageDownloadPath } from './package-download';
 
 interface DiffSource {
   type?: string;

@@ -53,5 +53,5 @@ export function selectLatestRelease(
 }
 
 export function defaultLatestForVersion(tag: string): boolean {
-  return !valid(tag) || prerelease(tag) === null;
+  return Boolean(valid(tag)) && prerelease(tag) === null;
 }

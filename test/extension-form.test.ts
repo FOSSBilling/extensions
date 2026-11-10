@@ -153,10 +153,10 @@ describe('manifest publishing forms', () => {
   });
   it('requires an initial release and date for creation', () => {
     expect(() =>
-      buildExtensionCreatePayload(extensionForm({ version_tag: '' })),
+      manifestFromCreateForm(extensionForm({ version_tag: '' })),
     ).toThrow(ExtensionValidationError);
     expect(() =>
-      buildExtensionCreatePayload(extensionForm({ release_date: '' })),
+      manifestFromCreateForm(extensionForm({ release_date: '' })),
     ).toThrow(ExtensionValidationError);
   });
   it('supports compound SPDX expressions and custom license references', () => {

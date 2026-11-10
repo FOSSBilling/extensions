@@ -23,10 +23,18 @@ export async function waitForPackageJob(
   } = {},
 ): Promise<PackageArtifact> {
   let job = initial;
+  let failures = 0;
   const attempts = options.attempts ?? 120;
   for (let attempt = 0; attempt <= attempts; attempt++) {
     options.progress?.(job);
-    if (job.status === 'ready' && job.artifact) return job.artifact;
+    if (job.status === 'ready') {
+      if (job.artifact) return job.artifact;
+      throw new PackageJobError(
+        502,
+        'PACKAGE_UNAVAILABLE',
+        'The prepared package is unavailable. Please try again.',
+      );
+    }
     if (job.status === 'failed')
       throw new PackageJobError(
         job.error?.status ?? 422,
@@ -36,11 +44,26 @@ export async function waitForPackageJob(
     if (attempt === attempts) break;
     await (options.pause?.() ??
       new Promise<void>((resolve) => setTimeout(resolve, 1000)));
-    job = await read(job.id);
+    try {
+      job = await read(job.id);
+      failures = 0;
+    } catch (error) {
+      const status =
+        error && typeof error === 'object' && 'status' in error
+          ? error.status
+          : undefined;
+      if (
+        (status !== undefined &&
+          status !== 429 &&
+          !(typeof status === 'number' && status >= 500)) ||
+        ++failures >= 3
+      )
+        throw error;
+    }
   }
   throw new PackageJobError(
     503,
     'PACKAGE_PROCESSING',
-    'Your package is still processing. Your edits have been kept. Resume processing in a moment.',
+    'Package processing has not finished. Please try again shortly.',
   );
 }

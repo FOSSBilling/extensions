@@ -129,6 +129,11 @@ function manifestFields(form: FormData): Omit<Manifest, 'id' | 'version'> {
 }
 
 export function manifestFromCreateForm(form: FormData): Manifest {
+  if (!formString(form, 'version_tag') || !formString(form, 'release_date'))
+    throw new ExtensionValidationError(
+      'An initial release and release date are required.',
+    );
+
   return {
     ...manifestFields(form),
     id: formString(form, 'extension_identifier').toLowerCase(),
@@ -140,10 +145,6 @@ export function buildExtensionCreatePayload(
   form: FormData,
   artifact: PackageArtifact,
 ): ExtensionCreate {
-  if (!formString(form, 'version_tag') || !formString(form, 'release_date'))
-    throw new ExtensionValidationError(
-      'An initial release and release date are required.',
-    );
   return {
     identifier: formString(form, 'extension_identifier').toLowerCase(),
     ...listingFields(form),

@@ -109,3 +109,34 @@ describe('moderator package links', () => {
     ).toBe(false);
   });
 });
+
+it('does not create package links for unmatched or external releases', () => {
+  expect(
+    fieldUrl('download_url', {
+      download_url: 'https://api.test/selected.zip',
+      releases: [
+        {
+          download_url: 'https://api.test/other.zip',
+          artifact_id: '11111111-1111-4111-8111-111111111111',
+        },
+      ],
+    }),
+  ).toBeNull();
+  expect(
+    fieldUrl('download_url', {
+      download_url: 'https://api.test/external.zip',
+      releases: [{ download_url: 'https://api.test/external.zip' }],
+    }),
+  ).toBeNull();
+});
+it('propagates a failed package download', async () => {
+  const env = makeEnv({
+    extensionsApi: {
+      baseUrl: 'https://api.test',
+      fetch: async () => new Response(null, { status: 404 }),
+    },
+  });
+  await expect(
+    downloadPackage(env, '11111111-1111-4111-8111-111111111111'),
+  ).rejects.toMatchObject({ status: 404 });
+});

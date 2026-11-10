@@ -65,3 +65,36 @@ describe('package job polling', () => {
     ).rejects.toMatchObject({ code: 'PACKAGE_PROCESSING' });
   });
 });
+
+it('retries transient polling failures without repeating the upload', async () => {
+  const artifact = { id: 'artifact' } as NonNullable<PackageJob['artifact']>;
+  const read = vi
+    .fn()
+    .mockRejectedValueOnce(new TypeError('offline'))
+    .mockResolvedValueOnce({ ...queued, status: 'ready', artifact });
+  expect(await waitForPackageJob(queued, read, { pause: async () => {} })).toBe(
+    artifact,
+  );
+  expect(read).toHaveBeenCalledTimes(2);
+});
+it('bounds transient retries and does not retry access denials', async () => {
+  const offline = new TypeError('offline');
+  const read = vi.fn().mockRejectedValue(offline);
+  await expect(
+    waitForPackageJob(queued, read, { pause: async () => {} }),
+  ).rejects.toBe(offline);
+  expect(read).toHaveBeenCalledTimes(3);
+  const denied = Object.assign(new Error('Denied'), { status: 403 });
+  read.mockReset().mockRejectedValue(denied);
+  await expect(
+    waitForPackageJob(queued, read, { pause: async () => {} }),
+  ).rejects.toBe(denied);
+  expect(read).toHaveBeenCalledTimes(1);
+});
+it('fails immediately if a ready response has no artifact', async () => {
+  const read = vi.fn();
+  await expect(
+    waitForPackageJob({ ...queued, status: 'ready' }, read),
+  ).rejects.toMatchObject({ code: 'PACKAGE_UNAVAILABLE', status: 502 });
+  expect(read).not.toHaveBeenCalled();
+});

@@ -63,6 +63,15 @@ export const POST: APIRoute = async (context) => {
       !source && original?.artifact_id
         ? await api.getPackage(original.artifact_id)
         : undefined;
+    if (
+      stored &&
+      (stored.manifest.id !== id.toLowerCase() ||
+        stored.manifest.version !== release.tag.replace(/^v(?=\d)/, ''))
+    )
+      throw new ExtensionValidationError(
+        'This package does not belong to this extension and release.',
+        409,
+      );
     const manifest =
       stored && original?.tag !== latestRelease(payload.releases)?.tag
         ? { ...stored.manifest, requires: release.requires }

@@ -109,11 +109,11 @@ The generated v2 client follows the API's manifest v1 contract: `module`, string
 
 Package preparation is queued. The API returns a private job ID; the release editor shows queued/processing status and saves that reference in browser storage so it can resume after a reload. A completed release joins the local draft and still needs review. Manifest corrections reuse stored source; new submissions and server-side corrections wait for the same job contract with a bounded timeout.
 
-Authors upload ready-to-install distribution ZIPs. Icons use `icon.svg`, `icon.png`, `icon.webp` or `icon.avif` at the package root, without a manifest field. The API prepares private display images during processing and publishes approved images through the configured asset CDN. Package downloads and pending previews use permission-checked API routes.
+Authors upload ready-to-install distribution ZIPs. Icons use `icon.svg`, `icon.png`, `icon.webp` or `icon.avif` at the package root, without a manifest field. The API prepares display images in the public asset bucket during processing, including pending icons at unlisted UUID URLs. Existing HTTP(S) icon URLs remain supported for display. Package downloads and pending previews use permission-checked API routes.
 
 Published icon URLs use `https://extensions-assets.fossbilling.net/extensions/<extension UUID>/icons/<asset UUID>.<format>`. The extension UUID is independent of its public identifier. SVG or AVIF/PNG variants share the processed icon's immutable asset UUID, so metadata-only edits retain the same icon URL.
 
-API mutations and site mutations purge the directory cache. Deploy and smoke-test the configured, package-enabled API before deploying this site or enabling the modules publisher. The Queue and private image-storage bindings must exist before the API's automatic deployment, even when package mode is disabled.
+API mutations and site mutations purge the `extensions` and `developers` cache tags. The `developers` tag is currently a no-op; developer pages are uncached. Deploy and smoke-test the configured, package-enabled API before deploying this site or enabling the modules publisher. The Queue and Images bindings must exist before the API's automatic deployment, even when package mode is disabled.
 
 ## Directory Identity
 

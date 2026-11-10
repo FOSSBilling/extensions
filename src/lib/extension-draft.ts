@@ -263,10 +263,23 @@ export function applyExtensionDraft(
         throw new ExtensionValidationError(
           'This draft contains an invalid release.',
         );
+      const tag = required(raw, 'tag', 'Version tag');
+      const version = tag.replace(/^v/, '');
+      if (tags.has(version))
+        throw new ExtensionValidationError(
+          `A release tagged "${tag}" already exists.`,
+        );
+      tags.add(version);
+      const previous = base.releases.find((release) => release.tag === raw.tag);
+      if (previous && JSON.stringify(previous) === JSON.stringify(raw))
+        return structuredClone(previous);
       const release = releaseFromFields(
         {
           version_tag: raw.tag,
-          release_date: raw.date,
+          release_date:
+            previous && raw.date === previous.date
+              ? previous.date.slice(0, 10)
+              : raw.date,
           download_url: raw.download_url,
           changelog_url: raw.changelog_url,
           requires_fossbilling: record(raw.requires)
@@ -280,7 +293,7 @@ export function applyExtensionDraft(
                   .join('\n')
               : '',
         },
-        typeof raw.artifact_id === 'string'
+        typeof raw.artifact_id === 'string' && raw.artifact_id.trim()
           ? {
               artifact_id: raw.artifact_id,
               sha256: typeof raw.sha256 === 'string' ? raw.sha256 : undefined,
@@ -288,16 +301,18 @@ export function applyExtensionDraft(
             }
           : undefined,
       );
+      if (previous) {
+        if (raw.date === previous.date) release.date = previous.date;
+        if (raw.download_url === previous.download_url)
+          release.download_url = previous.download_url;
+        if (raw.changelog_url === previous.changelog_url)
+          release.changelog_url = previous.changelog_url;
+      }
       if (raw.is_latest !== undefined && typeof raw.is_latest !== 'boolean')
         throw new ExtensionValidationError(
           'This draft contains an invalid latest release selection.',
         );
       if (raw.is_latest === true) release.is_latest = true;
-      if (tags.has(release.tag.replace(/^v/, '')))
-        throw new ExtensionValidationError(
-          `A release tagged "${release.tag}" already exists.`,
-        );
-      tags.add(release.tag.replace(/^v/, ''));
       return release;
     });
   }

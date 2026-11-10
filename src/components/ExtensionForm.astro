@@ -628,3 +628,15 @@ const otherSpdxIds = SPDX_LICENSE_IDS.filter((id) => !popularSpdxIds.has(id));
     customInput.required = isOther;
   });
 </script>
+
+<script>
+  import { MAX_SOURCE_BYTES } from '@/lib/extension-package';
+  const source = document.querySelector<HTMLInputElement>('#source');
+  source?.addEventListener('change', () => {
+    source.setCustomValidity(
+      source.files?.[0] && source.files[0].size > MAX_SOURCE_BYTES
+        ? 'Source ZIPs must be 5 MiB or smaller.'
+        : '',
+    );
+  });
+</script>
