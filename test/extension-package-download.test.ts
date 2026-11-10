@@ -2,31 +2,29 @@ import type { APIContext } from 'astro';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
   session: vi.fn(),
-  getPackage: vi.fn(),
   download: vi.fn(),
 }));
 vi.mock('@/lib/session', () => ({ getSessionUser: mocks.session }));
 vi.mock('@/lib/api/client', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/api/client')>()),
-  createApiClient: () => ({ getPackage: mocks.getPackage }),
   downloadPackage: mocks.download,
 }));
 import { GET } from '@/pages/package/[packageId]';
 import { GET as GET_ICON } from '@/pages/package/[packageId]/icon';
 import { ApiRequestError } from '@/lib/api/client';
+const packageId = '11111111-1111-4111-8111-111111111111';
 const context = () =>
   ({
-    params: { id: 'example', packageId: 'artifact' },
+    params: { packageId },
     locals: { env: { sessionSecret: 'test' } },
     cookies: {},
-    request: new Request('http://localhost/package/artifact/icon', {
+    request: new Request(`http://localhost/package/${packageId}/icon`, {
       headers: { Accept: 'image/avif,image/png' },
     }),
   }) as unknown as APIContext;
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.session.mockResolvedValue({ sub: 'owner' });
-  mocks.getPackage.mockResolvedValue({ manifest: { id: 'example' } });
   mocks.download.mockImplementation(() =>
     Promise.resolve(
       new Response('zip bytes', {
@@ -47,7 +45,7 @@ describe('permission-aware package downloads', () => {
     expect(await response.text()).toBe('zip bytes');
     expect(mocks.download).toHaveBeenCalledWith(
       expect.anything(),
-      'artifact',
+      packageId,
       'owner',
       'download',
       undefined,
@@ -63,7 +61,7 @@ describe('permission-aware package downloads', () => {
     expect((await GET(context())).status).toBe(200);
     expect(mocks.download).toHaveBeenCalledWith(
       expect.anything(),
-      'artifact',
+      packageId,
       undefined,
       'download',
       undefined,
@@ -90,7 +88,7 @@ describe('permission-aware package icons', () => {
     const response = await GET_ICON(context());
     expect(mocks.download).toHaveBeenCalledWith(
       expect.anything(),
-      'artifact',
+      packageId,
       'owner',
       'icon',
       'image/avif,image/png',

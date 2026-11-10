@@ -207,7 +207,6 @@ export function echoExtensionFromForm(
     name: formString(form, 'name'),
     description: formString(form, 'description'),
     homepage_url: formString(form, 'homepage_url'),
-
     readme: formString(form, 'readme'),
     manifest_version: 1,
     author: {

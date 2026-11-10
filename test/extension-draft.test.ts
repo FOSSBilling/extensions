@@ -18,7 +18,6 @@ export const base: ExtensionUpdate = {
   name: 'Original',
   description: 'Original description',
   homepage_url: 'http://example.test',
-
   readme: '# Original',
   license: 'MIT',
   source: { type: 'github', repo: 'example/original' },
@@ -51,7 +50,6 @@ describe('extension drafts', () => {
           description: 'Updated description',
           type: 'module',
           homepage_url: 'https://example.test',
-
           source_url: 'https://gitlab.com/example/updated',
           license_spdx_id: 'Apache-2.0',
           license_url: 'https://example.test/license',

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { extensionIconUrl } from '@/lib/extension-icon';
 import { directoryAssetAvifUrl, isDirectoryAssetUrl } from '@/lib/image-url';
 describe('extension icons', () => {
-  it('prefers the published CDN icon over the package preview', async () => {
+  it('prefers the published CDN icon over the package preview', () => {
     const url =
       'https://extensions-assets.fossbilling.net/extensions/019a0000-0000-7000-8000-000000000001/icons/11111111-1111-4111-8111-111111111111.png';
     expect(

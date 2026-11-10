@@ -28,8 +28,6 @@ function extensionForm(overrides: Record<string, string | undefined> = {}) {
     source_url: 'https://github.com/fossbilling/example',
     version_tag: '1.0.0',
     release_date: '2026-01-01',
-    download_url: 'example.test/example.zip',
-
     ...overrides,
   };
   for (const [key, value] of Object.entries(values))
@@ -99,7 +97,6 @@ describe('manifest publishing forms', () => {
       type: 'module',
       license: 'MIT',
       homepage_url: 'https://example.test',
-
       author: { name: 'Package Author', url: 'https://author.example.test' },
       requires: {
         fossbilling: '^0.8.9 || ^1.0',
@@ -183,7 +180,6 @@ describe('manifest publishing forms', () => {
       ),
     ).toThrow(ExtensionValidationError);
   });
-
   it('inherits FOSSBilling PHP requirements when no additional constraint is set', () => {
     const body = buildExtensionCreatePayload(
       extensionForm({ requires_php: '' }),

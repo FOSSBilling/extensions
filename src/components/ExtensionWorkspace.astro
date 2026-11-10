@@ -186,7 +186,6 @@ const labels: Record<DraftSection, string> = {
                   name="source"
                   accept=".zip,application/zip"
                   aria-describedby="release-source-help"
-                  data-source-file
                 />
               </label>
               <p
@@ -208,10 +207,7 @@ const labels: Record<DraftSection, string> = {
                 />
               </label>
               <RequirementsFields />
-              <label
-                class="flex items-center gap-2 text-sm"
-                data-latest-release-option
-              >
+              <label class="flex items-center gap-2 text-sm">
                 <input type="checkbox" class="input" name="is_latest" checked />
                 Set as Latest Release
               </label>

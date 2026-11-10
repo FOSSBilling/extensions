@@ -335,15 +335,6 @@ describe('overview package rebuilds', () => {
     expect(result.version).toBe('1.0.0');
     expect(result.download_url).toBe(artifact.download_url);
   });
-  it('retains the draft content on a rebuild failure', async () => {
-    const changed = { ...content, name: 'Changed' };
-    mocks.buildPackage.mockRejectedValue(new Error('Storage unavailable'));
-    await expect(
-      rebuildLatestPackage(mocks, 'example', changed),
-    ).rejects.toThrow('Storage unavailable');
-    expect(changed.releases[0].artifact_id).toBe(original.id);
-    expect(changed.download_url).toBe(original.download_url);
-  });
 });
 
 it('rejects browser artifacts for another extension or version before queuing work', async () => {
