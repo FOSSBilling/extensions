@@ -38,14 +38,11 @@ export async function syncPreviewCallbacks(
     if (rows.length < 100) break;
   }
   const base = `https://api.cloudflare.com/client/v4/accounts/${options.cloudflareAccount}`;
-  const service = await readJson<{
-    result: { default_environment: { script: { tag: string } } };
-  }>(fetcher, `${base}/workers/services/extensions`, options.cloudflareToken);
   const previews: Preview[] = [];
   for (let page = 1; ; page++) {
     const data = await readJson<Page<Preview>>(
       fetcher,
-      `${base}/workers/workers/${service.result.default_environment.script.tag}/previews?per_page=100&page=${page}`,
+      `${base}/workers/workers/extensions/previews?per_page=100&page=${page}`,
       options.cloudflareToken,
     );
     previews.push(...data.result);

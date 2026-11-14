@@ -107,32 +107,27 @@ data. Use three separate OAuth clients:
 | Previews | Named `staging` Preview and same-repository branch Previews |
 
 Set the preview client's `AUTH_CLIENT_ID` and `AUTH_CLIENT_SECRET`, a preview-only
-`SESSION_SECRET`, and the staging API's assertion-signing/revalidation secrets in
-Cloudflare's **Previews Base**. Existing Previews need these secrets set individually.
-The named `staging` Preview uses these same Base settings; keep the development
-client in local `.dev.vars`.
+`SESSION_SECRET`, and matching `ASSERTION_SIGNING_SECRET` /
+`EXTENSIONS_REVALIDATE_SECRET` values for the staging API in Cloudflare's
+**Previews Base**. Existing Previews need these secrets set individually.
 
 Cloudflare Workers Builds builds `main` once with `npm run build`, then runs
-`npm run cf-deploy` to deploy production and then the named `staging` Preview
-(`wrangler deploy && wrangler preview --name staging`). Staging serves
-`https://staging-extensions.fossbilling.workers.dev` and uses the fixed
-`https://staging-api.fossbilling.workers.dev` API. Both are Previews under their
-existing Workers, without a separate staging Worker. API-side cache invalidation
-calls the named directory Preview over HTTP; other branch Previews retain their
-normal cache expiry and invalidate their own cache after directory edits.
+`npm run cf-deploy` to publish production and the named `staging` Preview using
+that build. Staging serves `https://staging-extensions.fossbilling.workers.dev`
+and uses `https://staging-api.fossbilling.workers.dev`; both use their existing
+Workers. API-side cache invalidation targets the named directory Preview.
+Other branch Previews use normal cache expiry and invalidate their own cache
+after directory edits.
 
 Register `https://staging-extensions.fossbilling.workers.dev/auth/callback` on the
-preview client. The workflow below manages branch callbacks; localhost belongs to
-the separate development client.
+preview client.
 
-The **Preview Authentication** workflow registers exact deployed branch callbacks
-when Cloudflare builds finish, removes callbacks for deleted branches, and reconciles
-hourly to clean up deleted Previews. Set the repository's `CLOUDFLARE_ACCOUNT_ID`
-variable and `CLOUDFLARE_PREVIEW_READ_TOKEN` secret (Workers Content Read-Only).
-The auth service must configure `EXTENSIONS_PREVIEW_CLIENT_ID` to this preview
-client; it accepts callback changes only from this workflow on `main`, via GitHub
-Actions OIDC. The workflow includes the named `staging` Preview even though it is not a Git branch;
-the development client is not modified.
+The **Preview Authentication** workflow reconciles exact callbacks for live branch
+Previews and named `staging` after successful Cloudflare builds, branch deletion,
+and hourly. Set the repository's `CLOUDFLARE_ACCOUNT_ID` variable and
+`CLOUDFLARE_PREVIEW_READ_TOKEN` secret (Workers Content Read-Only). The auth service
+must set `EXTENSIONS_PREVIEW_CLIENT_ID` to this client. It accepts updates only
+from the trusted workflow on `main`, authenticated through GitHub Actions OIDC.
 
 ## License
 

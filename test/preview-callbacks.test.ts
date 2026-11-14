@@ -20,12 +20,10 @@ describe('Preview callback reconciliation', () => {
       if (url.startsWith('https://api.github.com/')) {
         return Response.json([{ name: 'feature/test' }, { name: 'main' }]);
       }
-      if (url.endsWith('/workers/services/extensions')) {
-        return Response.json({
-          result: { default_environment: { script: { tag: 'worker' } } },
-        });
-      }
-      if (url.includes('/previews?')) {
+      if (
+        new URL(url).pathname ===
+        '/client/v4/accounts/account/workers/workers/extensions/previews'
+      ) {
         return Response.json({
           result: [
             {
@@ -68,15 +66,21 @@ describe('Preview callback reconciliation', () => {
     ]);
   });
 
-  it('does not clear callbacks when metadata cannot be read', async () => {
-    const calls: string[] = [];
-    const fetcher = (async (input: string | URL | Request) => {
-      calls.push(String(input));
-      return new Response(null, { status: 403 });
-    }) as typeof fetch;
-    await expect(syncPreviewCallbacks(options, fetcher)).rejects.toThrow(
-      'HTTP 403',
-    );
-    expect(calls).toHaveLength(1);
-  });
+  it.each(['api.github.com', 'api.cloudflare.com'])(
+    'preserves callbacks when %s metadata cannot be read',
+    async (failedHost) => {
+      let registrationAttempted = false;
+      const fetcher = (async (input: string | URL | Request) => {
+        const host = new URL(String(input)).hostname;
+        if (host === failedHost) return new Response(null, { status: 403 });
+        if (host === 'api.github.com') return Response.json([]);
+        registrationAttempted = true;
+        return new Response(null, { status: 204 });
+      }) as typeof fetch;
+      await expect(syncPreviewCallbacks(options, fetcher)).rejects.toThrow(
+        'HTTP 403',
+      );
+      expect(registrationAttempted).toBe(false);
+    },
+  );
 });
