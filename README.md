@@ -98,11 +98,18 @@ npx wrangler secret put EXTENSIONS_REVALIDATE_SECRET
 ```
 
 Branch Previews use HTTP transport to the shared staging API and display synthetic
-data. For authenticated testing, one development OAuth client registers
-`http://localhost:4321/auth/callback` and
-`https://extensions-staging.fossbilling.workers.dev/auth/callback`; branch hostnames
-are not registered. The staging directory's assertion-signing and revalidation
-secrets must match the API's Previews Base settings.
+data. The development OAuth client is shared by localhost, fixed staging and
+same-repository branch Previews. Set its credentials, a preview-only `SESSION_SECRET`, and the staging API's
+assertion-signing/revalidation secrets in Cloudflare's **Previews Base**. Existing
+Previews need these secrets set individually.
+
+The **Preview Authentication** workflow registers exact deployed branch callbacks
+when Cloudflare builds finish, removes callbacks for deleted branches, and reconciles
+hourly to clean up deleted Previews. Set the repository's `CLOUDFLARE_ACCOUNT_ID`
+variable and `CLOUDFLARE_PREVIEW_READ_TOKEN` secret (Workers Content Read-Only).
+The auth service must configure `EXTENSIONS_PREVIEW_CLIENT_ID` to this development
+client; it accepts callback changes only from this workflow on `main`, via GitHub
+Actions OIDC. The localhost and fixed-staging callbacks remain registered.
 
 ## License
 
