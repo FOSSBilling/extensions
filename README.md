@@ -62,7 +62,7 @@ cp .dev.vars.example .dev.vars
 
 | Variable | Notes |
 | --- | --- |
-| `AUTH_CLIENT_ID` / `AUTH_CLIENT_SECRET` | Issued by an admin of [`FOSSBilling/auth`](https://github.com/FOSSBilling/auth). Request `https://extensions.fossbilling.org/auth/callback` and `http://localhost:4321/auth/callback` as redirect URIs. |
+| `AUTH_CLIENT_ID` / `AUTH_CLIENT_SECRET` | Issued by an admin of [`FOSSBilling/auth`](https://github.com/FOSSBilling/auth). The production client uses `https://extensions.fossbilling.org/auth/callback`; use the development client for localhost and staging (see below). |
 | `SESSION_SECRET` | Any random string, e.g. `openssl rand -base64 32`. |
 | `ASSERTION_SIGNING_SECRET` | Must match the `api` repo's value exactly. |
 | `EXTENSIONS_REVALIDATE_SECRET` | Shared with the `api` repo for `POST /api/revalidate`. |
@@ -96,6 +96,20 @@ npx wrangler secret put SESSION_SECRET
 npx wrangler secret put ASSERTION_SIGNING_SECRET
 npx wrangler secret put EXTENSIONS_REVALIDATE_SECRET
 ```
+
+Branch Previews use HTTP transport to the shared staging API and display synthetic
+data. The development OAuth client is shared by localhost, fixed staging and
+same-repository branch Previews. Set its credentials, a preview-only `SESSION_SECRET`, and the staging API's
+assertion-signing/revalidation secrets in Cloudflare's **Previews Base**. Existing
+Previews need these secrets set individually.
+
+The **Preview Authentication** workflow registers exact deployed branch callbacks
+when Cloudflare builds finish, removes callbacks for deleted branches, and reconciles
+hourly to clean up deleted Previews. Set the repository's `CLOUDFLARE_ACCOUNT_ID`
+variable and `CLOUDFLARE_PREVIEW_READ_TOKEN` secret (Workers Content Read-Only).
+The auth service must configure `EXTENSIONS_PREVIEW_CLIENT_ID` to this development
+client; it accepts callback changes only from this workflow on `main`, via GitHub
+Actions OIDC. The localhost and fixed-staging callbacks remain registered.
 
 ## License
 
