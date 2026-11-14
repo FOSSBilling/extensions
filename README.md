@@ -104,15 +104,24 @@ data. Use three separate OAuth clients:
 | --- | --- |
 | Production | `https://extensions.fossbilling.org` |
 | Development | `http://localhost:4321` |
-| Previews | `extensions-staging` and same-repository branch Previews |
+| Previews | Named `staging` Preview and same-repository branch Previews |
 
 Set the preview client's `AUTH_CLIENT_ID` and `AUTH_CLIENT_SECRET`, a preview-only
 `SESSION_SECRET`, and the staging API's assertion-signing/revalidation secrets in
 Cloudflare's **Previews Base**. Existing Previews need these secrets set individually.
-Configure the fixed `extensions-staging` Worker with the same preview OAuth client;
-keep the development client in local `.dev.vars`.
+The named `staging` Preview uses these same Base settings; keep the development
+client in local `.dev.vars`.
 
-Register `https://extensions-staging.fossbilling.workers.dev/auth/callback` on the
+Cloudflare Workers Builds builds `main` once with `npm run build`, then runs
+`npx wrangler deploy && npx wrangler preview --name staging` to update production
+and the named `staging` Preview. Staging serves
+`https://staging-extensions.fossbilling.workers.dev` and uses the fixed
+`https://staging-api.fossbilling.workers.dev` API. Both are Previews under their
+existing Workers, without a separate staging Worker. API-side cache invalidation
+calls the named directory Preview over HTTP; other branch Previews retain their
+normal cache expiry and invalidate their own cache after directory edits.
+
+Register `https://staging-extensions.fossbilling.workers.dev/auth/callback` on the
 preview client. The workflow below manages branch callbacks; localhost belongs to
 the separate development client.
 
@@ -122,7 +131,8 @@ hourly to clean up deleted Previews. Set the repository's `CLOUDFLARE_ACCOUNT_ID
 variable and `CLOUDFLARE_PREVIEW_READ_TOKEN` secret (Workers Content Read-Only).
 The auth service must configure `EXTENSIONS_PREVIEW_CLIENT_ID` to this preview
 client; it accepts callback changes only from this workflow on `main`, via GitHub
-Actions OIDC. The fixed-staging callback is preserved; the development client is not modified.
+Actions OIDC. The workflow includes the named `staging` Preview even though it is not a Git branch;
+the development client is not modified.
 
 ## License
 

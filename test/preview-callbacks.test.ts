@@ -10,7 +10,7 @@ const options = {
 };
 
 describe('Preview callback reconciliation', () => {
-  it('registers live branch Preview URLs and removes orphaned callbacks', async () => {
+  it('registers staging and live branch Preview URLs and removes orphaned callbacks', async () => {
     let callbacks: unknown;
     const fetcher = (async (
       input: string | URL | Request,
@@ -28,6 +28,10 @@ describe('Preview callback reconciliation', () => {
       if (url.includes('/previews?')) {
         return Response.json({
           result: [
+            {
+              name: 'staging',
+              urls: ['https://staging-extensions.fossbilling.workers.dev'],
+            },
             {
               name: 'feature/test',
               urls: ['https://feature-test-extensions.fossbilling.workers.dev'],
@@ -57,9 +61,10 @@ describe('Preview callback reconciliation', () => {
       callbacks = JSON.parse(String(init?.body));
       return new Response(null, { status: 204 });
     }) as typeof fetch;
-    expect(await syncPreviewCallbacks(options, fetcher)).toBe(1);
+    expect(await syncPreviewCallbacks(options, fetcher)).toBe(2);
     expect(callbacks).toEqual([
       'https://feature-test-extensions.fossbilling.workers.dev/auth/callback',
+      'https://staging-extensions.fossbilling.workers.dev/auth/callback',
     ]);
   });
 

@@ -59,7 +59,9 @@ export async function syncPreviewCallbacks(
     ...new Set(
       previews
         .filter(
-          (preview) => preview.name !== 'main' && branches.has(preview.name),
+          (preview) =>
+            preview.name === 'staging' ||
+            (preview.name !== 'main' && branches.has(preview.name)),
         )
         .flatMap((preview) => preview.urls)
         .map((origin) => new URL('/auth/callback', origin).href),
@@ -104,5 +106,5 @@ if (
     oidcRequestUrl: required('ACTIONS_ID_TOKEN_REQUEST_URL'),
     oidcRequestToken: required('ACTIONS_ID_TOKEN_REQUEST_TOKEN'),
   });
-  console.log(`Registered ${count} active branch Preview callbacks.`);
+  console.log(`Registered ${count} active Preview callbacks.`);
 }
