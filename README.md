@@ -62,7 +62,7 @@ cp .dev.vars.example .dev.vars
 
 | Variable | Notes |
 | --- | --- |
-| `AUTH_CLIENT_ID` / `AUTH_CLIENT_SECRET` | Issued by an admin of [`FOSSBilling/auth`](https://github.com/FOSSBilling/auth). Request `https://extensions.fossbilling.org/auth/callback` and `http://localhost:4321/auth/callback` as redirect URIs. |
+| `AUTH_CLIENT_ID` / `AUTH_CLIENT_SECRET` | Issued by an admin of [`FOSSBilling/auth`](https://github.com/FOSSBilling/auth). The production client uses `https://extensions.fossbilling.org/auth/callback`; use the development client for localhost and staging (see below). |
 | `SESSION_SECRET` | Any random string, e.g. `openssl rand -base64 32`. |
 | `ASSERTION_SIGNING_SECRET` | Must match the `api` repo's value exactly. |
 | `EXTENSIONS_REVALIDATE_SECRET` | Shared with the `api` repo for `POST /api/revalidate`. |
@@ -98,10 +98,11 @@ npx wrangler secret put EXTENSIONS_REVALIDATE_SECRET
 ```
 
 Branch Previews use HTTP transport to the shared staging API and display synthetic
-data. Use the fixed staging directory or localhost for authenticated testing; the
-development OAuth client registers those exact callbacks, rather than every branch
-hostname. Its assertion-signing and revalidation secrets must match the API's
-Previews Base settings.
+data. For authenticated testing, one development OAuth client registers
+`http://localhost:4321/auth/callback` and
+`https://extensions-staging.fossbilling.workers.dev/auth/callback`; branch hostnames
+are not registered. The staging directory's assertion-signing and revalidation
+secrets must match the API's Previews Base settings.
 
 ## License
 
