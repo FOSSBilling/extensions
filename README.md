@@ -113,8 +113,8 @@ The named `staging` Preview uses these same Base settings; keep the development
 client in local `.dev.vars`.
 
 Cloudflare Workers Builds builds `main` once with `npm run build`, then runs
-`npx wrangler deploy && npx wrangler preview --name staging` to update production
-and the named `staging` Preview. Staging serves
+`npm run cf-deploy` to deploy production and then the named `staging` Preview
+(`wrangler deploy && wrangler preview --name staging`). Staging serves
 `https://staging-extensions.fossbilling.workers.dev` and uses the fixed
 `https://staging-api.fossbilling.workers.dev` API. Both are Previews under their
 existing Workers, without a separate staging Worker. API-side cache invalidation
