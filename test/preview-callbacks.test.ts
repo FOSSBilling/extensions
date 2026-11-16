@@ -10,7 +10,7 @@ const options = {
 };
 
 describe('Preview callback reconciliation', () => {
-  it('registers staging and live branch Preview URLs and removes orphaned callbacks', async () => {
+  it('registers routable staging and live branch Previews and removes orphaned callbacks', async () => {
     let callbacks: unknown;
     const fetcher = (async (
       input: string | URL | Request,
@@ -18,7 +18,11 @@ describe('Preview callback reconciliation', () => {
     ) => {
       const url = String(input);
       if (url.startsWith('https://api.github.com/')) {
-        return Response.json([{ name: 'feature/test' }, { name: 'main' }]);
+        return Response.json([
+          { name: 'feature/test' },
+          { name: 'feature/unroutable' },
+          { name: 'main' },
+        ]);
       }
       if (
         new URL(url).pathname ===
@@ -34,6 +38,7 @@ describe('Preview callback reconciliation', () => {
               name: 'feature/test',
               urls: ['https://feature-test-extensions.fossbilling.workers.dev'],
             },
+            { name: 'feature/unroutable', urls: [] },
             {
               name: 'deleted-branch',
               urls: [
