@@ -1795,7 +1795,7 @@
         "required": ["developer_id"],
         "additionalProperties": false
       },
-      "PackageJob": {
+      "PackagingJob": {
         "type": "object",
         "properties": {
           "id": {
@@ -5876,7 +5876,7 @@
                   "type": "object",
                   "properties": {
                     "result": {
-                      "$ref": "#/components/schemas/PackageJob"
+                      "$ref": "#/components/schemas/PackagingJob"
                     }
                   },
                   "required": ["result"]
@@ -5967,10 +5967,10 @@
         }
       }
     },
-    "/package-jobs/{jobId}": {
+    "/packaging-jobs/{jobId}": {
       "get": {
         "tags": ["Packages"],
-        "summary": "Read an owning developer's private package-processing job",
+        "summary": "Read an owning developer's private packaging job",
         "security": [
           {
             "Bearer": []
@@ -5996,7 +5996,7 @@
                   "type": "object",
                   "properties": {
                     "result": {
-                      "$ref": "#/components/schemas/PackageJob"
+                      "$ref": "#/components/schemas/PackagingJob"
                     }
                   },
                   "required": ["result"]
