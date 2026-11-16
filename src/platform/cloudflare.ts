@@ -18,7 +18,7 @@ export function getApplicationEnv(): ApplicationEnv {
       fetch:
         transport === 'binding'
           ? (input, init) => env.EXTENSIONS_API.fetch(input, init)
-          : globalThis.fetch,
+          : (input, init) => globalThis.fetch(input, init),
     },
     authClientId: env.AUTH_CLIENT_ID,
     authClientSecret: env.AUTH_CLIENT_SECRET,

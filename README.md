@@ -62,7 +62,7 @@ cp .dev.vars.example .dev.vars
 
 | Variable | Notes |
 | --- | --- |
-| `AUTH_CLIENT_ID` / `AUTH_CLIENT_SECRET` | Issued by an admin of [`FOSSBilling/auth`](https://github.com/FOSSBilling/auth). Request `https://extensions.fossbilling.org/auth/callback` and `http://localhost:4321/auth/callback` as redirect URIs. |
+| `AUTH_CLIENT_ID` / `AUTH_CLIENT_SECRET` | Issued by an admin of [`FOSSBilling/auth`](https://github.com/FOSSBilling/auth). The production client uses `https://extensions.fossbilling.org/auth/callback`; use separate development and preview clients for localhost and staging (see below). |
 | `SESSION_SECRET` | Any random string, e.g. `openssl rand -base64 32`. |
 | `ASSERTION_SIGNING_SECRET` | Must match the `api` repo's value exactly. |
 | `EXTENSIONS_REVALIDATE_SECRET` | Shared with the `api` repo for `POST /api/revalidate`. |
@@ -96,6 +96,37 @@ npx wrangler secret put SESSION_SECRET
 npx wrangler secret put ASSERTION_SIGNING_SECRET
 npx wrangler secret put EXTENSIONS_REVALIDATE_SECRET
 ```
+
+Branch Previews use HTTP transport to the shared staging API and display synthetic
+data. Use three separate OAuth clients:
+
+| Client | Used by |
+| --- | --- |
+| Production | `https://extensions.fossbilling.org` |
+| Development | `http://localhost:4321` |
+| Previews | Named `staging` Preview and same-repository branch Previews |
+
+Set the preview client's `AUTH_CLIENT_ID` and `AUTH_CLIENT_SECRET`, a preview-only
+`SESSION_SECRET`, and matching `ASSERTION_SIGNING_SECRET` /
+`EXTENSIONS_REVALIDATE_SECRET` values for the staging API in Cloudflare's
+**Previews Base**. Existing Previews need these secrets set individually.
+
+Cloudflare Workers Builds builds `main` once with `npm run build`, then runs
+`npm run cf-deploy` to publish production and the named `staging` Preview using
+that build. Staging serves `https://staging-extensions.fossbilling.workers.dev`
+and uses `https://staging-api.fossbilling.workers.dev`; both use their existing
+Workers. API-side cache invalidation targets the named directory Preview.
+Other branch Previews use normal cache expiry and invalidate their own cache
+after directory edits.
+
+The **Preview Authentication** workflow reconciles exact callbacks for live branch
+Previews and named `staging` after successful Cloudflare builds, branch deletion,
+and hourly. Make the organization's `CLOUDFLARE_ACCOUNT_ID` variable available to
+this repository and set its `CLOUDFLARE_API_TOKEN` Actions secret. For callback
+discovery, scope the token to `extensions` with Individual Workers Metadata
+Read-Only. The auth service must set `EXTENSIONS_PREVIEW_CLIENT_ID` to this client.
+It accepts updates only from the trusted workflow on `main`, authenticated through
+GitHub Actions OIDC.
 
 ## License
 

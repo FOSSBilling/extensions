@@ -49,14 +49,8 @@
     "previews": {
         "vars": {
             "ENVIRONMENT": "preview",
-            "EXTENSIONS_API_BASE_URL": "https://api.fossbilling.net",
-            "EXTENSIONS_API_TRANSPORT": "binding"
-        },
-        "services": [
-            {
-                "binding": "EXTENSIONS_API",
-                "service": "api"
-            }
-        ]
+            "EXTENSIONS_API_BASE_URL": "https://staging-api.fossbilling.workers.dev",
+            "EXTENSIONS_API_TRANSPORT": "http"
+        }
     }
 }
