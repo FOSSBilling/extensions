@@ -57,6 +57,36 @@ describe('package API transport', () => {
       ),
     ).toMatchObject({ id: 'artifact' });
   });
+  it('polls packaging jobs through the authenticated API endpoint', async () => {
+    const job = {
+      id: 'job',
+      extension_identifier: 'example',
+      status: 'processing',
+      artifact: null,
+      error: null,
+      created_at: 'now',
+      updated_at: 'now',
+    };
+    const fetcher = vi.fn(async (request: Request) => {
+      expect(request.url).toBe(
+        'https://api.test/extensions/v2/packaging-jobs/job',
+      );
+      expect(request.method).toBe('GET');
+      expect(request.headers.get('Authorization')).toMatch(/^Bearer /);
+      return Response.json({ result: job });
+    });
+    const env = makeEnv({
+      extensionsApi: {
+        baseUrl: 'https://api.test',
+        fetch: fetcher as typeof fetch,
+      },
+    });
+
+    expect(await createApiClient(env, 'owner').getPackageJob('job')).toEqual(
+      job,
+    );
+    expect(fetcher).toHaveBeenCalledOnce();
+  });
   it('authenticates metadata and streaming preview reads without consuming the ZIP', async () => {
     const fetcher = vi.fn(async (request: Request) => {
       expect(request.headers.get('Authorization')).toMatch(/^Bearer /);

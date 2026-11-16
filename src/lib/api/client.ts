@@ -1,8 +1,8 @@
 import { waitForPackageJob, PackageJobError } from '../package-job';
 import {
   postPackages,
-  getPackageJobsByJobId,
-  type PackageJob,
+  getPackagingJobsByJobId,
+  type PackagingJob as PackageJob,
   getPackagesByPackageId,
   getPackagesByPackageIdDownload,
   getPackagesByPackageIdIcon,
@@ -515,7 +515,7 @@ export function createApiClient(env: ApplicationEnv, subject: string) {
     );
 
   const getPackageJob = (jobId: string): Promise<PackageJob> =>
-    callResult(getPackageJobsByJobId({ client, path: { jobId } }));
+    callResult(getPackagingJobsByJobId({ client, path: { jobId } }));
 
   return {
     // Identity sync carries a dedicated body-bound proof instead of the

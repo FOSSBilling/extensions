@@ -58,9 +58,6 @@ import type {
   GetModerationCountsData,
   GetModerationCountsErrors,
   GetModerationCountsResponses,
-  GetPackageJobsByJobIdData,
-  GetPackageJobsByJobIdErrors,
-  GetPackageJobsByJobIdResponses,
   GetPackagesByPackageIdData,
   GetPackagesByPackageIdDownloadData,
   GetPackagesByPackageIdDownloadErrors,
@@ -70,6 +67,9 @@ import type {
   GetPackagesByPackageIdIconErrors,
   GetPackagesByPackageIdIconResponses,
   GetPackagesByPackageIdResponses,
+  GetPackagingJobsByJobIdData,
+  GetPackagingJobsByJobIdErrors,
+  GetPackagingJobsByJobIdResponses,
   GetRevisionsData,
   GetRevisionsErrors,
   GetRevisionsResponses,
@@ -911,22 +911,22 @@ export const postPackages = <ThrowOnError extends boolean = false>(
   });
 
 /**
- * Read an owning developer's private package-processing job
+ * Read an owning developer's private packaging job
  */
-export const getPackageJobsByJobId = <ThrowOnError extends boolean = false>(
-  options: Options<GetPackageJobsByJobIdData, ThrowOnError>,
+export const getPackagingJobsByJobId = <ThrowOnError extends boolean = false>(
+  options: Options<GetPackagingJobsByJobIdData, ThrowOnError>,
 ): RequestResult<
-  GetPackageJobsByJobIdResponses,
-  GetPackageJobsByJobIdErrors,
+  GetPackagingJobsByJobIdResponses,
+  GetPackagingJobsByJobIdErrors,
   ThrowOnError
 > =>
   (options.client ?? client).get<
-    GetPackageJobsByJobIdResponses,
-    GetPackageJobsByJobIdErrors,
+    GetPackagingJobsByJobIdResponses,
+    GetPackagingJobsByJobIdErrors,
     ThrowOnError
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/package-jobs/{jobId}',
+    url: '/packaging-jobs/{jobId}',
     ...options,
   });
 

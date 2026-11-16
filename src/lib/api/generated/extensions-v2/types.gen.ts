@@ -511,7 +511,7 @@ export type PublisherRegister = {
   can_publish?: boolean;
 };
 
-export type PackageJob = {
+export type PackagingJob = {
   id: string;
   extension_identifier: string;
   status: 'queued' | 'processing' | 'ready' | 'failed';
@@ -2421,23 +2421,23 @@ export type PostPackagesResponses = {
    * Private processing job; identical requests reuse queued or completed work
    */
   202: {
-    result: PackageJob;
+    result: PackagingJob;
   };
 };
 
 export type PostPackagesResponse =
   PostPackagesResponses[keyof PostPackagesResponses];
 
-export type GetPackageJobsByJobIdData = {
+export type GetPackagingJobsByJobIdData = {
   body?: never;
   path: {
     jobId: string;
   };
   query?: never;
-  url: '/package-jobs/{jobId}';
+  url: '/packaging-jobs/{jobId}';
 };
 
-export type GetPackageJobsByJobIdErrors = {
+export type GetPackagingJobsByJobIdErrors = {
   /**
    * Missing or invalid bearer token
    */
@@ -2472,20 +2472,20 @@ export type GetPackageJobsByJobIdErrors = {
   503: Error;
 };
 
-export type GetPackageJobsByJobIdError =
-  GetPackageJobsByJobIdErrors[keyof GetPackageJobsByJobIdErrors];
+export type GetPackagingJobsByJobIdError =
+  GetPackagingJobsByJobIdErrors[keyof GetPackagingJobsByJobIdErrors];
 
-export type GetPackageJobsByJobIdResponses = {
+export type GetPackagingJobsByJobIdResponses = {
   /**
    * Package processing state and completed artifact
    */
   200: {
-    result: PackageJob;
+    result: PackagingJob;
   };
 };
 
-export type GetPackageJobsByJobIdResponse =
-  GetPackageJobsByJobIdResponses[keyof GetPackageJobsByJobIdResponses];
+export type GetPackagingJobsByJobIdResponse =
+  GetPackagingJobsByJobIdResponses[keyof GetPackagingJobsByJobIdResponses];
 
 export type PostPackagesCleanupData = {
   body?: never;

@@ -1,5 +1,5 @@
 import type {
-  PackageJob,
+  PackagingJob as PackageJob,
   PackageArtifact,
 } from '@/lib/api/generated/extensions-v2';
 
