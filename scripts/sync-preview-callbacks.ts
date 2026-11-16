@@ -98,7 +98,7 @@ if (
   }
   const count = await syncPreviewCallbacks({
     githubToken: required('GITHUB_TOKEN'),
-    cloudflareToken: required('CLOUDFLARE_PREVIEW_READ_TOKEN'),
+    cloudflareToken: required('CLOUDFLARE_API_TOKEN'),
     cloudflareAccount: required('CLOUDFLARE_ACCOUNT_ID'),
     oidcRequestUrl: required('ACTIONS_ID_TOKEN_REQUEST_URL'),
     oidcRequestToken: required('ACTIONS_ID_TOKEN_REQUEST_TOKEN'),

@@ -124,10 +124,12 @@ preview client.
 
 The **Preview Authentication** workflow reconciles exact callbacks for live branch
 Previews and named `staging` after successful Cloudflare builds, branch deletion,
-and hourly. Set the repository's `CLOUDFLARE_ACCOUNT_ID` variable and
-`CLOUDFLARE_PREVIEW_READ_TOKEN` secret (Workers Content Read-Only). The auth service
-must set `EXTENSIONS_PREVIEW_CLIENT_ID` to this client. It accepts updates only
-from the trusted workflow on `main`, authenticated through GitHub Actions OIDC.
+and hourly. Make the organization's `CLOUDFLARE_ACCOUNT_ID` variable available to
+this repository and set its `CLOUDFLARE_API_TOKEN` Actions secret. For callback
+discovery, scope the token to `extensions` with Individual Workers Metadata
+Read-Only. The auth service must set `EXTENSIONS_PREVIEW_CLIENT_ID` to this client.
+It accepts updates only from the trusted workflow on `main`, authenticated through
+GitHub Actions OIDC.
 
 ## License
 
