@@ -119,9 +119,6 @@ Workers. API-side cache invalidation targets the named directory Preview.
 Other branch Previews use normal cache expiry and invalidate their own cache
 after directory edits.
 
-Register `https://staging-extensions.fossbilling.workers.dev/auth/callback` on the
-preview client.
-
 The **Preview Authentication** workflow reconciles exact callbacks for live branch
 Previews and named `staging` after successful Cloudflare builds, branch deletion,
 and hourly. Make the organization's `CLOUDFLARE_ACCOUNT_ID` variable available to
