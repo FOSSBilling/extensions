@@ -40,7 +40,7 @@ export const POST: APIRoute = async (context) => {
     if (JSON.stringify(changed) === JSON.stringify(base))
       return fail('There are no changes to submit.');
     const payload = await applyLatestPackageManifest(api, changed, base);
-    if (payload !== changed) await prepareExtensionDraft(api, id, draft);
+    await prepareExtensionDraft(api, id, draft);
     if (pending) await api.replacePendingRevision(id, pending.id, payload);
     else await api.updateExtension(id, payload);
     await setFlash(context, env.sessionSecret, {

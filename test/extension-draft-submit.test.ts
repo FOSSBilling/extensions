@@ -84,6 +84,19 @@ describe('draft submission', () => {
       readme: '# Changed',
     });
   });
+  it('rejects a README change when the baseline changes before submission', async () => {
+    mocks.getMyExtension.mockResolvedValueOnce({
+      published: base,
+      pending_revision: null,
+    });
+    mocks.getMyExtension.mockResolvedValueOnce({
+      published: { ...base, description: 'Another edit' },
+      pending_revision: null,
+    });
+    const response = await POST(await context());
+    expect(response.status).toBe(409);
+    expect(mocks.updateExtension).not.toHaveBeenCalled();
+  });
   it('authorizes before reading any extension content', async () => {
     mocks.guard.mockResolvedValue(new Response(null, { status: 302 }));
     expect((await POST(await context())).status).toBe(302);
@@ -284,6 +297,9 @@ it('updates selected manifest metadata from a replacement ZIP and preserves the 
     ),
   );
   expect(response.status).toBe(200);
+  expect(mocks.getPackage).toHaveBeenCalledExactlyOnceWith(
+    replacement.artifact_id,
+  );
   expect(mocks.replacePendingRevision).toHaveBeenCalledWith(
     'example',
     'pending',
@@ -295,6 +311,28 @@ it('updates selected manifest metadata from a replacement ZIP and preserves the 
       releases: [replacement],
     }),
   );
+});
+
+it('keeps the pending revision when the replacement package is unavailable', async () => {
+  const replacement = {
+    ...base.releases[0],
+    artifact_id: '22222222-2222-4222-8222-222222222222',
+    sha256: 'b'.repeat(64),
+  };
+  mocks.getMyExtension.mockResolvedValue({
+    published: null,
+    pending_revision: { id: 'pending', content: base },
+  });
+  mocks.getPackage.mockRejectedValueOnce(
+    new ApiRequestError(404, 'not_found', 'Package not found'),
+  );
+  const response = await POST(
+    await context({ pendingRevisionId: 'pending', releases: [replacement] }),
+  );
+  expect(response.status).toBe(404);
+  expect(await response.json()).toEqual({ error: 'Package not found' });
+  expect(mocks.replacePendingRevision).not.toHaveBeenCalled();
+  expect(mocks.updateExtension).not.toHaveBeenCalled();
 });
 
 it('updates only the directory description without fetching the release package', async () => {

@@ -17,6 +17,7 @@ import {
 import { artifactRelease, releaseDownloadHref } from '@/lib/extension-package';
 import { compatibilityLabel } from '@/lib/requirements';
 import {
+  defaultLatestForVersion,
   latestRelease,
   releasesDescending,
   selectLatestRelease,
@@ -69,7 +70,7 @@ export function initExtensionWorkspace() {
   let busy = false;
   type PendingPackage = {
     job: PackageJob;
-    details: Pick<Release, 'date' | 'changelog_url'>;
+    release: Pick<Release, 'date' | 'changelog_url'>;
     input: Record<string, string>;
     baselineHash: string;
     pendingRevisionId?: string;
@@ -187,6 +188,12 @@ export function initExtensionWorkspace() {
     const current = content();
     if (headerName) headerName.textContent = current.name || fallbackName;
     const latest = latestRelease(current.releases);
+    const manifestFields = find<HTMLFieldSetElement>('[data-manifest-fields]');
+    if (manifestFields) {
+      manifestFields.hidden = manifestFields.disabled = Boolean(
+        latest?.artifact_id,
+      );
+    }
     const headerIcon = document.querySelector<HTMLImageElement>(
       '[data-extension-icon]',
     );
@@ -313,8 +320,10 @@ export function initExtensionWorkspace() {
         field instanceof HTMLInputElement ||
         field instanceof HTMLTextAreaElement ||
         field instanceof HTMLSelectElement
-      )
+      ) {
         field.value = value;
+        field.setCustomValidity('');
+      }
     }
     customLicense(form);
   }
@@ -410,9 +419,13 @@ export function initExtensionWorkspace() {
   const releaseForm = find<HTMLFormElement>('[data-release-form]');
   const releaseEditor = find<HTMLElement>('[data-release-editor]');
   const releaseFields = find<HTMLFieldSetElement>('[data-release-fields]');
+  let latestChoiceTouched = false;
   const latestCheckbox = releaseForm?.elements.namedItem(
     'is_latest',
   ) as HTMLInputElement | null;
+  latestCheckbox?.addEventListener('change', () => {
+    latestChoiceTouched = true;
+  });
   function editRelease(tag?: string) {
     if (!releaseForm) return;
     if (
@@ -421,6 +434,7 @@ export function initExtensionWorkspace() {
     )
       return;
     releaseForm.reset();
+    latestChoiceTouched = false;
     const current = content();
     const release = current.releases.find((item) => item.tag === tag);
     fill(releaseForm, {
@@ -640,11 +654,14 @@ export function initExtensionWorkspace() {
           item.tag === input.original_tag ? release : item,
         )
       : [...current.releases, release];
-    let selected =
-      input.is_latest === 'on'
-        ? release.tag
-        : latestRelease(current.releases)?.tag;
-    if (input.is_latest !== 'on' && input.original_tag === selected) {
+    const setLatest =
+      input.is_latest === undefined
+        ? defaultLatestForVersion(release.tag)
+        : input.is_latest === 'on';
+    let selected = setLatest
+      ? release.tag
+      : latestRelease(current.releases)?.tag;
+    if (!setLatest && input.original_tag === selected) {
       const hasPackages = releases.some((item) => item.artifact_id);
       const alternatives = releases.filter(
         (item) =>
@@ -685,7 +702,7 @@ export function initExtensionWorkspace() {
         },
       });
       savePreparedRelease(
-        artifactRelease(pending.details, artifact),
+        artifactRelease(pending.release, artifact),
         pending.input,
       );
     } catch (cause) {
@@ -724,7 +741,11 @@ export function initExtensionWorkspace() {
         return;
       }
       const input = fields(releaseForm);
-      input.is_latest = latestCheckbox?.checked ? 'on' : '';
+      // The ZIP determines the version, so defer a new release's default until
+      // the manifest is ready. Preserve choices made in the editor.
+      if (input.original_tag || latestChoiceTouched)
+        input.is_latest = latestCheckbox?.checked ? 'on' : '';
+      else delete input.is_latest;
       const current = content();
       const original = current.releases.find(
         (item) => item.tag === input.original_tag,
@@ -776,7 +797,7 @@ export function initExtensionWorkspace() {
       const job = await completePackageUpload(result.reservation, source);
       pendingPackage = {
         job,
-        details: result.details,
+        release: result.details,
         input,
         baselineHash: config.baselineHash,
         pendingRevisionId: config.pendingRevisionId,
@@ -823,8 +844,10 @@ export function initExtensionWorkspace() {
       .forEach((form) => {
         setSectionEditing(form, form.dataset.sectionForm!, false);
       });
-    if (releaseEditor) releaseEditor.hidden = true;
-    releaseFields.disabled = false;
+    if (releaseEditor) {
+      releaseEditor.hidden = true;
+      releaseFields.disabled = false;
+    }
     error('');
     refresh();
   });
@@ -894,10 +917,10 @@ export function initExtensionWorkspace() {
     }
   });
   refresh();
-  if (pendingPackage && !blocked) {
+  if (releaseForm && pendingPackage && !blocked) {
     const input = pendingPackage.input;
     releaseForm
-      ?.querySelectorAll<HTMLElement>('input,select,textarea')
+      .querySelectorAll<HTMLElement>('input,select,textarea')
       .forEach((field) => {
         if (!(
           field instanceof HTMLInputElement ||
@@ -907,7 +930,7 @@ export function initExtensionWorkspace() {
           return;
         if (field instanceof HTMLInputElement && field.type === 'file') return;
         if (field instanceof HTMLInputElement && field.type === 'checkbox')
-          field.checked = input[field.name] === 'on';
+          field.checked = (input[field.name] ?? 'on') === 'on';
         else if (field.name in input) field.value = input[field.name];
       });
     void resumePackage().catch((cause) => {

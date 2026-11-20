@@ -153,6 +153,39 @@ describe('extension drafts', () => {
     expect(result.name).toBe(base.name);
   });
 
+  it('keeps manifest fields locked when the draft selects a managed ZIP', () => {
+    const next = {
+      ...base.releases[0],
+      tag: '2.0.0',
+      download_url: 'https://example.test/2.zip',
+      artifact_id: '11111111-1111-4111-8111-111111111111',
+      sha256: 'a'.repeat(64),
+      is_latest: true,
+    };
+    const sections = draft({
+      listing: {
+        description: 'Updated listing',
+        source_url: 'https://example.test/source',
+        name: 'Old draft name',
+        type: 'theme',
+        author_name: 'Old draft author',
+        license_spdx_id: 'MIT',
+      },
+    });
+    const result = applyExtensionDraft(base, {
+      ...sections,
+      releases: [...base.releases, next],
+    });
+    expect(result).toMatchObject({
+      name: base.name,
+      type: base.type,
+      author: base.author,
+      license: base.license,
+      description: 'Updated listing',
+      version: '2.0.0',
+    });
+  });
+
   it('automatically selects the next release when the latest is removed', () => {
     const newer = {
       ...base.releases[0],

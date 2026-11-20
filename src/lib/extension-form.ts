@@ -7,7 +7,7 @@ import type {
 } from '@/lib/api/client';
 import { artifactRelease } from './extension-package';
 import { latestRelease } from './releases';
-import { repositoryFromFields } from './repository';
+import { repositoryFromFields, SOURCE_URL_ERROR } from './repository';
 import { formString } from './form';
 import { withHttpsScheme } from './url-prefix';
 
@@ -45,12 +45,41 @@ export function buildLicense(form: FormData): string {
   return license;
 }
 
+export function formUrl(
+  value: unknown,
+  label: string,
+  optional = false,
+): string | undefined {
+  const raw = typeof value === 'string' ? value.trim() : '';
+  if (!raw && optional) return undefined;
+  const url = withHttpsScheme(raw);
+  try {
+    if (url && new URL(url).hostname) return url;
+  } catch {
+    /* Report the field below. */
+  }
+  throw new ExtensionValidationError(`Enter a valid ${label}.`);
+}
+
+export function releaseDetails(fields: Record<string, unknown>) {
+  const date =
+    typeof fields.release_date === 'string' ? fields.release_date.trim() : '';
+  if (!date) throw new ExtensionValidationError('Release date is required.');
+  if (
+    !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
+    Number.isNaN(Date.parse(date)) ||
+    new Date(date).toISOString().slice(0, 10) !== date
+  )
+    throw new ExtensionValidationError('Enter a valid release date.');
+  return {
+    date,
+    changelog_url: formUrl(fields.changelog_url, 'changelog URL', true),
+  };
+}
+
 function directoryFields(form: FormData) {
   const source = repositoryFromFields(Object.fromEntries(form));
-  if (!source)
-    throw new ExtensionValidationError(
-      'Enter a valid Source URL. Repository paths and custom URLs must be at most 500 characters.',
-    );
+  if (!source) throw new ExtensionValidationError(SOURCE_URL_ERROR);
   return {
     description: formString(form, 'description'),
     readme: formString(form, 'readme'),
@@ -72,13 +101,7 @@ export function buildExtensionCreatePayload(
     download_url: artifact.download_url,
     releases: [
       {
-        ...artifactRelease(
-          {
-            date: formString(form, 'release_date'),
-            changelog_url: withHttpsScheme(formString(form, 'changelog_url')),
-          },
-          artifact,
-        ),
+        ...artifactRelease(releaseDetails(Object.fromEntries(form)), artifact),
         is_latest: true,
       },
     ],

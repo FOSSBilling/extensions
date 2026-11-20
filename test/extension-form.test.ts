@@ -96,6 +96,14 @@ describe('directory submission forms', () => {
       sha256: artifact.sha256,
     });
   });
+  it('requires a real release date for a new submission', () => {
+    expect(() =>
+      createPayload(extensionForm({ release_date: '' }), artifact),
+    ).toThrow('Release date is required.');
+    expect(() =>
+      createPayload(extensionForm({ release_date: '2026-02-30' }), artifact),
+    ).toThrow('Enter a valid release date.');
+  });
   it('accepts a directory-only description override', () => {
     const payload = createPayload(
       extensionForm({ description: 'Directory description' }),

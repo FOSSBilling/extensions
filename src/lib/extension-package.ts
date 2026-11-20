@@ -14,7 +14,8 @@ export function artifactRelease(
   artifact: PackageArtifact,
 ): Release {
   return {
-    ...details,
+    date: details.date,
+    changelog_url: details.changelog_url,
     tag: artifact.manifest.version,
     artifact_id: artifact.id,
     sha256: artifact.sha256,

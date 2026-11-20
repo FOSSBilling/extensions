@@ -1,4 +1,6 @@
 ---
+import SourceUrlField from './SourceUrlField.astro';
+
 interface Props {
   values?: { description: string; sourceUrl: string; readme: string };
 }
@@ -18,16 +20,7 @@ const { values } = Astro.props;
     }
   >{values?.description}</textarea>
 </label>
-<label class="grid gap-2 text-sm font-medium">
-  Source URL
-  <input
-    class="input w-full"
-    name="source_url"
-    type="url"
-    value={values?.sourceUrl}
-    required
-  />
-</label>
+<SourceUrlField value={values?.sourceUrl} />
 <label class="grid gap-2 text-sm font-medium">
   README (Markdown)
   <textarea

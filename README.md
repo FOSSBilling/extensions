@@ -138,7 +138,7 @@ Individual extensions are licensed by their respective authors.
 
 The generated v2 client follows the API's manifest v1 contract: `module`, string licenses, optional `homepage_url`, package authors, and full FOSSBilling/PHP/module requirements. Author/edit/moderator forms preserve these fields.
 
-Package preparation is queued. The API returns a private job ID; the release editor shows queued/processing status and saves that reference in browser storage so it can resume after a reload. A completed release joins the local draft and still needs review. Manifest corrections reuse stored source; new submissions and server-side corrections wait for the same job contract with a bounded timeout.
+Package preparation is queued. The API returns a private job ID; the release editor shows queued/processing status and saves that reference in browser storage so it can resume after a reload. A completed release joins the local draft and still needs review. A pending release can receive a replacement ZIP. Once published, its validated ZIP stays locked and listing corrections leave the file unchanged.
 
 Authors upload ready-to-install distribution ZIPs directly to private object storage using a short-lived URL issued by the API. The package bucket needs a PUT CORS rule for the directory’s origin. Icons use `icon.svg`, `icon.png`, `icon.webp` or `icon.avif` at the package root, without a manifest field. The API prepares display images in the public asset bucket during processing, including pending icons at unlisted UUID URLs. Existing HTTP(S) icon URLs remain supported for display. Package downloads and pending previews use permission-checked API routes.
 

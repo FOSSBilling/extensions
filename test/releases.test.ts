@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  defaultLatestForVersion,
   latestRelease,
   releasesDescending,
   selectLatestRelease,
@@ -69,6 +70,10 @@ describe('automatic latest release', () => {
 });
 
 describe('selected latest release', () => {
+  it('offers the default selection only for stable ZIP versions', () => {
+    expect(defaultLatestForVersion('2.0.0')).toBe(true);
+    expect(defaultLatestForVersion('2.0.0-rc.1')).toBe(false);
+  });
   it('uses an explicit choice without reordering version history', () => {
     const older = { ...release('1.0.0'), is_latest: true };
     const newer = release('2.0.0');

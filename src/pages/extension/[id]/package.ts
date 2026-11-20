@@ -6,8 +6,7 @@ import {
   getApiErrorMessage,
 } from '@/lib/api/client';
 import { prepareExtensionDraft } from '@/lib/extension-draft-server';
-import { releaseDetails } from '@/lib/extension-draft';
-import { ExtensionValidationError } from '@/lib/extension-form';
+import { ExtensionValidationError, releaseDetails } from '@/lib/extension-form';
 import { packageFormData, packageSourceFields } from '@/lib/package-upload';
 import { formString } from '@/lib/form';
 

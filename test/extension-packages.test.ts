@@ -167,6 +167,21 @@ describe('release package editor', () => {
     expect((await POST(await context({ sourceBytes: 128 }))).status).toBe(404);
     expect(mocks.reservePackage).not.toHaveBeenCalled();
   });
+  it('returns a private 404 for a job the signed-in user cannot access', async () => {
+    const id = '44444444-4444-4444-8444-444444444444';
+    const url = new URL(`https://site.test/api/package-uploads?jobId=${id}`);
+    mocks.getPackageJob.mockRejectedValueOnce(
+      new ApiRequestError(404, 'not_found', 'Package job not found'),
+    );
+    const response = await GET({
+      ...(await context()),
+      url,
+      request: new Request(url),
+    });
+    expect(response.status).toBe(404);
+    expect(response.headers.get('Cache-Control')).toBe('private, no-store');
+    expect(await response.json()).toEqual({ error: 'Package job not found' });
+  });
   it('proxies private progress before the ZIP manifest has been read', async () => {
     const id = '44444444-4444-4444-8444-444444444444';
     const url = new URL(`https://site.test/api/package-uploads?jobId=${id}`);

@@ -1,9 +1,13 @@
 import type { ExtensionUpdate } from '@/lib/api/client';
 import { isExtensionType, isSourceType, type Release } from '@/types';
-import { buildLicense, ExtensionValidationError } from './extension-form';
+import {
+  buildLicense,
+  ExtensionValidationError,
+  formUrl,
+  releaseDetails,
+} from './extension-form';
 import { latestRelease } from './releases';
-import { repositoryFromFields } from './repository';
-import { withHttpsScheme } from './url-prefix';
+import { repositoryFromFields, SOURCE_URL_ERROR } from './repository';
 
 export type DraftSection = 'listing' | 'readme';
 export interface ExtensionDraft {
@@ -153,37 +157,6 @@ function required(
   if (!value) throw new ExtensionValidationError(`${label} is required.`);
   return value;
 }
-function url(
-  fields: Record<string, unknown>,
-  key: string,
-  label: string,
-  optional = false,
-): string | undefined {
-  const raw = text(fields, key);
-  if (!raw && optional) return undefined;
-  const value = withHttpsScheme(raw);
-  try {
-    if (value && new URL(value).hostname) return value;
-  } catch {
-    /* Report the field below. */
-  }
-  throw new ExtensionValidationError(`Enter a valid ${label}.`);
-}
-
-export function releaseDetails(fields: Record<string, unknown>) {
-  const date = required(fields, 'release_date', 'Release date');
-  if (
-    !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
-    Number.isNaN(Date.parse(date)) ||
-    new Date(date).toISOString().slice(0, 10) !== date
-  )
-    throw new ExtensionValidationError('Enter a valid release date.');
-  return {
-    date,
-    changelog_url: url(fields, 'changelog_url', 'changelog URL', true),
-  };
-}
-
 function releaseRequirements(value: unknown): Release['requires'] {
   const isConstraint = (constraint: unknown): constraint is string =>
     typeof constraint === 'string' &&
@@ -216,38 +189,6 @@ export function applyExtensionDraft(
   if (!record(value) || !record(value.sections))
     throw new ExtensionValidationError('This draft could not be read.');
   const result = structuredClone(base);
-  for (const [section, raw] of Object.entries(value.sections)) {
-    if (!record(raw))
-      throw new ExtensionValidationError(
-        'This draft contains an invalid section.',
-      );
-    if (section === 'listing') {
-      result.description = required(raw, 'description', 'Description');
-      const source = repositoryFromFields(raw);
-      if (!source)
-        throw new ExtensionValidationError(
-          'Enter a valid Source URL. Repository paths and custom URLs must be at most 500 characters.',
-        );
-      result.source = source;
-      if (latestRelease(base.releases)?.artifact_id) continue;
-      const type = text(raw, 'type');
-      if (!isExtensionType(type))
-        throw new ExtensionValidationError('Choose a valid extension type.');
-      result.name = required(raw, 'name', 'Name');
-      result.type = type;
-      result.homepage_url = url(raw, 'homepage_url', 'homepage URL', true);
-      result.author = {
-        name: required(raw, 'author_name', 'Author name'),
-        url: url(raw, 'author_url', 'author URL', true),
-      };
-      result.license = buildLicense(toFormData(raw));
-    } else if (section === 'readme') {
-      result.readme = required(raw, 'readme', 'README');
-    } else
-      throw new ExtensionValidationError(
-        'This draft contains an unknown section.',
-      );
-  }
   if (value.releases !== undefined) {
     if (
       !Array.isArray(value.releases) ||
@@ -281,7 +222,7 @@ export function applyExtensionDraft(
               : raw.date,
           changelog_url: raw.changelog_url,
         }),
-        download_url: url(raw, 'download_url', 'download URL')!,
+        download_url: formUrl(raw.download_url, 'download URL')!,
         requires: releaseRequirements(raw.requires),
         ...(artifactId
           ? {
@@ -309,15 +250,44 @@ export function applyExtensionDraft(
     result.releases.filter((release) => release.is_latest === true).length > 1
   )
     throw new ExtensionValidationError('Select only one latest release.');
-  // Keep the main download and manifest aligned with the selected release.
-  if (Object.keys(value.sections).length || value.releases !== undefined) {
-    const latest = latestRelease(result.releases);
-    if (latest) {
-      // Keep the manifest aligned with its latest release.
-      result.requires = structuredClone(latest.requires);
-      result.version = latest.tag.replace(/^v(?=\d)/, '');
-      result.download_url = latest.download_url;
-    }
+  const latest = latestRelease(result.releases);
+  for (const [section, raw] of Object.entries(value.sections)) {
+    if (!record(raw))
+      throw new ExtensionValidationError(
+        'This draft contains an invalid section.',
+      );
+    if (section === 'listing') {
+      result.description = required(raw, 'description', 'Description');
+      const source = repositoryFromFields(raw);
+      if (!source) throw new ExtensionValidationError(SOURCE_URL_ERROR);
+      result.source = source;
+      if (latest?.artifact_id || !('type' in raw)) continue;
+      const type = text(raw, 'type');
+      if (!isExtensionType(type))
+        throw new ExtensionValidationError('Choose a valid extension type.');
+      result.name = required(raw, 'name', 'Name');
+      result.type = type;
+      result.homepage_url = formUrl(raw.homepage_url, 'homepage URL', true);
+      result.author = {
+        name: required(raw, 'author_name', 'Author name'),
+        url: formUrl(raw.author_url, 'author URL', true),
+      };
+      result.license = buildLicense(toFormData(raw));
+    } else if (section === 'readme') {
+      result.readme = required(raw, 'readme', 'README');
+    } else
+      throw new ExtensionValidationError(
+        'This draft contains an unknown section.',
+      );
+  }
+  // Keep the main download and compatibility aligned with the selected release.
+  if (
+    latest &&
+    (Object.keys(value.sections).length || value.releases !== undefined)
+  ) {
+    result.requires = structuredClone(latest.requires);
+    result.version = latest.tag.replace(/^v(?=\d)/, '');
+    result.download_url = latest.download_url;
   }
   return result;
 }

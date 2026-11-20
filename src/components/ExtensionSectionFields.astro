@@ -8,6 +8,7 @@ import {
   repositoryURL,
 } from '@/types';
 import { OTHER_LICENSE } from '@/lib/extension-form';
+import SourceUrlField from './SourceUrlField.astro';
 interface Props {
   section: DraftSection;
   content: ExtensionUpdate;
@@ -28,104 +29,98 @@ const { section, content, packageManaged } = Astro.props;
         maxlength="500"
       >{content.description}</textarea>
     </label>
-    <label class="grid gap-2 text-sm font-medium">
-      Source URL
-      <input
-        class="input w-full"
-        type="url"
-        name="source_url"
-        required
-        maxlength="2048"
-        value={content.source.repo ? repositoryURL(content.source) : ''}
-        placeholder="https://github.com/owner/project"
-      />
-    </label>
-    {!packageManaged && (
-      <>
-        <label class="grid gap-2 text-sm font-medium">
-          Name
-          <input
-            class="input w-full"
-            name="name"
-            required
-            maxlength="100"
-            value={content.name}
-          />
-        </label>
-        <label class="grid gap-2 text-sm font-medium">
-          Extension Type
-          <select class="select w-full" name="type">
-            {EXTENSION_TYPES.map((type) => (
-              <option value={type} selected={content.type === type}>
-                {EXTENSION_TYPE_LABELS[type]}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label class="grid gap-2 text-sm font-medium">
-          Homepage
-          <input
-            class="input w-full"
-            name="homepage_url"
-            type="url"
-            value={content.homepage_url}
-          />
-        </label>
-        <label class="grid gap-2 text-sm font-medium">
-          Author Name
-          <input
-            class="input w-full"
-            name="author_name"
-            required
-            maxlength="200"
-            value={content.author.name}
-          />
-        </label>
-        <label class="grid gap-2 text-sm font-medium">
-          Author URL{' '}
-          <span class="font-normal text-muted-foreground">Optional</span>
-          <input
-            class="input w-full"
-            type="url"
-            name="author_url"
-            value={content.author.url}
-          />
-        </label>
-        <label class="grid gap-2 text-sm font-medium">
-          License
-          <select class="select w-full" name="license_spdx_id">
-            {SPDX_LICENSE_IDS.map((id) => (
-              <option value={id} selected={content.license === id}>
-                {id}
-              </option>
-            ))}
-            <option
-              value={OTHER_LICENSE}
-              selected={!SPDX_LICENSE_IDS.includes(content.license)}
-            >
-              Other / Proprietary
+    <SourceUrlField
+      value={content.source.repo ? repositoryURL(content.source) : ''}
+    />
+    <fieldset
+      class="min-w-0 space-y-4"
+      data-manifest-fields
+      hidden={packageManaged}
+      disabled={packageManaged}
+    >
+      <label class="grid gap-2 text-sm font-medium">
+        Name
+        <input
+          class="input w-full"
+          name="name"
+          required
+          maxlength="100"
+          value={content.name}
+        />
+      </label>
+      <label class="grid gap-2 text-sm font-medium">
+        Extension Type
+        <select class="select w-full" name="type">
+          {EXTENSION_TYPES.map((type) => (
+            <option value={type} selected={content.type === type}>
+              {EXTENSION_TYPE_LABELS[type]}
             </option>
-          </select>
-        </label>
-        <label
-          class="grid gap-2 text-sm font-medium"
-          data-custom-license
-          hidden={SPDX_LICENSE_IDS.includes(content.license)}
-        >
-          Custom License Name
-          <input
-            class="input w-full"
-            name="license_name_custom"
-            value={
-              SPDX_LICENSE_IDS.includes(content.license)
-                ? undefined
-                : content.license
-            }
-            maxlength="1000"
-          />
-        </label>
-      </>
-    )}
+          ))}
+        </select>
+      </label>
+      <label class="grid gap-2 text-sm font-medium">
+        Homepage
+        <input
+          class="input w-full"
+          name="homepage_url"
+          type="url"
+          value={content.homepage_url}
+        />
+      </label>
+      <label class="grid gap-2 text-sm font-medium">
+        Author Name
+        <input
+          class="input w-full"
+          name="author_name"
+          required
+          maxlength="200"
+          value={content.author.name}
+        />
+      </label>
+      <label class="grid gap-2 text-sm font-medium">
+        Author URL{' '}
+        <span class="font-normal text-muted-foreground">Optional</span>
+        <input
+          class="input w-full"
+          type="url"
+          name="author_url"
+          value={content.author.url}
+        />
+      </label>
+      <label class="grid gap-2 text-sm font-medium">
+        License
+        <select class="select w-full" name="license_spdx_id">
+          {SPDX_LICENSE_IDS.map((id) => (
+            <option value={id} selected={content.license === id}>
+              {id}
+            </option>
+          ))}
+          <option
+            value={OTHER_LICENSE}
+            selected={!SPDX_LICENSE_IDS.includes(content.license)}
+          >
+            Other / Proprietary
+          </option>
+        </select>
+      </label>
+      <label
+        class="grid gap-2 text-sm font-medium"
+        data-custom-license
+        hidden={SPDX_LICENSE_IDS.includes(content.license)}
+      >
+        Custom License Name
+        <input
+          class="input w-full"
+          name="license_name_custom"
+          value={
+            SPDX_LICENSE_IDS.includes(content.license)
+              ? undefined
+              : content.license
+          }
+          maxlength="1000"
+        />
+      </label>
+    </fieldset>
   </>
 )}
 {section === 'readme' && (
