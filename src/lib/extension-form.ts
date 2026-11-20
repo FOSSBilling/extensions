@@ -9,6 +9,7 @@ import { artifactRelease } from './extension-package';
 import { latestRelease } from './releases';
 import { repositoryFromFields, SOURCE_URL_ERROR } from './repository';
 import { formString } from './form';
+import { isSafeHttpUrl } from './safe-url';
 import { withHttpsScheme } from './url-prefix';
 
 // Thrown for form-level validation failures that should be shown to the
@@ -48,20 +49,16 @@ export function buildLicense(form: FormData): string {
 export function formUrl(
   value: unknown,
   label: string,
-  optional = false,
+  { optional = false, preserveScheme = false } = {},
 ): string | undefined {
   const raw = typeof value === 'string' ? value.trim() : '';
   if (!raw && optional) return undefined;
-  const url = withHttpsScheme(raw);
+  const url = preserveScheme ? raw : withHttpsScheme(raw);
   if (url && url.length > 2048)
     throw new ExtensionValidationError(
       `Enter a ${label} of 2,048 characters or fewer.`,
     );
-  try {
-    if (url && new URL(url).hostname) return url;
-  } catch {
-    /* Report the field below. */
-  }
+  if (isSafeHttpUrl(url)) return url;
   throw new ExtensionValidationError(`Enter a valid ${label}.`);
 }
 
@@ -77,7 +74,9 @@ export function releaseDetails(fields: Record<string, unknown>) {
     throw new ExtensionValidationError('Enter a valid release date.');
   return {
     date,
-    changelog_url: formUrl(fields.changelog_url, 'changelog URL', true),
+    changelog_url: formUrl(fields.changelog_url, 'changelog URL', {
+      optional: true,
+    }),
   };
 }
 

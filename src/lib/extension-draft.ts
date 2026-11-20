@@ -8,7 +8,6 @@ import {
 } from './extension-form';
 import { latestRelease } from './releases';
 import { repositoryFromFields, SOURCE_URL_ERROR } from './repository';
-import { isSafeHttpUrl } from './safe-url';
 
 export type DraftSection = 'listing' | 'readme';
 export interface ExtensionDraft {
@@ -214,12 +213,6 @@ export function applyExtensionDraft(
       if (previous && JSON.stringify(previous) === JSON.stringify(raw))
         return structuredClone(previous);
       const artifactId = text(raw, 'artifact_id');
-      // The API compares the download URL of managed releases with the artifact.
-      const artifactUrl = artifactId
-        ? required(raw, 'download_url', 'Download URL')
-        : undefined;
-      if (artifactUrl && !isSafeHttpUrl(artifactUrl))
-        throw new ExtensionValidationError('Enter a valid download URL.');
       const release: Release = {
         tag,
         ...releaseDetails({
@@ -229,7 +222,10 @@ export function applyExtensionDraft(
               : raw.date,
           changelog_url: raw.changelog_url,
         }),
-        download_url: artifactUrl ?? formUrl(raw.download_url, 'download URL')!,
+        // The API compares the download URL of managed releases with the artifact.
+        download_url: formUrl(raw.download_url, 'download URL', {
+          preserveScheme: Boolean(artifactId),
+        })!,
         requires: releaseRequirements(raw.requires),
         ...(artifactId
           ? {
@@ -274,10 +270,12 @@ export function applyExtensionDraft(
         throw new ExtensionValidationError('Choose a valid extension type.');
       result.name = required(raw, 'name', 'Name');
       result.type = type;
-      result.homepage_url = formUrl(raw.homepage_url, 'homepage URL', true);
+      result.homepage_url = formUrl(raw.homepage_url, 'homepage URL', {
+        optional: true,
+      });
       result.author = {
         name: required(raw, 'author_name', 'Author name'),
-        url: formUrl(raw.author_url, 'author URL', true),
+        url: formUrl(raw.author_url, 'author URL', { optional: true }),
       };
       result.license = buildLicense(toFormData(raw));
     } else if (section === 'readme') {
