@@ -2,7 +2,7 @@ import { ExtensionValidationError } from './extension-form';
 import { MAX_SOURCE_BYTES } from './extension-package';
 import { formString } from './form';
 import { sha256Hex } from './hash';
-import type { Manifest, PackageJob } from './api/client';
+import type { PackageJob } from './api/client';
 import type { PackageReservation } from './api/generated/extensions-v2';
 
 export const MAX_PACKAGE_REQUEST_BYTES = 512 * 1024;
@@ -95,9 +95,8 @@ async function uploadRequest<T>(
   return result.result;
 }
 
-export async function reservePackageUpload(manifest: Manifest, source: File) {
+export async function reservePackageUpload(source: File) {
   const form = new FormData();
-  form.set('manifest', JSON.stringify(manifest));
   await describePackageSource(form, source);
   return uploadRequest<PackageReservation>('POST', form);
 }
@@ -128,11 +127,8 @@ export async function completePackageUpload(
   return uploadRequest<PackageJob>('PUT', form);
 }
 
-export async function readPackageJob(
-  path: string,
-  id: string,
-): Promise<PackageJob> {
-  const url = new URL(path, location.origin);
+export async function readPackageJob(id: string): Promise<PackageJob> {
+  const url = new URL('/api/package-uploads', location.origin);
   url.searchParams.set('jobId', id);
   const response = await fetch(url, { redirect: 'manual' });
   if (response.status === 0 || response.status === 302)

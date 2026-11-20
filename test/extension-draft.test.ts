@@ -3,7 +3,6 @@ import {
   applyExtensionDraft,
   editableContent,
   reconstructionContent,
-  releaseFromFields,
   serializeDraftConfig,
   type ExtensionDraft,
 } from '@/lib/extension-draft';
@@ -294,21 +293,15 @@ describe('extension drafts', () => {
     ).toThrow(ExtensionValidationError);
   });
   it('rejects impossible release dates and invalid URLs', () => {
-    const fields = {
-      version_tag: '2.0.0',
-      release_date: '2026-02-30',
-      download_url: 'https://example.test/2.zip',
-      requires: { fossbilling: '>=0.7.0', php: '>=8.3' },
-    };
-    expect(() => releaseFromFields(fields)).toThrow('date');
+    const release = { ...base.releases[0], date: '2026-02-30' };
+    const apply = (releases: ExtensionUpdate['releases']) =>
+      applyExtensionDraft(base, { ...draft({}), releases });
+    expect(() => apply([release])).toThrow('date');
     expect(() =>
-      releaseFromFields({
-        ...fields,
-        release_date: '2026-02-28',
-        download_url: 'https://%',
-      }),
+      apply([{ ...release, date: '2026-02-28', download_url: 'https://%' }]),
     ).toThrow('URL');
   });
+
   it('does not treat incomplete historical content as an editable baseline', () => {
     expect(editableContent({ name: 'Historical name' })).toBeNull();
     expect(
@@ -382,21 +375,6 @@ describe('manifest fields in section drafts', () => {
     expect(result.author).toEqual(manifest.author);
     expect(result.requires).toEqual(requires);
     expect(result.releases).toEqual(manifest.releases);
-  });
-  it('saves release-specific requirements without rewriting constraints', () => {
-    const release = releaseFromFields({
-      version_tag: '2.0.0',
-      release_date: '2026-11-04',
-      download_url: 'https://example.test/2.zip',
-      requires_fossbilling: '^0.8.9 || ^1.0',
-      requires_php: '>=8.3 <9',
-      requires_modules: 'branding: ^1.2',
-    });
-    expect(release.requires).toEqual({
-      fossbilling: '^0.8.9 || ^1.0',
-      php: '>=8.3 <9',
-      modules: { branding: '^1.2' },
-    });
   });
   it('does not invent compatibility requirements when rebuilding old submissions', () => {
     const reconstructed = reconstructionContent({

@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import {
-  defaultLatestForVersion,
   latestRelease,
   releasesDescending,
   selectLatestRelease,
@@ -86,21 +85,17 @@ describe('selected latest release', () => {
   });
 });
 
-it('moves the sole latest flag and defaults prereleases to unchecked', () => {
+it('moves the sole latest flag', () => {
   const result = selectLatestRelease(
     [{ ...release('1.0.0'), is_latest: true }, release('2.0.0')],
     '2.0.0',
   );
   expect(result.filter((item) => item.is_latest)).toHaveLength(1);
   expect(latestRelease(result)?.tag).toBe('2.0.0');
-  expect(defaultLatestForVersion('2.1.0')).toBe(true);
-  expect(defaultLatestForVersion('2.1.0-beta.1')).toBe(false);
 });
 
-it('does not select unknown releases or default invalid tags to latest', () => {
+it('does not select unknown releases', () => {
   expect(() => selectLatestRelease([release('1.0.0')], '9.9.9')).toThrow(
     'Choose an existing release.',
   );
-  expect(defaultLatestForVersion('1.0')).toBe(false);
-  expect(defaultLatestForVersion('2.0-beta')).toBe(false);
 });

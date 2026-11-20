@@ -51,7 +51,3 @@ export function selectLatestRelease(
     release.tag === tag ? { ...release, is_latest: true } : release,
   );
 }
-
-export function defaultLatestForVersion(tag: string): boolean {
-  return Boolean(valid(tag)) && prerelease(tag) === null;
-}

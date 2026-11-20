@@ -1,0 +1,40 @@
+---
+interface Props {
+  values?: { description: string; sourceUrl: string; readme: string };
+}
+const { values } = Astro.props;
+---
+
+<label class="grid gap-2 text-sm font-medium">
+  Short Description
+  <textarea
+    class="textarea w-full"
+    name="description"
+    rows="3"
+    maxlength="500"
+    required={!!values}
+    placeholder={
+      values ? undefined : 'Defaults to the description in manifest.json'
+    }
+  >{values?.description}</textarea>
+</label>
+<label class="grid gap-2 text-sm font-medium">
+  Source URL
+  <input
+    class="input w-full"
+    name="source_url"
+    type="url"
+    value={values?.sourceUrl}
+    required
+  />
+</label>
+<label class="grid gap-2 text-sm font-medium">
+  README (Markdown)
+  <textarea
+    class="textarea w-full font-mono"
+    name="readme"
+    rows="12"
+    maxlength="100000"
+    required
+  >{values?.readme}</textarea>
+</label>

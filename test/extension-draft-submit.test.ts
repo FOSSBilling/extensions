@@ -5,7 +5,6 @@ const mocks = vi.hoisted(() => ({
   getMyExtension: vi.fn(),
   getRevision: vi.fn(),
   getPackage: vi.fn(),
-  buildPackage: vi.fn(),
   updateExtension: vi.fn(),
   replacePendingRevision: vi.fn(),
   setFlash: vi.fn(),
@@ -20,7 +19,6 @@ import { POST } from '@/pages/extension/[id]/draft';
 import { sha256Hex } from '@/lib/hash';
 import { editableContent, reconstructionContent } from '@/lib/extension-draft';
 import { ApiRequestError, type ExtensionUpdate } from '@/lib/api/client';
-import { packageManifest } from '@/lib/extension-package';
 const base: ExtensionUpdate = {
   manifest_version: 1,
   author: { name: 'Author' },
@@ -199,7 +197,7 @@ describe('draft submission', () => {
     });
     mocks.getRevision.mockResolvedValue({ content: null });
     mocks.getPackage.mockResolvedValue({
-      manifest: packageManifest('example', restored),
+      manifest: { ...restored, id: 'example' },
     });
     const response = await POST(
       await context(
@@ -240,67 +238,97 @@ describe('draft submission', () => {
   });
 });
 
-it.each(['success', 'failure', 'conflict'])(
-  'handles a manifest-changing draft rebuild: %s',
-  async (outcome) => {
-    const managed = {
-      ...base,
-      releases: [
-        {
-          ...base.releases[0],
-          artifact_id: '11111111-1111-4111-8111-111111111111',
-          sha256: 'a'.repeat(64),
-        },
-      ],
-    };
-    const payload = {
+it('updates selected manifest metadata from a replacement ZIP and preserves the listing description', async () => {
+  const release = {
+    ...base.releases[0],
+    artifact_id: '11111111-1111-4111-8111-111111111111',
+    sha256: 'a'.repeat(64),
+  };
+  const managed = { ...base, releases: [release] };
+  const replacement = {
+    ...release,
+    artifact_id: '22222222-2222-4222-8222-222222222222',
+    sha256: 'b'.repeat(64),
+    download_url: 'https://example.test/replacement.zip',
+    requires: {
+      fossbilling: ' >=0.9.0 ',
+      modules: { branding: '^1.2 ||\n^2.0' },
+    },
+  };
+  mocks.getMyExtension.mockResolvedValue({
+    published: null,
+    pending_revision: { id: 'pending', content: managed },
+  });
+  mocks.getPackage.mockResolvedValue({
+    manifest: {
       ...managed,
-      releases: [
-        { ...managed.releases[0], requires: { fossbilling: '>=0.9.0' } },
-      ],
-    };
-    mocks.getMyExtension.mockResolvedValue({
-      published: managed,
-      pending_revision: null,
-    });
-    mocks.getPackage.mockResolvedValue({
-      source_id: '22222222-2222-4222-8222-222222222222',
-      manifest: packageManifest('example', managed),
-    });
-    mocks.buildPackage.mockImplementation(async () => {
-      if (outcome === 'failure')
-        throw new ApiRequestError(503, 'PACKAGE_UNAVAILABLE', 'Package failed');
-      if (outcome === 'conflict')
-        mocks.getMyExtension.mockResolvedValue({
-          published: { ...managed, readme: '# Changed elsewhere' },
-          pending_revision: null,
-        });
-      return {
-        id: '33333333-3333-4333-8333-333333333333',
-        manifest: packageManifest('example', payload),
-        sha256: 'b'.repeat(64),
-        download_url: 'https://example.test/rebuilt.zip',
-      };
-    });
-    const response = await POST(
-      await context({ sections: {}, releases: payload.releases }, managed),
-    );
-    expect(response.status).toBe(
-      outcome === 'success' ? 200 : outcome === 'failure' ? 503 : 409,
-    );
-    expect(mocks.buildPackage).toHaveBeenCalledOnce();
-    if (outcome === 'success')
-      expect(mocks.updateExtension).toHaveBeenCalledWith(
-        'example',
-        expect.objectContaining({
-          download_url: 'https://example.test/rebuilt.zip',
-          releases: [
-            expect.objectContaining({
-              artifact_id: '33333333-3333-4333-8333-333333333333',
-            }),
-          ],
-        }),
-      );
-    else expect(mocks.updateExtension).not.toHaveBeenCalled();
-  },
-);
+      id: 'example',
+      name: 'Manifest Name',
+      description: 'Manifest Description',
+      requires: replacement.requires,
+    },
+  });
+  const response = await POST(
+    await context(
+      {
+        pendingRevisionId: 'pending',
+        sections: {
+          listing: {
+            description: 'Directory Description',
+            source_url: 'https://github.com/example/original',
+          },
+        },
+        releases: [replacement],
+      },
+      managed,
+    ),
+  );
+  expect(response.status).toBe(200);
+  expect(mocks.replacePendingRevision).toHaveBeenCalledWith(
+    'example',
+    'pending',
+    expect.objectContaining({
+      name: 'Manifest Name',
+      description: 'Directory Description',
+      requires: replacement.requires,
+      download_url: replacement.download_url,
+      releases: [replacement],
+    }),
+  );
+});
+
+it('updates only the directory description without fetching the release package', async () => {
+  const managed = {
+    ...base,
+    releases: [
+      {
+        ...base.releases[0],
+        artifact_id: '11111111-1111-4111-8111-111111111111',
+        sha256: 'a'.repeat(64),
+      },
+    ],
+  };
+  mocks.getMyExtension.mockResolvedValue({
+    published: managed,
+    pending_revision: null,
+  });
+  const response = await POST(
+    await context(
+      {
+        sections: {
+          listing: {
+            description: 'Updated',
+            source_url: 'https://github.com/example/original',
+          },
+        },
+      },
+      managed,
+    ),
+  );
+  expect(response.status).toBe(200);
+  expect(mocks.getPackage).not.toHaveBeenCalled();
+  expect(mocks.updateExtension).toHaveBeenCalledWith('example', {
+    ...managed,
+    description: 'Updated',
+  });
+});

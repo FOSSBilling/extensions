@@ -11,15 +11,12 @@ import { extensionIconUrl } from '@/lib/extension-icon';
 import { directoryAssetAvifUrl } from '@/lib/image-url';
 import {
   applyExtensionDraft,
-  releaseFromFields,
   type ExtensionDraft,
   type DraftSection,
 } from '@/lib/extension-draft';
 import { artifactRelease, releaseDownloadHref } from '@/lib/extension-package';
-import { formatModuleRequirements } from '@/lib/extension-form';
 import { compatibilityLabel } from '@/lib/requirements';
 import {
-  defaultLatestForVersion,
   latestRelease,
   releasesDescending,
   selectLatestRelease,
@@ -41,6 +38,7 @@ export function initExtensionWorkspace() {
   const config = JSON.parse(configNode.textContent!) as {
     base: ExtensionUpdate;
     packageUrl: string;
+    publishedPackageVersions: string[];
     developerName?: string;
     baselineHash: string;
     pendingRevisionId?: string;
@@ -71,7 +69,7 @@ export function initExtensionWorkspace() {
   let busy = false;
   type PendingPackage = {
     job: PackageJob;
-    release: Release;
+    details: Pick<Release, 'date' | 'changelog_url'>;
     input: Record<string, string>;
     baselineHash: string;
     pendingRevisionId?: string;
@@ -412,21 +410,9 @@ export function initExtensionWorkspace() {
   const releaseForm = find<HTMLFormElement>('[data-release-form]');
   const releaseEditor = find<HTMLElement>('[data-release-editor]');
   const releaseFields = find<HTMLFieldSetElement>('[data-release-fields]');
-  let latestChoiceTouched = false;
   const latestCheckbox = releaseForm?.elements.namedItem(
     'is_latest',
   ) as HTMLInputElement | null;
-  latestCheckbox?.addEventListener('change', () => {
-    latestChoiceTouched = true;
-  });
-  (
-    releaseForm?.elements.namedItem('version_tag') as HTMLInputElement | null
-  )?.addEventListener('input', (event) => {
-    if (latestCheckbox && !latestChoiceTouched)
-      latestCheckbox.checked = defaultLatestForVersion(
-        (event.target as HTMLInputElement).value,
-      );
-  });
   function editRelease(tag?: string) {
     if (!releaseForm) return;
     if (
@@ -435,17 +421,12 @@ export function initExtensionWorkspace() {
     )
       return;
     releaseForm.reset();
-    latestChoiceTouched = false;
     const current = content();
     const release = current.releases.find((item) => item.tag === tag);
     fill(releaseForm, {
       original_tag: tag ?? '',
-      version_tag: release?.tag ?? '',
       release_date: release?.date.slice(0, 10) ?? '',
       changelog_url: release?.changelog_url ?? '',
-      requires_fossbilling: release?.requires.fossbilling ?? '',
-      requires_php: release?.requires.php ?? '',
-      requires_modules: formatModuleRequirements(release?.requires.modules),
     });
     if (latestCheckbox) {
       latestCheckbox.checked =
@@ -461,20 +442,20 @@ export function initExtensionWorkspace() {
         ? 'Keep one latest release. Add another package before changing this selection.'
         : '';
     }
-    const versionField = releaseForm.elements.namedItem(
-      'version_tag',
-    ) as HTMLInputElement;
-    versionField.readOnly = Boolean(release);
+    const locked =
+      release &&
+      config.publishedPackageVersions.includes(
+        release.tag.replace(/^v(?=\d)/, ''),
+      );
     const file = releaseForm.elements.namedItem('source') as HTMLInputElement;
     file.required = !release?.artifact_id;
-    file.disabled = Boolean(release?.artifact_id);
-    find('[data-source-control]').hidden = Boolean(release?.artifact_id);
-    find('[data-source-help]').textContent = release?.artifact_id
-      ? 'The stored source will be reused. Add a new release to change files.'
-      : 'Upload ready-to-install files, without a wrapping directory. Maximum 5 MiB.';
-    if (!release?.artifact_id)
-      find('[data-source-help]').textContent +=
-        ' Optional icon: include one of icon.svg, icon.png, icon.webp, or icon.avif at the package root.';
+    file.disabled = Boolean(locked);
+    find('[data-source-control]').hidden = Boolean(locked);
+    find('[data-source-help]').textContent = locked
+      ? 'This ZIP is locked because the release has been published.'
+      : release?.artifact_id
+        ? 'Choose a replacement ZIP to update the pending release.'
+        : 'Upload a ready-to-install ZIP up to 5 MiB with manifest.json at its root.';
     find('[data-release-form-title]').textContent = tag
       ? 'Edit Release'
       : 'Add Release';
@@ -482,7 +463,9 @@ export function initExtensionWorkspace() {
     releaseEditor.hidden = false;
     unsaved.delete(releaseForm);
     updateButtons();
-    (releaseForm.elements.namedItem('version_tag') as HTMLInputElement).focus();
+    (
+      releaseForm.elements.namedItem('release_date') as HTMLInputElement
+    ).focus();
   }
   function renderReleases(current: ExtensionUpdate) {
     const list = find<HTMLUListElement>('[data-release-list]');
@@ -638,6 +621,19 @@ export function initExtensionWorkspace() {
     input: Record<string, string>,
   ) {
     const current = content();
+    if (
+      current.releases.some(
+        (item) =>
+          item.tag !== input.original_tag &&
+          item.tag.replace(/^v(?=\d)/, '') ===
+            release.tag.replace(/^v(?=\d)/, ''),
+      )
+    )
+      throw new PackageJobError(
+        409,
+        'DUPLICATE_VERSION',
+        `A release tagged "${release.tag}" already exists.`,
+      );
     busy = false;
     let releases = input.original_tag
       ? current.releases.map((item) =>
@@ -654,7 +650,7 @@ export function initExtensionWorkspace() {
         (item) =>
           item.tag !== input.original_tag && (!hasPackages || item.artifact_id),
       );
-      selected = latestRelease(alternatives)?.tag ?? selected;
+      selected = latestRelease(alternatives)?.tag ?? release.tag;
     }
     if (selected) releases = selectLatestRelease(releases, selected);
     save({ ...draft, releases });
@@ -682,20 +678,14 @@ export function initExtensionWorkspace() {
     button.disabled = true;
     releaseFields.disabled = true;
     try {
-      const artifact = await waitForPackageJob(
-        pending.job,
-        (id) => readPackageJob(config.packageUrl, id),
-        {
-          progress: (job) => {
-            button.textContent =
-              job.status === 'queued'
-                ? 'Release Queued…'
-                : 'Processing Release…';
-          },
+      const artifact = await waitForPackageJob(pending.job, readPackageJob, {
+        progress: (job) => {
+          button.textContent =
+            job.status === 'queued' ? 'Release Queued…' : 'Processing Release…';
         },
-      );
+      });
       savePreparedRelease(
-        artifactRelease(pending.release, artifact),
+        artifactRelease(pending.details, artifact),
         pending.input,
       );
     } catch (cause) {
@@ -739,18 +729,6 @@ export function initExtensionWorkspace() {
       const original = current.releases.find(
         (item) => item.tag === input.original_tag,
       );
-      const release = releaseFromFields(
-        input,
-        original ?? { download_url: '' },
-      );
-      if (
-        current.releases.some(
-          (item) =>
-            item.tag.replace(/^v/, '') === release.tag.replace(/^v/, '') &&
-            item.tag !== input.original_tag,
-        )
-      )
-        throw new Error(`A release tagged "${release.tag}" already exists.`);
       if (input.original_tag && !original)
         throw new Error(
           'This release was removed from the draft. Close the editor and choose another release.',
@@ -778,20 +756,27 @@ export function initExtensionWorkspace() {
           'Your session has expired. Sign in again; your edits have been kept.',
         );
       const result = (await response.json()) as {
-        release?: typeof release;
+        release?: Release;
+        details?: Pick<Release, 'date' | 'changelog_url'>;
         reservation?: PackageReservation;
         error?: string;
       };
-      if (!response.ok || !result.release || !result.reservation)
+      if (!response.ok)
         throw new Error(
           result.error || 'Unable to prepare this release. Please try again.',
         );
+      if (result.release) {
+        savePreparedRelease(result.release, input);
+        return;
+      }
+      if (!result.reservation || !result.details)
+        throw new Error('The package reservation could not be read.');
       if (result.reservation.kind === 'upload')
         button.textContent = 'Uploading Source ZIP…';
       const job = await completePackageUpload(result.reservation, source);
       pendingPackage = {
         job,
-        release: result.release,
+        details: result.details,
         input,
         baselineHash: config.baselineHash,
         pendingRevisionId: config.pendingRevisionId,

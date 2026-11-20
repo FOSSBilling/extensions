@@ -527,7 +527,7 @@ export type PackageReservation =
 
 export type PackagingJob = {
   id: string;
-  extension_identifier: string;
+  extension_identifier: string | null;
   status: 'queued' | 'processing' | 'ready' | 'failed';
   artifact: PackageArtifact | null;
   error: {
@@ -2381,7 +2381,10 @@ export type GetRevisionsResponse =
 
 export type PostPackageUploadsData = {
   body: {
-    manifest: Manifest;
+    target: {
+      id?: string;
+      version?: string;
+    };
     bytes: number;
     sha256: string;
   };
@@ -2404,7 +2407,7 @@ export type PostPackageUploadsErrors = {
    */
   404: Error;
   /**
-   * Source version conflict, ownership changed, or storage quota exhausted
+   * A published release is locked, ownership changed, or storage quota is exhausted
    */
   409: Error;
   /**
@@ -2441,14 +2444,9 @@ export type PostPackageUploadsResponse =
   PostPackageUploadsResponses[keyof PostPackageUploadsResponses];
 
 export type PostPackagesData = {
-  body:
-    | {
-        upload_id: string;
-      }
-    | {
-        manifest: Manifest;
-        source_id: string;
-      };
+  body: {
+    upload_id: string;
+  };
   path?: never;
   query?: never;
   url: '/packages';
@@ -2468,7 +2466,7 @@ export type PostPackagesErrors = {
    */
   404: Error;
   /**
-   * Source version conflict, ownership changed, or storage quota exhausted
+   * A published release is locked, ownership changed, or storage quota is exhausted
    */
   409: Error;
   /**
@@ -2526,7 +2524,7 @@ export type GetPackagingJobsByJobIdErrors = {
    */
   404: Error;
   /**
-   * Source version conflict, ownership changed, or storage quota exhausted
+   * A published release is locked, ownership changed, or storage quota is exhausted
    */
   409: Error;
   /**
@@ -2583,7 +2581,7 @@ export type PostPackagesCleanupErrors = {
    */
   404: Error;
   /**
-   * Source version conflict, ownership changed, or storage quota exhausted
+   * A published release is locked, ownership changed, or storage quota is exhausted
    */
   409: Error;
   /**
@@ -2644,7 +2642,7 @@ export type GetPackagesByPackageIdErrors = {
    */
   404: Error;
   /**
-   * Source version conflict, ownership changed, or storage quota exhausted
+   * A published release is locked, ownership changed, or storage quota is exhausted
    */
   409: Error;
   /**
@@ -2703,7 +2701,7 @@ export type GetPackagesByPackageIdDownloadErrors = {
    */
   404: Error;
   /**
-   * Source version conflict, ownership changed, or storage quota exhausted
+   * A published release is locked, ownership changed, or storage quota is exhausted
    */
   409: Error;
   /**
@@ -2760,7 +2758,7 @@ export type GetPackagesByPackageIdIconErrors = {
    */
   404: Error;
   /**
-   * Source version conflict, ownership changed, or storage quota exhausted
+   * A published release is locked, ownership changed, or storage quota is exhausted
    */
   409: Error;
   /**

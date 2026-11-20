@@ -11,18 +11,6 @@ import { makeEnv } from './helpers/env';
 import { fakeCookies } from './helpers/fake-cookies';
 import { createSessionCookieValue, SESSION_COOKIE } from '@/lib/session';
 import { POST, PUT } from '@/pages/api/package-uploads';
-import type { Manifest } from '@/lib/api/client';
-const manifest: Manifest = {
-  manifest_version: 1,
-  id: 'example',
-  name: 'Example',
-  type: 'module',
-  description: 'Example',
-  version: '1.0.0',
-  author: { name: 'Developer' },
-  license: 'MIT',
-  requires: { fossbilling: '>=0.8.0' },
-};
 describe('package API transport', () => {
   it('forwards authenticated reservations and confirmations from the directory handlers', async () => {
     const source = { bytes: 5 * 1024 * 1024, sha256: 'a'.repeat(64) };
@@ -34,7 +22,7 @@ describe('package API transport', () => {
     };
     const job = {
       id: '44444444-4444-4444-8444-444444444444',
-      extension_identifier: 'example',
+      extension_identifier: null,
       status: 'queued',
       artifact: null,
       error: null,
@@ -45,7 +33,7 @@ describe('package API transport', () => {
       expect(request.headers.get('Authorization')).toMatch(/^Bearer /);
       expect(request.headers.get('Content-Type')).toContain('application/json');
       if (request.url.endsWith('/package-uploads')) {
-        expect(await request.json()).toEqual({ manifest, ...source });
+        expect(await request.json()).toEqual({ target: {}, ...source });
         return Response.json({ result: reservation });
       }
       expect(request.url).toBe('https://api.test/extensions/v2/packages');
@@ -72,7 +60,6 @@ describe('package API transport', () => {
       } as unknown as APIContext;
     };
     const fields = {
-      manifest: JSON.stringify(manifest),
       source_bytes: String(source.bytes),
       source_sha256: source.sha256,
     };

@@ -1,6 +1,7 @@
 ---
 import Admin from '../../../../../layouts/Admin.astro';
-import ExtensionForm from '@/components/ExtensionForm.astro';
+import DirectoryListingFields from '@/components/DirectoryListingFields.astro';
+import { repositoryURL } from '@/types';
 import { requireModerator } from '@/lib/auth-guard';
 import {
   createApiClient,
@@ -13,11 +14,9 @@ import {
 } from '@/lib/extensions-data';
 import {
   buildExtensionUpdatePayload,
-  echoExtensionFromForm,
   ExtensionValidationError,
 } from '@/lib/extension-form';
 import { formString } from '@/lib/form';
-import { rebuildLatestPackage } from '@/lib/extension-package';
 import { formatDate } from '@/lib/format-date';
 import { setFlash } from '@/lib/flash';
 import { purgeDirectory } from '@/lib/cache-invalidate';
@@ -66,7 +65,11 @@ let error: string | null = null;
 // Falls back to the just-submitted values on a failed correction, so the
 // form doesn't reset to the published content and discard the edit — same
 // submitted echo as the author edit page.
-let submitted: ReturnType<typeof echoExtensionFromForm> | null = null;
+let submitted: {
+  description: string;
+  sourceUrl: string;
+  readme: string;
+} | null = null;
 let submittedNote = '';
 
 if (
@@ -77,18 +80,18 @@ if (
   Astro.request.method === 'POST'
 ) {
   const form = await Astro.request.formData();
-  submitted = echoExtensionFromForm(form, base);
+  submitted = {
+    description: formString(form, 'description'),
+    sourceUrl: formString(form, 'source_url'),
+    readme: formString(form, 'readme'),
+  };
   submittedNote = formString(form, 'correction_note');
 
   try {
     if (!submittedNote) {
       throw new ExtensionValidationError('A correction note is required.');
     }
-    const payload = await rebuildLatestPackage(
-      api,
-      owned.identifier,
-      buildExtensionUpdatePayload(form, base),
-    );
+    const payload = buildExtensionUpdatePayload(form, base);
     await api.correctExtension(owned.identifier, payload, submittedNote);
     purgeDirectory(Astro);
     await setFlash(Astro, env.sessionSecret, {
@@ -192,15 +195,42 @@ const title = base?.name || owned?.identifier || id;
               For live listing corruption — a truncated readme, a broken link —
               that should not wait for the author to resubmit.
             </p>
-            <ExtensionForm
-              developer={owned.developer}
-              extension={base}
-              echo={submitted ?? undefined}
-              error={error}
-              submitLabel="Correct Live Listing"
-              cancelHref={`/account/admin/extensions/${owned.identifier}`}
-              correctionNote={submittedNote}
-            />
+            {error && (
+              <p class="alert" data-variant="destructive" role="alert">
+                {error}
+              </p>
+            )}
+            <form method="POST" class="space-y-5">
+              <DirectoryListingFields
+                values={
+                  submitted ?? {
+                    description: base.description,
+                    sourceUrl: repositoryURL(base.source),
+                    readme: base.readme,
+                  }
+                }
+              />
+              <label class="grid gap-2 text-sm font-medium">
+                Correction Note
+                <textarea
+                  name="correction_note"
+                  class="textarea w-full"
+                  rows="3"
+                  maxlength="1000"
+                  required
+                >{submittedNote}</textarea>
+              </label>
+              <button type="submit" class="btn">
+                Correct Live Listing
+              </button>
+              <a
+                class="btn"
+                data-variant="outline"
+                href={`/account/admin/extensions/${owned.identifier}`}
+              >
+                Cancel
+              </a>
+            </form>
           </Fragment>
         )
       )}

@@ -6,11 +6,9 @@ import {
   getApiErrorMessage,
 } from '@/lib/api/client';
 import { prepareExtensionDraft } from '@/lib/extension-draft-server';
-import { releaseFromFields } from '@/lib/extension-draft';
-import { packageManifest } from '@/lib/extension-package';
+import { releaseDetails } from '@/lib/extension-draft';
 import { ExtensionValidationError } from '@/lib/extension-form';
 import { packageFormData, packageSourceFields } from '@/lib/package-upload';
-import { latestRelease } from '@/lib/releases';
 import { formString } from '@/lib/form';
 
 export const POST: APIRoute = async (context) => {
@@ -36,7 +34,7 @@ export const POST: APIRoute = async (context) => {
     if (!fields || typeof fields !== 'object' || Array.isArray(fields))
       throw new ExtensionValidationError('The release could not be read.');
     const api = createApiClient(env, user.sub);
-    const { payload } = await prepareExtensionDraft(api, id, draft);
+    const { payload, published } = await prepareExtensionDraft(api, id, draft);
     const original = payload.releases.find(
       (release) => release.tag === fields.original_tag,
     );
@@ -45,57 +43,36 @@ export const POST: APIRoute = async (context) => {
         'This release was removed. Close the editor and choose another release.',
         409,
       );
-    if (original && fields.version_tag !== original.tag)
-      throw new ExtensionValidationError(
-        'Add a new release to use a different version.',
+    if (!original && payload.releases.length >= 100)
+      throw new ExtensionValidationError('Keep at most 100 releases.');
+    const details = releaseDetails(fields);
+    const source = packageSourceFields(form);
+    if (!source) {
+      if (!original?.artifact_id)
+        throw new ExtensionValidationError('Choose a ZIP for this release.');
+      return Response.json(
+        { release: { ...original, ...details } },
+        { headers },
       );
-    const release = releaseFromFields(fields, original ?? { download_url: '' });
+    }
+    const version = original?.tag.replace(/^v(?=\d)/, '');
     if (
-      payload.releases.some(
-        (item) =>
-          item.tag.replace(/^v/, '') === release.tag.replace(/^v/, '') &&
-          item !== original,
+      version &&
+      published?.releases.some(
+        (release) =>
+          release.artifact_id &&
+          release.tag.replace(/^v(?=\d)/, '') === version,
       )
     )
       throw new ExtensionValidationError(
-        'A release with this version already exists.',
-      );
-    if (!original && payload.releases.length >= 100)
-      throw new ExtensionValidationError('Keep at most 100 releases.');
-    const source = packageSourceFields(form);
-    if (!source && !original?.artifact_id)
-      throw new ExtensionValidationError(
-        'Choose a source ZIP for this release.',
-      );
-    const stored =
-      !source && original?.artifact_id
-        ? await api.getPackage(original.artifact_id)
-        : undefined;
-    if (
-      stored &&
-      (stored.manifest.id !== id.toLowerCase() ||
-        stored.manifest.version !== release.tag.replace(/^v(?=\d)/, ''))
-    )
-      throw new ExtensionValidationError(
-        'This package does not belong to this extension and release.',
+        'Published release ZIPs are locked. Upload a new version.',
         409,
       );
-    const manifest =
-      stored && original?.tag !== latestRelease(payload.releases)?.tag
-        ? { ...stored.manifest, requires: release.requires }
-        : packageManifest(id, payload, release);
-    const reservation = source
-      ? await api.reservePackage(manifest, source)
-      : {
-          kind: 'job' as const,
-          job: await api.queuePackage(manifest, {
-            sourceId: stored!.source_id,
-          }),
-        };
-    return Response.json(
-      { release, reservation },
-      { headers, status: reservation.kind === 'job' ? 202 : 200 },
+    const reservation = await api.reservePackage(
+      { id: id.toLowerCase(), version },
+      source,
     );
+    return Response.json({ details, reservation }, { headers });
   } catch (error) {
     const message =
       error instanceof ApiRequestError
@@ -109,44 +86,5 @@ export const POST: APIRoute = async (context) => {
         ? error.status
         : 503;
     return Response.json({ error: message }, { status, headers });
-  }
-};
-
-export const GET: APIRoute = async (context) => {
-  const env = context.locals.env;
-  const user = await getSessionUser(context.cookies, env.sessionSecret);
-  if (!user)
-    return Response.json(
-      { error: 'Your session has expired. Sign in again to continue.' },
-      { status: 401, headers: { 'Cache-Control': 'private, no-store' } },
-    );
-  const jobId = context.url.searchParams.get('jobId');
-  const headers = { 'Cache-Control': 'private, no-store' };
-  if (!jobId || !/^[a-f0-9-]{36}$/.test(jobId))
-    return Response.json(
-      { error: 'Invalid package job.' },
-      { status: 400, headers },
-    );
-  try {
-    const job = await createApiClient(env, user.sub).getPackageJob(jobId);
-    if (job.extension_identifier !== context.params.id)
-      return Response.json(
-        { error: 'Package job not found.' },
-        { status: 404, headers },
-      );
-    return Response.json({ job }, { headers });
-  } catch (error) {
-    return Response.json(
-      {
-        error:
-          error instanceof ApiRequestError
-            ? getApiErrorMessage(error)
-            : 'Unable to read package processing status.',
-      },
-      {
-        status: error instanceof ApiRequestError ? error.status : 503,
-        headers,
-      },
-    );
   }
 };
