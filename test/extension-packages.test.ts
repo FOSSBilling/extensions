@@ -5,7 +5,11 @@ import {
   type ExtensionUpdate,
   type PackageArtifact,
 } from '@/lib/api/client';
-import { packageManifest, rebuildLatestPackage } from '@/lib/extension-package';
+import {
+  MAX_SOURCE_BYTES,
+  packageManifest,
+  rebuildLatestPackage,
+} from '@/lib/extension-package';
 import { editableContent, applyExtensionDraft } from '@/lib/extension-draft';
 import { sha256Hex } from '@/lib/hash';
 const mocks = vi.hoisted(() => ({
@@ -67,7 +71,7 @@ const artifact: PackageArtifact = {
 };
 async function context(
   options: {
-    source?: File;
+    sourceBytes?: number;
     fields?: Record<string, string>;
     baselineHash?: string;
     releases?: ExtensionUpdate['releases'];
@@ -94,8 +98,8 @@ async function context(
       },
     ),
   );
-  if (options.source) {
-    form.set('source_bytes', String(options.source.size));
+  if (options.sourceBytes !== undefined) {
+    form.set('source_bytes', String(options.sourceBytes));
     form.set('source_sha256', 'a'.repeat(64));
   }
   return {
@@ -118,7 +122,7 @@ beforeEach(() => {
   mocks.buildPackage.mockResolvedValue(artifact);
   mocks.reservePackage.mockResolvedValue({
     kind: 'upload',
-    id: 'upload-id',
+    id: '33333333-3333-4333-8333-333333333333',
     url: 'https://storage.test/zip?signature=test',
     headers: {},
   });
@@ -135,15 +139,18 @@ beforeEach(() => {
 
 describe('release package editor', () => {
   it('reserves storage for the current draft manifest and source details', async () => {
-    const file = new File(['synthetic source'], 'module.zip');
-    const response = await POST(await context({ source: file }));
+    const sourceBytes = 128;
+    const response = await POST(await context({ sourceBytes }));
     expect(response.status).toBe(200);
     expect(mocks.reservePackage).toHaveBeenCalledWith(
       { ...original.manifest, version: '1.1.0' },
-      { bytes: file.size, sha256: 'a'.repeat(64) },
+      { bytes: sourceBytes, sha256: 'a'.repeat(64) },
     );
     expect(await response.json()).toMatchObject({
-      reservation: { kind: 'upload', id: 'upload-id' },
+      reservation: {
+        kind: 'upload',
+        id: '33333333-3333-4333-8333-333333333333',
+      },
       release: { tag: '1.1.0' },
     });
   });
@@ -202,7 +209,7 @@ describe('release package editor', () => {
         await POST(
           await context({
             baselineHash: 'stale',
-            source: new File(['zip'], 'module.zip'),
+            sourceBytes: 128,
           }),
         )
       ).status,
@@ -217,7 +224,7 @@ describe('release package editor', () => {
               release_date: '2026-11-05',
               requires_fossbilling: '>=0.8.0',
             },
-            source: new File(['zip'], 'module.zip'),
+            sourceBytes: 128,
           }),
         )
       ).status,
@@ -226,14 +233,12 @@ describe('release package editor', () => {
       (
         await POST(
           await context({
-            source: new File(
-              [new Uint8Array(5 * 1024 * 1024 + 1)],
-              'module.zip',
-            ),
+            sourceBytes: MAX_SOURCE_BYTES + 1,
           }),
         )
       ).status,
     ).toBe(413);
+    expect(mocks.reservePackage).not.toHaveBeenCalled();
     expect(mocks.queuePackage).not.toHaveBeenCalled();
   });
   it('requires a ZIP when a release has no stored package', async () => {
@@ -296,9 +301,7 @@ describe('release package editor', () => {
     mocks.getMyExtension.mockRejectedValueOnce(
       new ApiRequestError(404, 'not_found', 'Extension not found'),
     );
-    const response = await POST(
-      await context({ source: new File(['zip'], 'module.zip') }),
-    );
+    const response = await POST(await context({ sourceBytes: 128 }));
     expect(response.status).toBe(404);
     expect(mocks.reservePackage).not.toHaveBeenCalled();
   });

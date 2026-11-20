@@ -96,7 +96,7 @@ describe('package API transport', () => {
   });
   it('polls packaging jobs through the authenticated API endpoint', async () => {
     const job = {
-      id: 'job',
+      id: '44444444-4444-4444-8444-444444444444',
       extension_identifier: 'example',
       status: 'processing',
       artifact: null,
@@ -106,7 +106,7 @@ describe('package API transport', () => {
     };
     const fetcher = vi.fn(async (request: Request) => {
       expect(request.url).toBe(
-        'https://api.test/extensions/v2/packaging-jobs/job',
+        `https://api.test/extensions/v2/packaging-jobs/${job.id}`,
       );
       expect(request.method).toBe('GET');
       expect(request.headers.get('Authorization')).toMatch(/^Bearer /);
@@ -119,7 +119,7 @@ describe('package API transport', () => {
       },
     });
 
-    expect(await createApiClient(env, 'owner').getPackageJob('job')).toEqual(
+    expect(await createApiClient(env, 'owner').getPackageJob(job.id)).toEqual(
       job,
     );
     expect(fetcher).toHaveBeenCalledOnce();

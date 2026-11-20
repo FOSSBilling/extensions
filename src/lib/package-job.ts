@@ -18,7 +18,6 @@ export async function waitForPackageJob(
   read: (id: string) => Promise<PackageJob>,
   options: {
     waitMs?: number;
-    pause?: (delay: number) => Promise<void>;
     progress?: (job: PackageJob) => void;
   } = {},
 ): Promise<PackageArtifact> {
@@ -44,8 +43,7 @@ export async function waitForPackageJob(
       );
     if (remaining <= 0) break;
     const delay = Math.min(interval, remaining);
-    await (options.pause?.(delay) ??
-      new Promise<void>((resolve) => setTimeout(resolve, delay)));
+    await new Promise<void>((resolve) => setTimeout(resolve, delay));
     remaining -= delay;
     interval = Math.min(interval + 1000, 5000);
     try {

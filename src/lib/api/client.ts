@@ -510,16 +510,6 @@ export function createApiClient(env: ApplicationEnv, subject: string) {
   const getPackageJob = (jobId: string): Promise<PackageJob> =>
     callResult(getPackagingJobsByJobId({ client, path: { jobId } }));
 
-  const waitForPackage = async (job: PackageJob): Promise<PackageArtifact> => {
-    try {
-      return await waitForPackageJob(job, getPackageJob, { waitMs: 60_000 });
-    } catch (error) {
-      if (error instanceof PackageJobError)
-        throw new ApiRequestError(error.status, error.code, error.message);
-      throw error;
-    }
-  };
-
   return {
     // Identity sync carries a dedicated body-bound proof instead of the
     // shared bearer assertion: the API requires purpose 'identity-sync' plus
@@ -597,8 +587,19 @@ export function createApiClient(env: ApplicationEnv, subject: string) {
       callResult(postPackageUploads({ client, body: { manifest, ...source } })),
     confirmPackage: (uploadId: string) =>
       callResult(postPackages({ client, body: { upload_id: uploadId } })),
-    buildPackage: async (manifest: Manifest, source: { sourceId: string }) =>
-      waitForPackage(await queuePackage(manifest, source)),
+    buildPackage: async (
+      manifest: Manifest,
+      source: { sourceId: string },
+    ): Promise<PackageArtifact> => {
+      const job = await queuePackage(manifest, source);
+      try {
+        return await waitForPackageJob(job, getPackageJob, { waitMs: 60_000 });
+      } catch (error) {
+        if (error instanceof PackageJobError)
+          throw new ApiRequestError(error.status, error.code, error.message);
+        throw error;
+      }
+    },
 
     getPackage: (packageId: string): Promise<PackageArtifact> =>
       callResult(getPackagesByPackageId({ client, path: { packageId } })),

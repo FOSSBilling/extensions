@@ -29,11 +29,14 @@ describe('package uploads', () => {
     const source = new File(['zip'], 'source.zip');
     const reservation = {
       kind: 'upload' as const,
-      id: 'upload-id',
+      id: '33333333-3333-4333-8333-333333333333',
       url: 'https://storage.test/zip?signature=test',
       headers: { 'Content-Type': 'application/zip' },
     };
-    const job = { id: 'job', status: 'queued' };
+    const job = {
+      id: '44444444-4444-4444-8444-444444444444',
+      status: 'queued',
+    };
     const request = vi.fn(async (url: string, init: RequestInit) => {
       if (url === reservation.url) {
         expect(init).toMatchObject({
