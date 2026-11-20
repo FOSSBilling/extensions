@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
-import { completePackageUpload, packageFormData } from '@/lib/package-upload';
+import {
+  completePackageUpload,
+  MAX_PACKAGE_REQUEST_BYTES,
+  packageFormData,
+} from '@/lib/package-upload';
 
-const MAX_PACKAGE_REQUEST_BYTES = 512 * 1024;
 describe('package uploads', () => {
   it('rejects and cancels a streamed request above the whole-request limit', async () => {
     const cancel = vi.fn();

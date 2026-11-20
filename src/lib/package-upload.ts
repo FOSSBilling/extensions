@@ -5,7 +5,7 @@ import { sha256Hex } from './hash';
 import type { Manifest, PackageJob } from './api/client';
 import type { PackageReservation } from './api/generated/extensions-v2';
 
-const MAX_PACKAGE_REQUEST_BYTES = 512 * 1024;
+export const MAX_PACKAGE_REQUEST_BYTES = 512 * 1024;
 
 export async function packageFormData(request: Request): Promise<FormData> {
   const reader = request.body?.getReader();

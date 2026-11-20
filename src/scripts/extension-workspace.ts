@@ -786,6 +786,8 @@ export function initExtensionWorkspace() {
         throw new Error(
           result.error || 'Unable to prepare this release. Please try again.',
         );
+      if (result.reservation.kind === 'upload')
+        button.textContent = 'Uploading Source ZIP…';
       const job = await completePackageUpload(result.reservation, source);
       pendingPackage = {
         job,
