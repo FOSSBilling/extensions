@@ -104,6 +104,21 @@ describe('directory submission forms', () => {
       createPayload(extensionForm({ release_date: '2026-02-30' }), artifact),
     ).toThrow('Enter a valid release date.');
   });
+  it('limits the changelog URL after adding its scheme', () => {
+    const prefix = 'https://example.test/';
+    const url = prefix + 'a'.repeat(2048 - prefix.length);
+    const changelog_url = url.slice('https://'.length);
+    expect(
+      createPayload(extensionForm({ changelog_url }), artifact).releases[0]
+        .changelog_url,
+    ).toBe(url);
+    expect(() =>
+      createPayload(
+        extensionForm({ changelog_url: changelog_url + 'a' }),
+        artifact,
+      ),
+    ).toThrow('Enter a changelog URL of 2,048 characters or fewer.');
+  });
   it('accepts a directory-only description override', () => {
     const payload = createPayload(
       extensionForm({ description: 'Directory description' }),

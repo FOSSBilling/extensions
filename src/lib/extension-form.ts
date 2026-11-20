@@ -53,6 +53,10 @@ export function formUrl(
   const raw = typeof value === 'string' ? value.trim() : '';
   if (!raw && optional) return undefined;
   const url = withHttpsScheme(raw);
+  if (url && url.length > 2048)
+    throw new ExtensionValidationError(
+      `Enter a ${label} of 2,048 characters or fewer.`,
+    );
   try {
     if (url && new URL(url).hostname) return url;
   } catch {
