@@ -1,5 +1,6 @@
 import { waitForPackageJob, PackageJobError } from '../package-job';
 import {
+  postPackageUploads,
   postPackages,
   getPackagingJobsByJobId,
   type PackagingJob as PackageJob,
@@ -500,18 +501,10 @@ export function createApiClient(env: ApplicationEnv, subject: string) {
 
   const queuePackage = (
     manifest: Manifest,
-    source: File | { sourceId: string },
+    source: { sourceId: string },
   ): Promise<PackageJob> =>
     callResult(
-      postPackages({
-        client,
-        body: {
-          manifest: JSON.stringify(manifest),
-          ...(source instanceof File
-            ? { source }
-            : { source_id: source.sourceId }),
-        },
-      }),
+      postPackages({ client, body: { manifest, source_id: source.sourceId } }),
     );
 
   const getPackageJob = (jobId: string): Promise<PackageJob> =>
@@ -587,14 +580,20 @@ export function createApiClient(env: ApplicationEnv, subject: string) {
 
     queuePackage,
     getPackageJob,
-
+    reservePackage: (
+      manifest: Manifest,
+      source: { bytes: number; sha256: string },
+    ) =>
+      callResult(postPackageUploads({ client, body: { manifest, ...source } })),
+    confirmPackage: (uploadId: string) =>
+      callResult(postPackages({ client, body: { upload_id: uploadId } })),
     buildPackage: async (
       manifest: Manifest,
-      source: File | { sourceId: string },
+      source: { sourceId: string },
     ): Promise<PackageArtifact> => {
       const job = await queuePackage(manifest, source);
       try {
-        return await waitForPackageJob(job, getPackageJob, { attempts: 60 });
+        return await waitForPackageJob(job, getPackageJob, { waitMs: 60_000 });
       } catch (error) {
         if (error instanceof PackageJobError)
           throw new ApiRequestError(error.status, error.code, error.message);

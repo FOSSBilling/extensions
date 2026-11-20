@@ -1,3 +1,4 @@
+import type { APIContext } from 'astro';
 import { fieldUrl } from '@/lib/revision-diff-shared';
 import {
   packageDownloadPath,
@@ -7,6 +8,9 @@ import {
 import { describe, expect, it, vi } from 'vitest';
 import { createApiClient, downloadPackage } from '@/lib/api/client';
 import { makeEnv } from './helpers/env';
+import { fakeCookies } from './helpers/fake-cookies';
+import { createSessionCookieValue, SESSION_COOKIE } from '@/lib/session';
+import { POST, PUT } from '@/pages/api/package-uploads';
 import type { Manifest } from '@/lib/api/client';
 const manifest: Manifest = {
   manifest_version: 1,
@@ -20,29 +24,33 @@ const manifest: Manifest = {
   requires: { fossbilling: '>=0.8.0' },
 };
 describe('package API transport', () => {
-  it('sends the source ZIP as multipart data with a bearer assertion', async () => {
+  it('forwards authenticated reservations and confirmations from the directory handlers', async () => {
+    const source = { bytes: 5 * 1024 * 1024, sha256: 'a'.repeat(64) };
+    const reservation = {
+      kind: 'upload',
+      id: '11111111-1111-4111-8111-111111111111',
+      url: 'https://storage.test/zip?signature=test',
+      headers: {},
+    };
+    const job = {
+      id: '44444444-4444-4444-8444-444444444444',
+      extension_identifier: 'example',
+      status: 'queued',
+      artifact: null,
+      error: null,
+      created_at: '2026-11-20T12:00:00Z',
+      updated_at: '2026-11-20T12:00:00Z',
+    };
     const fetcher = vi.fn(async (request: Request) => {
       expect(request.headers.get('Authorization')).toMatch(/^Bearer /);
-      expect(request.headers.get('Content-Type')).toContain(
-        'multipart/form-data; boundary=',
-      );
-      const form = await request.formData();
-      expect(JSON.parse(String(form.get('manifest')))).toEqual(manifest);
-      expect(await (form.get('source') as File).text()).toBe('zip');
-      return Response.json(
-        {
-          result: {
-            id: 'job',
-            extension_identifier: 'example',
-            status: 'ready',
-            artifact: { id: 'artifact' },
-            error: null,
-            created_at: 'now',
-            updated_at: 'now',
-          },
-        },
-        { status: 202 },
-      );
+      expect(request.headers.get('Content-Type')).toContain('application/json');
+      if (request.url.endsWith('/package-uploads')) {
+        expect(await request.json()).toEqual({ manifest, ...source });
+        return Response.json({ result: reservation });
+      }
+      expect(request.url).toBe('https://api.test/extensions/v2/packages');
+      expect(await request.json()).toEqual({ upload_id: reservation.id });
+      return Response.json({ result: job }, { status: 202 });
     });
     const env = makeEnv({
       extensionsApi: {
@@ -50,16 +58,45 @@ describe('package API transport', () => {
         fetch: fetcher as typeof fetch,
       },
     });
-    expect(
-      await createApiClient(env, 'owner').buildPackage(
-        manifest,
-        new File(['zip'], 'source.zip'),
+    const { cookies, jar } = fakeCookies();
+    const context = (method: string, values: Record<string, string>) => {
+      const body = new FormData();
+      for (const [key, value] of Object.entries(values)) body.set(key, value);
+      return {
+        request: new Request('https://site.test/api/package-uploads', {
+          method,
+          body,
+        }),
+        locals: { env },
+        cookies,
+      } as unknown as APIContext;
+    };
+    const fields = {
+      manifest: JSON.stringify(manifest),
+      source_bytes: String(source.bytes),
+      source_sha256: source.sha256,
+    };
+    expect((await POST(context('POST', fields))).status).toBe(401);
+    expect(fetcher).not.toHaveBeenCalled();
+
+    jar.set(
+      SESSION_COOKIE,
+      await createSessionCookieValue(
+        { sub: 'owner', name: 'Owner', email: 'owner@example.test' },
+        env.sessionSecret,
       ),
-    ).toMatchObject({ id: 'artifact' });
+    );
+    const reserved = await POST(context('POST', fields));
+    expect(reserved.status).toBe(200);
+    expect(reserved.headers.get('Cache-Control')).toBe('private, no-store');
+    expect(await reserved.json()).toEqual({ result: reservation });
+    const confirmed = await PUT(context('PUT', { upload_id: reservation.id }));
+    expect(confirmed.status).toBe(202);
+    expect(await confirmed.json()).toEqual({ result: job });
   });
   it('polls packaging jobs through the authenticated API endpoint', async () => {
     const job = {
-      id: 'job',
+      id: '44444444-4444-4444-8444-444444444444',
       extension_identifier: 'example',
       status: 'processing',
       artifact: null,
@@ -69,7 +106,7 @@ describe('package API transport', () => {
     };
     const fetcher = vi.fn(async (request: Request) => {
       expect(request.url).toBe(
-        'https://api.test/extensions/v2/packaging-jobs/job',
+        `https://api.test/extensions/v2/packaging-jobs/${job.id}`,
       );
       expect(request.method).toBe('GET');
       expect(request.headers.get('Authorization')).toMatch(/^Bearer /);
@@ -82,7 +119,7 @@ describe('package API transport', () => {
       },
     });
 
-    expect(await createApiClient(env, 'owner').getPackageJob('job')).toEqual(
+    expect(await createApiClient(env, 'owner').getPackageJob(job.id)).toEqual(
       job,
     );
     expect(fetcher).toHaveBeenCalledOnce();

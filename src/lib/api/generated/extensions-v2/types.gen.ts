@@ -511,6 +511,20 @@ export type PublisherRegister = {
   can_publish?: boolean;
 };
 
+export type PackageReservation =
+  | {
+      kind: 'upload';
+      id: string;
+      url: string;
+      headers: {
+        [key: string]: string;
+      };
+    }
+  | {
+      kind: 'job';
+      job: PackagingJob;
+    };
+
 export type PackagingJob = {
   id: string;
   extension_identifier: string;
@@ -2365,15 +2379,76 @@ export type GetRevisionsResponses = {
 export type GetRevisionsResponse =
   GetRevisionsResponses[keyof GetRevisionsResponses];
 
-export type PostPackagesData = {
+export type PostPackageUploadsData = {
   body: {
-    /**
-     * JSON manifest v1
-     */
-    manifest: string;
-    source?: Blob | File;
-    source_id?: string;
+    manifest: Manifest;
+    bytes: number;
+    sha256: string;
   };
+  path?: never;
+  query?: never;
+  url: '/package-uploads';
+};
+
+export type PostPackageUploadsErrors = {
+  /**
+   * Missing or invalid bearer token
+   */
+  401: Error;
+  /**
+   * The bearer is valid but the account is inactive
+   */
+  403: Error;
+  /**
+   * Package not found
+   */
+  404: Error;
+  /**
+   * Source version conflict, ownership changed, or storage quota exhausted
+   */
+  409: Error;
+  /**
+   * Upload exceeds size limit
+   */
+  413: Error;
+  /**
+   * Invalid manifest or source ZIP
+   */
+  422: Error;
+  /**
+   * Write allowance exhausted
+   */
+  429: Error;
+  /**
+   * Package storage is not configured or is unavailable
+   */
+  503: Error;
+};
+
+export type PostPackageUploadsError =
+  PostPackageUploadsErrors[keyof PostPackageUploadsErrors];
+
+export type PostPackageUploadsResponses = {
+  /**
+   * A short-lived PUT URL and required headers, or an existing job
+   */
+  200: {
+    result: PackageReservation;
+  };
+};
+
+export type PostPackageUploadsResponse =
+  PostPackageUploadsResponses[keyof PostPackageUploadsResponses];
+
+export type PostPackagesData = {
+  body:
+    | {
+        upload_id: string;
+      }
+    | {
+        manifest: Manifest;
+        source_id: string;
+      };
   path?: never;
   query?: never;
   url: '/packages';

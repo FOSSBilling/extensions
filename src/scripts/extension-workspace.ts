@@ -1,5 +1,11 @@
 import { waitForPackageJob, PackageJobError } from '@/lib/package-job';
 import type { PackageJob } from '@/lib/api/client';
+import type { PackageReservation } from '@/lib/api/generated/extensions-v2';
+import {
+  completePackageUpload,
+  describePackageSource,
+  readPackageJob,
+} from '@/lib/package-upload';
 import type { Release } from '@/types';
 import { extensionIconUrl } from '@/lib/extension-icon';
 import { directoryAssetAvifUrl } from '@/lib/image-url';
@@ -9,11 +15,7 @@ import {
   type ExtensionDraft,
   type DraftSection,
 } from '@/lib/extension-draft';
-import {
-  artifactRelease,
-  releaseDownloadHref,
-  MAX_SOURCE_BYTES,
-} from '@/lib/extension-package';
+import { artifactRelease, releaseDownloadHref } from '@/lib/extension-package';
 import { formatModuleRequirements } from '@/lib/extension-form';
 import { compatibilityLabel } from '@/lib/requirements';
 import {
@@ -682,24 +684,7 @@ export function initExtensionWorkspace() {
     try {
       const artifact = await waitForPackageJob(
         pending.job,
-        async (id) => {
-          const url = new URL(config.packageUrl, window.location.origin);
-          url.searchParams.set('jobId', id);
-          const response = await fetch(url, { redirect: 'manual' });
-          const body = (await response.json()) as {
-            job?: PackageJob;
-            error?: string;
-          };
-          if (!response.ok || !body.job)
-            throw Object.assign(
-              new Error(
-                body.error ??
-                  'Unable to read package status. Your processing job has been kept.',
-              ),
-              { status: response.status || 503 },
-            );
-          return body.job;
-        },
+        (id) => readPackageJob(config.packageUrl, id),
         {
           progress: (job) => {
             button.textContent =
@@ -771,12 +756,9 @@ export function initExtensionWorkspace() {
           'This release was removed from the draft. Close the editor and choose another release.',
         );
       const body = new FormData();
-      const source = new FormData(releaseForm).get('source');
-      if (source instanceof File && source.size) {
-        if (source.size > MAX_SOURCE_BYTES)
-          throw new Error('Source ZIPs must be 5 MiB or smaller.');
-        body.set('source', source);
-      } else if (!original?.artifact_id)
+      const file = new FormData(releaseForm).get('source');
+      const source = file instanceof File && file.size ? file : undefined;
+      if (!source && !original?.artifact_id)
         throw new Error('Choose a source ZIP for this release.');
       body.set('draft', JSON.stringify(draft));
       body.set('release', JSON.stringify(input));
@@ -785,6 +767,7 @@ export function initExtensionWorkspace() {
       button.textContent = 'Preparing Release…';
       root.inert = true;
       root.setAttribute('aria-busy', 'true');
+      if (source) await describePackageSource(body, source);
       const response = await fetch(config.packageUrl, {
         method: 'POST',
         body,
@@ -796,15 +779,18 @@ export function initExtensionWorkspace() {
         );
       const result = (await response.json()) as {
         release?: typeof release;
-        job?: PackageJob;
+        reservation?: PackageReservation;
         error?: string;
       };
-      if (!response.ok || !result.release || !result.job)
+      if (!response.ok || !result.release || !result.reservation)
         throw new Error(
           result.error || 'Unable to prepare this release. Please try again.',
         );
+      if (result.reservation.kind === 'upload')
+        button.textContent = 'Uploading Source ZIP…';
+      const job = await completePackageUpload(result.reservation, source);
       pendingPackage = {
-        job: result.job,
+        job,
         release: result.release,
         input,
         baselineHash: config.baselineHash,

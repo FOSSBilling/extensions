@@ -1795,6 +1795,47 @@
         "required": ["developer_id"],
         "additionalProperties": false
       },
+      "PackageReservation": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": ["upload"]
+              },
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "url": {
+                "type": "string",
+                "format": "uri"
+              },
+              "headers": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": ["kind", "id", "url", "headers"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": ["job"]
+              },
+              "job": {
+                "$ref": "#/components/schemas/PackagingJob"
+              }
+            },
+            "required": ["kind", "job"]
+          }
+        ]
+      },
       "PackagingJob": {
         "type": "object",
         "properties": {
@@ -5830,10 +5871,10 @@
         }
       }
     },
-    "/packages": {
+    "/package-uploads": {
       "post": {
         "tags": ["Packages"],
-        "summary": "Queue package preparation from a distribution ZIP or stored source",
+        "summary": "Reserve a private source ZIP upload or reuse an existing job",
         "security": [
           {
             "Bearer": []
@@ -5842,27 +5883,169 @@
         "requestBody": {
           "required": true,
           "content": {
-            "multipart/form-data": {
+            "application/json": {
               "schema": {
                 "type": "object",
                 "properties": {
                   "manifest": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 65536,
-                    "description": "JSON manifest v1"
+                    "$ref": "#/components/schemas/Manifest"
                   },
-                  "source": {
-                    "type": "string",
-                    "format": "binary"
+                  "bytes": {
+                    "type": "integer",
+                    "minimum": 1
                   },
-                  "source_id": {
+                  "sha256": {
                     "type": "string",
-                    "format": "uuid"
+                    "pattern": "^[a-f0-9]{64}$"
                   }
                 },
-                "required": ["manifest"],
+                "required": ["manifest", "bytes", "sha256"],
                 "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "A short-lived PUT URL and required headers, or an existing job",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "$ref": "#/components/schemas/PackageReservation"
+                    }
+                  },
+                  "required": ["result"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The bearer is valid but the account is inactive",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Package not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Source version conflict, ownership changed, or storage quota exhausted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Upload exceeds size limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid manifest or source ZIP",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Write allowance exhausted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Package storage is not configured or is unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/packages": {
+      "post": {
+        "tags": ["Packages"],
+        "summary": "Confirm a source upload or queue a rebuild from a stored source",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "upload_id": {
+                        "type": "string",
+                        "format": "uuid"
+                      }
+                    },
+                    "required": ["upload_id"],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "manifest": {
+                        "$ref": "#/components/schemas/Manifest"
+                      },
+                      "source_id": {
+                        "type": "string",
+                        "format": "uuid"
+                      }
+                    },
+                    "required": ["manifest", "source_id"],
+                    "additionalProperties": false
+                  }
+                ]
               }
             }
           }

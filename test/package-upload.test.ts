@@ -1,7 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
-import { packageFormData } from '@/lib/package-upload';
-import { MAX_PACKAGE_REQUEST_BYTES } from '@/lib/extension-package';
-describe('bounded package form uploads', () => {
+import {
+  completePackageUpload,
+  MAX_PACKAGE_REQUEST_BYTES,
+  packageFormData,
+} from '@/lib/package-upload';
+
+describe('package uploads', () => {
   it('rejects and cancels a streamed request above the whole-request limit', async () => {
     const cancel = vi.fn();
     const body = new ReadableStream<Uint8Array>({
@@ -20,5 +24,43 @@ describe('bounded package form uploads', () => {
       status: 413,
     });
     expect(cancel).toHaveBeenCalledOnce();
+  });
+  it('sends the source bytes only to storage, then confirms with the directory', async () => {
+    const source = new File(['zip'], 'source.zip');
+    const reservation = {
+      kind: 'upload' as const,
+      id: '33333333-3333-4333-8333-333333333333',
+      url: 'https://storage.test/zip?signature=test',
+      headers: { 'Content-Type': 'application/zip' },
+    };
+    const job = {
+      id: '44444444-4444-4444-8444-444444444444',
+      status: 'queued',
+    };
+    const request = vi.fn(async (url: string, init: RequestInit) => {
+      if (url === reservation.url) {
+        expect(init).toMatchObject({
+          method: 'PUT',
+          headers: reservation.headers,
+          credentials: 'omit',
+          redirect: 'error',
+        });
+        expect(init.body).toBe(source);
+        return new Response(null);
+      }
+      expect(url).toBe('/api/package-uploads');
+      expect(init.method).toBe('PUT');
+      expect([...(init.body as FormData)]).toEqual([
+        ['upload_id', reservation.id],
+      ]);
+      return Response.json({ result: job }, { status: 202 });
+    });
+    vi.stubGlobal('fetch', request);
+    try {
+      expect(await completePackageUpload(reservation, source)).toEqual(job);
+      expect(request).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });
