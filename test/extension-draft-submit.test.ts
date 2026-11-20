@@ -262,7 +262,8 @@ it('updates selected manifest metadata from a replacement ZIP and preserves the 
     ...release,
     artifact_id: '22222222-2222-4222-8222-222222222222',
     sha256: 'b'.repeat(64),
-    download_url: 'https://example.test/replacement.zip',
+    download_url:
+      'http://localhost:8789/extensions/v2/packages/22222222-2222-4222-8222-222222222222/download',
     requires: {
       fossbilling: ' >=0.9.0 ',
       modules: { branding: '^1.2 ||\n^2.0' },
@@ -274,10 +275,15 @@ it('updates selected manifest metadata from a replacement ZIP and preserves the 
   });
   mocks.getPackage.mockResolvedValue({
     manifest: {
-      ...managed,
       id: 'example',
+      manifest_version: 1,
+      type: managed.type,
       name: 'Manifest Name',
       description: 'Manifest Description',
+      homepage_url: managed.homepage_url,
+      author: managed.author,
+      license: managed.license,
+      version: replacement.tag,
       requires: replacement.requires,
     },
   });

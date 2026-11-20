@@ -8,6 +8,7 @@ import {
 } from './extension-form';
 import { latestRelease } from './releases';
 import { repositoryFromFields, SOURCE_URL_ERROR } from './repository';
+import { isSafeHttpUrl } from './safe-url';
 
 export type DraftSection = 'listing' | 'readme';
 export interface ExtensionDraft {
@@ -213,6 +214,12 @@ export function applyExtensionDraft(
       if (previous && JSON.stringify(previous) === JSON.stringify(raw))
         return structuredClone(previous);
       const artifactId = text(raw, 'artifact_id');
+      // The API compares the download URL of managed releases with the artifact.
+      const artifactUrl = artifactId
+        ? required(raw, 'download_url', 'Download URL')
+        : undefined;
+      if (artifactUrl && !isSafeHttpUrl(artifactUrl))
+        throw new ExtensionValidationError('Enter a valid download URL.');
       const release: Release = {
         tag,
         ...releaseDetails({
@@ -222,7 +229,7 @@ export function applyExtensionDraft(
               : raw.date,
           changelog_url: raw.changelog_url,
         }),
-        download_url: formUrl(raw.download_url, 'download URL')!,
+        download_url: artifactUrl ?? formUrl(raw.download_url, 'download URL')!,
         requires: releaseRequirements(raw.requires),
         ...(artifactId
           ? {
