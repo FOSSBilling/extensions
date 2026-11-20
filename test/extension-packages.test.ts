@@ -1,19 +1,24 @@
 import type { APIContext } from 'astro';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { ExtensionUpdate, PackageArtifact } from '@/lib/api/client';
+import {
+  ApiRequestError,
+  type ExtensionUpdate,
+  type PackageArtifact,
+} from '@/lib/api/client';
 import { packageManifest, rebuildLatestPackage } from '@/lib/extension-package';
 import { editableContent, applyExtensionDraft } from '@/lib/extension-draft';
 import { sha256Hex } from '@/lib/hash';
 const mocks = vi.hoisted(() => ({
-  guard: vi.fn(),
+  getSessionUser: vi.fn(),
   getMyExtension: vi.fn(),
   getRevision: vi.fn(),
   getPackage: vi.fn(),
   buildPackage: vi.fn(),
   queuePackage: vi.fn(),
+  reservePackage: vi.fn(),
   getPackageJob: vi.fn(),
 }));
-vi.mock('@/lib/auth-guard', () => ({ requireUser: mocks.guard }));
+vi.mock('@/lib/session', () => ({ getSessionUser: mocks.getSessionUser }));
 vi.mock('@/lib/api/client', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/api/client')>()),
   createApiClient: () => mocks,
@@ -89,7 +94,10 @@ async function context(
       },
     ),
   );
-  if (options.source) form.set('source', options.source);
+  if (options.source) {
+    form.set('source_bytes', String(options.source.size));
+    form.set('source_sha256', 'a'.repeat(64));
+  }
   return {
     params: { id: 'example' },
     locals: { env: {} },
@@ -101,13 +109,19 @@ async function context(
 }
 beforeEach(() => {
   vi.clearAllMocks();
-  mocks.guard.mockResolvedValue({ sub: 'owner' });
+  mocks.getSessionUser.mockResolvedValue({ sub: 'owner' });
   mocks.getMyExtension.mockResolvedValue({
     published: content,
     pending_revision: null,
   });
   mocks.getPackage.mockResolvedValue(original);
   mocks.buildPackage.mockResolvedValue(artifact);
+  mocks.reservePackage.mockResolvedValue({
+    kind: 'upload',
+    id: 'upload-id',
+    url: 'https://storage.test/zip?signature=test',
+    headers: {},
+  });
   mocks.queuePackage.mockResolvedValue({
     id: '44444444-4444-4444-8444-444444444444',
     extension_identifier: 'example',
@@ -120,19 +134,17 @@ beforeEach(() => {
 });
 
 describe('release package editor', () => {
-  it('builds an uploaded ZIP with the current draft manifest and returns a queued job', async () => {
+  it('reserves storage for the current draft manifest and source details', async () => {
     const file = new File(['synthetic source'], 'module.zip');
     const response = await POST(await context({ source: file }));
-    expect(response.status).toBe(202);
-    expect(mocks.queuePackage).toHaveBeenCalledWith(
+    expect(response.status).toBe(200);
+    expect(mocks.reservePackage).toHaveBeenCalledWith(
       { ...original.manifest, version: '1.1.0' },
-      expect.any(File),
+      { bytes: file.size, sha256: 'a'.repeat(64) },
     );
     expect(await response.json()).toMatchObject({
-      job: { status: 'queued' },
-      release: {
-        tag: '1.1.0',
-      },
+      reservation: { kind: 'upload', id: 'upload-id' },
+      release: { tag: '1.1.0' },
     });
   });
   it('reuses the authorized source for compatibility edits', async () => {
@@ -276,9 +288,19 @@ describe('release package editor', () => {
     expect((await GET(ctx)).status).toBe(404);
   });
   it('authorizes before reading the request or source', async () => {
-    mocks.guard.mockResolvedValue(new Response(null, { status: 302 }));
-    expect((await POST(await context())).status).toBe(302);
+    mocks.getSessionUser.mockResolvedValue(null);
+    expect((await POST(await context())).status).toBe(401);
     expect(mocks.getMyExtension).not.toHaveBeenCalled();
+  });
+  it('stops an inactive account before reserving a release', async () => {
+    mocks.getMyExtension.mockRejectedValueOnce(
+      new ApiRequestError(404, 'not_found', 'Extension not found'),
+    );
+    const response = await POST(
+      await context({ source: new File(['zip'], 'module.zip') }),
+    );
+    expect(response.status).toBe(404);
+    expect(mocks.reservePackage).not.toHaveBeenCalled();
   });
   it('preserves artifact references when a release is changed in a browser draft', () => {
     const release = {

@@ -17,51 +17,49 @@ describe('package job polling', () => {
     const read = vi
       .fn()
       .mockResolvedValueOnce({ ...queued, status: 'processing' })
-      .mockResolvedValueOnce({ ...queued, status: 'ready', artifact });
+      .mockResolvedValue({ ...queued, status: 'ready', artifact });
+    for (let i = 0; i < 4; i++)
+      read.mockResolvedValueOnce({ ...queued, status: 'processing' });
     const pause = vi.fn().mockResolvedValue(undefined);
     expect(await waitForPackageJob(queued, read, { pause })).toBe(artifact);
-    expect(read.mock.calls).toEqual([['job'], ['job']]);
+    expect(read.mock.calls).toEqual(Array.from({ length: 6 }, () => ['job']));
+    expect(pause.mock.calls.flat()).toEqual([
+      1000, 2000, 3000, 4000, 5000, 5000,
+    ]);
   });
-  it('accepts completion on the last allowed poll', async () => {
+  it('accepts completion at the waiting budget', async () => {
     const artifact = { id: 'artifact' } as NonNullable<PackageJob['artifact']>;
     expect(
       await waitForPackageJob(
         queued,
         async () => ({ ...queued, status: 'ready', artifact }),
-        { attempts: 1, pause: async () => {} },
+        { waitMs: 1000, pause: async () => {} },
       ),
     ).toBe(artifact);
   });
-  it('reports a failed package without continuing to poll', async () => {
-    const read = vi.fn();
-    await expect(
-      waitForPackageJob(
-        {
-          ...queued,
-          status: 'failed',
-          error: {
-            code: 'INVALID_PACKAGE',
-            status: 422,
-            message: 'Invalid archive',
-          },
-        },
-        read,
-      ),
-    ).rejects.toMatchObject({
-      status: 422,
-      code: 'INVALID_PACKAGE',
-      message: 'Invalid archive',
+  it('stops polling when a queued job fails validation', async () => {
+    const read = vi.fn().mockResolvedValue({
+      ...queued,
+      status: 'failed',
+      error: {
+        code: 'INVALID_PACKAGE',
+        status: 422,
+        message: 'Invalid archive',
+      },
     });
-    expect(read).not.toHaveBeenCalled();
+    await expect(
+      waitForPackageJob(queued, read, { pause: async () => {} }),
+    ).rejects.toMatchObject({ status: 422, code: 'INVALID_PACKAGE' });
+    expect(read).toHaveBeenCalledOnce();
   });
   it('bounds waiting while allowing the saved job to be resumed', async () => {
     const read = vi.fn().mockResolvedValue(queued);
     await expect(
-      waitForPackageJob(queued, read, { attempts: 2, pause: async () => {} }),
+      waitForPackageJob(queued, read, { waitMs: 3000, pause: async () => {} }),
     ).rejects.toBeInstanceOf(PackageJobError);
     expect(read).toHaveBeenCalledTimes(2);
     await expect(
-      waitForPackageJob(queued, read, { attempts: 0 }),
+      waitForPackageJob(queued, read, { waitMs: 0 }),
     ).rejects.toMatchObject({ code: 'PACKAGE_PROCESSING' });
   });
 });

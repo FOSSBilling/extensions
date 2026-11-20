@@ -17,15 +17,16 @@ export async function waitForPackageJob(
   initial: PackageJob,
   read: (id: string) => Promise<PackageJob>,
   options: {
-    attempts?: number;
-    pause?: () => Promise<void>;
+    waitMs?: number;
+    pause?: (delay: number) => Promise<void>;
     progress?: (job: PackageJob) => void;
   } = {},
 ): Promise<PackageArtifact> {
   let job = initial;
   let failures = 0;
-  const attempts = options.attempts ?? 120;
-  for (let attempt = 0; attempt <= attempts; attempt++) {
+  let remaining = options.waitMs ?? 120_000;
+  let interval = 1000;
+  for (;;) {
     options.progress?.(job);
     if (job.status === 'ready') {
       if (job.artifact) return job.artifact;
@@ -41,9 +42,12 @@ export async function waitForPackageJob(
         job.error?.code ?? 'PACKAGE_FAILED',
         job.error?.message ?? 'Package preparation failed.',
       );
-    if (attempt === attempts) break;
-    await (options.pause?.() ??
-      new Promise<void>((resolve) => setTimeout(resolve, 1000)));
+    if (remaining <= 0) break;
+    const delay = Math.min(interval, remaining);
+    await (options.pause?.(delay) ??
+      new Promise<void>((resolve) => setTimeout(resolve, delay)));
+    remaining -= delay;
+    interval = Math.min(interval + 1000, 5000);
     try {
       job = await read(job.id);
       failures = 0;

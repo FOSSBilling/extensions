@@ -4,8 +4,6 @@ import {
   manifestFromCreateForm,
   buildExtensionUpdatePayload,
   echoExtensionFromForm,
-  echoNewExtensionFromForm,
-  echoReleaseDraftFromForm,
   ExtensionValidationError,
 } from '@/lib/extension-form';
 import type { Extension } from '@/types';
@@ -212,10 +210,6 @@ describe('manifest publishing forms', () => {
     expect(echo.author.name).toBe('Package Author');
     expect(echo.moduleRequirementsInput).toBe('unfinished dependency');
     expect(echo.license).toBe('MIT OR BSD-3-Clause');
-    expect(echoReleaseDraftFromForm(form).version_tag).toBe('1.0.0');
-    const createdEcho = echoNewExtensionFromForm(form, developer).extension;
-    expect(createdEcho).not.toHaveProperty('id');
-    expect(createdEcho.identifier).toBe('example_module');
   });
 });
 
@@ -237,24 +231,6 @@ it('rejects a blank custom license but safely echoes incomplete edits', () => {
   const echo = echoExtensionFromForm(form, published);
   expect(echo.license).toBe('');
   expect(echo.author.url).toBeUndefined();
-});
-
-it('safely echoes blank new-extension and release submissions', () => {
-  const form = new FormData();
-  expect(echoReleaseDraftFromForm(form)).toEqual({
-    version_tag: '',
-    release_date: '',
-    changelog_url: '',
-  });
-  const echo = echoNewExtensionFromForm(form, developer);
-  expect(echo.extension).toMatchObject({
-    identifier: '',
-    name: '',
-    license: '',
-    moduleRequirementsInput: '',
-    author: { name: '' },
-  });
-  expect(echo.releaseDraft).toEqual(echoReleaseDraftFromForm(form));
 });
 
 it('infers the source host from the single URL field', () => {

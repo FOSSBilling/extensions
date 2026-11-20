@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { requireUser } from '@/lib/auth-guard';
+import { getSessionUser } from '@/lib/session';
 import {
   createApiClient,
   ApiRequestError,
@@ -9,17 +9,21 @@ import { prepareExtensionDraft } from '@/lib/extension-draft-server';
 import { releaseFromFields } from '@/lib/extension-draft';
 import { packageManifest } from '@/lib/extension-package';
 import { ExtensionValidationError } from '@/lib/extension-form';
-import { packageFormData, sourceFile } from '@/lib/package-upload';
+import { packageFormData, packageSourceFields } from '@/lib/package-upload';
 import { latestRelease } from '@/lib/releases';
 import { formString } from '@/lib/form';
 
 export const POST: APIRoute = async (context) => {
   const env = context.locals.env;
-  const guard = await requireUser(context, env);
-  if (guard instanceof Response) return guard;
+  const headers = { 'Cache-Control': 'private, no-store' };
+  const user = await getSessionUser(context.cookies, env.sessionSecret);
+  if (!user)
+    return Response.json(
+      { error: 'Your session has expired. Sign in again to continue.' },
+      { status: 401, headers },
+    );
   const id = context.params.id;
   if (!id) return new Response(null, { status: 404 });
-  const headers = { 'Cache-Control': 'private, no-store' };
   try {
     const form = await packageFormData(context.request);
     let draft: unknown, fields: Record<string, string>;
@@ -31,7 +35,7 @@ export const POST: APIRoute = async (context) => {
     }
     if (!fields || typeof fields !== 'object' || Array.isArray(fields))
       throw new ExtensionValidationError('The release could not be read.');
-    const api = createApiClient(env, guard.sub);
+    const api = createApiClient(env, user.sub);
     const { payload } = await prepareExtensionDraft(api, id, draft);
     const original = payload.releases.find(
       (release) => release.tag === fields.original_tag,
@@ -58,7 +62,11 @@ export const POST: APIRoute = async (context) => {
       );
     if (!original && payload.releases.length >= 100)
       throw new ExtensionValidationError('Keep at most 100 releases.');
-    const source = sourceFile(form, !original?.artifact_id);
+    const source = packageSourceFields(form);
+    if (!source && !original?.artifact_id)
+      throw new ExtensionValidationError(
+        'Choose a source ZIP for this release.',
+      );
     const stored =
       !source && original?.artifact_id
         ? await api.getPackage(original.artifact_id)
@@ -76,11 +84,18 @@ export const POST: APIRoute = async (context) => {
       stored && original?.tag !== latestRelease(payload.releases)?.tag
         ? { ...stored.manifest, requires: release.requires }
         : packageManifest(id, payload, release);
-    const job = await api.queuePackage(
-      manifest,
-      source ?? { sourceId: stored!.source_id },
+    const reservation = source
+      ? await api.reservePackage(manifest, source)
+      : {
+          kind: 'job' as const,
+          job: await api.queuePackage(manifest, {
+            sourceId: stored!.source_id,
+          }),
+        };
+    return Response.json(
+      { release, reservation },
+      { headers, status: reservation.kind === 'job' ? 202 : 200 },
     );
-    return Response.json({ release, job }, { headers, status: 202 });
   } catch (error) {
     const message =
       error instanceof ApiRequestError
@@ -99,8 +114,12 @@ export const POST: APIRoute = async (context) => {
 
 export const GET: APIRoute = async (context) => {
   const env = context.locals.env;
-  const guard = await requireUser(context, env);
-  if (guard instanceof Response) return guard;
+  const user = await getSessionUser(context.cookies, env.sessionSecret);
+  if (!user)
+    return Response.json(
+      { error: 'Your session has expired. Sign in again to continue.' },
+      { status: 401, headers: { 'Cache-Control': 'private, no-store' } },
+    );
   const jobId = context.url.searchParams.get('jobId');
   const headers = { 'Cache-Control': 'private, no-store' };
   if (!jobId || !/^[a-f0-9-]{36}$/.test(jobId))
@@ -109,7 +128,7 @@ export const GET: APIRoute = async (context) => {
       { status: 400, headers },
     );
   try {
-    const job = await createApiClient(env, guard.sub).getPackageJob(jobId);
+    const job = await createApiClient(env, user.sub).getPackageJob(jobId);
     if (job.extension_identifier !== context.params.id)
       return Response.json(
         { error: 'Package job not found.' },

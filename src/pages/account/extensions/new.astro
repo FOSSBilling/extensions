@@ -2,6 +2,7 @@
 import Base from '../../../layouts/Base.astro';
 import ExtensionForm from '@/components/ExtensionForm.astro';
 import { requireUser } from '@/lib/auth-guard';
+import { getSessionUser } from '@/lib/session';
 import {
   createApiClient,
   ApiRequestError,
@@ -10,14 +11,57 @@ import {
 import { getDeveloperByOwner } from '@/lib/extensions-data';
 import {
   buildExtensionCreatePayload,
-  manifestFromCreateForm,
-  echoNewExtensionFromForm,
   ExtensionValidationError,
 } from '@/lib/extension-form';
-import { packageFormData, sourceFile } from '@/lib/package-upload';
+import { packageFormData } from '@/lib/package-upload';
+import { formString } from '@/lib/form';
 import { setFlash } from '@/lib/flash';
 
 const env = Astro.locals.env;
+if (Astro.request.method === 'POST') {
+  const user = await getSessionUser(Astro.cookies, env.sessionSecret);
+  if (!user)
+    return Response.json(
+      {
+        error:
+          'Your session has expired. Sign in again to submit the extension.',
+      },
+      { status: 401 },
+    );
+  const api = createApiClient(env, user.sub);
+  try {
+    const form = await packageFormData(Astro.request);
+    const job = await api.getPackageJob(formString(form, 'job_id'));
+    if (
+      job.extension_identifier !==
+      formString(form, 'extension_identifier').toLowerCase()
+    )
+      throw new ExtensionValidationError(
+        'The package does not belong to this extension.',
+      );
+    if (job.status !== 'ready' || !job.artifact)
+      throw new ExtensionValidationError(
+        'The package is not ready. Wait for processing and try again.',
+        409,
+      );
+    const artifact = job.artifact;
+    const payload = buildExtensionCreatePayload(form, artifact);
+    await api.createExtension(payload);
+    await setFlash(Astro, Astro.locals.env.sessionSecret, {
+      title: 'Submitted for Review.',
+    });
+    return Response.json({ url: `/extension/${payload.identifier}` });
+  } catch (error) {
+    const message =
+      error instanceof ApiRequestError
+        ? getApiErrorMessage(error)
+        : error instanceof ExtensionValidationError
+          ? error.message
+          : 'Something went wrong submitting your extension. Please try again.';
+    return Response.json({ error: message }, { status: 422 });
+  }
+}
+
 const guard = await requireUser(Astro, env);
 if (guard instanceof Response) return guard;
 const user = guard;
@@ -25,34 +69,6 @@ const user = guard;
 const developer = await getDeveloperByOwner(env, user.sub);
 if (!developer) {
   return Astro.redirect('/account/developer?required_for=extension');
-}
-
-let error: string | null = null;
-// Falls back to the just-submitted values on a failed submission, so the
-// form doesn't reset and discard the draft (same echo as the edit page).
-let submitted: ReturnType<typeof echoNewExtensionFromForm> | null = null;
-
-if (Astro.request.method === 'POST') {
-  const api = createApiClient(env, user.sub);
-  try {
-    const form = await packageFormData(Astro.request);
-    submitted = echoNewExtensionFromForm(form, developer);
-    const file = sourceFile(form, true)!;
-    const artifact = await api.buildPackage(manifestFromCreateForm(form), file);
-    const payload = buildExtensionCreatePayload(form, artifact);
-    await api.createExtension(payload);
-    await setFlash(Astro, Astro.locals.env.sessionSecret, {
-      title: 'Submitted for Review.',
-    });
-    return Astro.redirect(`/extension/${payload.identifier}`);
-  } catch (e) {
-    error =
-      e instanceof ApiRequestError
-        ? getApiErrorMessage(e)
-        : e instanceof ExtensionValidationError
-          ? e.message
-          : 'Something went wrong submitting your extension. Please try again.';
-  }
 }
 ---
 
@@ -63,11 +79,87 @@ if (Astro.request.method === 'POST') {
       Submissions are reviewed by a moderator before appearing in the public
       directory.
     </p>
-    <ExtensionForm
-      developer={developer}
-      echo={submitted?.extension}
-      releaseDraft={submitted?.releaseDraft}
-      error={error}
-    />
+    <div id="new-extension">
+      <noscript>
+        <p>JavaScript is required to upload a source ZIP.</p>
+      </noscript>
+      <p
+        class="alert"
+        data-variant="destructive"
+        role="alert"
+        data-upload-error
+        hidden
+      ></p>
+      <ExtensionForm developer={developer} />
+    </div>
   </div>
 </Base>
+
+<script>
+  import { manifestFromCreateForm } from '@/lib/extension-form';
+  import {
+    reservePackageUpload,
+    completePackageUpload,
+    readPackageJob,
+  } from '@/lib/package-upload';
+
+  import { waitForPackageJob } from '@/lib/package-job';
+
+  const root = document.querySelector('#new-extension');
+  const form = root?.querySelector('form');
+  const input = root?.querySelector<HTMLInputElement>('#source');
+  const error = root?.querySelector<HTMLElement>('[data-upload-error]');
+  const submit = form?.querySelector<HTMLButtonElement>(
+    'button[type="submit"]',
+  );
+  if (form && submit && error) {
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (submit.disabled) return;
+      const label = submit.textContent;
+      submit.disabled = true;
+      error.hidden = true;
+      try {
+        const file = input?.files?.[0];
+        if (!file) throw new Error('Choose a source ZIP for this release.');
+        const body = new FormData(form);
+        submit.textContent = 'Uploading Source ZIP…';
+        const manifest = manifestFromCreateForm(body);
+        const reservation = await reservePackageUpload(manifest, file);
+        const job = await completePackageUpload(reservation, file);
+        submit.textContent = 'Processing Package…';
+        const statusUrl = `/extension/${encodeURIComponent(manifest.id)}/package`;
+        await waitForPackageJob(job, (id) => readPackageJob(statusUrl, id));
+        body.set('job_id', job.id);
+        submit.textContent = 'Submitting for Review…';
+        const response = await fetch(location.pathname, {
+          method: 'POST',
+          body,
+          redirect: 'manual',
+        });
+        if (response.status === 0 || response.status === 302)
+          throw new Error(
+            'Your session has expired. Sign in again to submit the extension.',
+          );
+        const result = (await response.json()) as {
+          url?: string;
+          error?: string;
+        };
+        if (!response.ok || !result.url)
+          throw new Error(
+            result.error || 'Unable to submit the extension. Please try again.',
+          );
+        location.assign(result.url);
+      } catch (cause) {
+        error.textContent =
+          cause instanceof Error
+            ? cause.message
+            : 'Unable to submit the extension.';
+        error.hidden = false;
+      } finally {
+        submit.disabled = false;
+        submit.textContent = label;
+      }
+    });
+  }
+</script>

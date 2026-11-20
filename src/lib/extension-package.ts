@@ -9,7 +9,6 @@ import { latestRelease } from './releases';
 import type { Release } from '@/types';
 
 export const MAX_SOURCE_BYTES = 5 * 1024 * 1024;
-export const MAX_PACKAGE_REQUEST_BYTES = 6 * 1024 * 1024;
 
 export function packageManifest(
   id: string,
