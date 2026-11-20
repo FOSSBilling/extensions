@@ -46,6 +46,14 @@ describe('package job polling', () => {
     expect(read).not.toHaveBeenCalled();
   });
 
+  it('reports an unavailable artifact when a ready job has none', async () => {
+    const read = vi.fn();
+    await expect(
+      waitForPackageJob({ ...ready, artifact: null }, read),
+    ).rejects.toMatchObject({ code: 'PACKAGE_UNAVAILABLE', status: 502 });
+    expect(read).not.toHaveBeenCalled();
+  });
+
   it('stops polling when a queued job fails validation', async () => {
     const read = vi.fn().mockResolvedValue({
       ...queued,
