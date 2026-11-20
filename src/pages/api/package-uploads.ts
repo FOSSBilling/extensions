@@ -3,7 +3,6 @@ import {
   createApiClient,
   ApiRequestError,
   getApiErrorMessage,
-  type Manifest,
 } from '@/lib/api/client';
 import { getSessionUser } from '@/lib/session';
 import { formString } from '@/lib/form';
@@ -22,8 +21,13 @@ const handle: APIRoute = async (context) => {
       { status: 401, headers },
     );
   try {
-    const form = await packageFormData(context.request);
     const api = createApiClient(env, user.sub);
+    if (context.request.method === 'GET') {
+      const id = context.url.searchParams.get('jobId');
+      if (!id) throw new ExtensionValidationError('Invalid package job.', 400);
+      return Response.json({ job: await api.getPackageJob(id) }, { headers });
+    }
+    const form = await packageFormData(context.request);
     if (context.request.method === 'PUT') {
       const job = await api.confirmPackage(formString(form, 'upload_id'));
       return Response.json({ result: job }, { status: 202, headers });
@@ -33,13 +37,7 @@ const handle: APIRoute = async (context) => {
       throw new ExtensionValidationError(
         'Choose a source ZIP for this release.',
       );
-    let manifest: Manifest;
-    try {
-      manifest = JSON.parse(formString(form, 'manifest'));
-    } catch {
-      throw new ExtensionValidationError('Unable to read package metadata.');
-    }
-    const result = await api.reservePackage(manifest, source);
+    const result = await api.reservePackage({}, source);
     return Response.json({ result }, { headers });
   } catch (error) {
     const message =
@@ -59,3 +57,4 @@ const handle: APIRoute = async (context) => {
 
 export const POST = handle;
 export const PUT = handle;
+export const GET = handle;

@@ -1,0 +1,32 @@
+---
+interface Props {
+  value?: string;
+}
+const { value } = Astro.props;
+---
+
+<label class="grid gap-2 text-sm font-medium">
+  Source URL
+  <input
+    class="input w-full"
+    type="url"
+    name="source_url"
+    value={value}
+    placeholder="https://github.com/owner/project"
+    required
+  />
+</label>
+
+<script>
+  import { parseRepositoryUrl, SOURCE_URL_ERROR } from '@/lib/repository';
+
+  for (const input of document.querySelectorAll<HTMLInputElement>(
+    'input[name="source_url"]',
+  )) {
+    input.addEventListener('input', () => {
+      input.setCustomValidity(
+        input.value && !parseRepositoryUrl(input.value) ? SOURCE_URL_ERROR : '',
+      );
+    });
+  }
+</script>

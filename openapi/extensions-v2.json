@@ -1844,7 +1844,7 @@
             "format": "uuid"
           },
           "extension_identifier": {
-            "type": "string"
+            "type": ["string", "null"]
           },
           "status": {
             "type": "string",
@@ -5887,8 +5887,22 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "manifest": {
-                    "$ref": "#/components/schemas/Manifest"
+                  "target": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64,
+                        "pattern": "^[a-z0-9_-]+$"
+                      },
+                      "version": {
+                        "type": "string",
+                        "maxLength": 100,
+                        "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$"
+                      }
+                    },
+                    "additionalProperties": false
                   },
                   "bytes": {
                     "type": "integer",
@@ -5899,7 +5913,7 @@
                     "pattern": "^[a-f0-9]{64}$"
                   }
                 },
-                "required": ["manifest", "bytes", "sha256"],
+                "required": ["target", "bytes", "sha256"],
                 "additionalProperties": false
               }
             }
@@ -5953,7 +5967,7 @@
             }
           },
           "409": {
-            "description": "Source version conflict, ownership changed, or storage quota exhausted",
+            "description": "A published release is locked, ownership changed, or storage quota is exhausted",
             "content": {
               "application/json": {
                 "schema": {
@@ -6008,7 +6022,7 @@
     "/packages": {
       "post": {
         "tags": ["Packages"],
-        "summary": "Confirm a source upload or queue a rebuild from a stored source",
+        "summary": "Confirm an upload and queue ZIP validation",
         "security": [
           {
             "Bearer": []
@@ -6019,33 +6033,15 @@
           "content": {
             "application/json": {
               "schema": {
-                "anyOf": [
-                  {
-                    "type": "object",
-                    "properties": {
-                      "upload_id": {
-                        "type": "string",
-                        "format": "uuid"
-                      }
-                    },
-                    "required": ["upload_id"],
-                    "additionalProperties": false
-                  },
-                  {
-                    "type": "object",
-                    "properties": {
-                      "manifest": {
-                        "$ref": "#/components/schemas/Manifest"
-                      },
-                      "source_id": {
-                        "type": "string",
-                        "format": "uuid"
-                      }
-                    },
-                    "required": ["manifest", "source_id"],
-                    "additionalProperties": false
+                "type": "object",
+                "properties": {
+                  "upload_id": {
+                    "type": "string",
+                    "format": "uuid"
                   }
-                ]
+                },
+                "required": ["upload_id"],
+                "additionalProperties": false
               }
             }
           }
@@ -6098,7 +6094,7 @@
             }
           },
           "409": {
-            "description": "Source version conflict, ownership changed, or storage quota exhausted",
+            "description": "A published release is locked, ownership changed, or storage quota is exhausted",
             "content": {
               "application/json": {
                 "schema": {
@@ -6218,7 +6214,7 @@
             }
           },
           "409": {
-            "description": "Source version conflict, ownership changed, or storage quota exhausted",
+            "description": "A published release is locked, ownership changed, or storage quota is exhausted",
             "content": {
               "application/json": {
                 "schema": {
@@ -6333,7 +6329,7 @@
             }
           },
           "409": {
-            "description": "Source version conflict, ownership changed, or storage quota exhausted",
+            "description": "A published release is locked, ownership changed, or storage quota is exhausted",
             "content": {
               "application/json": {
                 "schema": {
@@ -6453,7 +6449,7 @@
             }
           },
           "409": {
-            "description": "Source version conflict, ownership changed, or storage quota exhausted",
+            "description": "A published release is locked, ownership changed, or storage quota is exhausted",
             "content": {
               "application/json": {
                 "schema": {
@@ -6568,7 +6564,7 @@
             }
           },
           "409": {
-            "description": "Source version conflict, ownership changed, or storage quota exhausted",
+            "description": "A published release is locked, ownership changed, or storage quota is exhausted",
             "content": {
               "application/json": {
                 "schema": {
@@ -6695,7 +6691,7 @@
             }
           },
           "409": {
-            "description": "Source version conflict, ownership changed, or storage quota exhausted",
+            "description": "A published release is locked, ownership changed, or storage quota is exhausted",
             "content": {
               "application/json": {
                 "schema": {

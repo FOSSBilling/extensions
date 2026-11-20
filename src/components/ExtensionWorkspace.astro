@@ -7,7 +7,7 @@ import ExtensionNavigation from './ExtensionNavigation.astro';
 import { renderMarkdown } from '@/lib/markdown';
 import { sha256Hex } from '@/lib/hash';
 import ExtensionSectionFields from './ExtensionSectionFields.astro';
-import RequirementsFields from './RequirementsFields.astro';
+import { latestRelease } from '@/lib/releases';
 import type { DraftSection } from '@/lib/extension-draft';
 import { Pencil, Plus } from '@lucide/astro';
 interface Props {
@@ -18,6 +18,7 @@ interface Props {
   selectedVersion?: 'pending' | 'published';
   editor?: {
     userId: string;
+    publishedPackageVersions: string[];
     canEdit: boolean;
     pendingRevisionId?: string;
     disabledReason?: string;
@@ -39,6 +40,7 @@ const config =
   editorContent && editor
     ? serializeDraftConfig({
         base: editorContent,
+        publishedPackageVersions: editor.publishedPackageVersions,
         packageUrl: `${baseUrl}/package`,
         developerName,
         pendingRevisionId,
@@ -74,7 +76,7 @@ const labels: Record<DraftSection, string> = {
           </p>
           <p class="mt-1 text-xs text-muted-foreground">
             Save changes across sections, then submit them together. Drafts stay
-            in this browser. Package metadata is rebuilt when needed.
+            in this browser.
           </p>
         </div>
         <div class="flex shrink-0 flex-wrap gap-2">
@@ -157,29 +159,17 @@ const labels: Record<DraftSection, string> = {
               aria-labelledby="release-editor-title"
             >
               <input type="hidden" name="original_tag" />
-              <div class="grid gap-4 sm:grid-cols-2">
-                <label class="grid gap-2 text-sm font-medium">
-                  Version Tag
-                  <input
-                    class="input w-full"
-                    name="version_tag"
-                    required
-                    maxlength="100"
-                    placeholder="1.3.0"
-                  />
-                </label>
-                <label class="grid gap-2 text-sm font-medium">
-                  Release Date
-                  <input
-                    class="input w-full"
-                    type="date"
-                    name="release_date"
-                    required
-                  />
-                </label>
-              </div>
+              <label class="grid gap-2 text-sm font-medium">
+                Release Date
+                <input
+                  class="input w-full"
+                  type="date"
+                  name="release_date"
+                  required
+                />
+              </label>
               <label class="grid gap-2 text-sm font-medium" data-source-control>
-                Source ZIP
+                Extension ZIP
                 <input
                   class="input w-full"
                   type="file"
@@ -206,13 +196,13 @@ const labels: Record<DraftSection, string> = {
                   placeholder="https://…"
                 />
               </label>
-              <RequirementsFields />
               <label class="flex items-center gap-2 text-sm">
                 <input type="checkbox" class="input" name="is_latest" checked />
                 Set as Latest Release
               </label>
               <p class="text-xs text-muted-foreground">
-                The latest release supplies the main download. Release changes
+                New stable releases become the main download by default. To make
+                a prerelease latest, select it after saving. Release changes
                 join your draft and need moderator approval.
               </p>
             </fieldset>
@@ -314,6 +304,9 @@ const labels: Record<DraftSection, string> = {
               class="space-y-4 rounded-b-xl bg-muted/30 p-5 sm:p-6"
             >
               <ExtensionSectionFields
+                packageManaged={Boolean(
+                  latestRelease(editorContent.releases)?.artifact_id,
+                )}
                 section={section}
                 content={editorContent}
               />

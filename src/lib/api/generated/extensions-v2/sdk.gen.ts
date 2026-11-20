@@ -916,7 +916,7 @@ export const postPackageUploads = <ThrowOnError extends boolean = false>(
   });
 
 /**
- * Confirm a source upload or queue a rebuild from a stored source
+ * Confirm an upload and queue ZIP validation
  */
 export const postPackages = <ThrowOnError extends boolean = false>(
   options: Options<PostPackagesData, ThrowOnError>,

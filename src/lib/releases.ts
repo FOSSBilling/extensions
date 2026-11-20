@@ -27,8 +27,8 @@ export function latestRelease(
 ): Release | undefined {
   const selected = releases.find((release) => release.is_latest === true);
   if (selected) return selected;
-  const stable = releases.filter(
-    (release) => valid(release.tag) && prerelease(release.tag) === null,
+  const stable = releases.filter((release) =>
+    defaultLatestForVersion(release.tag),
   );
   return (stable.length ? stable : releases).reduce<Release | undefined>(
     (latest, release) =>

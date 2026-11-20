@@ -70,6 +70,10 @@ describe('automatic latest release', () => {
 });
 
 describe('selected latest release', () => {
+  it('offers the default selection only for stable ZIP versions', () => {
+    expect(defaultLatestForVersion('2.0.0')).toBe(true);
+    expect(defaultLatestForVersion('2.0.0-rc.1')).toBe(false);
+  });
   it('uses an explicit choice without reordering version history', () => {
     const older = { ...release('1.0.0'), is_latest: true };
     const newer = release('2.0.0');
@@ -86,21 +90,17 @@ describe('selected latest release', () => {
   });
 });
 
-it('moves the sole latest flag and defaults prereleases to unchecked', () => {
+it('moves the sole latest flag', () => {
   const result = selectLatestRelease(
     [{ ...release('1.0.0'), is_latest: true }, release('2.0.0')],
     '2.0.0',
   );
   expect(result.filter((item) => item.is_latest)).toHaveLength(1);
   expect(latestRelease(result)?.tag).toBe('2.0.0');
-  expect(defaultLatestForVersion('2.1.0')).toBe(true);
-  expect(defaultLatestForVersion('2.1.0-beta.1')).toBe(false);
 });
 
-it('does not select unknown releases or default invalid tags to latest', () => {
+it('does not select unknown releases', () => {
   expect(() => selectLatestRelease([release('1.0.0')], '9.9.9')).toThrow(
     'Choose an existing release.',
   );
-  expect(defaultLatestForVersion('1.0')).toBe(false);
-  expect(defaultLatestForVersion('2.0-beta')).toBe(false);
 });

@@ -209,6 +209,9 @@ const previewLabel = showSubmission
     selectedVersion={showSubmission ? 'pending' : 'published'}
     editor={{
       userId,
+      publishedPackageVersions: (published?.releases ?? [])
+        .filter((release) => release.artifact_id)
+        .map((release) => release.tag.replace(/^v(?=\d)/, '')),
       canEdit,
       pendingEditUrl:
         pending && !showSubmission

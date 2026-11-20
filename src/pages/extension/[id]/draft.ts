@@ -6,7 +6,7 @@ import {
   getApiErrorMessage,
 } from '@/lib/api/client';
 import { prepareExtensionDraft } from '@/lib/extension-draft-server';
-import { rebuildLatestPackage } from '@/lib/extension-package';
+import { applyLatestPackageManifest } from '@/lib/extension-package';
 import { ExtensionValidationError } from '@/lib/extension-form';
 import { formString } from '@/lib/form';
 import { setFlash } from '@/lib/flash';
@@ -39,7 +39,7 @@ export const POST: APIRoute = async (context) => {
     } = await prepareExtensionDraft(api, id, draft);
     if (JSON.stringify(changed) === JSON.stringify(base))
       return fail('There are no changes to submit.');
-    const payload = await rebuildLatestPackage(api, id, changed);
+    const payload = await applyLatestPackageManifest(api, changed, base);
     await prepareExtensionDraft(api, id, draft);
     if (pending) await api.replacePendingRevision(id, pending.id, payload);
     else await api.updateExtension(id, payload);

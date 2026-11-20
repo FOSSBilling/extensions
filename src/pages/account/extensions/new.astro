@@ -1,6 +1,6 @@
 ---
 import Base from '../../../layouts/Base.astro';
-import ExtensionForm from '@/components/ExtensionForm.astro';
+import DirectoryListingFields from '@/components/DirectoryListingFields.astro';
 import { requireUser } from '@/lib/auth-guard';
 import { getSessionUser } from '@/lib/session';
 import {
@@ -32,13 +32,6 @@ if (Astro.request.method === 'POST') {
   try {
     const form = await packageFormData(Astro.request);
     const job = await api.getPackageJob(formString(form, 'job_id'));
-    if (
-      job.extension_identifier !==
-      formString(form, 'extension_identifier').toLowerCase()
-    )
-      throw new ExtensionValidationError(
-        'The package does not belong to this extension.',
-      );
     if (job.status !== 'ready' || !job.artifact)
       throw new ExtensionValidationError(
         'The package is not ready. Wait for processing and try again.',
@@ -95,13 +88,44 @@ if (!developer) {
         data-upload-error
         hidden
       ></p>
-      <ExtensionForm developer={developer} />
+      <form method="POST" class="space-y-5">
+        <label class="grid gap-2 text-sm font-medium">
+          Extension ZIP
+          <input
+            id="source"
+            type="file"
+            class="input w-full"
+            accept=".zip,application/zip"
+            required
+          />
+        </label>
+        <p class="text-xs text-muted-foreground">
+          Upload a ready-to-install ZIP up to 5 MiB with manifest.json at its
+          root.
+        </p>
+        <DirectoryListingFields />
+        <label class="grid gap-2 text-sm font-medium">
+          Release Date
+          <input
+            class="input w-full"
+            name="release_date"
+            type="date"
+            required
+          />
+        </label>
+        <label class="grid gap-2 text-sm font-medium">
+          Changelog URL
+          <input class="input w-full" name="changelog_url" type="url" />
+        </label>
+        <button type="submit" class="btn">
+          Submit for Review
+        </button>
+      </form>
     </div>
   </div>
 </Base>
 
 <script>
-  import { manifestFromCreateForm } from '@/lib/extension-form';
   import {
     reservePackageUpload,
     completePackageUpload,
@@ -129,12 +153,10 @@ if (!developer) {
         if (!file) throw new Error('Choose a source ZIP for this release.');
         const body = new FormData(form);
         submit.textContent = 'Uploading Source ZIP…';
-        const manifest = manifestFromCreateForm(body);
-        const reservation = await reservePackageUpload(manifest, file);
+        const reservation = await reservePackageUpload(file);
         const job = await completePackageUpload(reservation, file);
         submit.textContent = 'Processing Package…';
-        const statusUrl = `/extension/${encodeURIComponent(manifest.id)}/package`;
-        await waitForPackageJob(job, (id) => readPackageJob(statusUrl, id));
+        await waitForPackageJob(job, readPackageJob);
         body.set('job_id', job.id);
         submit.textContent = 'Submitting for Review…';
         const response = await fetch(location.pathname, {

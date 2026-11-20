@@ -46,5 +46,10 @@ export async function prepareExtensionDraft(
     conflict(
       'This extension changed since you started editing. Your local draft has been kept. Reload the overview to review it.',
     );
-  return { base, payload: applyExtensionDraft(base, draft), pending };
+  return {
+    base,
+    payload: applyExtensionDraft(base, draft),
+    pending,
+    published: owned.published,
+  };
 }

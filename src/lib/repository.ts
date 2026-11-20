@@ -1,5 +1,8 @@
 import type { Repository } from '@/types';
 
+export const SOURCE_URL_ERROR =
+  'Enter a valid Source URL. Repository paths and custom URLs must be at most 500 characters.';
+
 // Form inputs use one URL; the API retains its existing typed repository
 // representation. Match real public hostnames rather than lookalike suffixes.
 export function parseRepositoryUrl(value: string): Repository | null {
