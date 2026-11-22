@@ -157,6 +157,18 @@ describe('release package editor', () => {
     });
     expect(mocks.reservePackage).not.toHaveBeenCalled();
   });
+  it('rejects an overlong GitHub ZIP URL before requesting an import', async () => {
+    const githubUrl =
+      'https://github.com/example/module/releases/download/v1.0.0/' +
+      'a'.repeat(2048) +
+      '.zip';
+    const response = await POST(await context({ githubUrl }));
+    expect(response.status).toBe(422);
+    expect(await response.json()).toEqual({
+      error: 'Enter a GitHub Release ZIP URL of 2,048 characters or fewer.',
+    });
+    expect(mocks.importGitHubPackage).not.toHaveBeenCalled();
+  });
   it('locks a published ZIP but allows changing its date and changelog', async () => {
     expect(
       (await POST(await context({ fields, sourceBytes: 128 }))).status,

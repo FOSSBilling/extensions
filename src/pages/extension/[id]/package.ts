@@ -6,7 +6,11 @@ import {
   getApiErrorMessage,
 } from '@/lib/api/client';
 import { prepareExtensionDraft } from '@/lib/extension-draft-server';
-import { ExtensionValidationError, releaseDetails } from '@/lib/extension-form';
+import {
+  ExtensionValidationError,
+  formUrl,
+  releaseDetails,
+} from '@/lib/extension-form';
 import { packageFormData, packageSourceFields } from '@/lib/package-upload';
 import { formString } from '@/lib/form';
 
@@ -46,7 +50,11 @@ export const POST: APIRoute = async (context) => {
       throw new ExtensionValidationError('Keep at most 100 releases.');
     const details = releaseDetails(fields);
     const source = packageSourceFields(form);
-    const githubUrl = formString(form, 'github_url');
+    const githubUrl =
+      formUrl(form.get('github_url'), 'GitHub Release ZIP URL', {
+        optional: true,
+        preserveScheme: true,
+      }) ?? '';
     if (source && githubUrl)
       throw new ExtensionValidationError('Choose one package source.');
     if (!source && !githubUrl) {

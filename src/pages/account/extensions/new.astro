@@ -96,6 +96,7 @@ if (!developer) {
             type="file"
             class="input w-full"
             accept=".zip,application/zip"
+            aria-describedby="new-extension-source-help"
           />
         </label>
         <label class="grid gap-2 text-sm font-medium">
@@ -105,9 +106,10 @@ if (!developer) {
             name="github_url"
             type="url"
             maxlength="2048"
+            aria-describedby="new-extension-source-help"
           />
         </label>
-        <p class="text-xs text-muted-foreground">
+        <p id="new-extension-source-help" class="text-xs text-muted-foreground">
           Upload a ZIP or link to a public GitHub release asset. The ZIP can be
           up to 5 MiB and must contain manifest.json at its root.
         </p>
@@ -159,7 +161,8 @@ if (!developer) {
       submit.disabled = true;
       error.hidden = true;
       try {
-        const file = input?.files?.[0];
+        const selectedFile = input?.files?.[0];
+        const file = selectedFile?.size ? selectedFile : undefined;
         const body = new FormData(form);
         const githubUrl = formString(body, 'github_url');
         body.delete('github_url');

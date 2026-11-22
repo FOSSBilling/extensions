@@ -86,6 +86,13 @@ describe('package API transport', () => {
     const imported = await PUT(context('PUT', { github_url: githubUrl }));
     expect(imported.status).toBe(202);
     expect(await imported.json()).toEqual({ result: job });
+    const invalid = await PUT(
+      context('PUT', { github_url: 'ftp://github.com/example.zip' }),
+    );
+    expect(invalid.status).toBe(422);
+    expect(await invalid.json()).toEqual({
+      error: 'Enter a valid GitHub Release ZIP URL.',
+    });
     expect(packageRequests).toEqual([
       { upload_id: reservation.id },
       { github_url: githubUrl, target: {} },

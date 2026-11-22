@@ -6,7 +6,7 @@ import {
 } from '@/lib/api/client';
 import { getSessionUser } from '@/lib/session';
 import { formString } from '@/lib/form';
-import { ExtensionValidationError } from '@/lib/extension-form';
+import { ExtensionValidationError, formUrl } from '@/lib/extension-form';
 import { packageFormData, packageSourceFields } from '@/lib/package-upload';
 
 const handle: APIRoute = async (context) => {
@@ -29,7 +29,11 @@ const handle: APIRoute = async (context) => {
     }
     const form = await packageFormData(context.request);
     if (context.request.method === 'PUT') {
-      const githubUrl = formString(form, 'github_url');
+      const githubUrl = formUrl(
+        form.get('github_url'),
+        'GitHub Release ZIP URL',
+        { optional: true, preserveScheme: true },
+      );
       const uploadId = formString(form, 'upload_id');
       if (Boolean(githubUrl) === Boolean(uploadId))
         throw new ExtensionValidationError('Choose one package source.');
