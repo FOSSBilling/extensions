@@ -168,23 +168,35 @@ const labels: Record<DraftSection, string> = {
                   required
                 />
               </label>
-              <label class="grid gap-2 text-sm font-medium" data-source-control>
-                Extension ZIP
-                <input
-                  class="input w-full"
-                  type="file"
-                  name="source"
-                  accept=".zip,application/zip"
-                  aria-describedby="release-source-help"
-                />
-              </label>
+              <div class="space-y-4" data-source-control>
+                <label class="grid gap-2 text-sm font-medium">
+                  Extension ZIP
+                  <input
+                    class="input w-full"
+                    type="file"
+                    name="source"
+                    accept=".zip,application/zip"
+                    aria-describedby="release-source-help"
+                  />
+                </label>
+                <label class="grid gap-2 text-sm font-medium">
+                  GitHub Release ZIP URL
+                  <input
+                    class="input w-full"
+                    type="url"
+                    name="github_url"
+                    maxlength="2048"
+                    aria-describedby="release-source-help"
+                  />
+                </label>
+              </div>
               <p
                 id="release-source-help"
                 class="text-xs text-muted-foreground"
                 data-source-help
               >
-                Upload ready-to-install files, without a wrapping directory.
-                Maximum 5 MiB.
+                Upload a ZIP up to 5 MiB or link to a public GitHub release
+                asset.
               </p>
               <label class="grid gap-2 text-sm font-medium">
                 Changelog URL{' '}

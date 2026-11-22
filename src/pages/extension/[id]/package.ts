@@ -6,7 +6,11 @@ import {
   getApiErrorMessage,
 } from '@/lib/api/client';
 import { prepareExtensionDraft } from '@/lib/extension-draft-server';
-import { ExtensionValidationError, releaseDetails } from '@/lib/extension-form';
+import {
+  ExtensionValidationError,
+  formUrl,
+  releaseDetails,
+} from '@/lib/extension-form';
 import { packageFormData, packageSourceFields } from '@/lib/package-upload';
 import { formString } from '@/lib/form';
 
@@ -46,9 +50,18 @@ export const POST: APIRoute = async (context) => {
       throw new ExtensionValidationError('Keep at most 100 releases.');
     const details = releaseDetails(fields);
     const source = packageSourceFields(form);
-    if (!source) {
+    const githubUrl =
+      formUrl(form.get('github_url'), 'GitHub Release ZIP URL', {
+        optional: true,
+        preserveScheme: true,
+      }) ?? '';
+    if (source && githubUrl)
+      throw new ExtensionValidationError('Choose one package source.');
+    if (!source && !githubUrl) {
       if (!original?.artifact_id)
-        throw new ExtensionValidationError('Choose a ZIP for this release.');
+        throw new ExtensionValidationError(
+          'Choose a ZIP file or enter a GitHub Release ZIP URL.',
+        );
       return Response.json(
         { release: { ...original, ...details } },
         { headers },
@@ -67,10 +80,10 @@ export const POST: APIRoute = async (context) => {
         'Published release ZIPs are locked. Upload a new version.',
         409,
       );
-    const reservation = await api.reservePackage(
-      { id: id.toLowerCase(), version },
-      source,
-    );
+    const target = { id: id.toLowerCase(), version };
+    const reservation = source
+      ? await api.reservePackage(target, source)
+      : { kind: 'job', job: await api.importGitHubPackage(githubUrl, target) };
     return Response.json({ details, reservation }, { headers });
   } catch (error) {
     const message =

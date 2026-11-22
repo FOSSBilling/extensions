@@ -462,14 +462,16 @@ export function initExtensionWorkspace() {
         release.tag.replace(/^v(?=\d)/, ''),
       );
     const file = releaseForm.elements.namedItem('source') as HTMLInputElement;
-    file.required = !release?.artifact_id;
-    file.disabled = Boolean(locked);
+    const githubUrl = releaseForm.elements.namedItem(
+      'github_url',
+    ) as HTMLInputElement;
+    file.disabled = githubUrl.disabled = Boolean(locked);
     find('[data-source-control]').hidden = Boolean(locked);
     find('[data-source-help]').textContent = locked
       ? 'This ZIP is locked because the release has been published.'
       : release?.artifact_id
-        ? 'Choose a replacement ZIP to update the pending release.'
-        : 'Upload a ready-to-install ZIP up to 5 MiB with manifest.json at its root.';
+        ? 'Upload or import a replacement ZIP to update the pending release.'
+        : 'Upload a ZIP up to 5 MiB or link to a public GitHub release asset. The ZIP must contain manifest.json at its root.';
     find('[data-release-form-title]').textContent = tag
       ? 'Edit Release'
       : 'Add Release';
@@ -757,8 +759,13 @@ export function initExtensionWorkspace() {
       const body = new FormData();
       const file = new FormData(releaseForm).get('source');
       const source = file instanceof File && file.size ? file : undefined;
-      if (!source && !original?.artifact_id)
-        throw new Error('Choose a source ZIP for this release.');
+      const githubUrl = input.github_url?.trim();
+      delete input.github_url;
+      if (
+        (!source && !githubUrl && !original?.artifact_id) ||
+        (source && githubUrl)
+      )
+        throw new Error('Choose a ZIP file or enter a GitHub Release ZIP URL.');
       body.set('draft', JSON.stringify(draft));
       body.set('release', JSON.stringify(input));
       busy = true;
@@ -767,6 +774,7 @@ export function initExtensionWorkspace() {
       root.inert = true;
       root.setAttribute('aria-busy', 'true');
       if (source) await describePackageSource(body, source);
+      if (githubUrl) body.set('github_url', githubUrl);
       const response = await fetch(config.packageUrl, {
         method: 'POST',
         body,

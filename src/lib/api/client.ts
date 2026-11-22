@@ -577,6 +577,13 @@ export function createApiClient(env: ApplicationEnv, subject: string) {
       callResult(postPackageUploads({ client, body: { target, ...source } })),
     confirmPackage: (uploadId: string) =>
       callResult(postPackages({ client, body: { upload_id: uploadId } })),
+    importGitHubPackage: (
+      githubUrl: string,
+      target: { id?: string; version?: string },
+    ) =>
+      callResult(
+        postPackages({ client, body: { github_url: githubUrl, target } }),
+      ),
     getPackage: (packageId: string): Promise<PackageArtifact> =>
       callResult(getPackagesByPackageId({ client, path: { packageId } })),
 

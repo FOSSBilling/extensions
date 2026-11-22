@@ -12,7 +12,7 @@ import { fakeCookies } from './helpers/fake-cookies';
 import { createSessionCookieValue, SESSION_COOKIE } from '@/lib/session';
 import { POST, PUT } from '@/pages/api/package-uploads';
 describe('package API transport', () => {
-  it('forwards authenticated reservations and confirmations from the directory handlers', async () => {
+  it('forwards authenticated ZIP uploads and GitHub imports from the directory handlers', async () => {
     const source = { bytes: 5 * 1024 * 1024, sha256: 'a'.repeat(64) };
     const reservation = {
       kind: 'upload',
@@ -29,6 +29,9 @@ describe('package API transport', () => {
       created_at: '2026-11-20T12:00:00Z',
       updated_at: '2026-11-20T12:00:00Z',
     };
+    const githubUrl =
+      'https://github.com/fossbilling/modules/releases/download/example-v1.0.0/example.zip';
+    const packageRequests: unknown[] = [];
     const fetcher = vi.fn(async (request: Request) => {
       expect(request.headers.get('Authorization')).toMatch(/^Bearer /);
       expect(request.headers.get('Content-Type')).toContain('application/json');
@@ -37,7 +40,7 @@ describe('package API transport', () => {
         return Response.json({ result: reservation });
       }
       expect(request.url).toBe('https://api.test/extensions/v2/packages');
-      expect(await request.json()).toEqual({ upload_id: reservation.id });
+      packageRequests.push(await request.json());
       return Response.json({ result: job }, { status: 202 });
     });
     const env = makeEnv({
@@ -80,6 +83,20 @@ describe('package API transport', () => {
     const confirmed = await PUT(context('PUT', { upload_id: reservation.id }));
     expect(confirmed.status).toBe(202);
     expect(await confirmed.json()).toEqual({ result: job });
+    const imported = await PUT(context('PUT', { github_url: githubUrl }));
+    expect(imported.status).toBe(202);
+    expect(await imported.json()).toEqual({ result: job });
+    const invalid = await PUT(
+      context('PUT', { github_url: 'ftp://github.com/example.zip' }),
+    );
+    expect(invalid.status).toBe(422);
+    expect(await invalid.json()).toEqual({
+      error: 'Enter a valid GitHub Release ZIP URL.',
+    });
+    expect(packageRequests).toEqual([
+      { upload_id: reservation.id },
+      { github_url: githubUrl, target: {} },
+    ]);
   });
   it('polls packaging jobs through the authenticated API endpoint', async () => {
     const job = {
