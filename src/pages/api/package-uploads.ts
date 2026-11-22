@@ -29,7 +29,13 @@ const handle: APIRoute = async (context) => {
     }
     const form = await packageFormData(context.request);
     if (context.request.method === 'PUT') {
-      const job = await api.confirmPackage(formString(form, 'upload_id'));
+      const githubUrl = formString(form, 'github_url');
+      const uploadId = formString(form, 'upload_id');
+      if (Boolean(githubUrl) === Boolean(uploadId))
+        throw new ExtensionValidationError('Choose one package source.');
+      const job = githubUrl
+        ? await api.importGitHubPackage(githubUrl, {})
+        : await api.confirmPackage(uploadId);
       return Response.json({ result: job }, { status: 202, headers });
     }
     const source = packageSourceFields(form);

@@ -79,7 +79,7 @@ if (!developer) {
     </p>
     <div id="new-extension">
       <noscript>
-        <p>JavaScript is required to upload a source ZIP.</p>
+        <p>JavaScript is required to prepare an extension package.</p>
       </noscript>
       <p
         class="alert"
@@ -96,12 +96,20 @@ if (!developer) {
             type="file"
             class="input w-full"
             accept=".zip,application/zip"
-            required
+          />
+        </label>
+        <label class="grid gap-2 text-sm font-medium">
+          GitHub Release ZIP URL
+          <input
+            class="input w-full"
+            name="github_url"
+            type="url"
+            maxlength="2048"
           />
         </label>
         <p class="text-xs text-muted-foreground">
-          Upload a ready-to-install ZIP up to 5 MiB with manifest.json at its
-          root.
+          Upload a ZIP or link to a public GitHub release asset. The ZIP can be
+          up to 5 MiB and must contain manifest.json at its root.
         </p>
         <DirectoryListingFields />
         <label class="grid gap-2 text-sm font-medium">
@@ -129,9 +137,11 @@ if (!developer) {
   import {
     reservePackageUpload,
     completePackageUpload,
+    importGitHubPackage,
     readPackageJob,
   } from '@/lib/package-upload';
 
+  import { formString } from '@/lib/form';
   import { waitForPackageJob } from '@/lib/package-job';
 
   const root = document.querySelector('#new-extension');
@@ -150,11 +160,19 @@ if (!developer) {
       error.hidden = true;
       try {
         const file = input?.files?.[0];
-        if (!file) throw new Error('Choose a source ZIP for this release.');
         const body = new FormData(form);
-        submit.textContent = 'Uploading Source ZIP…';
-        const reservation = await reservePackageUpload(file);
-        const job = await completePackageUpload(reservation, file);
+        const githubUrl = formString(body, 'github_url');
+        body.delete('github_url');
+        if (Boolean(file) === Boolean(githubUrl))
+          throw new Error(
+            'Choose a ZIP file or enter a GitHub Release ZIP URL.',
+          );
+        submit.textContent = file
+          ? 'Uploading Source ZIP…'
+          : 'Importing Package…';
+        const job = file
+          ? await completePackageUpload(await reservePackageUpload(file), file)
+          : await importGitHubPackage(githubUrl);
         submit.textContent = 'Processing Package…';
         await waitForPackageJob(job, readPackageJob);
         body.set('job_id', job.id);

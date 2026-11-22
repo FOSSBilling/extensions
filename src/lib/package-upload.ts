@@ -101,6 +101,12 @@ export async function reservePackageUpload(source: File) {
   return uploadRequest<PackageReservation>('POST', form);
 }
 
+export function importGitHubPackage(githubUrl: string) {
+  const form = new FormData();
+  form.set('github_url', githubUrl);
+  return uploadRequest<PackageJob>('PUT', form);
+}
+
 export async function completePackageUpload(
   reservation: PackageReservation,
   source?: File,

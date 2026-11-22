@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   getMyExtension: vi.fn(),
   getRevision: vi.fn(),
   reservePackage: vi.fn(),
+  importGitHubPackage: vi.fn(),
   getPackageJob: vi.fn(),
 }));
 vi.mock('@/lib/session', () => ({ getSessionUser: mocks.getSessionUser }));
@@ -45,6 +46,7 @@ const content: ExtensionUpdate = {
 async function context(
   options: {
     sourceBytes?: number;
+    githubUrl?: string;
     fields?: Record<string, string>;
     baselineHash?: string;
     pending?: boolean;
@@ -69,6 +71,7 @@ async function context(
       },
     ),
   );
+  if (options.githubUrl) form.set('github_url', options.githubUrl);
   if (options.sourceBytes !== undefined) {
     form.set('source_bytes', String(options.sourceBytes));
     form.set('source_sha256', 'a'.repeat(64));
@@ -124,6 +127,35 @@ describe('release package editor', () => {
       { id: 'example', version: '1.0.0' },
       { bytes: 128, sha256: 'a'.repeat(64) },
     );
+  });
+  it('imports a replacement for the same pending version but rejects it after publication', async () => {
+    const githubUrl =
+      'https://github.com/example/module/releases/download/v1.0.0/module.zip';
+    const job = {
+      id: '44444444-4444-4444-8444-444444444444',
+      status: 'queued',
+    };
+    expect((await POST(await context({ fields, githubUrl }))).status).toBe(409);
+    expect(mocks.importGitHubPackage).not.toHaveBeenCalled();
+
+    mocks.getMyExtension.mockResolvedValue({
+      published: null,
+      pending_revision: { id: 'pending', content },
+    });
+    mocks.importGitHubPackage.mockResolvedValue(job);
+    const response = await POST(
+      await context({ fields, githubUrl, pending: true }),
+    );
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      reservation: { kind: 'job', job },
+      details: { date: '2026-11-07' },
+    });
+    expect(mocks.importGitHubPackage).toHaveBeenCalledWith(githubUrl, {
+      id: 'example',
+      version: '1.0.0',
+    });
+    expect(mocks.reservePackage).not.toHaveBeenCalled();
   });
   it('locks a published ZIP but allows changing its date and changelog', async () => {
     expect(

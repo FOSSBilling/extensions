@@ -2444,9 +2444,17 @@ export type PostPackageUploadsResponse =
   PostPackageUploadsResponses[keyof PostPackageUploadsResponses];
 
 export type PostPackagesData = {
-  body: {
-    upload_id: string;
-  };
+  body:
+    | {
+        upload_id: string;
+      }
+    | {
+        github_url: string;
+        target: {
+          id?: string;
+          version?: string;
+        };
+      };
   path?: never;
   query?: never;
   url: '/packages';
